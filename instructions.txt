@@ -1,0 +1,49 @@
+1. Najpierw przeczytaj plik README.md zanim wykonasz jakiekolwiek zadanie.
+2. Nie twórz nowych funkcji ani pomysłów, które nie były opisane lub o które Cię nie poproszono.
+3. Realizuj tylko konkretne polecenia, bez domyślania się ani dopisywania własnych inicjatyw.
+4. Po zakończeniu każdego zadania zaktualizuj plik README.md o dokładny opis:
+   - Co zostało zrobione?
+   - Jakie pliki lub fragmenty kodu zostały zmienione?
+   - Czy są dalsze kroki do wykonania.
+5. Pracujesz nad aplikacją mobilną (układanie grafików pracowniczych):
+   - Interfejs MOBILE-FRIENDLY.
+   - Prostota, szybkość i czytelność.
+6. Dostarczaj gotowe, praktyczne rozwiązania: kod funkcji, fragmenty HTML, CSS, JS, React, backend jeśli potrzebne.
+7. Proponuj tylko najlepsze i najprostsze rozwiązanie.
+8. Jeśli coś wymaga decyzji – zatrzymaj się i zapytaj użytkownika przed kontynuacją.
+9. Zawsze staraj sie aby front end aplikacji dzialal  z backend aplikacji 
+10. Strona jest po angielsku . my tyylko rozmawiamy po polsku . strona w jezyku ANGIELSKIM
+
+Styl odpowiedzi:
+- Krótko, konkretnie, profesjonalnie.
+- Czytelne i gotowe do użycia fragmenty kodu.
+- Zawsze na końcu zapisuj zmiany w README.md. 
+## Persistent UI State
+
+To improve usability and avoid resetting the user interface unnecessarily when navigating:
+
+- Store current tab/section state (e.g. in Admin Settings) using `localStorage` or `sessionStorage`
+- On component mount, read last used section and restore it
+- Do not force-refresh subviews unless required
+- Avoid redirecting user to default tab/view unless no state is found
+
+Example:
+- If user was in `Settings → Preferences`, and returns, keep them there
+- If user last viewed the `Locations` section, restore that tab
+
+Implementation suggestion:
+```js
+// Save on change
+useEffect(() => {
+  localStorage.setItem('adminSettingsTab', activeTab);
+}, [activeTab]);
+
+// Load on mount
+useEffect(() => {
+  const savedTab = localStorage.getItem('adminSettingsTab');
+  if (savedTab) setActiveTab(savedTab);
+}, []);
+
+. jezeli robisz jakis modal to upewnij sie ze literki sa widoczne  na przyklad czarne na bialym tle . 
+. jezeli tworzysz okienko do ustawiania czasu to rob tak aby bylo mozliwe wstawianie czasu co 15 minut (nie 900 sekund) tylko w formacie 00 15 30 45 
+. na widoku mobilnym wyswietlanie powinno byc z minimalnymi marginesami , I jezeli jest kontener jakis to niech zajmuje prawie  cala szerokosc ekranu dla lepszej obslugi i widocznosci zawartych w nim elementow

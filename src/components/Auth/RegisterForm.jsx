@@ -1,0 +1,135 @@
+import { useState } from 'react';
+import { useAuth } from '../../lib/AuthContext';
+import PropTypes from 'prop-types';
+
+export default function RegisterForm({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const { signUp } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const { error } = await signUp(email, password);
+      
+      if (error) throw error;
+      
+      setSuccess('Registration successful! Please check your email for verification instructions.');
+      
+    } catch (error) {
+      setError(error.message || 'Failed to sign up');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="text-center mb-6">
+        <h2 className="text-xl font-semibold text-white">Create Account</h2>
+        <p className="text-sm text-white/80 mt-1">Sign up to get started with Yard Rota</p>
+      </div>
+      
+      {error && (
+        <div className="bg-red-500/20 backdrop-blur-sm text-red-100 p-3 rounded-md mb-4 border border-red-400/30">
+          {error}
+        </div>
+      )}
+      
+      {success && (
+        <div className="bg-green-500/20 backdrop-blur-sm text-green-100 p-3 rounded-md mb-4 border border-green-400/30">
+          {success}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-white text-sm font-medium mb-2">
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-md focus:outline-none focus:border-white/50 text-white"
+            placeholder="your@email.com"
+            required
+          />
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="password" className="block text-white text-sm font-medium mb-2">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-md focus:outline-none focus:border-white/50 text-white"
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="confirm-password" className="block text-white text-sm font-medium mb-2">
+            Confirm Password
+          </label>
+          <input
+            id="confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-md focus:outline-none focus:border-white/50 text-white"
+            required
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-xl text-white py-2 px-4 rounded-md border border-white/30 hover:bg-white/20 focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4 shadow-md"
+        >
+          {loading ? 'Creating account...' : 'Sign Up'}
+        </button>
+        
+        <div className="text-center">
+          <p className="text-white/70 text-sm">
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={onLogin}
+              className="text-white/90 hover:text-white focus:outline-none transition-colors"
+            >
+              Sign in
+            </button>
+          </p>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+RegisterForm.propTypes = {
+  onLogin: PropTypes.func.isRequired
+}; 
