@@ -78,6 +78,8 @@ If you encounter errors:
 
 ## Recent Changes (YYYY-MM-DD)
 
+- **Admin Notification System Fixes:** Fixed issues with the notification system that could cause blank screens. Improved error handling and made components more resilient to database variations. Added fallbacks for database column changes to ensure compatibility with different schema versions.
+- **Admin Notification System:** Added a comprehensive notification system for administrators, featuring a notification bell in the header that displays counts of pending user approvals and notifications. The system includes a dropdown with details and links to the approval page. Real-time updates are provided through Supabase subscriptions.
 - **Improved Shift Headers Visibility:** Enhanced the visibility of "DAY SHIFT", "AFTERNOON SHIFT", and "NIGHT SHIFT" headers in day cards by adding color-coding (yellow for day shifts, orange for afternoon shifts, blue for night shifts), background colors, and better spacing for improved readability on both desktop and mobile views.
 - **Mobile/Week Header Update:** Nagłówek tygodnia w `WeeklyRotaPage.jsx` pokazuje teraz 'Week XX' (np. 'Week 18') bez dwukropka, zamiast zakresu dat. Dotyczy zarówno mobile, jak i desktop. Poprawia czytelność i zgodność z wymaganiami.
 - **Mobile Day Card Collapse:** Implemented collapsible day cards for mobile view (`<md` breakpoint) in `WeeklyRotaPage.jsx`. Added state (`expandedDayMobile`), click handlers, and conditional rendering (`hidden md:block`, `block md:hidden`) to toggle `DayDetails`. Desktop view remains always expanded.

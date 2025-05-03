@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage';
 import { supabase } from './lib/supabaseClient';
 import ResetPassword from './pages/ResetPassword';
 import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
+import { NotificationProvider } from './lib/NotificationContext';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -246,7 +247,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

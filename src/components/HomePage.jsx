@@ -7,16 +7,19 @@ import TeamView from '../pages/TeamView';
 import AdminPage from '../pages/AdminPage';
 import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
+import UserApprovalPage from '../pages/UserApprovalPage';
+import NotificationBell from './NotificationBell';
+import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useNotifications();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileName, setProfileName] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const dropdownRef = useRef(null);
   const avatarButtonRef = useRef(null);
@@ -25,22 +28,20 @@ export default function HomePage() {
   const fetchProfileAndCheckAdmin = useCallback(async () => {
     if (!user) {
       setProfileLoading(false);
-      setIsAdmin(false);
       return;
     }
     
     setProfileLoading(true);
     try {
-      console.log('[HomePage] Fetching profile for nav/admin check...');
+      console.log('[HomePage] Fetching profile for avatar/name data...');
       const { data, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name, avatar_url, role')
+        .select('first_name, last_name, avatar_url')
         .eq('id', user.id)
         .single();
       
       if (error && error.code !== 'PGRST116') {
         console.error('[HomePage] Error fetching profile:', error);
-        setIsAdmin(false);
         return;
       }
       
@@ -51,23 +52,13 @@ export default function HomePage() {
         if (data.first_name || data.last_name) {
           setProfileName(`${data.first_name || ''} ${data.last_name || ''}`);
         }
-        
-        if (data.role === 'admin') {
-          console.log('[HomePage] Admin role confirmed from profile.');
-          setIsAdmin(true);
-        } else {
-          console.log('[HomePage] User is not admin. Role:', data.role);
-          setIsAdmin(false);
-        }
       } else {
         console.log('[HomePage] Profile not found.');
-        setIsAdmin(false);
         setProfileName('');
         setAvatarUrl('');
       }
     } catch (error) {
-      console.error('[HomePage] Error fetching profile/checking admin:', error);
-      setIsAdmin(false);
+      console.error('[HomePage] Error fetching profile:', error);
     } finally {
       setProfileLoading(false);
     }
@@ -77,7 +68,6 @@ export default function HomePage() {
     if (user) {
       fetchProfileAndCheckAdmin();
     } else {
-      setIsAdmin(false);
       setProfileLoading(false);
       setAvatarUrl('');
       setProfileName('');
@@ -277,6 +267,8 @@ export default function HomePage() {
               </svg>
             </button>
             
+            {isAdmin && <NotificationBell />}
+            
             <div className="relative">
               <button 
                 ref={avatarButtonRef}
@@ -399,6 +391,7 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
+          <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>
       </main>
