@@ -385,17 +385,7 @@ const LoginStats = () => {
                   <XAxis dataKey="hour_label" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      padding: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'normal',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)'
-                    }}
-                    itemStyle={{ color: 'white' }}
-                    labelStyle={{ color: 'white', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                   />
                   <Bar dataKey="login_count" name="Logins" fill="#8884d8" />
                 </BarChart>
@@ -425,17 +415,7 @@ const LoginStats = () => {
                   <XAxis dataKey="day_name" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      padding: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'normal',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)'
-                    }}
-                    itemStyle={{ color: 'white' }}
-                    labelStyle={{ color: 'white', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                   />
                   <Bar dataKey="login_count" name="Logins" fill="#00C49F" />
                 </BarChart>
@@ -460,17 +440,7 @@ const LoginStats = () => {
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      padding: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'normal',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)'
-                    }}
-                    itemStyle={{ color: 'white' }}
-                    labelStyle={{ color: 'white', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                   />
                   <Bar dataKey="retention_rate" name="Retention Rate (%)" fill="#FF8042" />
                 </BarChart>
