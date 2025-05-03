@@ -7,6 +7,7 @@ import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
 import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 import UserApprovalPage from './UserApprovalPage';
+import LoginStats from '../components/Admin/LoginStats';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
@@ -187,7 +188,7 @@ export default function AdminPage() {
         <div className="border-b border-white/20 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-md px-6 py-4">
           <div className="overflow-x-auto pb-1">
             <div className="flex flex-nowrap whitespace-nowrap border-b border-white/10 mb-[-1px] min-w-full">
-              {['users', 'approvals', 'availability', 'settings', 'brakes'].map((tab) => (
+              {['users', 'approvals', 'availability', 'settings', 'brakes', 'stats'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -210,6 +211,7 @@ export default function AdminPage() {
           {activeTab === 'availability' && <AvailabilityManager />}
           {activeTab === 'settings' && <SettingsManager supabaseClient={supabase} />}
           {activeTab === 'brakes' && <BrakesManager />}
+          {activeTab === 'stats' && <LoginStats />}
         </div>
       </div>
     </div>

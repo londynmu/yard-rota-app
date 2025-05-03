@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import UserEditForm from './UserEditForm';
+import { formatDistanceToNow } from 'date-fns';
 
 // Create a modal portal component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -316,6 +317,11 @@ export default function UserList({ users, onRefresh }) {
   // Filtered and sorted users
   const [filteredUsers, setFilteredUsers] = useState([]);
   
+  // Last Login info
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoUser, setInfoUser] = useState(null);
+  const [lastLogin, setLastLogin] = useState(null);
+  
   // Log when users data changes
   useEffect(() => {
     console.log('UserList received updated users data:', users);
@@ -480,6 +486,25 @@ export default function UserList({ users, onRefresh }) {
     if (!score) return 'rgba(255, 255, 255, 0.9)';
     if (score >= 60) return 'rgba(0, 0, 0, 0.8)';
     return 'rgba(255, 255, 255, 0.9)';
+  };
+  
+  const openInfoModal = async (user) => {
+    setInfoUser(user);
+    setInfoModalOpen(true);
+    try {
+      const { data, error } = await supabase.rpc('get_user_last_login', { uid: user.id });
+      if (error) throw error;
+      setLastLogin(data);
+    } catch (err) {
+      console.error('Error fetching last login:', err);
+      setLastLogin(null);
+    }
+  };
+
+  const closeInfoModal = () => {
+    setInfoModalOpen(false);
+    setInfoUser(null);
+    setLastLogin(null);
   };
   
   if (error) {
@@ -680,6 +705,17 @@ export default function UserList({ users, onRefresh }) {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    openInfoModal(user);
+                  }}
+                >
+                  Info
+                </button>
+                <button 
+                  type="button"
+                  className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     openEditModal(user);
                   }}
                 >
@@ -775,6 +811,17 @@ export default function UserList({ users, onRefresh }) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      openInfoModal(user);
+                    }}
+                  >
+                    Info
+                  </button>
+                  <button 
+                    type="button"
+                    className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center mr-2 inline-flex"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       openEditModal(user);
                     }}
                   >
@@ -831,6 +878,29 @@ export default function UserList({ users, onRefresh }) {
           />,
           document.body
         )
+      )}
+
+      {/* Info Modal */}
+      {infoModalOpen && (
+        <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
+            <div className="px-6 py-4">
+              <h3 className="text-xl font-bold text-white mb-4">User Information</h3>
+              {infoUser && (
+                <>
+                  <p className="text-white/80 mb-2"><span className="font-semibold text-white">Name:</span> {infoUser.first_name} {infoUser.last_name}</p>
+                  <p className="text-white/80 mb-2"><span className="font-semibold text-white">Email:</span> {infoUser.email}</p>
+                  {lastLogin ? (
+                    <p className="text-white/80 mb-2"><span className="font-semibold text-white">Last login:</span> {new Date(lastLogin).toLocaleString()} ({formatDistanceToNow(new Date(lastLogin), { addSuffix: true })})</p>
+                  ) : (
+                    <p className="text-white/60 mb-2">Last login information not available</p>
+                  )}
+                </>
+              )}
+              <div className="text-right mt-4">
+                <button onClick={closeInfoModal} className="px-4 py-2 bg-blue-500/40 backdrop-blur-sm rounded-lg text-white">Close</button>
+              </div>
+            </div>
+        </Modal>
       )}
     </>
   );
