@@ -346,9 +346,12 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         unavailable_days: unavailableDays.length > 0 ? unavailableDays : null,
         notes_for_admin: notesForAdmin || null,
         agency_id: agencyId,
-        // Set account_status when creating a new profile
-        account_status: 'pending_approval',
       };
+      
+      // Only set account_status to pending_approval for first-time profile creation
+      if (isRequired || simplifiedView) {
+        profileData.account_status = 'pending_approval';
+      }
       
       // Try to include profile_completed field, but if it fails, we'll try without it
       let finalError = null;
