@@ -463,7 +463,7 @@ export default function UserList({ users, onRefresh }) {
   const getScoreBackgroundColor = (score) => {
     if (!score) return 'rgba(75, 85, 99, 0.6)'; // Default gray for no score
     
-    // Create a rainbow gradient effect based on score
+    // Create a color scheme based on score
     if (score >= 90) return 'rgba(16, 185, 129, 0.7)'; // Emerald green (90-99)
     if (score >= 80) return 'rgba(52, 211, 153, 0.7)'; // Light green (80-89)
     if (score >= 70) return 'rgba(167, 243, 208, 0.8)'; // Mint green (70-79)
@@ -473,6 +473,13 @@ export default function UserList({ users, onRefresh }) {
     if (score >= 30) return 'rgba(244, 63, 94, 0.7)'; // Rose/light red (30-39)
     if (score >= 20) return 'rgba(225, 29, 72, 0.7)'; // Medium red (20-29)
     return 'rgba(185, 28, 28, 0.7)'; // Dark red (1-19)
+  };
+  
+  // Get text color for score (to ensure readability)
+  const getScoreTextColor = (score) => {
+    if (!score) return 'rgba(255, 255, 255, 0.9)';
+    if (score >= 60) return 'rgba(0, 0, 0, 0.8)';
+    return 'rgba(255, 255, 255, 0.9)';
   };
   
   if (error) {
@@ -581,9 +588,9 @@ export default function UserList({ users, onRefresh }) {
   
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-white drop-shadow-md">User Management</h1>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={openFilterModal}
             className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white hover:bg-white/20 transition-colors flex items-center shadow-lg"
@@ -595,12 +602,13 @@ export default function UserList({ users, onRefresh }) {
           </button>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white hover:bg-white/20 transition-colors shadow-lg"
+            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white hover:bg-white/20 transition-colors shadow-lg flex items-center"
             aria-label="Refresh"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
             </svg>
+            Refresh
           </button>
         </div>
       </div>
@@ -609,21 +617,108 @@ export default function UserList({ users, onRefresh }) {
           {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift} shift)` : ''}
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-white/10">
-          <thead className="bg-gradient-to-r from-blue-900/80 to-purple-900/80 backdrop-blur-xl sticky top-0 z-10 shadow-md">
+
+      {/* Mobile card view (visible on small screens) */}
+      <div className="md:hidden space-y-3">
+        {filteredUsers.map((user) => (
+          <div key={user.id} className="bg-black/40 backdrop-blur-xl border border-white/20 rounded-lg shadow-md overflow-hidden">
+            <div className="p-3 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 h-10 w-10 mr-3">
+                  {user.avatar_url ? (
+                    <img className="h-10 w-10 rounded-full border-2 border-white/30 shadow-md" src={user.avatar_url} alt="" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-xl flex items-center justify-center border-2 border-white/30 shadow-md">
+                      <span className="text-white font-medium">
+                        {user.first_name?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-white font-medium">
+                    {user.first_name || ''} {user.last_name || ''}
+                  </div>
+                </div>
+              </div>
+              
+              <div 
+                className="text-center py-1 px-3 rounded-md text-base font-bold w-12 h-8 flex items-center justify-center"
+                style={{
+                  backgroundColor: getScoreBackgroundColor(user.performance_score),
+                  color: getScoreTextColor(user.performance_score),
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                }}
+              >
+                {user.performance_score || '–'}
+              </div>
+            </div>
+            
+            <div className="p-3 flex flex-wrap gap-2 justify-between items-center">
+              <div className="flex gap-2 flex-wrap">
+                <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
+                  ${user.shift_preference === 'day' ? 'bg-yellow-500/40 text-yellow-100' : 
+                  user.shift_preference === 'afternoon' ? 'bg-blue-500/40 text-blue-100' : 
+                  user.shift_preference === 'night' ? 'bg-indigo-500/40 text-indigo-100' : 
+                  'bg-white/10 text-white'}`}>
+                  {user.shift_preference || 'Not set'}
+                </span>
+                
+                <span 
+                  className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
+                    ${user.is_active === false ? 'bg-red-500/40 text-red-100' : 
+                    'bg-green-500/40 text-green-100'}`}
+                >
+                  {user.is_active === false ? 'Inactive' : 'Active'}
+                </span>
+              </div>
+              
+              <div className="flex gap-2 mt-2 sm:mt-0">
+                <button 
+                  type="button"
+                  className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openEditModal(user);
+                  }}
+                >
+                  Edit
+                </button>
+                <button 
+                  type="button"
+                  className="w-16 h-8 bg-red-600/60 backdrop-blur-md rounded-md text-white hover:bg-red-600/80 transition-colors flex items-center justify-center"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDeleteModal(user);
+                  }}
+                  disabled={processingUser === user.id}
+                >
+                  {processingUser === user.id ? '...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table view (hidden on small screens) */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="min-w-full divide-y divide-white/10 border border-white/20 rounded-lg overflow-hidden">
+          <thead className="bg-gradient-to-r from-blue-900/90 to-purple-900/90 backdrop-blur-xl sticky top-0 z-10 shadow-md">
             <tr>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team Member</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Shift</th>
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Score</th>
-              <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Actions</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Team Member</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Shift</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Status</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Score</th>
+              <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10 bg-black/30 backdrop-blur-md">
+          <tbody className="divide-y divide-white/10 bg-black/40 backdrop-blur-md">
             {filteredUsers.map((user) => (
               <tr key={user.id} className="hover:bg-white/10 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-3 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
                       {user.avatar_url ? (
@@ -643,42 +738,40 @@ export default function UserList({ users, onRefresh }) {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border 
-                    ${user.shift_preference === 'day' ? 'bg-yellow-500/40 text-yellow-100 border-yellow-400/40' : 
-                    user.shift_preference === 'afternoon' ? 'bg-blue-500/40 text-blue-100 border-blue-400/40' : 
-                    user.shift_preference === 'night' ? 'bg-indigo-500/40 text-indigo-100 border-indigo-400/40' : 
-                    'bg-white/10 text-white border-white/30'}`}>
+                <td className="px-6 py-3 whitespace-nowrap">
+                  <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
+                    ${user.shift_preference === 'day' ? 'bg-yellow-500/40 text-yellow-100' : 
+                    user.shift_preference === 'afternoon' ? 'bg-blue-500/40 text-blue-100' : 
+                    user.shift_preference === 'night' ? 'bg-indigo-500/40 text-indigo-100' : 
+                    'bg-white/10 text-white'}`}>
                     {user.shift_preference || 'Not set'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-6 py-3 whitespace-nowrap text-center">
                   <span 
-                    className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border
-                      ${user.is_active === false ? 'bg-red-500/40 text-red-100 border-red-400/40' : 
-                      'bg-green-500/40 text-green-100 border-green-400/40'}`}
+                    className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
+                      ${user.is_active === false ? 'bg-red-500/40 text-red-100' : 
+                      'bg-green-500/40 text-green-100'}`}
                   >
                     {user.is_active === false ? 'Inactive' : 'Active'}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
+                <td className="px-6 py-3 whitespace-nowrap text-center">
                   <div 
-                    className="inline-flex items-center justify-center px-3 py-1.5 rounded-full text-xs font-bold w-14 h-14" 
+                    className="w-12 h-8 inline-flex items-center justify-center rounded-md text-base font-bold" 
                     style={{
-                      background: `radial-gradient(circle, ${getScoreBackgroundColor(user.performance_score)} 70%, rgba(0, 0, 0, 0.3) 100%)`,
-                      border: '2px solid rgba(255, 255, 255, 0.3)',
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.2)'
+                      backgroundColor: getScoreBackgroundColor(user.performance_score),
+                      color: getScoreTextColor(user.performance_score),
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
                     }}
                   >
-                    <div className="text-white text-base font-bold">
-                      {user.performance_score || '–'}
-                    </div>
+                    {user.performance_score || '–'}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-right">
                   <button 
                     type="button"
-                    className="px-3 py-1 bg-blue-500/40 backdrop-blur-md border border-blue-400/40 rounded-lg text-white hover:bg-blue-500/60 transition-colors mr-2"
+                    className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center mr-2 inline-flex"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -689,7 +782,7 @@ export default function UserList({ users, onRefresh }) {
                   </button>
                   <button 
                     type="button"
-                    className="px-3 py-1 bg-red-500/40 backdrop-blur-md border border-red-400/40 rounded-lg text-white hover:bg-red-500/60 transition-colors"
+                    className="w-16 h-8 bg-red-600/60 backdrop-blur-md rounded-md text-white hover:bg-red-600/80 transition-colors flex items-center justify-center inline-flex"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -697,7 +790,7 @@ export default function UserList({ users, onRefresh }) {
                     }}
                     disabled={processingUser === user.id}
                   >
-                    {processingUser === user.id ? 'Deleting...' : 'Delete'}
+                    {processingUser === user.id ? '...' : 'Delete'}
                   </button>
                 </td>
               </tr>

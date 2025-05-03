@@ -190,7 +190,7 @@ export default function MyBreakInfo() {
                       shiftsToRender.push({ name: 'Afternoon Shift', breaks: breakInfo.breaksByShift.afternoon, className: 'text-purple-200 border-purple-500/30' });
                     }
 
-                    return shiftsToRender.map(shift => {
+                    return shiftsToRender.map((shift, shiftIndex) => {
                       // Filter out breaks without profile info and group by user
                       const groupedByUser = shift.breaks
                         .filter(b => b.profiles) // Filter out breaks without user profile
@@ -213,20 +213,24 @@ export default function MyBreakInfo() {
                         }, {});
 
                       return (
-                        <div key={shift.name} className="space-y-2">
+                        <div key={`${shift.name}-${shiftIndex}`} className="space-y-2">
                           <h4 className={`text-md font-medium ${shift.className} border-b pb-1`}>{shift.name}</h4>
                           <div className="space-y-1">
-                            {Object.values(groupedByUser).map(userData => (
+                            {Object.values(groupedByUser).map((userData, userIndex) => (
                               <div
-                                key={userData.profile.id} // Use profile ID as key
+                                key={userData.profile?.id ? `user-${userData.profile.id}` : `user-index-${shiftIndex}-${userIndex}`}
                                 className={`py-1.5 px-2.5 rounded-md flex justify-between items-center flex-wrap ${
                                   userData.isCurrentUser ? 'bg-blue-900/40 border border-blue-400/30 font-bold' : 'bg-black/20'
                                 }`}
                               >
-                                <span className="mr-3 font-medium">{`${userData.profile.first_name} ${userData.profile.last_name}`}</span>
+                                <span className="mr-3 font-medium">
+                                  {userData.profile ? 
+                                    `${userData.profile.first_name || 'Unknown'} ${userData.profile.last_name || 'User'}` : 
+                                    'Unknown User'}
+                                </span>
                                 <span className="text-sm text-white/90 flex-grow text-right">
                                   {userData.breaks.map((b, index) => (
-                                    <span key={`${userData.profile.id}-break-${index}`}>
+                                    <span key={`break-${shiftIndex}-${userIndex}-${index}`}>
                                       {index > 0 ? ' / ' : ''}
                                       {`${b.start} (${b.duration}m)`}
                                     </span>

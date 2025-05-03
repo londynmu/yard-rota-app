@@ -3,9 +3,11 @@ import { AuthProvider, useAuth } from './lib/AuthContext';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Auth from './components/Auth/Auth';
 import HomePage from './components/HomePage';
-import ProfileCompletion from './components/Auth/ProfileCompletion';
+import ProfileRequiredCheck from './components/Auth/ProfileRequiredCheck';
+import ProfilePage from './pages/ProfilePage';
 import { supabase } from './lib/supabaseClient';
 import ResetPassword from './pages/ResetPassword';
+import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -18,6 +20,7 @@ function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [accountStatus, setAccountStatus] = useState(null);
   const [error, setError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,6 +37,7 @@ function AppContent() {
     user: !!user,
     isCheckingProfile,
     isProfileComplete,
+    accountStatus,
     pathname: location.pathname,
     hasAuthHash // Log the hash check
   });
@@ -80,7 +84,7 @@ function AppContent() {
     checkUrlAndRedirect();
   }, [location, navigate]);
 
-  // Check if user's profile is complete
+  // Check if user's profile is complete and account status
   useEffect(() => {
     // Prevent multiple profile checks in the same render cycle
     if (!user || profileCheckRef.current) {
@@ -96,6 +100,7 @@ function AppContent() {
       // Specjalny przypadek dla administratora - omijamy sprawdzanie profilu
       if (user.email === 'tideend@gmail.com' || user.role === 'service_role') {
         setIsProfileComplete(true);
+        setAccountStatus('approved'); // Admins are always approved
         setIsCheckingProfile(false);
         return;
       }
@@ -103,24 +108,22 @@ function AppContent() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('first_name, last_name, shift_preference')
+          .select('profile_completed, account_status')
           .eq('id', user.id)
           .single();
 
         if (error) {
           if (error.code === 'PGRST116') {
             setIsProfileComplete(false);
+            setAccountStatus(null);
           } else {
             console.error('Error checking profile completion:', error);
             setError(error.message);
           }
         } else {
-          const complete = !!(data && 
-                           data.first_name && 
-                           data.last_name && 
-                           data.shift_preference);
-          
+          const complete = !!data?.profile_completed;
           setIsProfileComplete(complete);
+          setAccountStatus(data?.account_status || 'approved'); // Default to approved for existing users
         }
       } catch (error) {
         console.error('Error in profile check:', error);
@@ -180,10 +183,10 @@ function AppContent() {
 
   // If user exists, but we are still checking profile OR we know profile is not complete
   if (user && (isCheckingProfile || !isProfileComplete)) {
-    // Specjalny przypadek dla administratora próbującego wejść na stronę /admin
+    // Specjalny przypadek dla administratora próbującego wejść na stronę /admin lub /rota-planner
     if ((user.email === 'tideend@gmail.com' || user.role === 'service_role') && 
-        location.pathname === '/admin') {
-      console.log('[AppContent Decision] Admin user accessing /admin - skipping profile check');
+        (location.pathname === '/admin' || location.pathname === '/rota-planner')) {
+      console.log('[AppContent Decision] Admin user accessing protected route - skipping profile check');
       return <HomePage />;
     }
     
@@ -197,12 +200,25 @@ function AppContent() {
         </div>
       );
     } else {
-      console.log('[AppContent Decision] Rendering ProfileCompletion Form...');
+      console.log('[AppContent Decision] Rendering Full Profile Form...');
       return (
-        <ProfileCompletion 
-          onComplete={() => setIsProfileComplete(true)} 
-        />
+        <ProfilePage isRequired={true} supabaseClient={supabase} simplifiedView={true} />
       );
+    }
+  }
+
+  // If user has a complete profile but is pending approval or rejected
+  if (user && isProfileComplete && accountStatus && accountStatus !== 'approved') {
+    // Special case for admin paths - always allow access for admins
+    if ((user.email === 'tideend@gmail.com' || user.role === 'service_role') && 
+        (location.pathname === '/admin' || location.pathname === '/rota-planner')) {
+      return <HomePage />;
+    }
+  
+    // Redirect to waiting for approval page if user is pending approval or rejected
+    // but trying to access a different page
+    if (location.pathname !== '/waiting-for-approval') {
+      return <Navigate to="/waiting-for-approval" replace />;
     }
   }
 
@@ -212,8 +228,17 @@ function AppContent() {
     <Routes>
       <Route path="/login" element={!user ? <Auth /> : <Navigate to="/" replace />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      {/* Show HomePage only if user exists, profile check finished, and profile is complete */}
-      <Route path="/*" element={(user && !isCheckingProfile && isProfileComplete) ? <HomePage /> : <Navigate to="/login" replace />} />
+      <Route path="/waiting-for-approval" element={<WaitingForApprovalPage />} />
+      {/* Show HomePage only if user exists, profile check finished, profile is complete, and account is approved */}
+      <Route path="/*" element={
+        (user && !isCheckingProfile && isProfileComplete && (!accountStatus || accountStatus === 'approved')) ? (
+          <ProfileRequiredCheck>
+            <HomePage />
+          </ProfileRequiredCheck>
+        ) : (
+          <Navigate to={user && isProfileComplete ? "/waiting-for-approval" : "/login"} replace />
+        )
+      } />
     </Routes>
   );
 }

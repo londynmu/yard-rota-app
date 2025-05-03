@@ -20,6 +20,7 @@ const RotaManager = () => {
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [slotToEdit, setSlotToEdit] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState('all'); // 'all' or specific location name
   const [newSlot, setNewSlot] = useState({
     shift_type: 'day',
     location: '',
@@ -57,6 +58,12 @@ const RotaManager = () => {
             location: locationExists ? savedLocation : data[0].name 
           }));
         }
+
+        // Also load the last selected location view from localStorage
+        const lastSelectedLocation = localStorage.getItem('selected_rota_location_view');
+        if (lastSelectedLocation) {
+          setSelectedLocation(lastSelectedLocation);
+        }
       } catch (error) {
         console.error('Error fetching locations:', error);
         setError('Failed to load locations');
@@ -71,7 +78,8 @@ const RotaManager = () => {
     const fetchSlots = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        // Base query
+        let query = supabase
           .from('scheduled_rota')
           .select(`
             id,
@@ -84,6 +92,13 @@ const RotaManager = () => {
             user_id
           `)
           .eq('date', currentDate);
+        
+        // Add location filter if a specific location is selected
+        if (selectedLocation !== 'all') {
+          query = query.eq('location', selectedLocation);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -122,7 +137,7 @@ const RotaManager = () => {
     };
 
     fetchSlots();
-  }, [currentDate]);
+  }, [currentDate, selectedLocation]); // Add selectedLocation as dependency
 
   // Dodaję funkcję do automatycznego usuwania komunikatu sukcesu po 3 sekundach
   useEffect(() => {
@@ -662,6 +677,13 @@ const RotaManager = () => {
     return format(dateObj, 'EEE'); // Short day name
   };
 
+  // Handle location change
+  const handleLocationChange = (e) => {
+    const location = e.target.value;
+    setSelectedLocation(location);
+    localStorage.setItem('selected_rota_location_view', location);
+  };
+
   if (loading && !slots.length) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -673,6 +695,21 @@ const RotaManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
+        <div className="w-full">
+          <select
+            value={selectedLocation}
+            onChange={handleLocationChange}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition-colors"
+          >
+            <option value="all">All Locations</option>
+            {locations.map(location => (
+              <option key={location.id} value={location.name}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
         <div className="w-full">
           <div className="relative flex items-center overflow-hidden rounded-md border border-white/20 bg-white/10 backdrop-blur-sm">
             <button 
@@ -723,7 +760,7 @@ const RotaManager = () => {
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 w-full">
           <button
             onClick={() => setShowAddSlotModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors"
@@ -733,13 +770,13 @@ const RotaManager = () => {
           
           <button
             onClick={handleCopyFromPreviousWeek}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors flex items-center"
+            className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors flex items-center justify-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
               <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
               <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
             </svg>
-            Copy From Previous Week
+            <span>Copy Last Week</span>
           </button>
         </div>
       </div>

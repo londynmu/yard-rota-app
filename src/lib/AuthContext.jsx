@@ -98,37 +98,54 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     try {
-      // Wywołanie standardowej metody Supabase do wylogowania
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Error during sign out:', error);
-        return { error };
-      }
-      
-      // Aktualizacja stanu komponentu
+      // 1. Immediately update local state
       setUser(null);
       
-      // Sprawdź, czy jesteśmy na localhost czy na produkcji i odpowiednio przekieruj
+      // 2. Attempt to sign out from Supabase (global scope)
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (signOutError) {
+        console.error('Error during Supabase sign out API call:', signOutError);
+        // Log the error but proceed with client-side cleanup
+      }
+      
+      // 3. Aggressively clear all client-side storage
+      // This is crucial to prevent the listener from picking up old tokens
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 4. Add a slightly longer delay to ensure cleanup completes before redirect
+      await new Promise(resolve => setTimeout(resolve, 200)); 
+      
+      // 5. Redirect using window.location.replace to clear history
       const isLocalhost = window.location.hostname === 'localhost' || 
                           window.location.hostname === '127.0.0.1';
       
-      // Pozostań na lokalnym środowisku jeśli jesteś na localhost
       if (isLocalhost) {
-        // Przekieruj do lokalnej strony logowania bez zmiany domeny
-        window.location.href = '/login';
+        window.location.replace('/login');
       } else {
-        // Na produkcji przekieruj do produkcyjnego URL
-        window.location.href = `${siteUrl}/login`;
+        window.location.replace(`${siteUrl}/login`);
       }
       
       return { error: null };
+
     } catch (error) {
-      console.error('Exception during sign out:', error);
+      // Catch any unexpected errors during the overall process
+      console.error('Unexpected exception during sign out process:', error);
       
-      // W przypadku błędu, spróbuj standardowej metody wylogowania
-      await supabase.auth.signOut();
+      // Fallback cleanup just in case
       setUser(null);
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Fallback redirect
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1';
+      if (isLocalhost) {
+        window.location.replace('/login');
+      } else {
+        window.location.replace(`${siteUrl}/login`);
+      }
       
       return { error };
     }
@@ -150,7 +167,6 @@ AuthProvider.propTypes = {
   children: PropTypes.node.isRequired
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 } 

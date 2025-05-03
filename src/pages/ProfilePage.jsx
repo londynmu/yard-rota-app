@@ -35,6 +35,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [locations, setLocations] = useState([]);
   // Page visit timestamp to force location refresh
   const [pageVisit] = useState(Date.now());
+  // Add agency state
+  const [agencies, setAgencies] = useState([]);
+  const [agencyId, setAgencyId] = useState(null);
 
   // Check for network connectivity
   useEffect(() => {
@@ -102,6 +105,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setMaxDailyHours(data.max_daily_hours || '');
         setUnavailableDays(data.unavailable_days || []);
         setNotesForAdmin(data.notes_for_admin || '');
+        setAgencyId(data.agency_id || null);
       }
       setProfileLoaded(true);
     } catch (error) {
@@ -149,6 +153,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       if (!supabaseClient) return;
       
       try {
+        // Log the fetch attempt
+        console.log('Fetching locations from database...');
+        
         const { data, error } = await supabaseClient
           .from('locations')
           .select('id, name')
@@ -157,10 +164,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           
         if (error) throw error;
         
+        console.log('Locations data received:', data);
+        
         if (data && data.length > 0) {
           setLocations(data);
         } else {
           // Fallback to default locations if none found
+          console.log('No locations found, using fallback values');
           setLocations([
             { id: '1', name: 'Main Hub' },
             { id: '2', name: 'NRC' }
@@ -178,6 +188,26 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     
     fetchLocations();
   }, [supabaseClient, pageVisit]);
+
+  // Fetch agencies
+  useEffect(() => {
+    const fetchAgencies = async () => {
+      try {
+        const { data, error } = await supabaseClient
+          .from('agencies')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+          
+        if (error) throw error;
+        setAgencies(data || []);
+      } catch (error) {
+        console.error('Error fetching agencies:', error);
+      }
+    };
+    
+    fetchAgencies();
+  }, [supabaseClient]);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
@@ -200,21 +230,34 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       errors.shiftPreference = 'Please select your preferred shift';
     }
     
-    // Validate Rota Planner fields
+    // Make preferred location required
+    if (!preferredLocation) {
+      errors.preferredLocation = 'Preferred location is required';
+    }
+    
+    // Make max daily hours required
+    if (!maxDailyHours) {
+      errors.maxDailyHours = 'Maximum daily hours is required';
+    } else if (maxDailyHours > 24 || maxDailyHours < 1) {
+      errors.maxDailyHours = 'Maximum daily hours must be between 1 and 24';
+    }
+    
+    // Make custom start time required
+    if (!customStartTime) {
+      errors.customStartTime = 'Preferred start time is required';
+    }
+    
+    // Make custom end time required
+    if (!customEndTime) {
+      errors.customEndTime = 'Preferred end time is required';
+    }
+    
+    // Validate time range
     if (customStartTime && customEndTime && customStartTime === customEndTime) {
       errors.timeRange = 'Start time and end time cannot be the same';
       setToast({ 
         visible: true, 
         message: 'Start time and end time cannot be the same', 
-        type: 'error' 
-      });
-    }
-    
-    if (maxDailyHours && (maxDailyHours > 24 || maxDailyHours < 1)) {
-      errors.maxDailyHours = 'Maximum daily hours must be between 1 and 24';
-      setToast({ 
-        visible: true, 
-        message: 'Maximum daily hours must be between 1 and 24', 
         type: 'error' 
       });
     }
@@ -301,7 +344,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         preferred_location: preferredLocation || null,
         max_daily_hours: maxDailyHours || null,
         unavailable_days: unavailableDays.length > 0 ? unavailableDays : null,
-        notes_for_admin: notesForAdmin || null
+        notes_for_admin: notesForAdmin || null,
+        agency_id: agencyId,
+        // Set account_status when creating a new profile
+        account_status: 'pending_approval',
       };
       
       // Try to include profile_completed field, but if it fails, we'll try without it
@@ -347,9 +393,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         throw finalError; // Throw the determined error
       }
       
-      // Always redirect to calendar when simplified or required
+      // Redirect to waiting for approval page instead of calendar when creating profile
       if (simplifiedView || isRequired) {
-        window.location.href = '/calendar';
+        window.location.href = '/waiting-for-approval';
         return;
       }
       
@@ -660,7 +706,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Custom Start Time */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="customStartTime">
-                  Preferred Start Time <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred Start Time {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
                 <input
@@ -668,8 +714,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customStartTime"
                   value={customStartTime}
                   onChange={handleCustomStartTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.customStartTime ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
+                {formErrors.customStartTime && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.customStartTime}</p>
+                )}
                 {checkTimeRange() && (
                   <p className="text-sm text-blue-300 italic mt-1">
                     This time range extends to the next day
@@ -680,7 +731,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Custom End Time */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="customEndTime">
-                  Preferred End Time <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred End Time {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Time until which you can work. Helps to better match you to slots in the schedule." />
                 </label>
                 <input
@@ -688,8 +739,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customEndTime"
                   value={customEndTime}
                   onChange={handleCustomEndTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.customEndTime || formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
+                {formErrors.customEndTime && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.customEndTime}</p>
+                )}
                 {formErrors.timeRange && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.timeRange}</p>
                 )}
@@ -698,27 +754,40 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Preferred Location */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="preferredLocation">
-                  Preferred Location <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred Location {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
                 <select
                   id="preferredLocation"
                   value={preferredLocation}
                   onChange={handlePreferredLocationChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.preferredLocation ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 >
                   <option value="" disabled className="text-gray-800">Select location...</option>
-                  {locations.map(location => (
-                    <option key={location.id} value={location.name} className="text-gray-800">{location.name}</option>
-                  ))}
-                  <option value="Both" className="text-gray-800">Both</option>
+                  {locations && locations.length > 0 ? (
+                    locations.map(location => (
+                      <option key={location.id} value={location.name} className="text-gray-800">
+                        {location.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Main Hub" className="text-gray-800">Main Hub</option>
+                      <option value="NRC" className="text-gray-800">NRC</option>
+                    </>
+                  )}
                 </select>
+                {formErrors.preferredLocation && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.preferredLocation}</p>
+                )}
               </div>
               
               {/* Max Daily Hours */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="maxDailyHours">
-                  Maximum Daily Hours <span className="text-xs text-white/70">(Optional)</span>
+                  Maximum Daily Hours {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Maximum number of hours you can work in a single day. Used to ensure you're not scheduled for longer shifts than desired." />
                 </label>
                 <input
@@ -728,7 +797,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   max="24"
                   value={maxDailyHours}
                   onChange={(e) => setMaxDailyHours(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
                 {formErrors.maxDailyHours && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.maxDailyHours}</p>
@@ -782,6 +853,27 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   placeholder="Any special requirements or notes..."
                 ></textarea>
               </div>
+            </div>
+            
+            {/* Agency Selection */}
+            <div className="mb-4">
+              <label htmlFor="agency" className="block text-white font-medium mb-2">
+                Agency <span className="text-xs text-white/70">(Optional)</span>
+              </label>
+              <select
+                id="agency"
+                value={agencyId || ''}
+                onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+              >
+                <option value="">None (Direct Employment)</option>
+                {agencies.map(agency => (
+                  <option key={agency.id} value={agency.id}>{agency.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-white/60">
+                If you work through a recruitment agency, please select it here
+              </p>
             </div>
             
             {/* Submit Button */}
@@ -1008,7 +1100,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Custom Start Time */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="customStartTime">
-                  Preferred Start Time <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred Start Time {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
                 <input
@@ -1016,8 +1108,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customStartTime"
                   value={customStartTime}
                   onChange={handleCustomStartTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.customStartTime ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
+                {formErrors.customStartTime && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.customStartTime}</p>
+                )}
                 {checkTimeRange() && (
                   <p className="text-sm text-blue-300 italic mt-1">
                     This time range extends to the next day
@@ -1028,7 +1125,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Custom End Time */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="customEndTime">
-                  Preferred End Time <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred End Time {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Time until which you can work. Helps to better match you to slots in the schedule." />
                 </label>
                 <input
@@ -1036,8 +1133,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customEndTime"
                   value={customEndTime}
                   onChange={handleCustomEndTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.customEndTime || formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
+                {formErrors.customEndTime && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.customEndTime}</p>
+                )}
                 {formErrors.timeRange && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.timeRange}</p>
                 )}
@@ -1046,27 +1148,40 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               {/* Preferred Location */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="preferredLocation">
-                  Preferred Location <span className="text-xs text-white/70">(Optional)</span>
+                  Preferred Location {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
                 <select
                   id="preferredLocation"
                   value={preferredLocation}
                   onChange={handlePreferredLocationChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.preferredLocation ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 >
                   <option value="" disabled className="text-gray-800">Select location...</option>
-                  {locations.map(location => (
-                    <option key={location.id} value={location.name} className="text-gray-800">{location.name}</option>
-                  ))}
-                  <option value="Both" className="text-gray-800">Both</option>
+                  {locations && locations.length > 0 ? (
+                    locations.map(location => (
+                      <option key={location.id} value={location.name} className="text-gray-800">
+                        {location.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Main Hub" className="text-gray-800">Main Hub</option>
+                      <option value="NRC" className="text-gray-800">NRC</option>
+                    </>
+                  )}
                 </select>
+                {formErrors.preferredLocation && (
+                  <p className="text-sm text-red-300 mt-1">{formErrors.preferredLocation}</p>
+                )}
               </div>
               
               {/* Max Daily Hours */}
               <div className="mb-4">
                 <label className="block text-white font-medium mb-2" htmlFor="maxDailyHours">
-                  Maximum Daily Hours <span className="text-xs text-white/70">(Optional)</span>
+                  Maximum Daily Hours {isRequired && <span className="text-red-300">*</span>}
                   <Tooltip message="Maximum number of hours you can work in a single day. Used to ensure you're not scheduled for longer shifts than desired." />
                 </label>
                 <input
@@ -1076,7 +1191,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   max="24"
                   value={maxDailyHours}
                   onChange={(e) => setMaxDailyHours(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
+                    formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
+                  }`}
                 />
                 {formErrors.maxDailyHours && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.maxDailyHours}</p>
@@ -1130,6 +1247,27 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   placeholder="Any special requirements or notes..."
                 ></textarea>
               </div>
+            </div>
+            
+            {/* Agency Selection */}
+            <div className="mb-4">
+              <label htmlFor="agency" className="block text-white font-medium mb-2">
+                Agency <span className="text-xs text-white/70">(Optional)</span>
+              </label>
+              <select
+                id="agency"
+                value={agencyId || ''}
+                onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
+              >
+                <option value="">None (Direct Employment)</option>
+                {agencies.map(agency => (
+                  <option key={agency.id} value={agency.id}>{agency.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-white/60">
+                If you work through a recruitment agency, please select it here
+              </p>
             </div>
             
             {/* Submit Button */}

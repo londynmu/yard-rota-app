@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import UserList from '../components/Admin/UserList';
 import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
 import BrakesManager from '../components/Admin/Brakes/BrakesManager';
-import RotaManager from '../components/Admin/Rota/RotaManager';
+import UserApprovalPage from './UserApprovalPage';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
   const { user, loading: authLoading } = useAuth(); 
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   // Stan ładowania teraz dla całej strony (auth + profil + dane userów)
   const [pageLoading, setPageLoading] = useState(true); 
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(() => {
     // Użyj wartości z localStorage, jeśli istnieje, w przeciwnym razie użyj domyślnej wartości 'users'
-    return localStorage.getItem('adminActiveTab') || 'users';
+    const savedTab = localStorage.getItem('adminActiveTab');
+    // If saved tab is 'rota', we'll let the effect handle it
+    return savedTab && savedTab !== 'rota' ? savedTab : 'users';
   });
   const [isAdmin, setIsAdmin] = useState(false); 
+
+  // Check if we need to redirect to the new Rota Planner page
+  useEffect(() => {
+    const savedTab = localStorage.getItem('adminActiveTab');
+    if (savedTab === 'rota') {
+      // Update the saved tab to prevent future redirects
+      localStorage.setItem('adminActiveTab', 'users');
+      // Redirect to the new Rota Planner page
+      navigate('/rota-planner');
+    }
+  }, [navigate]);
 
   // Efekt do zapisywania aktywnej zakładki w localStorage
   useEffect(() => {
@@ -172,7 +187,7 @@ export default function AdminPage() {
         <div className="border-b border-white/20 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-md px-6 py-4">
           <div className="overflow-x-auto pb-1">
             <div className="flex flex-nowrap whitespace-nowrap border-b border-white/10 mb-[-1px] min-w-full">
-              {['users', 'availability', 'settings', 'brakes', 'rota'].map((tab) => (
+              {['users', 'approvals', 'availability', 'settings', 'brakes'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -191,10 +206,10 @@ export default function AdminPage() {
         
         <div className="p-6">
           {activeTab === 'users' && <UserList users={users} setUsers={setUsers} onRefresh={fetchUsers} />}
+          {activeTab === 'approvals' && <UserApprovalPage />}
           {activeTab === 'availability' && <AvailabilityManager />}
           {activeTab === 'settings' && <SettingsManager supabaseClient={supabase} />}
           {activeTab === 'brakes' && <BrakesManager />}
-          {activeTab === 'rota' && <RotaManager />}
         </div>
       </div>
     </div>

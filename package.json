@@ -8,11 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "devtools": "npx react-devtools"
+    "devtools": "npx react-devtools",
+    "logout-all": "node scripts/logout-all-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.5",
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-big-calendar": "^1.18.0",

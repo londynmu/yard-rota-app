@@ -5,6 +5,8 @@ import CalendarPage from '../pages/CalendarPage';
 import ProfilePage from '../pages/ProfilePage';
 import TeamView from '../pages/TeamView';
 import AdminPage from '../pages/AdminPage';
+import RotaPlannerPage from '../pages/RotaPlannerPage';
+import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import { supabase } from '../lib/supabaseClient';
 
 export default function HomePage() {
@@ -19,22 +21,6 @@ export default function HomePage() {
   const dropdownRef = useRef(null);
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
-  
-  // Dodajemy hook dla opóźnionego loadera profilu
-  const [showProfileLoader, setShowProfileLoader] = useState(false);
-  
-  // Hook musi być na najwyższym poziomie komponentu
-  useEffect(() => {
-    if (profileLoading) {
-      const timer = setTimeout(() => {
-        setShowProfileLoader(true);
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    } else {
-      setShowProfileLoader(false);
-    }
-  }, [profileLoading]);
 
   const fetchProfileAndCheckAdmin = useCallback(async () => {
     if (!user) {
@@ -155,10 +141,12 @@ export default function HomePage() {
     
     if (path === '/' || path === '/calendar') return 'Main Page';
     if (path === '/team') return 'Team View';
+    if (path === '/my-rota') return 'My Rota';
     if (path === '/admin') return 'Admin Dashboard';
     if (path === '/profile') return 'Your Profile';
+    if (path === '/rota-planner') return 'Rota Planner';
     
-    return 'Shunters.net';
+    return 'My Rota';
   };
 
   if (location.pathname === '/' || location.pathname === '') {
@@ -208,22 +196,9 @@ export default function HomePage() {
   };
 
   if (profileLoading) {
-    if (!showProfileLoader) {
-      // Renderuj pustą zawartość zamiast pełnego ekranu ładowania
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 flex flex-col">
-          <header className="backdrop-blur-xl bg-black/60 shadow-lg border-b border-white/30 relative z-10">
-            <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-white">Shunters.net</h1>
-            </div>
-          </header>
-        </div>
-      );
-    }
-    
+    // Return completely empty loading state with just background
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-        <div className="h-14 w-14 border-t-2 border-b-2 border-white/90"></div>
+      <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500">
       </div>
     );
   }
@@ -256,17 +231,39 @@ export default function HomePage() {
               >
                 Team View
               </Link>
+              <Link
+                to="/my-rota"
+                className={`px-4 py-2 text-sm font-medium ${
+                  location.pathname === '/my-rota' 
+                    ? 'text-white font-bold' 
+                    : 'text-white/80'
+                }`}
+              >
+                My Rota
+              </Link>
               {isAdmin && (
-                <Link
-                  to="/admin"
-                  className={`px-4 py-2 text-sm font-medium ${
-                    location.pathname === '/admin' 
-                      ? 'text-white font-bold' 
-                      : 'text-white/80'
-                  }`}
-                >
-                  Admin Panel
-                </Link>
+                <>
+                  <Link
+                    to="/admin"
+                    className={`px-4 py-2 text-sm font-medium ${
+                      location.pathname === '/admin' 
+                        ? 'text-white font-bold' 
+                        : 'text-white/80'
+                    }`}
+                  >
+                    Admin Panel
+                  </Link>
+                  <Link
+                    to="/rota-planner"
+                    className={`px-4 py-2 text-sm font-medium ${
+                      location.pathname === '/rota-planner' 
+                        ? 'text-white font-bold' 
+                        : 'text-white/80'
+                    }`}
+                  >
+                    Rota Planner
+                  </Link>
+                </>
               )}
             </nav>
             
@@ -333,18 +330,42 @@ export default function HomePage() {
               >
                 Team View
               </Link>
+              <Link
+                to="/my-rota"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                  location.pathname === '/my-rota' 
+                    ? 'text-white font-bold' 
+                    : 'text-white/80'
+                }`}
+              >
+                My Rota
+              </Link>
               {isAdmin && (
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`block w-full text-left px-3 py-2 text-base font-medium ${
-                    location.pathname === '/admin' 
-                      ? 'text-white font-bold' 
-                      : 'text-white/80'
-                  }`}
-                >
-                  Admin Panel
-                </Link>
+                <>
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                      location.pathname === '/admin' 
+                        ? 'text-white font-bold' 
+                        : 'text-white/80'
+                    }`}
+                  >
+                    Admin Panel
+                  </Link>
+                  <Link
+                    to="/rota-planner"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                      location.pathname === '/rota-planner' 
+                        ? 'text-white font-bold' 
+                        : 'text-white/80'
+                    }`}
+                  >
+                    Rota Planner
+                  </Link>
+                </>
               )}
               <Link
                 to="/profile"
@@ -375,7 +396,9 @@ export default function HomePage() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/team" element={<TeamView />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
+          <Route path="/my-rota" element={<WeeklyRotaPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>
       </main>

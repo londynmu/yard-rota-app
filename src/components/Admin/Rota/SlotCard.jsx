@@ -34,12 +34,8 @@ const SlotCard = ({ slot, onAssign, onEdit }) => {
 
   const formatTime = (timeString) => {
     if (!timeString) return '';
-    // Convert 24h format to 12h format
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
+    // Return time in 24-hour format
+    return timeString;
   };
 
   // Calculate fill percentage

@@ -29,6 +29,10 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   const [notesForAdmin, setNotesForAdmin] = useState('');
   const [locations, setLocations] = useState([]);
   
+  // Agency field
+  const [agencies, setAgencies] = useState([]);
+  const [agencyId, setAgencyId] = useState(null);
+  
   const [formErrors, setFormErrors] = useState({
     firstName: '',
     lastName: '',
@@ -47,8 +51,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         const { data, error } = await supabase
           .from('locations')
           .select('*')
-          .eq('is_active', true)
-          .order('name');
+          .eq('is_active', true);
           
         if (error) throw error;
         setLocations(data || []);
@@ -59,153 +62,119 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     
     fetchLocations();
   }, []);
-
-  // Set up body scroll lock when modal is opened
+  
+  // Load available agencies
   useEffect(() => {
-    // Prevent body scrolling
-    document.body.style.overflow = 'hidden';
-    
-    // Focus on the first input field for accessibility
-    if (modalRef.current) {
-      const firstInput = modalRef.current.querySelector('input');
-      if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
+    const fetchAgencies = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('agencies')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
+          
+        if (error) throw error;
+        setAgencies(data || []);
+      } catch (error) {
+        console.error('Error fetching agencies:', error);
       }
-    }
-    
-    // Clean up function
-    return () => {
-      document.body.style.overflow = '';
     };
+    
+    fetchAgencies();
   }, []);
 
-  // Handle escape key to close modal
-  useEffect(() => {
-    const handleEscKey = (event) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    
-    document.addEventListener('keydown', handleEscKey);
-    
-    return () => {
-      document.removeEventListener('keydown', handleEscKey);
-    };
-  }, [onClose]);
-
-  // Load user data
+  // Load user data when the component mounts
   useEffect(() => {
     if (user) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
-      setShiftPreference(user.shift_preference || 'day');
+      setShiftPreference(user.shift_preference || '');
+      setIsActive(user.is_active !== false); // Default to true if not set
+      setPerformanceScore(user.performance_score || 50);
       setAvatarUrl(user.avatar_url || null);
-      setIsActive(user.is_active !== false); // default to true if not set
-      setPerformanceScore(user.performance_score || 50); // default to 50 if not set
-      
-      // Load Rota Planner fields
       setCustomStartTime(user.custom_start_time || '');
       setCustomEndTime(user.custom_end_time || '');
       setPreferredLocation(user.preferred_location || '');
       setMaxDailyHours(user.max_daily_hours || '');
       setUnavailableDays(user.unavailable_days || []);
       setNotesForAdmin(user.notes_for_admin || '');
+      setAgencyId(user.agency_id || null);
     }
   }, [user]);
 
+  // Handle avatar selection
+  const handleAvatarChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage({ text: 'Image is too large. Maximum size is 5MB.', type: 'error' });
+        return;
+      }
+      
+      setAvatar(file);
+      setAvatarUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Handle unavailable days selection
+  const handleUnavailableDayToggle = (day) => {
+    if (unavailableDays.includes(day)) {
+      setUnavailableDays(unavailableDays.filter(d => d !== day));
+    } else {
+      setUnavailableDays([...unavailableDays, day]);
+    }
+  };
+
+  // Form validation
   const validateForm = () => {
-    const errors = {};
+    let isValid = true;
+    const errors = {
+      firstName: '',
+      lastName: '',
+      shiftPreference: '',
+      performanceScore: '',
+      timeRange: '',
+      maxDailyHours: ''
+    };
     
+    // Basic validation
     if (!firstName.trim()) {
       errors.firstName = 'First name is required';
+      isValid = false;
     }
     
     if (!lastName.trim()) {
       errors.lastName = 'Last name is required';
+      isValid = false;
     }
     
     if (!shiftPreference) {
       errors.shiftPreference = 'Shift preference is required';
+      isValid = false;
     }
     
     if (performanceScore < 1 || performanceScore > 99) {
       errors.performanceScore = 'Performance score must be between 1 and 99';
-    }
-
-    // Validate time range
-    if (customStartTime && customEndTime) {
-      if (customStartTime === customEndTime) {
-        errors.timeRange = 'Start and end times cannot be the same';
-      }
+      isValid = false;
     }
     
-    // Validate max daily hours
-    if (maxDailyHours) {
-      const hours = parseInt(maxDailyHours, 10);
-      if (isNaN(hours) || hours < 1 || hours > 24) {
-        errors.maxDailyHours = 'Maximum daily hours must be between 1 and 24';
-      }
+    // Custom start/end time validation
+    if ((customStartTime && !customEndTime) || (!customStartTime && customEndTime)) {
+      errors.timeRange = 'Both start and end times must be set together';
+      isValid = false;
+    }
+    
+    // Max daily hours validation
+    if (maxDailyHours && (maxDailyHours < 1 || maxDailyHours > 24)) {
+      errors.maxDailyHours = 'Max daily hours must be between 1 and 24';
+      isValid = false;
     }
     
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return isValid;
   };
 
-  const checkTimeRange = () => {
-    if (customStartTime && customEndTime) {
-      const start = new Date(`2000-01-01T${customStartTime}`);
-      const end = new Date(`2000-01-01T${customEndTime}`);
-      return start > end;
-    }
-    return false;
-  };
-
-  const handleCustomStartTimeChange = (e) => {
-    setCustomStartTime(e.target.value);
-    if (formErrors.timeRange && e.target.value !== customEndTime) {
-      setFormErrors({ ...formErrors, timeRange: '' });
-    }
-  };
-
-  const handleCustomEndTimeChange = (e) => {
-    setCustomEndTime(e.target.value);
-    if (formErrors.timeRange && e.target.value !== customStartTime) {
-      setFormErrors({ ...formErrors, timeRange: '' });
-    }
-  };
-
-  const handleAvatarChange = (e) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      setAvatar(null);
-      return;
-    }
-    
-    const file = e.target.files[0];
-    
-    // Check file size (limit to 7MB)
-    if (file.size > 7 * 1024 * 1024) {
-      setMessage({ text: 'File size exceeds 7MB limit', type: 'error' });
-      return;
-    }
-    
-    setAvatar(file);
-  };
-
-  const handleFirstNameChange = (e) => {
-    setFirstName(e.target.value);
-    if (formErrors.firstName && e.target.value.trim()) {
-      setFormErrors({ ...formErrors, firstName: '' });
-    }
-  };
-
-  const handleLastNameChange = (e) => {
-    setLastName(e.target.value);
-    if (formErrors.lastName && e.target.value.trim()) {
-      setFormErrors({ ...formErrors, lastName: '' });
-    }
-  };
-
+  // Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -232,7 +201,9 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         preferred_location: preferredLocation || null,
         max_daily_hours: maxDailyHours ? parseInt(maxDailyHours, 10) : null,
         unavailable_days: unavailableDays.length > 0 ? unavailableDays : null,
-        notes_for_admin: notesForAdmin || null
+        notes_for_admin: notesForAdmin || null,
+        // Agency field
+        agency_id: agencyId
       };
       
       console.log('Updating user with data:', updates);
@@ -382,344 +353,300 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     </svg>
                   )}
                 </div>
-                <div>
+                <label className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-md border border-white/20 text-white transition-colors">
+                  <span>Upload new</span>
                   <input
-                    type="file"
                     id="admin-edit-avatar"
+                    type="file"
                     accept="image/*"
                     onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                  <label 
-                    htmlFor="admin-edit-avatar"
-                    className="px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white rounded-md cursor-pointer hover:bg-white/30 transition-colors border border-white/20"
-                  >
-                    Choose Image
-                  </label>
-                  <p className="text-xs text-white/70 mt-1">Maximum file size: 7MB</p>
-                  {avatar && (
-                    <p className="text-sm text-white/80 mt-1">Selected: {avatar.name}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* First Name */}
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-2" htmlFor="admin-edit-firstName">
-                First Name <span className="text-red-300">*</span>
-              </label>
-              <input
-                type="text"
-                id="admin-edit-firstName"
-                value={firstName}
-                onChange={handleFirstNameChange}
-                className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                  formErrors.firstName ? 'border-red-400/70' : 'border-white/20'
-                }`}
-                placeholder="First name"
-              />
-              {formErrors.firstName && (
-                <p className="text-sm text-red-300 mt-1">{formErrors.firstName}</p>
-              )}
-            </div>
-            
-            {/* Last Name */}
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-2" htmlFor="admin-edit-lastName">
-                Last Name <span className="text-red-300">*</span>
-              </label>
-              <input
-                type="text"
-                id="admin-edit-lastName"
-                value={lastName}
-                onChange={handleLastNameChange}
-                className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                  formErrors.lastName ? 'border-red-400/70' : 'border-white/20'
-                }`}
-                placeholder="Last name"
-              />
-              {formErrors.lastName && (
-                <p className="text-sm text-red-300 mt-1">{formErrors.lastName}</p>
-              )}
-            </div>
-            
-            {/* User Status */}
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-2">
-                Status
-              </label>
-              <div className="flex space-x-4">
-                <label className={`flex items-center p-2 border rounded-md cursor-pointer transition-colors ${
-                  isActive 
-                  ? 'bg-green-500/30 border-green-400/50 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white/80'
-                }`}>
-                  <input
-                    type="radio"
-                    name="userStatus"
-                    checked={isActive}
-                    onChange={() => setIsActive(true)}
                     className="sr-only"
                   />
-                  <span className="ml-2">Active</span>
-                </label>
-                <label className={`flex items-center p-2 border rounded-md cursor-pointer transition-colors ${
-                  !isActive 
-                  ? 'bg-red-500/30 border-red-400/50 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white/80'
-                }`}>
-                  <input
-                    type="radio"
-                    name="userStatus"
-                    checked={!isActive}
-                    onChange={() => setIsActive(false)}
-                    className="sr-only"
-                  />
-                  <span className="ml-2">Inactive</span>
                 </label>
               </div>
             </div>
             
-            {/* Performance Score */}
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-2" htmlFor="performance-score">
-                Performance Score (1-99)
-              </label>
-              <div className="space-y-1">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="admin-edit-firstName" className="block text-white font-medium mb-2">
+                  First Name
+                </label>
                 <input
-                  type="range"
-                  id="performance-score"
+                  id="admin-edit-firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.firstName ? 'border-red-400/70' : 'border-white/20'
+                  }`}
+                  placeholder="First name"
+                  disabled={loading}
+                />
+                {formErrors.firstName && (
+                  <p className="mt-1 text-sm text-red-400">{formErrors.firstName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-lastName" className="block text-white font-medium mb-2">
+                  Last Name
+                </label>
+                <input
+                  id="admin-edit-lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.lastName ? 'border-red-400/70' : 'border-white/20'
+                  }`}
+                  placeholder="Last name"
+                  disabled={loading}
+                />
+                {formErrors.lastName && (
+                  <p className="mt-1 text-sm text-red-400">{formErrors.lastName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-shiftPreference" className="block text-white font-medium mb-2">
+                  Shift Preference
+                </label>
+                <select
+                  id="admin-edit-shiftPreference"
+                  value={shiftPreference}
+                  onChange={(e) => setShiftPreference(e.target.value)}
+                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-white/20'
+                  }`}
+                  disabled={loading}
+                >
+                  <option value="">Select shift preference</option>
+                  <option value="day">Day</option>
+                  <option value="night">Night</option>
+                  <option value="afternoon">Afternoon</option>
+                </select>
+                {formErrors.shiftPreference && (
+                  <p className="mt-1 text-sm text-red-400">{formErrors.shiftPreference}</p>
+                )}
+              </div>
+              
+              {/* Agency Selection */}
+              <div>
+                <label htmlFor="admin-edit-agency" className="block text-white font-medium mb-2">
+                  Agency
+                </label>
+                <select
+                  id="admin-edit-agency"
+                  value={agencyId || ''}
+                  onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  disabled={loading}
+                >
+                  <option value="">None (Direct Employment)</option>
+                  {agencies.map(agency => (
+                    <option key={agency.id} value={agency.id}>{agency.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-white/60">
+                  Select the agency through which this worker is employed
+                </p>
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-performanceScore" className="block text-white font-medium mb-2">
+                  Performance Score (1-99)
+                </label>
+                <input
+                  id="admin-edit-performanceScore"
+                  type="number"
                   min="1"
                   max="99"
                   value={performanceScore}
-                  onChange={(e) => setPerformanceScore(parseInt(e.target.value, 10))}
-                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.4) 0%, rgba(59, 130, 246, 0.4) 50%, rgba(16, 185, 129, 0.4) 100%)'
-                  }}
+                  onChange={(e) => setPerformanceScore(e.target.value)}
+                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.performanceScore ? 'border-red-400/70' : 'border-white/20'
+                  }`}
+                  disabled={loading}
                 />
-                <div className="flex justify-between text-xs text-white/70">
-                  <span>Poor (1)</span>
-                  <span>{performanceScore}</span>
-                  <span>Excellent (99)</span>
+                {formErrors.performanceScore && (
+                  <p className="mt-1 text-sm text-red-400">{formErrors.performanceScore}</p>
+                )}
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  id="admin-edit-isActive"
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/30 bg-white/10 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                  disabled={loading}
+                />
+                <label htmlFor="admin-edit-isActive" className="ml-2 block text-white">
+                  Active Account
+                </label>
+              </div>
+            </div>
+            
+            {/* Rota Planning Section */}
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <h4 className="text-lg font-medium text-white mb-3">Rota Planning Settings</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white font-medium mb-2">
+                    Custom Working Hours (Optional)
+                  </label>
+                  <div className="flex space-x-2">
+                    <div className="flex-1">
+                      <label htmlFor="admin-edit-startTime" className="block text-white text-sm mb-1">
+                        Start Time
+                      </label>
+                      <input
+                        id="admin-edit-startTime"
+                        type="time"
+                        value={customStartTime}
+                        onChange={(e) => setCustomStartTime(e.target.value)}
+                        className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                          formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
+                        }`}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label htmlFor="admin-edit-endTime" className="block text-white text-sm mb-1">
+                        End Time
+                      </label>
+                      <input
+                        id="admin-edit-endTime"
+                        type="time"
+                        value={customEndTime}
+                        onChange={(e) => setCustomEndTime(e.target.value)}
+                        className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                          formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
+                        }`}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                  {formErrors.timeRange && (
+                    <p className="mt-1 text-sm text-red-400">{formErrors.timeRange}</p>
+                  )}
+                  <p className="mt-1 text-xs text-white/60">
+                    Override default working hours for this staff member
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-location" className="block text-white font-medium mb-2">
+                    Preferred Location
+                  </label>
+                  <select
+                    id="admin-edit-location"
+                    value={preferredLocation || ''}
+                    onChange={(e) => setPreferredLocation(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    disabled={loading}
+                  >
+                    <option value="">No preference</option>
+                    {locations.map(location => (
+                      <option key={location.id} value={location.name}>{location.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-white/60">
+                    Staff will be preferentially assigned to this location when possible
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-maxHours" className="block text-white font-medium mb-2">
+                    Maximum Daily Hours
+                  </label>
+                  <input
+                    id="admin-edit-maxHours"
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={maxDailyHours}
+                    onChange={(e) => setMaxDailyHours(e.target.value)}
+                    className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
+                      formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
+                    }`}
+                    placeholder="e.g. 8"
+                    disabled={loading}
+                  />
+                  {formErrors.maxDailyHours && (
+                    <p className="mt-1 text-sm text-red-400">{formErrors.maxDailyHours}</p>
+                  )}
+                  <p className="mt-1 text-xs text-white/60">
+                    Maximum working hours per day (leave empty for no limit)
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-white font-medium mb-2">
+                    Unavailable Days
+                  </label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleUnavailableDayToggle(day)}
+                        className={`py-1 px-1 text-center rounded text-xs sm:text-sm border ${
+                          unavailableDays.includes(day)
+                            ? 'bg-red-500/50 border-red-400/50 text-white'
+                            : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'
+                        }`}
+                        disabled={loading}
+                      >
+                        {day.substring(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-white/60">
+                    Mark days when the staff member is regularly unavailable
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-notes" className="block text-white font-medium mb-2">
+                    Admin Notes
+                  </label>
+                  <textarea
+                    id="admin-edit-notes"
+                    value={notesForAdmin}
+                    onChange={(e) => setNotesForAdmin(e.target.value)}
+                    rows="3"
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    placeholder="Private notes visible to admin only"
+                    disabled={loading}
+                  ></textarea>
                 </div>
               </div>
-              {formErrors.performanceScore && (
-                <p className="text-sm text-red-300 mt-1">{formErrors.performanceScore}</p>
-              )}
             </div>
             
-            {/* Shift Preference */}
-            <div className="mb-4">
-              <label className="block text-white font-medium mb-2" id="admin-edit-shift-preference-label">
-                Shift Preference <span className="text-red-300">*</span>
-              </label>
-              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="admin-edit-shift-preference-label">
-                <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
-                  shiftPreference === 'day' 
-                  ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white'
-                }`} htmlFor="admin-edit-shift-day">
-                  <input
-                    type="radio"
-                    id="admin-edit-shift-day"
-                    name="adminEditShiftPreference"
-                    value="day"
-                    checked={shiftPreference === 'day'}
-                    onChange={() => setShiftPreference('day')}
-                    className="sr-only"
-                  />
-                  <span>Day</span>
-                </label>
-                
-                <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
-                  shiftPreference === 'afternoon' 
-                  ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white'
-                }`} htmlFor="admin-edit-shift-afternoon">
-                  <input
-                    type="radio"
-                    id="admin-edit-shift-afternoon"
-                    name="adminEditShiftPreference"
-                    value="afternoon"
-                    checked={shiftPreference === 'afternoon'}
-                    onChange={() => setShiftPreference('afternoon')}
-                    className="sr-only"
-                  />
-                  <span>Afternoon</span>
-                </label>
-                
-                <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
-                  shiftPreference === 'night' 
-                  ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white'
-                }`} htmlFor="admin-edit-shift-night">
-                  <input
-                    type="radio"
-                    id="admin-edit-shift-night"
-                    name="adminEditShiftPreference"
-                    value="night"
-                    checked={shiftPreference === 'night'}
-                    onChange={() => setShiftPreference('night')}
-                    className="sr-only"
-                  />
-                  <span>Night</span>
-                </label>
-              </div>
+            {/* Form Actions */}
+            <div className="mt-6 flex space-x-3 justify-end">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-md text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-md text-white transition-colors ${
+                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
-
-            {/* Rota Planner Preferences Section */}
-            <div className="mt-6 border-t border-white/20 pt-4">
-              <h3 className="text-lg font-medium text-white mb-4">Rota Planner Preferences</h3>
-              
-              {/* Custom Start Time */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="custom-start-time">
-                  Preferred Start Time <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <input
-                  type="time"
-                  id="custom-start-time"
-                  value={customStartTime}
-                  onChange={handleCustomStartTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                />
-                {checkTimeRange() && (
-                  <p className="text-sm text-blue-300 italic mt-1">
-                    This time range extends to the next day
-                  </p>
-                )}
-              </div>
-              
-              {/* Custom End Time */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="custom-end-time">
-                  Preferred End Time <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <input
-                  type="time"
-                  id="custom-end-time"
-                  value={customEndTime}
-                  onChange={handleCustomEndTimeChange}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                />
-                {formErrors.timeRange && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.timeRange}</p>
-                )}
-              </div>
-              
-              {/* Preferred Location */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="preferred-location">
-                  Preferred Location <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <select
-                  id="preferred-location"
-                  value={preferredLocation}
-                  onChange={(e) => setPreferredLocation(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                >
-                  <option value="" className="bg-gray-900 text-white">Select location...</option>
-                  {locations.map(location => (
-                    <option key={location.id} value={location.name} className="bg-gray-900 text-white">{location.name}</option>
-                  ))}
-                  <option value="Both" className="bg-gray-900 text-white">Both</option>
-                </select>
-              </div>
-              
-              {/* Max Daily Hours */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="max-daily-hours">
-                  Maximum Daily Hours <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <input
-                  type="number"
-                  id="max-daily-hours"
-                  min="1"
-                  max="24"
-                  value={maxDailyHours}
-                  onChange={(e) => setMaxDailyHours(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                />
-                {formErrors.maxDailyHours && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.maxDailyHours}</p>
-                )}
-              </div>
-              
-              {/* Unavailable Days */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2">
-                  Unavailable Days <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                    <label key={day} className={`flex items-center justify-center p-2 border rounded-md cursor-pointer ${
-                      unavailableDays.includes(day) 
-                        ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                        : 'border-white/20 text-white'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={unavailableDays.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setUnavailableDays([...unavailableDays, day]);
-                          } else {
-                            setUnavailableDays(unavailableDays.filter(d => d !== day));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      <span className="text-xs sm:text-sm">{day.substring(0, 3)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Notes For Admin */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="notes-for-admin">
-                  Notes for Admin <span className="text-xs text-white/70">(Optional)</span>
-                </label>
-                <textarea
-                  id="notes-for-admin"
-                  value={notesForAdmin}
-                  onChange={(e) => setNotesForAdmin(e.target.value)}
-                  rows="3"
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                  placeholder="Any special requirements or notes..."
-                ></textarea>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-black/20 px-6 py-4 flex justify-between border-t border-white/10">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleClose();
-              }}
-              className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md font-medium text-white hover:bg-white/20 focus:outline-none transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              onClick={(e) => {
-                if (loading) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }
-              }}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-500/30 backdrop-blur-sm border border-blue-400/30 rounded-md font-medium text-white hover:bg-blue-500/50 focus:outline-none transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </button>
           </div>
         </form>
       </div>

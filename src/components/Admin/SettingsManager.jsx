@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LocationManager from './LocationManager';
+import AgencyManager from './AgencyManager';
 import PropTypes from 'prop-types';
 
 export default function SettingsManager({ supabaseClient }) {
@@ -214,6 +215,16 @@ export default function SettingsManager({ supabaseClient }) {
         >
           Team Management
         </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
+            activeSection === 'agencies' 
+              ? 'bg-blue-600/60 text-white' 
+              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+          }`}
+          onClick={() => setActiveSection('agencies')}
+        >
+          Agencies
+        </button>
       </div>
       
       {/* System Configuration Settings */}
@@ -273,25 +284,24 @@ export default function SettingsManager({ supabaseClient }) {
           
           <div className="mb-4">
             <label className="block text-white text-sm font-medium mb-2">
-              Minimum Time Off Between Shifts (hours)
+              Minimum Break Between Shifts (hours)
             </label>
-            <div className="flex items-center">
-              <input
-                type="number"
-                min="0"
-                max="24"
-                step="0.5"
-                value={minBreakHours}
-                onChange={(e) => {
-                  const hours = Number(e.target.value);
-                  setMinBreakHours(hours);
-                  setMinBreakBetweenSlots(Math.round(hours * 60));
-                }}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <p className="mt-1 text-xs text-gray-400">
-              Minimum required rest time for an employee before starting their next shift (0 = no restriction).
+            <input
+              type="number"
+              min="0"
+              max="24"
+              step="0.25"
+              value={minBreakHours}
+              onChange={(e) => {
+                const hours = Number(e.target.value);
+                setMinBreakHours(hours);
+                // Convert hours to minutes for DB storage
+                setMinBreakBetweenSlots(Math.round(hours * 60));
+              }}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            />
+            <p className="text-white/60 text-xs mt-1">
+              Minimum time required between consecutive shifts for an employee
             </p>
           </div>
           
@@ -464,39 +474,6 @@ export default function SettingsManager({ supabaseClient }) {
             />
           </div>
           
-          <div className="mb-4 mt-6 border-t border-white/10 pt-4">
-            <h4 className="text-md font-medium text-white mb-2">Performance Score Legend</h4>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="px-2 py-1 bg-emerald-500/70 rounded text-white text-xs text-center">
-                90-99: Excellent
-              </div>
-              <div className="px-2 py-1 bg-green-400/70 rounded text-white text-xs text-center">
-                80-89: Very Good
-              </div>
-              <div className="px-2 py-1 bg-emerald-200/80 rounded text-white text-xs text-center">
-                70-79: Good
-              </div>
-              <div className="px-2 py-1 bg-yellow-400/70 rounded text-white text-xs text-center">
-                60-69: Above Average
-              </div>
-              <div className="px-2 py-1 bg-orange-400/70 rounded text-white text-xs text-center">
-                50-59: Average
-              </div>
-              <div className="px-2 py-1 bg-pink-400/70 rounded text-white text-xs text-center">
-                40-49: Below Average
-              </div>
-              <div className="px-2 py-1 bg-rose-400/70 rounded text-white text-xs text-center">
-                30-39: Poor
-              </div>
-              <div className="px-2 py-1 bg-red-500/70 rounded text-white text-xs text-center">
-                20-29: Very Poor
-              </div>
-              <div className="px-2 py-1 bg-red-700/70 rounded text-white text-xs text-center">
-                1-19: Critical
-              </div>
-            </div>
-          </div>
-          
           <button
             type="button"
             onClick={() => saveSettings('Team')}
@@ -508,6 +485,11 @@ export default function SettingsManager({ supabaseClient }) {
             {isSaving ? 'Saving...' : 'Save Team Settings'}
           </button>
         </div>
+      )}
+      
+      {/* Agencies Management */}
+      {activeSection === 'agencies' && (
+        <AgencyManager supabaseClient={supabaseClient} />
       )}
       
       {/* Success/Error Message */}

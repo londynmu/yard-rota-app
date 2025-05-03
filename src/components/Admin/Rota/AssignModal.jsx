@@ -2,15 +2,30 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
+import { format, parseISO } from 'date-fns';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
   const [availableEmployees, setAvailableEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState('available');
   const [localAssignedCount, setLocalAssignedCount] = useState(slot.assigned_employees.length);
   const [showCapacityAlert, setShowCapacityAlert] = useState(false);
   const [minBreakMinutes, setMinBreakMinutes] = useState(60); // Default value
+
+  // Format time to remove seconds (HH:MM)
+  const formatTimeWithoutSeconds = (timeString) => {
+    return timeString.split(':').slice(0, 2).join(':');
+  };
+
+  // Format date to include day of week
+  const getFormattedDate = (dateString) => {
+    try {
+      const date = parseISO(dateString);
+      return `${format(date, 'yyyy-MM-dd')}, ${format(date, 'EEEE')}`;
+    } catch (_) {
+      return dateString;
+    }
+  };
 
   // Prevent body scrolling when modal is open
   useEffect(() => {
@@ -323,33 +338,25 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
   // Filter and sort by selected tab
   const getFilteredEmployees = () => {
-    const lowercaseSearch = searchTerm.toLowerCase();
-    
     return availableEmployees
       .filter(employee => {
-        // Match by search term
-        const nameMatch = `${employee.first_name} ${employee.last_name}`.toLowerCase().includes(lowercaseSearch);
-        
         // Filter based on tab and other criteria
         if (selectedTab === 'assigned') {
-          return employee.isAssigned && nameMatch;
+          return employee.isAssigned;
         } else if (selectedTab === 'available') {
           return !employee.isAssigned && 
                  !employee.hasOverlappingConflict && 
                  !employee.hasBreakTimeConflict && 
-                 employee.availabilityStatus.toLowerCase() === 'available' && 
-                 nameMatch;
+                 employee.availabilityStatus.toLowerCase() === 'available';
         } else if (selectedTab === 'conflicts') {
           return !employee.isAssigned && 
-                 (employee.hasOverlappingConflict || employee.hasBreakTimeConflict) && 
-                 nameMatch;
+                 (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
         } else if (selectedTab === 'unavailable') {
           return !employee.isAssigned && 
-                 employee.availabilityStatus.toLowerCase() !== 'available' && 
-                 nameMatch;
+                 employee.availabilityStatus.toLowerCase() !== 'available';
         }
         
-        return nameMatch;
+        return true;
       });
   };
 
@@ -363,8 +370,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="bg-black/80 border border-white/30 rounded-lg overflow-hidden max-h-[95vh] max-w-2xl w-full m-4 flex flex-col">
         <div className="p-4 border-b border-white/20 flex justify-between items-center sticky top-0 bg-black/90 z-10">
-          <h3 className="text-xl font-medium text-white truncate">
-            Assign Staff - {slot.location} ({slot.start_time} - {slot.end_time})
+          <h3 className="text-xl font-medium text-white">
+            {slot.location}: {getFormattedDate(slot.date)}, {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
           </h3>
           <button 
             onClick={onClose} 
@@ -379,7 +386,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         
         {/* Information about scheduling constraints */}
         {minBreakMinutes > 0 && (
-          <div className="mx-4 mt-4 p-3 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-md text-blue-100 flex items-center">
+          <div className="mx-4 mt-4 p-3 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-md text-blue-100 flex items-center hidden sm:flex">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 011 1v4a1 1 0 11-2 0v-4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
@@ -406,20 +413,10 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         
         <div className="p-4 border-b border-white/20 bg-black/90 sticky top-[65px] z-10">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white text-black border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
-              />
-            </div>
-            
-            <div className="flex">
+            <div className="flex w-full">
               <button
                 onClick={() => setSelectedTab('available')}
-                className={`px-3 py-2 rounded-l-md ${
+                className={`px-3 py-2 flex-1 rounded-l-md ${
                   selectedTab === 'available' 
                     ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                     : 'bg-white/10 border-white/20 text-white/70'
@@ -429,7 +426,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               </button>
               <button
                 onClick={() => setSelectedTab('assigned')}
-                className={`px-3 py-2 ${
+                className={`px-3 py-2 flex-1 ${
                   selectedTab === 'assigned' 
                     ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                     : 'bg-white/10 border-white/20 text-white/70'
@@ -439,7 +436,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               </button>
               <button
                 onClick={() => setSelectedTab('conflicts')}
-                className={`px-3 py-2 ${
+                className={`px-3 py-2 flex-1 ${
                   selectedTab === 'conflicts' 
                     ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                     : 'bg-white/10 border-white/20 text-white/70'
@@ -449,7 +446,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               </button>
               <button
                 onClick={() => setSelectedTab('unavailable')}
-                className={`px-3 py-2 rounded-r-md ${
+                className={`px-3 py-2 flex-1 rounded-r-md ${
                   selectedTab === 'unavailable' 
                     ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                     : 'bg-white/10 border-white/20 text-white/70'
