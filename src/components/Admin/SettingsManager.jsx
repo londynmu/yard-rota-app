@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import LocationManager from './LocationManager';
 import AgencyManager from './AgencyManager';
 import PropTypes from 'prop-types';
+import { supabase } from '../../lib/supabaseClient';
 
-export default function SettingsManager({ supabaseClient }) {
+export default function SettingsManager() {
   // State for various settings
   const [workHoursStart, setWorkHoursStart] = useState('08:00');
   const [workHoursEnd, setWorkHoursEnd] = useState('16:00');
@@ -32,7 +33,7 @@ export default function SettingsManager({ supabaseClient }) {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from('settings')
           .select('key, value');
           
@@ -74,7 +75,7 @@ export default function SettingsManager({ supabaseClient }) {
     };
     
     fetchSettings();
-  }, [supabaseClient]);
+  }, []);
 
   // Save settings
   const saveSettings = async (section) => {
@@ -103,7 +104,7 @@ export default function SettingsManager({ supabaseClient }) {
       
       // Update settings in the database
       for (const setting of settingsToUpdate) {
-        const { error } = await supabaseClient
+        const { error } = await supabase
           .from('settings')
           .upsert({ 
             key: setting.key, 
@@ -215,184 +216,177 @@ export default function SettingsManager({ supabaseClient }) {
         >
           Team Management
         </button>
-        <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
-            activeSection === 'agencies' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
-          }`}
-          onClick={() => setActiveSection('agencies')}
-        >
-          Agencies
-        </button>
       </div>
       
       {/* System Configuration Settings */}
       {activeSection === 'system' && (
-        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">System Configuration</h3>
-          
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Working Hours
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="time"
-                value={workHoursStart}
-                onChange={(e) => setWorkHoursStart(e.target.value)}
-                className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-              <span className="text-white">to</span>
-              <input
-                type="time"
-                value={workHoursEnd}
-                onChange={(e) => setWorkHoursEnd(e.target.value)}
-                className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Week Start Day
-            </label>
-            <select
-              value={weekStartDay}
-              onChange={(e) => setWeekStartDay(e.target.value)}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="monday">Monday</option>
-              <option value="saturday">Saturday</option>
-              <option value="sunday">Sunday</option>
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Default Shift Length (hours)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="24"
-              value={defaultShiftLength}
-              onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Minimum Break Between Shifts (hours)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="24"
-              step="0.25"
-              value={minBreakHours}
-              onChange={(e) => {
-                const hours = Number(e.target.value);
-                setMinBreakHours(hours);
-                // Convert hours to minutes for DB storage
-                setMinBreakBetweenSlots(Math.round(hours * 60));
-              }}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-            />
-            <p className="text-white/60 text-xs mt-1">
-              Minimum time required between consecutive shifts for an employee
-            </p>
-          </div>
-          
-          <button
-            type="button"
-            onClick={() => saveSettings('System')}
-            disabled={isSaving}
-            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
-              isSaving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isSaving ? 'Saving...' : 'Save System Settings'}
-          </button>
-        </div>
-      )}
-      
-      {/* User Preferences */}
-      {activeSection === 'preferences' && (
         <>
           <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">User Preferences</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">System Configuration</h3>
             
             <div className="mb-4">
               <label className="block text-white text-sm font-medium mb-2">
-                Theme
+                Working Hours
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  theme === 'dark' 
-                  ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white/80'
-                }`}>
-                  <input
-                    type="radio"
-                    name="theme"
-                    value="dark"
-                    checked={theme === 'dark'}
-                    onChange={() => setTheme('dark')}
-                    className="sr-only"
-                  />
-                  <span>Dark Theme</span>
-                </label>
-                
-                <label className={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  theme === 'light' 
-                  ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-                  : 'border-white/20 hover:bg-white/5 text-white/80'
-                }`}>
-                  <input
-                    type="radio"
-                    name="theme"
-                    value="light"
-                    checked={theme === 'light'}
-                    onChange={() => setTheme('light')}
-                    className="sr-only"
-                  />
-                  <span>Light Theme</span>
-                </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="time"
+                  value={workHoursStart}
+                  onChange={(e) => setWorkHoursStart(e.target.value)}
+                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                />
+                <span className="text-white">to</span>
+                <input
+                  type="time"
+                  value={workHoursEnd}
+                  onChange={(e) => setWorkHoursEnd(e.target.value)}
+                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                />
               </div>
             </div>
             
             <div className="mb-4">
               <label className="block text-white text-sm font-medium mb-2">
-                Default View
+                Week Start Day
               </label>
               <select
-                value={defaultView}
-                onChange={(e) => setDefaultView(e.target.value)}
+                value={weekStartDay}
+                onChange={(e) => setWeekStartDay(e.target.value)}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
               >
-                <option value="team">Team View</option>
-                <option value="calendar">Calendar</option>
-                <option value="admin">Admin Dashboard</option>
+                <option value="monday">Monday</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
               </select>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-white text-sm font-medium mb-2">
+                Default Shift Length (hours)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="24"
+                value={defaultShiftLength}
+                onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-white text-sm font-medium mb-2">
+                Minimum Break Between Shifts (hours)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="24"
+                step="0.25"
+                value={minBreakHours}
+                onChange={(e) => {
+                  const hours = Number(e.target.value);
+                  setMinBreakHours(hours);
+                  // Convert hours to minutes for DB storage
+                  setMinBreakBetweenSlots(Math.round(hours * 60));
+                }}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-white/60 text-xs mt-1">
+                Minimum time required between consecutive shifts for an employee
+              </p>
             </div>
             
             <button
               type="button"
-              onClick={() => saveSettings('Preference')}
+              onClick={() => saveSettings('System')}
               disabled={isSaving}
               className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
                 isSaving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {isSaving ? 'Saving...' : 'Save Preferences'}
+              {isSaving ? 'Saving...' : 'Save System Settings'}
             </button>
           </div>
           
           {/* Location Manager */}
-          <LocationManager supabaseClient={supabaseClient} />
+          <LocationManager />
+
+          {/* Agency Manager */}
+          <AgencyManager />
         </>
+      )}
+      
+      {/* User Preferences */}
+      {activeSection === 'preferences' && (
+        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">User Preferences</h3>
+          
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">
+              Theme
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
+                theme === 'dark' 
+                ? 'bg-blue-500/40 border-blue-400/50 text-white' 
+                : 'border-white/20 hover:bg-white/5 text-white/80'
+              }`}>
+                <input
+                  type="radio"
+                  name="theme"
+                  value="dark"
+                  checked={theme === 'dark'}
+                  onChange={() => setTheme('dark')}
+                  className="sr-only"
+                />
+                <span>Dark Theme</span>
+              </label>
+              
+              <label className={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
+                theme === 'light' 
+                ? 'bg-blue-500/40 border-blue-400/50 text-white' 
+                : 'border-white/20 hover:bg-white/5 text-white/80'
+              }`}>
+                <input
+                  type="radio"
+                  name="theme"
+                  value="light"
+                  checked={theme === 'light'}
+                  onChange={() => setTheme('light')}
+                  className="sr-only"
+                />
+                <span>Light Theme</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">
+              Default View
+            </label>
+            <select
+              value={defaultView}
+              onChange={(e) => setDefaultView(e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="team">Team View</option>
+              <option value="calendar">Calendar</option>
+              <option value="admin">Admin Dashboard</option>
+            </select>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => saveSettings('Preference')}
+            disabled={isSaving}
+            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isSaving ? 'Saving...' : 'Save Preferences'}
+          </button>
+        </div>
       )}
       
       {/* Notification Settings */}
@@ -487,11 +481,6 @@ export default function SettingsManager({ supabaseClient }) {
         </div>
       )}
       
-      {/* Agencies Management */}
-      {activeSection === 'agencies' && (
-        <AgencyManager supabaseClient={supabaseClient} />
-      )}
-      
       {/* Success/Error Message */}
       {saveMessage.text && (
         <div className={`mt-4 p-3 rounded-md ${
@@ -504,8 +493,4 @@ export default function SettingsManager({ supabaseClient }) {
       )}
     </div>
   );
-}
-
-SettingsManager.propTypes = {
-  supabaseClient: PropTypes.object.isRequired,
-}; 
+} 

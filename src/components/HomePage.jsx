@@ -8,6 +8,7 @@ import AdminPage from '../pages/AdminPage';
 import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
+import BrakesPage from '../pages/BrakesPage';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
@@ -135,6 +136,7 @@ export default function HomePage() {
     if (path === '/admin') return 'Admin Dashboard';
     if (path === '/profile') return 'Your Profile';
     if (path === '/rota-planner') return 'Rota Planner';
+    if (path === '/brakes') return 'Breaks';
     
     return 'My Rota';
   };
@@ -230,6 +232,16 @@ export default function HomePage() {
                 }`}
               >
                 My Rota
+              </Link>
+              <Link
+                to="/brakes"
+                className={`px-4 py-2 text-sm font-medium ${
+                  location.pathname === '/brakes' 
+                    ? 'text-white font-bold' 
+                    : 'text-white/80'
+                }`}
+              >
+                Breaks
               </Link>
               {isAdmin && (
                 <>
@@ -333,6 +345,17 @@ export default function HomePage() {
               >
                 My Rota
               </Link>
+              <Link
+                to="/brakes"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                  location.pathname === '/brakes' 
+                    ? 'text-white font-bold' 
+                    : 'text-white/80'
+                }`}
+              >
+                Breaks
+              </Link>
               {isAdmin && (
                 <>
                   <Link
@@ -391,6 +414,7 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
+          <Route path="/brakes" element={<BrakesPage />} />
           <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>

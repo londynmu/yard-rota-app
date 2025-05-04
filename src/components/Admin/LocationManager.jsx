@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
+import { supabase } from '../../lib/supabaseClient';
 
-export default function LocationManager({ supabaseClient }) {
+export default function LocationManager() {
   const [locations, setLocations] = useState([]);
   const [newLocation, setNewLocation] = useState('');
   const [editLocationId, setEditLocationId] = useState(null);
@@ -11,10 +11,8 @@ export default function LocationManager({ supabaseClient }) {
   const newLocationInputRef = React.useRef(null);
 
   useEffect(() => {
-    if (supabaseClient) {
-      fetchLocations();
-    }
-  }, [supabaseClient]);
+    fetchLocations();
+  }, []);
 
   useEffect(() => {
     if (newLocationInputRef.current) {
@@ -23,16 +21,11 @@ export default function LocationManager({ supabaseClient }) {
   }, []);
 
   const fetchLocations = async () => {
-    if (!supabaseClient) {
-      console.error("supabaseClient is not available");
-      return;
-    }
-
     try {
       setLoading(true);
       console.log("Fetching locations...");
       
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('locations')
         .select('*')
         .order('created_at', { ascending: true });
@@ -61,17 +54,11 @@ export default function LocationManager({ supabaseClient }) {
       return;
     }
 
-    if (!supabaseClient) {
-      console.error("supabaseClient is not available");
-      setMessage({ text: 'Database connection error', type: 'error' });
-      return;
-    }
-
     try {
       console.log("Adding new location:", newLocation);
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('locations')
         .insert([{ name: newLocation.trim() }]);
         
@@ -118,12 +105,10 @@ export default function LocationManager({ supabaseClient }) {
       return;
     }
 
-    if (!supabaseClient) return;
-
     try {
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('locations')
         .update({ name: editLocationName.trim() })
         .eq('id', id);
@@ -153,12 +138,10 @@ export default function LocationManager({ supabaseClient }) {
   };
 
   const toggleLocationStatus = async (id, currentStatus) => {
-    if (!supabaseClient) return;
-
     try {
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('locations')
         .update({ is_active: !currentStatus })
         .eq('id', id);
@@ -321,8 +304,4 @@ export default function LocationManager({ supabaseClient }) {
       )}
     </div>
   );
-}
-
-LocationManager.propTypes = {
-  supabaseClient: PropTypes.object.isRequired
-}; 
+} 

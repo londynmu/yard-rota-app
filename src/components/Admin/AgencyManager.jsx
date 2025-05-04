@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
+import { supabase } from '../../lib/supabaseClient';
 
-export default function AgencyManager({ supabaseClient }) {
+export default function AgencyManager() {
   const [agencies, setAgencies] = useState([]);
   const [newAgency, setNewAgency] = useState({
     name: '',
@@ -24,10 +24,8 @@ export default function AgencyManager({ supabaseClient }) {
   const newAgencyInputRef = React.useRef(null);
 
   useEffect(() => {
-    if (supabaseClient) {
-      fetchAgencies();
-    }
-  }, [supabaseClient]);
+    fetchAgencies();
+  }, []);
 
   useEffect(() => {
     if (newAgencyInputRef.current && showAddForm) {
@@ -36,16 +34,11 @@ export default function AgencyManager({ supabaseClient }) {
   }, [showAddForm]);
 
   const fetchAgencies = async () => {
-    if (!supabaseClient) {
-      console.error("supabaseClient is not available");
-      return;
-    }
-
     try {
       setLoading(true);
       console.log("Fetching agencies...");
       
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('agencies')
         .select('*')
         .order('name', { ascending: true });
@@ -84,17 +77,11 @@ export default function AgencyManager({ supabaseClient }) {
       return;
     }
 
-    if (!supabaseClient) {
-      console.error("supabaseClient is not available");
-      setMessage({ text: 'Database connection error', type: 'error' });
-      return;
-    }
-
     try {
       console.log("Adding new agency:", newAgency);
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('agencies')
         .insert([{ 
           name: newAgency.name.trim(),
@@ -166,12 +153,10 @@ export default function AgencyManager({ supabaseClient }) {
       return;
     }
 
-    if (!supabaseClient) return;
-
     try {
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('agencies')
         .update({ 
           name: editAgencyData.name.trim(),
@@ -213,12 +198,10 @@ export default function AgencyManager({ supabaseClient }) {
   };
 
   const toggleAgencyStatus = async (id, currentStatus) => {
-    if (!supabaseClient) return;
-
     try {
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('agencies')
         .update({ is_active: !currentStatus })
         .eq('id', id);
@@ -552,8 +535,4 @@ export default function AgencyManager({ supabaseClient }) {
       )}
     </div>
   );
-}
-
-AgencyManager.propTypes = {
-  supabaseClient: PropTypes.object.isRequired
-}; 
+} 
