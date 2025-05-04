@@ -14,16 +14,16 @@ const getWeekStart = (date) => {
 const WeeklyRotaPage = () => {
   const { user } = useAuth();
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
-  const [dailyRotaData, setDailyRotaData] = useState({}); // Stores ALL rota entries for each day
+  const [dailyRotaData, setDailyRotaData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedDayMobile, setExpandedDayMobile] = useState(null); // Track expanded day on mobile
+  const [expandedDayMobile, setExpandedDayMobile] = useState(null);
 
   useEffect(() => {
     const fetchFullRota = async () => {
       if (!user) return;
       setLoading(true);
-      setError(null); // Reset error on new fetch
+      setError(null);
       try {
         const start = format(weekStart, 'yyyy-MM-dd');
         const end = format(addDays(weekStart, 6), 'yyyy-MM-dd');
@@ -61,7 +61,7 @@ const WeeklyRotaPage = () => {
           }, {});
         }
 
-        // 3) Attach profile data to each rota entry under the same key used previously (profiles)
+        // 3) Attach profile data to each rota entry
         const rotaWithProfiles = rotaData.map(slot => ({
           ...slot,
           profiles: profilesMap[slot.user_id] || null,
@@ -82,7 +82,6 @@ const WeeklyRotaPage = () => {
         setDailyRotaData(grouped);
       } catch (e) {
         console.error('Error fetching full rota:', e);
-        // Display the actual error message from Supabase
         setError(`Failed to load rota: ${e.message || 'Unknown error. Check permissions or connection.'}`);
       } finally {
         setLoading(false);
@@ -90,21 +89,21 @@ const WeeklyRotaPage = () => {
     };
 
     fetchFullRota();
-  }, [weekStart, user]); // Re-fetch when weekStart changes
+  }, [weekStart, user]);
 
   const goPrevWeek = () => {
     setWeekStart((d) => subDays(d, 7));
   };
+  
   const goNextWeek = () => {
     setWeekStart((d) => addDays(d, 7));
   };
 
-  // Helper: show only HH:MM from a time string like "HH:MM:SS"
+  // Format time from HH:MM:SS to HH:MM
   const fmtTime = (t) => (t ? t.slice(0, 5) : '');
 
   // Component to render the details for an expanded day
   const DayDetails = ({ dateStr }) => {
-    // Filtrujemy od razu sloty bez profili - dla spójności z liczbą wyświetlaną w nagłówku
     const daySlots = (dailyRotaData[dateStr] || []).filter(slot => slot.profiles);
     
     const slotsByShiftType = {
@@ -113,50 +112,104 @@ const WeeklyRotaPage = () => {
       night: daySlots.filter(s => s.shift_type === 'night')
     };
 
+    if (daySlots.length === 0) {
+      return (
+        <div className="p-4 text-center bg-white/5 rounded-lg">
+          <p className="text-white/70 text-sm">No shifts scheduled for this day</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="p-2 space-y-2 bg-black/30 rounded-b-lg border-t border-white/10 overflow-y-auto">
-        {Object.entries(slotsByShiftType).map(([shiftType, slots]) => (
-          <div key={shiftType} className="mb-1">
-            <h4 className={`
-              text-sm font-semibold uppercase pb-1 mb-2 
-              ${shiftType === 'day' ? 'text-yellow-300 border-b-2 border-yellow-500/70 bg-yellow-900/30' : 
-                shiftType === 'afternoon' ? 'text-orange-300 border-b-2 border-orange-500/70 bg-orange-900/30' : 
-                'text-blue-300 border-b-2 border-blue-500/70 bg-blue-900/30'}
-              px-2 py-1 rounded-t-md
-            `}>
-              {shiftType.toUpperCase()} SHIFT
-            </h4>
-            {slots.length === 0 ? (
-              <p className="text-xs text-white/50 italic">No staff scheduled</p>
-            ) : (
-              <ul className="space-y-1">
-                {slots
-                  .map((slot) => (
+      <div className="space-y-3">
+        {Object.entries(slotsByShiftType).map(([shiftType, slots]) => {
+          if (slots.length === 0) return null;
+          
+          // Different styling based on shift type
+          const shiftConfig = {
+            day: {
+              title: "DAY SHIFT",
+              bgColor: "bg-amber-100",
+              textColor: "text-amber-800",
+              borderColor: "border-amber-200",
+              gradientFrom: "from-amber-500/10",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                </svg>
+              )
+            },
+            afternoon: {
+              title: "AFTERNOON SHIFT",
+              bgColor: "bg-orange-100",
+              textColor: "text-orange-800",
+              borderColor: "border-orange-200",
+              gradientFrom: "from-orange-500/10",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+              )
+            },
+            night: {
+              title: "NIGHT SHIFT",
+              bgColor: "bg-blue-100",
+              textColor: "text-blue-800",
+              borderColor: "border-blue-200",
+              gradientFrom: "from-blue-500/10",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+              )
+            }
+          };
+
+          const config = shiftConfig[shiftType];
+          
+          return (
+            <div key={shiftType} className="rounded-lg overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10">
+              <div className={`${config.bgColor} ${config.textColor} px-3 py-2 flex items-center justify-between`}>
+                <div className="flex items-center space-x-2">
+                  {config.icon}
+                  <h4 className="text-sm font-bold uppercase">{config.title}</h4>
+                </div>
+                <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full">{slots.length}</span>
+              </div>
+              
+              <ul className="divide-y divide-white/10">
+                {slots.map((slot) => (
                   <li 
                     key={slot.id}
-                    className={`flex items-center gap-1 text-sm rounded-md py-0.5 px-1 transition-colors ${slot.user_id === user?.id ? 'bg-yellow-400/20 border border-yellow-300/40' : ''}`}
+                    className={`p-3 transition-colors ${slot.user_id === user?.id ? 'bg-amber-500/10' : ''}`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-purple-500/40 border border-purple-300/30 flex-shrink-0 flex items-center justify-center text-xs">
-                       {/* Display initials or placeholder */}
-                      {(slot.profiles?.first_name?.[0] || '') + (slot.profiles?.last_name?.[0] || '?')}
-                    </div>
-                    <div className="flex-grow overflow-hidden">
-                      <span className={`font-bold truncate block text-xs ${slot.user_id === user?.id ? 'text-yellow-300' : 'text-blue-300'}`}>
-                        {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
-                        {slot.user_id === user?.id && (
-                          <span className="ml-1 text-[10px] px-1 py-0.5 bg-yellow-500/20 text-yellow-300 rounded uppercase align-super">You</span>
-                        )}
-                      </span>
-                      <span className="text-[10px] text-white/70 block">
-                        {slot.location}: {fmtTime(slot.start_time)} - {fmtTime(slot.end_time)}
-                      </span>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h5 className={`font-semibold md:text-sm truncate md:normal-case md:overflow-visible ${slot.user_id === user?.id ? 'text-amber-300' : 'text-white'}`}>
+                            {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                            {slot.user_id === user?.id && (
+                              <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full uppercase align-middle">You</span>
+                            )}
+                          </h5>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="inline-flex items-center text-xs text-white/70 bg-white/10 px-2 py-0.5 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {fmtTime(slot.start_time)} - {fmtTime(slot.end_time)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -168,9 +221,7 @@ const WeeklyRotaPage = () => {
   const renderDayCard = (dateObj) => {
     const dateStr = format(dateObj, 'yyyy-MM-dd');
     const daySlots = dailyRotaData[dateStr] || [];
-    // Filtruj sloty tak samo jak w komponencie DayDetails, aby liczba była spójna z wyświetlanymi slotami
     const visibleSlots = daySlots.filter(slot => slot.profiles);
-    // Sprawdź czy zalogowany użytkownik ma zmianę w tym dniu
     const userHasShift = visibleSlots.some(slot => slot.user_id === user?.id);
     const isToday = isSameDay(dateObj, new Date());
     const dayName = format(dateObj, 'EEEE');
@@ -184,79 +235,136 @@ const WeeklyRotaPage = () => {
        }
     };
 
+    const shiftCounts = {
+      day: visibleSlots.filter(s => s.shift_type === 'day').length,
+      afternoon: visibleSlots.filter(s => s.shift_type === 'afternoon').length,
+      night: visibleSlots.filter(s => s.shift_type === 'night').length
+    };
+
     return (
       <div
         key={dateStr}
         className={`
-          flex flex-col
-          bg-black/60 
-          border border-white/20 
-          rounded-md 
-          backdrop-blur-md 
-          shadow-lg 
-          overflow-hidden // Keep this to prevent internal scrollbar bleed
-          ${isToday ? 'ring-1 ring-blue-400' : ''} 
-          ${isWeekend ? 'bg-gradient-to-br from-purple-900/40 to-black/60' : ''}
-          ${userHasShift ? 'border-l-4 border-l-yellow-400' : ''}
+          bg-white/5 
+          backdrop-blur-sm 
+          rounded-xl 
+          shadow-xl
+          overflow-hidden
+          border border-white/10
+          transition-all duration-200
+          ${isToday ? 'ring-2 ring-blue-400' : ''} 
+          ${isWeekend ? 'bg-gradient-to-br from-purple-900/20 to-black/40' : ''}
+          ${userHasShift ? 'border-l-2 border-l-amber-400' : ''}
+          relative
         `}
       >
-        {/* Header - ADDED onClick handler and expand icon for mobile */}
+        {/* Day Header - Sticky on mobile */}
         <div 
-          className={`p-1 border-b border-white/10 bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-transparent cursor-pointer md:cursor-default ${userHasShift ? 'from-yellow-700/30 via-blue-900/40' : ''}`}
-          onClick={handleHeaderClick} // Attach click handler
+          className={`
+            relative
+            p-3
+            border-b border-white/10 
+            bg-gradient-to-r from-gray-800/80 to-gray-900/80
+            cursor-pointer
+            flex items-center justify-between
+            backdrop-blur-md
+            sticky top-0 z-10
+            ${userHasShift ? 'bg-gradient-to-r from-amber-900/40 to-gray-900/80' : ''}
+            ${isToday ? 'from-blue-900/40' : ''}
+          `}
+          onClick={handleHeaderClick}
         >
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <h3 className="text-base font-semibold text-white flex items-center gap-1">
-                <span>{format(dateObj, 'EEE')}</span>
-                <span className="text-white/70 ml-1">{format(dateObj, 'dd/MM')}</span>
-                {isToday && (
-                  <span className="text-[10px] bg-blue-500 text-white px-1 py-0.5 rounded-full ml-1 uppercase font-bold">Today</span>
-                )}
-              </h3>
+          <div className="flex items-center space-x-3">
+            <div className={`
+              w-11 h-11 
+              rounded-full 
+              flex-shrink-0 
+              flex flex-col items-center justify-center
+              bg-gradient-to-br from-white/10 to-white/5
+              border border-white/20
+              ${isToday ? 'bg-blue-500 border-blue-400 text-white' : 'text-white/90'}
+            `}>
+              <span className="text-xl font-bold leading-none">{format(dateObj, 'dd')}</span>
+              <span className="text-[10px] opacity-70 mt-0.5">{format(dateObj, 'MMM')}</span>
             </div>
             
-            {/* Przeniesione na prawą stronę */}
-            <div className="flex items-center space-x-2">
-              {visibleSlots.length > 0 && (
-                <div className={`flex items-center text-xs ${userHasShift ? 'bg-yellow-500 text-black font-bold px-1.5 py-0.5 rounded-full' : 'text-white/70'}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-4 w-4 mr-1 ${userHasShift ? 'text-black' : 'text-green-300'}`} 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>
-                    {visibleSlots.length}
-                  </span>
-                </div>
-              )}
+            <div>
+              <h3 className="text-base font-bold text-white leading-tight">
+                {format(dateObj, 'EEEE')}
+                {isToday && (
+                  <span className="ml-2 text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full uppercase font-bold align-middle">Today</span>
+                )}
+              </h3>
               
-              {/* Expand/Collapse Icon - Mobile only */}
-              <div className="md:hidden">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-5 w-5 text-white/60 transition-transform duration-200 ${isMobileExpanded ? 'rotate-180' : ''}`} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+              {visibleSlots.length > 0 ? (
+                <div className="flex space-x-2 mt-0.5">
+                  {shiftCounts.day > 0 && (
+                    <span className="inline-flex items-center text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                      </svg>
+                      {shiftCounts.day}
+                    </span>
+                  )}
+                  
+                  {shiftCounts.afternoon > 0 && (
+                    <span className="inline-flex items-center text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                      </svg>
+                      {shiftCounts.afternoon}
+                    </span>
+                  )}
+                  
+                  {shiftCounts.night > 0 && (
+                    <span className="inline-flex items-center text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                      </svg>
+                      {shiftCounts.night}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-white/50">No shifts scheduled</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Expand/Collapse button - only on mobile */}
+          <div className="md:hidden">
+            <div className={`
+              w-8 h-8 
+              flex items-center justify-center 
+              rounded-full 
+              bg-white/10 
+              transition-colors 
+              hover:bg-white/20
+            `}>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`h-5 w-5 text-white/80 transition-transform duration-200 ${isMobileExpanded ? 'rotate-180' : ''}`} 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
           </div>
         </div>
         
-        {/* Mobile: Conditionally visible Details Area */}
-        <div className={`${isMobileExpanded ? 'block' : 'hidden'} md:hidden`}>
-           <DayDetails dateStr={dateStr} />
+        {/* Mobile: Conditionally visible details area with transition */}
+        <div className={`transition-all duration-300 ease-in-out overflow-hidden md:hidden
+          ${isMobileExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="p-3">
+            <DayDetails dateStr={dateStr} />
+          </div>
         </div>
 
-        {/* Desktop: Always visible Details Area */}
-        <div className="hidden md:block">
-           <DayDetails dateStr={dateStr} />
+        {/* Desktop: Always visible details area */}
+        <div className="hidden md:block p-3">
+          <DayDetails dateStr={dateStr} />
         </div>
       </div>
     );
@@ -264,26 +372,29 @@ const WeeklyRotaPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-blue-900">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-4" />
+          <p className="text-white text-lg">Loading your schedule...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-blue-900 to-green-500 text-white">
-        <div className="bg-red-900/40 backdrop-blur-xl p-4 rounded-lg border border-red-500/30 max-w-md">
-          <h3 className="text-lg font-semibold mb-2 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-blue-900 text-white">
+        <div className="bg-red-900/40 backdrop-blur-xl p-6 rounded-xl border border-red-500/30 max-w-md">
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-400" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             Error Loading Rota
           </h3>
-          <p>{error}</p>
+          <p className="mb-6 text-white/80">{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-4 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+            className="w-full bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -296,39 +407,58 @@ const WeeklyRotaPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 py-4 px-1 sm:px-2 text-white flex flex-col">
-      {/* Header - adjusted instruction text */}
-      <div className="w-full">
-        <div className="flex justify-center items-center mb-4">
-          <div className="flex items-center bg-black/70 border-2 border-white/20 rounded-full shadow-lg overflow-hidden">
-            <button
-              onClick={goPrevWeek}
-              className="h-12 w-12 flex items-center justify-center bg-black/30 hover:bg-white/10 transition-colors border-r border-white/10 rounded-l-full focus:outline-none"
-              aria-label="Previous week"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <span className="px-8 py-2 text-xl font-bold text-white select-none">
-              Week {getWeek(weekStart)}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 pb-6">
+      {/* Modern Week Navigation Bar */}
+      <div className="bg-black/40 sticky top-0 z-20 backdrop-blur-lg border-b border-white/10 shadow-lg">
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={goPrevWeek}
+                className="h-9 w-9 flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors rounded-full focus:outline-none"
+                aria-label="Previous week"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="bg-white/5 px-4 py-1.5 rounded-full text-white font-semibold text-base">
+                  Week {getWeek(weekStart)}
+                </div>
+                
+                <span className="text-white/70 text-sm hidden sm:inline">
+                  {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
+                </span>
+              </div>
+              
+              <button
+                onClick={goNextWeek}
+                className="h-9 w-9 flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors rounded-full focus:outline-none"
+                aria-label="Next week"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          {/* Pokazujemy zakres dat na małych ekranach, gdy jest ukryty w głównej nawigacji */}
+          <div className="mt-2 text-center sm:hidden">
+            <span className="text-white/70 text-sm">
+              {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
             </span>
-            <button
-              onClick={goNextWeek}
-              className="h-12 w-12 flex items-center justify-center bg-black/30 hover:bg-white/10 transition-colors border-l border-white/10 rounded-r-full focus:outline-none"
-              aria-label="Next week"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Week days grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 xl:grid-cols-7 gap-1 sm:gap-2 lg:gap-3 w-full">
-        {Array.from({ length: 7 }).map((_, idx) => renderDayCard(addDays(weekStart, idx)))}
+      {/* Modern Weekly Grid */}
+      <div className="container mx-auto px-3 md:px-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 md:gap-4">
+          {Array.from({ length: 7 }).map((_, idx) => renderDayCard(addDays(weekStart, idx)))}
+        </div>
       </div>
     </div>
   );

@@ -215,17 +215,7 @@ const LoginStats = () => {
                   <Tooltip 
                     // eslint-disable-next-line react/prop-types
                     formatter={(value, name, props) => [value, props.payload.inactive_range]}
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      padding: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'normal',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)'
-                    }}
-                    itemStyle={{ color: 'white' }}
-                    labelStyle={{ color: 'white', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                   />
                   <Legend />
                 </PieChart>
@@ -245,15 +235,7 @@ const LoginStats = () => {
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                      borderColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      padding: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'normal',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)'
-                    }}
+                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
                   />
                   <Legend />
                   <Bar dataKey="new_registrations" name="New Registrations" fill="#0088FE" />
