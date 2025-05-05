@@ -97,6 +97,49 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         
         const allProfiles = profiles; // Use only regular profiles
 
+        /* ================= Weekly Shift Counts ================= */
+        // Calculate week range (Saturday to Friday) for the selected slot date
+        const slotDateObj = parseISO(slot.date);
+        const dayOfWeek = slotDateObj.getDay(); // 0 = Sun, 6 = Sat
+        // Days since last Saturday
+        const daysSinceSaturday = (dayOfWeek + 1) % 7; // Sat=>0, Sun=>1, ... Fri=>6
+        const weekStartDateObj = new Date(slotDateObj);
+        weekStartDateObj.setDate(slotDateObj.getDate() - daysSinceSaturday);
+        const weekEndDateObj = new Date(weekStartDateObj);
+        weekEndDateObj.setDate(weekStartDateObj.getDate() + 6);
+
+        const weekStart = weekStartDateObj.toISOString().split('T')[0];
+        const weekEnd = weekEndDateObj.toISOString().split('T')[0];
+
+        // Fetch shift counts per employee for that week
+        let weeklyCountMap = new Map();
+        try {
+          const { data: weeklyCountsData, error: weeklyCountsError } = await supabase
+            .from('scheduled_rota')
+            .select('user_id, date')
+            .gte('date', weekStart)
+            .lte('date', weekEnd)
+            .not('user_id', 'is', null);
+
+          if (weeklyCountsError) {
+            console.error('Error fetching weekly counts:', weeklyCountsError);
+          } else {
+            console.log('Weekly data fetched:', weeklyCountsData?.length || 0, 'records');
+
+            // Count shifts per user manually
+            weeklyCountsData?.forEach(item => {
+              if (item.user_id) {
+                const currentCount = weeklyCountMap.get(item.user_id) || 0;
+                weeklyCountMap.set(item.user_id, currentCount + 1);
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Weekly count calculation error:', err);
+        }
+
+        console.log('Weekly counts calculated:', [...weeklyCountMap.entries()]);
+
         // Fetch availability for the day
         const date = slot.date;
         const { data: availability, error: availabilityError } = await supabase
@@ -248,7 +291,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             matchScore,
             hasBreakConflict,
             hasOverlappingConflict,
-            hasBreakTimeConflict
+            hasBreakTimeConflict,
+            weeklyShifts: weeklyCountMap.get(profile.id) || 0
           };
         });
 
@@ -496,8 +540,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         
         <div className="overflow-y-auto p-4 flex-1">
           {loading ? (
-            <div className="flex justify-center py-4">
+            <div className="flex flex-col items-center py-4 gap-2">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+              <div className="text-white/70">Loading employees...</div>
+            </div>
+          ) : availableEmployees.length === 0 ? (
+            <div className="flex justify-center py-4">
+              <p className="text-white/70">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
             <ul className="space-y-2">
@@ -522,8 +571,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     </div>
                     
                     <div>
-                      <div className="font-medium text-white">
+                      <div className="font-medium text-white flex items-center gap-1">
                         {employee.first_name} {employee.last_name}
+                        {typeof employee.weeklyShifts === 'number' && (
+                          <span className="bg-white text-black font-bold text-xs px-1.5 py-0.5 rounded-md shadow-sm border border-white/10">
+                            {employee.weeklyShifts}
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-1 mt-1">
