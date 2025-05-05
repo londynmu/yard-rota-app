@@ -22,7 +22,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     try {
       const date = parseISO(dateString);
       return `${format(date, 'yyyy-MM-dd')}, ${format(date, 'EEEE')}`;
-    } catch (_) {
+    } catch {
       return dateString;
     }
   };
@@ -412,49 +412,62 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         )}
         
         <div className="p-4 border-b border-white/20 bg-black/90 sticky top-[65px] z-10">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex w-full">
-              <button
-                onClick={() => setSelectedTab('available')}
-                className={`px-3 py-2 flex-1 rounded-l-md ${
-                  selectedTab === 'available' 
-                    ? 'bg-blue-600/30 border-blue-400/30 text-white' 
-                    : 'bg-white/10 border-white/20 text-white/70'
-                } border`}
-              >
-                Available
-              </button>
-              <button
-                onClick={() => setSelectedTab('assigned')}
-                className={`px-3 py-2 flex-1 ${
-                  selectedTab === 'assigned' 
-                    ? 'bg-blue-600/30 border-blue-400/30 text-white' 
-                    : 'bg-white/10 border-white/20 text-white/70'
-                } border-t border-b`}
-              >
-                Assigned
-              </button>
-              <button
-                onClick={() => setSelectedTab('conflicts')}
-                className={`px-3 py-2 flex-1 ${
-                  selectedTab === 'conflicts' 
-                    ? 'bg-blue-600/30 border-blue-400/30 text-white' 
-                    : 'bg-white/10 border-white/20 text-white/70'
-                } border-t border-b`}
-              >
-                Conflicts
-              </button>
-              <button
-                onClick={() => setSelectedTab('unavailable')}
-                className={`px-3 py-2 flex-1 rounded-r-md ${
-                  selectedTab === 'unavailable' 
-                    ? 'bg-blue-600/30 border-blue-400/30 text-white' 
-                    : 'bg-white/10 border-white/20 text-white/70'
-                } border`}
-              >
-                Unavailable
-              </button>
-            </div>
+          {/* Mobile: dropdown selector */}
+          <div className="sm:hidden mb-3">
+            <select
+              value={selectedTab}
+              onChange={(e) => setSelectedTab(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="available">Available</option>
+              <option value="assigned">Assigned</option>
+              <option value="conflicts">Conflicts</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+          </div>
+
+          {/* Desktop / tablet: tab buttons */}
+          <div className="hidden sm:flex w-full">
+            <button
+              onClick={() => setSelectedTab('available')}
+              className={`px-3 py-2 flex-1 sm:rounded-l-md rounded-t-md ${
+                selectedTab === 'available' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border`}
+            >
+              Available
+            </button>
+            <button
+              onClick={() => setSelectedTab('assigned')}
+              className={`px-3 py-2 flex-1 ${
+                selectedTab === 'assigned' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border-t sm:border-t border-b`}
+            >
+              Assigned
+            </button>
+            <button
+              onClick={() => setSelectedTab('conflicts')}
+              className={`px-3 py-2 flex-1 ${
+                selectedTab === 'conflicts' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border-t border-b`}
+            >
+              Conflicts
+            </button>
+            <button
+              onClick={() => setSelectedTab('unavailable')}
+              className={`px-3 py-2 flex-1 sm:rounded-r-md rounded-b-md ${
+                selectedTab === 'unavailable' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border`}
+            >
+              Unavailable
+            </button>
           </div>
           
           {/* Enhanced Capacity Indicator */}
