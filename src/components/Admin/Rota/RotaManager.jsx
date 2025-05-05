@@ -4,6 +4,7 @@ import SlotCard from './SlotCard';
 import AssignModal from './AssignModal';
 import TimePicker from './TimePicker';
 import EditSlotModal from './EditSlotModal';
+import ExportRotaButton from '../ExportRotaButton';
 
 // Add date-fns for date manipulation
 import { format, addDays, parseISO } from 'date-fns';
@@ -778,6 +779,8 @@ const RotaManager = () => {
             </svg>
             <span>Copy Last Week</span>
           </button>
+          
+          <ExportRotaButton />
         </div>
       </div>
 

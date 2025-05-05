@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
+import ExportRotaButton from '../components/Admin/ExportRotaButton';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -376,6 +377,9 @@ const WeeklyRotaPage = () => {
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mb-4" />
           <p className="text-white text-lg">Loading your schedule...</p>
+          <div className="mt-4">
+            <ExportRotaButton />
+          </div>
         </div>
       </div>
     );
@@ -392,15 +396,20 @@ const WeeklyRotaPage = () => {
             Error Loading Rota
           </h3>
           <p className="mb-6 text-white/80">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Retry
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => window.location.reload()}
+              className="flex-1 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Retry
+            </button>
+            <div>
+              <ExportRotaButton />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -454,8 +463,34 @@ const WeeklyRotaPage = () => {
         </div>
       </div>
 
+      {/* Action Buttons */}
+      <div className="container mx-auto px-3 md:px-4 mt-4 flex flex-wrap gap-2">
+        <button 
+          onClick={() => (window.location.href = "/admin/add-slot")}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors flex items-center justify-center"
+        >
+          <span>Add Slot</span>
+        </button>
+        
+        <button
+          onClick={() => console.log("Copy Last Week")}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+          </svg>
+          <span>Copy Last Week</span>
+        </button>
+        
+        <ExportRotaButton />
+      </div>
+
       {/* Modern Weekly Grid */}
       <div className="container mx-auto px-3 md:px-4 mt-4">
+        <div className="flex justify-end mb-2">
+          <ExportRotaButton />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 md:gap-4">
           {Array.from({ length: 7 }).map((_, idx) => renderDayCard(addDays(weekStart, idx)))}
         </div>
