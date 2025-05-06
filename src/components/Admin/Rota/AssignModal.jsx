@@ -147,7 +147,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             preferred_location,
             shift_preference,
             custom_start_time,
-            custom_end_time
+            custom_end_time,
+            performance_score
           `)
           .eq('is_active', true)
           .order('first_name');
@@ -303,6 +304,12 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           
           // Calculate match score for sorting (higher is better)
           let matchScore = 0;
+          
+          // Performance score boost - prioritize employees with higher performance ratings
+          if (profile.performance_score) {
+            // Score 0-100 scaled down to add up to 10 points for perfect performance
+            matchScore += profile.performance_score / 10;
+          }
           
           // Shift preference match
           if (profile.shift_preference === slot.shift_type) {
@@ -687,6 +694,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                         {typeof employee.weeklyShifts === 'number' && (
                           <span className="bg-white text-black font-bold text-xs px-1.5 py-0.5 rounded-md shadow-sm border border-white/10">
                             {employee.weeklyShifts}
+                          </span>
+                        )}
+                        
+                        {/* Display performance score if available */}
+                        {employee.performance_score && (
+                          <span className="bg-green-500/20 border border-green-500/30 text-green-300 font-bold text-xs px-1.5 py-0.5 rounded-md ml-1">
+                            {employee.performance_score}
                           </span>
                         )}
                       </div>

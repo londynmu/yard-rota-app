@@ -18,6 +18,18 @@ const WeeklyRotaPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedDayMobile, setExpandedDayMobile] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+
+  // Load last selected location from localStorage or default to Rugby
+  useEffect(() => {
+    const savedLocation = localStorage.getItem('weekly_rota_location') || 'Rugby';
+    setSelectedLocation(savedLocation);
+  }, []);
+
+  // Save selected location when it changes
+  useEffect(() => {
+    localStorage.setItem('weekly_rota_location', selectedLocation);
+  }, [selectedLocation]);
 
   useEffect(() => {
     const fetchFullRota = async () => {
@@ -42,7 +54,8 @@ const WeeklyRotaPage = () => {
             task
           `)
           .gte('date', start)
-          .lte('date', end);
+          .lte('date', end)
+          .eq('location', selectedLocation); // Filter by selected location
 
         if (rotaError) throw rotaError;
 
@@ -90,7 +103,7 @@ const WeeklyRotaPage = () => {
     };
 
     fetchFullRota();
-  }, [weekStart, user]);
+  }, [weekStart, user, selectedLocation]);
 
   const goPrevWeek = () => {
     setWeekStart((d) => subDays(d, 7));
@@ -179,20 +192,25 @@ const WeeklyRotaPage = () => {
               </div>
               
               <ul className="divide-y divide-white/10">
-                {slots.map((slot) => (
-                  <li 
-                    key={slot.id}
-                    className={`p-3 transition-colors ${slot.user_id === user?.id ? 'bg-amber-500/10' : ''}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <h5 className={`font-semibold md:text-sm truncate md:normal-case md:overflow-visible ${slot.user_id === user?.id ? 'text-amber-300' : 'text-white'}`}>
-                            {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
-                            {slot.user_id === user?.id && (
-                              <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded-full uppercase align-middle">You</span>
-                            )}
-                          </h5>
+                {slots.map((slot) => {
+                  const isCurrentUser = slot.user_id === user?.id;
+                  return (
+                    <li 
+                      key={slot.id} 
+                      className={`p-3 ${isCurrentUser ? 'bg-amber-500/10 border-l-2 border-l-amber-400' : ''}`}
+                    >
+                      <div className="flex flex-col">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className={`font-medium ${isCurrentUser ? 'text-amber-300' : 'text-white'}`}>
+                              {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                              {isCurrentUser && (
+                                <span className="ml-2 text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full uppercase font-bold">
+                                  You
+                                </span>
+                              )}
+                            </span>
+                          </div>
                         </div>
                         
                         <div className="flex flex-wrap gap-2 mt-1">
@@ -212,9 +230,9 @@ const WeeklyRotaPage = () => {
                           )}
                         </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );
@@ -225,158 +243,6 @@ const WeeklyRotaPage = () => {
 
   DayDetails.propTypes = {
     dateStr: PropTypes.string.isRequired,
-  };
-
-  const renderDayCard = (dateObj) => {
-    const dateStr = format(dateObj, 'yyyy-MM-dd');
-    const daySlots = dailyRotaData[dateStr] || [];
-    const visibleSlots = daySlots.filter(slot => slot.profiles);
-    const userHasShift = visibleSlots.some(slot => slot.user_id === user?.id);
-    const isToday = isSameDay(dateObj, new Date());
-    const dayName = format(dateObj, 'EEEE');
-    const isWeekend = dayName === 'Saturday' || dayName === 'Sunday';
-    const isMobileExpanded = expandedDayMobile === dateStr;
-
-    // Toggle expansion only on mobile
-    const handleHeaderClick = () => {
-       if (window.innerWidth < 768) { // md breakpoint
-         setExpandedDayMobile(isMobileExpanded ? null : dateStr);
-       }
-    };
-
-    const shiftCounts = {
-      day: visibleSlots.filter(s => s.shift_type === 'day').length,
-      afternoon: visibleSlots.filter(s => s.shift_type === 'afternoon').length,
-      night: visibleSlots.filter(s => s.shift_type === 'night').length
-    };
-
-    return (
-      <div
-        key={dateStr}
-        className={`
-          bg-white/5 
-          backdrop-blur-sm 
-          rounded-xl 
-          shadow-xl
-          overflow-hidden
-          border border-white/10
-          transition-all duration-200
-          ${isToday ? 'ring-2 ring-blue-400' : ''} 
-          ${isWeekend ? 'bg-gradient-to-br from-purple-900/20 to-black/40' : ''}
-          ${userHasShift ? 'border-l-2 border-l-amber-400' : ''}
-          relative
-        `}
-      >
-        {/* Day Header - Sticky on mobile */}
-        <div 
-          className={`
-            relative
-            p-3
-            border-b border-white/10 
-            bg-gradient-to-r from-gray-800/80 to-gray-900/80
-            cursor-pointer
-            flex items-center justify-between
-            backdrop-blur-md
-            sticky top-0 z-10
-            ${userHasShift ? 'bg-gradient-to-r from-amber-900/40 to-gray-900/80' : ''}
-            ${isToday ? 'from-blue-900/40' : ''}
-          `}
-          onClick={handleHeaderClick}
-        >
-          <div className="flex items-center space-x-3">
-            <div className={`
-              w-11 h-11 
-              rounded-full 
-              flex-shrink-0 
-              flex flex-col items-center justify-center
-              bg-gradient-to-br from-white/10 to-white/5
-              border border-white/20
-              ${isToday ? 'bg-blue-500 border-blue-400 text-white' : 'text-white/90'}
-            `}>
-              <span className="text-xl font-bold leading-none">{format(dateObj, 'dd')}</span>
-              <span className="text-[10px] opacity-70 mt-0.5">{format(dateObj, 'MMM')}</span>
-            </div>
-            
-            <div>
-              <h3 className="text-base font-bold text-white leading-tight">
-                {format(dateObj, 'EEEE')}
-                {isToday && (
-                  <span className="ml-2 text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full uppercase font-bold align-middle">Today</span>
-                )}
-              </h3>
-              
-              {visibleSlots.length > 0 ? (
-                <div className="flex space-x-2 mt-0.5">
-                  {shiftCounts.day > 0 && (
-                    <span className="inline-flex items-center text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                      </svg>
-                      {shiftCounts.day}
-                    </span>
-                  )}
-                  
-                  {shiftCounts.afternoon > 0 && (
-                    <span className="inline-flex items-center text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                      </svg>
-                      {shiftCounts.afternoon}
-                    </span>
-                  )}
-                  
-                  {shiftCounts.night > 0 && (
-                    <span className="inline-flex items-center text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                      </svg>
-                      {shiftCounts.night}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-white/50">No shifts scheduled</span>
-              )}
-            </div>
-          </div>
-          
-          {/* Expand/Collapse button - only on mobile */}
-          <div className="md:hidden">
-            <div className={`
-              w-8 h-8 
-              flex items-center justify-center 
-              rounded-full 
-              bg-white/10 
-              transition-colors 
-              hover:bg-white/20
-            `}>
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className={`h-5 w-5 text-white/80 transition-transform duration-200 ${isMobileExpanded ? 'rotate-180' : ''}`} 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-        
-        {/* Mobile: Conditionally visible details area with transition */}
-        <div className={`transition-all duration-300 ease-in-out overflow-hidden md:hidden
-          ${isMobileExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="p-3">
-            <DayDetails dateStr={dateStr} />
-          </div>
-        </div>
-
-        {/* Desktop: Always visible details area */}
-        <div className="hidden md:block p-3">
-          <DayDetails dateStr={dateStr} />
-        </div>
-      </div>
-    );
   };
 
   if (loading) {
@@ -418,12 +284,40 @@ const WeeklyRotaPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 pb-6">
-      {/* Modern Week Navigation Bar */}
+    <div className="min-h-screen bg-gradient-to-br from-black to-blue-900">
+      {/* Week Navigation */}
       <div className="bg-black/40 sticky top-0 z-20 backdrop-blur-lg border-b border-white/10 shadow-lg">
         <div className="container mx-auto px-4 py-3 md:py-4">
+          {/* Mobile-only location tabs */}
+          <div className="md:hidden flex justify-center w-full mb-3">
+            <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
+              <button
+                onClick={() => setSelectedLocation('Rugby')}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedLocation === 'Rugby'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Rugby
+              </button>
+              <button
+                onClick={() => setSelectedLocation('NRC')}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedLocation === 'NRC'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                NRC
+              </button>
+            </div>
+          </div>
+          
+          {/* Week Navigation with location tabs integrated for desktop */}
           <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 md:space-x-6">
+              {/* Previous week button */}
               <button
                 onClick={goPrevWeek}
                 className="h-9 w-9 flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors rounded-full focus:outline-none"
@@ -434,16 +328,17 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               
-              <div className="flex items-center space-x-3">
-                <div className="bg-white/5 px-4 py-1.5 rounded-full text-white font-semibold text-base">
-                  Week {getWeek(weekStart)}
-                </div>
-                
-                <span className="text-white/70 text-sm hidden sm:inline">
-                  {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
-                </span>
+              {/* Week indicator */}
+              <div className="bg-white/5 px-4 py-1.5 rounded-full text-white font-semibold text-base">
+                Week {getWeek(weekStart)}
               </div>
               
+              {/* Date range - hidden on small screens */}
+              <span className="text-white/70 text-sm hidden sm:inline">
+                {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
+              </span>
+              
+              {/* Next week button */}
               <button
                 onClick={goNextWeek}
                 className="h-9 w-9 flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors rounded-full focus:outline-none"
@@ -453,22 +348,209 @@ const WeeklyRotaPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
+              
+              {/* Location Tabs - Only visible on desktop */}
+              <div className="hidden md:flex bg-white/5 rounded-full p-1 border border-white/10">
+                <button
+                  onClick={() => setSelectedLocation('Rugby')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                    selectedLocation === 'Rugby'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Rugby
+                </button>
+                <button
+                  onClick={() => setSelectedLocation('NRC')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                    selectedLocation === 'NRC'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  NRC
+                </button>
+              </div>
             </div>
           </div>
           
-          {/* Pokazujemy zakres dat na małych ekranach, gdy jest ukryty w głównej nawigacji */}
-          <div className="mt-2 text-center sm:hidden">
-            <span className="text-white/70 text-sm">
-              {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
+          {/* Display selected location label - show on mobile only */}
+          <div className="text-center mt-2 md:hidden">
+            <span className="text-white/80 text-sm">
+              Location: <span className="font-semibold text-white">{selectedLocation}</span>
             </span>
           </div>
         </div>
       </div>
 
-      {/* Modern Weekly Grid */}
-      <div className="container mx-auto px-3 md:px-4 mt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 md:gap-4">
-          {Array.from({ length: 7 }).map((_, idx) => renderDayCard(addDays(weekStart, idx)))}
+      <div className="container mx-auto p-4">
+        {/* Week Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 mt-2">
+          {/* Generate 7 days starting from weekStart */}
+          {Array.from({ length: 7 }).map((_, index) => {
+            const dateObj = addDays(weekStart, index);
+            const dateStr = format(dateObj, 'yyyy-MM-dd');
+            const isWeekend = [0, 6].includes(dateObj.getDay()); // Sunday (0) or Saturday (6)
+            const isToday = isSameDay(dateObj, new Date());
+            
+            // Check if the current user has shifts on this day
+            const dayData = dailyRotaData[dateStr] || [];
+            const userHasShift = dayData.some(slot => slot.user_id === user?.id);
+            
+            // Determine if this day should be expanded on mobile
+            const isExpanded = expandedDayMobile === dateStr;
+            
+            const handleHeaderClick = () => {
+              // Toggle expanded state on mobile
+              if (expandedDayMobile === dateStr) {
+                setExpandedDayMobile(null);
+              } else {
+                setExpandedDayMobile(dateStr);
+              }
+            };
+            
+            return (
+              <div
+                key={dateStr}
+                className={`
+                  bg-white/5 
+                  backdrop-blur-sm 
+                  rounded-xl 
+                  shadow-xl
+                  overflow-hidden
+                  border border-white/10
+                  transition-all duration-200
+                  ${isToday ? 'ring-2 ring-blue-400' : ''} 
+                  ${isWeekend ? 'bg-gradient-to-br from-purple-900/20 to-black/40' : ''}
+                  ${userHasShift ? 'border-l-2 border-l-amber-400' : ''}
+                  relative
+                `}
+              >
+                {/* Day Header - Sticky on mobile */}
+                <div 
+                  className={`
+                    relative
+                    p-3
+                    border-b border-white/10 
+                    bg-gradient-to-r from-gray-800/80 to-gray-900/80
+                    cursor-pointer
+                    flex items-center justify-between
+                    backdrop-blur-md
+                    sticky top-0 z-10
+                    ${userHasShift ? 'bg-gradient-to-r from-amber-900/40 to-gray-900/80' : ''}
+                    ${isToday ? 'from-blue-900/40' : ''}
+                  `}
+                  onClick={handleHeaderClick}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`
+                      w-11 h-11 
+                      rounded-full 
+                      flex-shrink-0 
+                      flex flex-col items-center justify-center
+                      bg-gradient-to-br from-white/10 to-white/5
+                      border border-white/20
+                      ${isToday ? 'bg-blue-500 border-blue-400 text-white' : 'text-white/90'}
+                    `}>
+                      <span className="text-xl font-bold leading-none">{format(dateObj, 'dd')}</span>
+                      <span className="text-[10px] opacity-70 mt-0.5">{format(dateObj, 'MMM')}</span>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-base font-bold text-white leading-tight">
+                        {format(dateObj, 'EEEE')}
+                        {isToday && (
+                          <span className="ml-2 text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full uppercase font-bold align-middle">Today</span>
+                        )}
+                      </h3>
+                      
+                      {dayData.length > 0 ? (
+                        <div className="flex space-x-2 mt-0.5">
+                          {/* Calculate shift counts */}
+                          {(() => {
+                            const shiftCounts = {
+                              day: dayData.filter(s => s.shift_type === 'day').length,
+                              afternoon: dayData.filter(s => s.shift_type === 'afternoon').length,
+                              night: dayData.filter(s => s.shift_type === 'night').length
+                            };
+                            
+                            return (
+                              <>
+                                {shiftCounts.day > 0 && (
+                                  <span className="inline-flex items-center text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                                    </svg>
+                                    {shiftCounts.day}
+                                  </span>
+                                )}
+                                
+                                {shiftCounts.afternoon > 0 && (
+                                  <span className="inline-flex items-center text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                    </svg>
+                                    {shiftCounts.afternoon}
+                                  </span>
+                                )}
+                                
+                                {shiftCounts.night > 0 && (
+                                  <span className="inline-flex items-center text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                    </svg>
+                                    {shiftCounts.night}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-white/50">No shifts scheduled</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Expand/Collapse button - only on mobile */}
+                  <div className="md:hidden">
+                    <div className={`
+                      w-8 h-8 
+                      flex items-center justify-center 
+                      rounded-full 
+                      bg-white/10 
+                      transition-colors 
+                      hover:bg-white/20
+                    `}>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className={`h-5 w-5 text-white/80 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Mobile: Conditionally visible details area with transition */}
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden md:hidden
+                  ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <div className="p-3">
+                    <DayDetails dateStr={dateStr} />
+                  </div>
+                </div>
+
+                {/* Desktop: Always visible details area */}
+                <div className="hidden md:block p-3">
+                  <DayDetails dateStr={dateStr} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
