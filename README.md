@@ -78,6 +78,7 @@ If you encounter errors:
 
 ## Recent Changes (YYYY-MM-DD)
 
+- **Add Locations Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Locations" w panelu administracyjnym. Przeniesiono funkcjonalność zarządzania lokalizacjami z zakładki "Settings" do nowo utworzonej zakładki, co znacząco poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z lokalizacjami.
 - **Add Agencies Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Agencies" w panelu administracyjnym. Przeniesiono funkcjonalność zarządzania agencjami z zakładki "Settings" do nowo utworzonej zakładki, co znacząco poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z agencjami.
 - **Add Breaks Config Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Breaks Config" w panelu administracyjnym. Przeniesiono zawartość "System Configuration" z zakładki "Settings" do nowo utworzonej zakładki, co poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z przerwami między zmianami.
 - **Fix Slot Sorting in Rota Planner (2024-06-11):** Poprawiono kolejność wyświetlania slotów w widoku Rota Planner. Teraz sloty są najpierw sortowane według czasu rozpoczęcia (rosnąco), a następnie według czasu zakończenia (rosnąco). Dzięki temu sloty z wcześniejszym czasem rozpoczęcia zawsze wyświetlają się jako pierwsze, a przy tym samym czasie rozpoczęcia, najpierw pokazywane są te z wcześniejszym czasem zakończenia. Zmiana zapewnia bardziej logiczne i przejrzyste wyświetlanie grafiku.

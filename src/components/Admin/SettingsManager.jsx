@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import LocationManager from './LocationManager';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -227,53 +226,48 @@ export default function SettingsManager() {
       
       {/* Team Management Settings */}
       {activeSection === 'team' && (
-        <>
-          <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">Team Management</h3>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Minimum Staffing Level (Day Shift)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={minStaffingDay}
-                onChange={(e) => setMinStaffingDay(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Minimum Staffing Level (Night Shift)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={minStaffingNight}
-                onChange={(e) => setMinStaffingNight(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            
-            <button
-              type="button"
-              onClick={() => saveSettings('Team')}
-              disabled={isSaving}
-              className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
-                isSaving ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSaving ? 'Saving...' : 'Save Team Settings'}
-            </button>
+        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Team Management</h3>
+          
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">
+              Minimum Staffing Level (Day Shift)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={minStaffingDay}
+              onChange={(e) => setMinStaffingDay(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            />
           </div>
           
-          {/* Location Manager */}
-          <LocationManager />
-        </>
+          <div className="mb-4">
+            <label className="block text-white text-sm font-medium mb-2">
+              Minimum Staffing Level (Night Shift)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={minStaffingNight}
+              onChange={(e) => setMinStaffingNight(Number(e.target.value))}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => saveSettings('Team')}
+            disabled={isSaving}
+            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isSaving ? 'Saving...' : 'Save Team Settings'}
+          </button>
+        </div>
       )}
       
       {/* Success/Error Message */}
