@@ -288,33 +288,7 @@ const WeeklyRotaPage = () => {
       {/* Week Navigation */}
       <div className="bg-black/40 sticky top-0 z-20 backdrop-blur-lg border-b border-white/10 shadow-lg">
         <div className="container mx-auto px-4 py-3 md:py-4">
-          {/* Mobile-only location tabs */}
-          <div className="md:hidden flex justify-center w-full mb-3">
-            <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
-              <button
-                onClick={() => setSelectedLocation('Rugby')}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
-                  selectedLocation === 'Rugby'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                Rugby
-              </button>
-              <button
-                onClick={() => setSelectedLocation('NRC')}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
-                  selectedLocation === 'NRC'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                NRC
-              </button>
-            </div>
-          </div>
-          
-          {/* Week Navigation with location tabs integrated for desktop */}
+          {/* Week Navigation z zintegrowanym przełącznikiem lokalizacji */}
           <div className="flex items-center justify-center">
             <div className="flex items-center space-x-2 md:space-x-6">
               {/* Previous week button */}
@@ -349,11 +323,11 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               
-              {/* Location Tabs - Only visible on desktop */}
-              <div className="hidden md:flex bg-white/5 rounded-full p-1 border border-white/10">
+              {/* Location Tabs - widoczne zarówno na mobilce jak i desktop */}
+              <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
                 <button
                   onClick={() => setSelectedLocation('Rugby')}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
                     selectedLocation === 'Rugby'
                       ? 'bg-blue-600 text-white'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -363,7 +337,7 @@ const WeeklyRotaPage = () => {
                 </button>
                 <button
                   onClick={() => setSelectedLocation('NRC')}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
                     selectedLocation === 'NRC'
                       ? 'bg-blue-600 text-white'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -373,13 +347,6 @@ const WeeklyRotaPage = () => {
                 </button>
               </div>
             </div>
-          </div>
-          
-          {/* Display selected location label - show on mobile only */}
-          <div className="text-center mt-2 md:hidden">
-            <span className="text-white/80 text-sm">
-              Location: <span className="font-semibold text-white">{selectedLocation}</span>
-            </span>
           </div>
         </div>
       </div>
@@ -469,10 +436,13 @@ const WeeklyRotaPage = () => {
                         <div className="flex space-x-2 mt-0.5">
                           {/* Calculate shift counts */}
                           {(() => {
+                            // Filter out shifts without assigned profiles (like deleted users)
+                            const filteredDayData = dayData.filter(slot => slot.profiles);
+                            
                             const shiftCounts = {
-                              day: dayData.filter(s => s.shift_type === 'day').length,
-                              afternoon: dayData.filter(s => s.shift_type === 'afternoon').length,
-                              night: dayData.filter(s => s.shift_type === 'night').length
+                              day: filteredDayData.filter(s => s.shift_type === 'day').length,
+                              afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
+                              night: filteredDayData.filter(s => s.shift_type === 'night').length
                             };
                             
                             return (
