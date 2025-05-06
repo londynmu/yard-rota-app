@@ -88,9 +88,25 @@ const WeeklyRotaPage = () => {
           grouped[slot.date].push(slot);
         });
         
-        // Sort slots within each day by start_time
+        // Sort slots within each day with multiple sort criteria:
+        // 1. By start_time (earliest first)
+        // 2. By end_time (earliest first) if start_times are equal
+        // 3. Alphabetically by name if both times are equal
         for (const date in grouped) {
-          grouped[date].sort((a, b) => a.start_time.localeCompare(b.start_time));
+          grouped[date].sort((a, b) => {
+            // First sort by start_time
+            const startTimeCompare = a.start_time.localeCompare(b.start_time);
+            if (startTimeCompare !== 0) return startTimeCompare;
+            
+            // If start_times are equal, sort by end_time
+            const endTimeCompare = a.end_time.localeCompare(b.end_time);
+            if (endTimeCompare !== 0) return endTimeCompare;
+            
+            // If both times are equal, sort alphabetically by name
+            const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
+            const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
+            return aName.localeCompare(bName);
+          });
         }
         
         setDailyRotaData(grouped);
@@ -120,10 +136,26 @@ const WeeklyRotaPage = () => {
   const DayDetails = ({ dateStr }) => {
     const daySlots = (dailyRotaData[dateStr] || []).filter(slot => slot.profiles);
     
+    // Apply sorting function to ensure employees are properly sorted
+    const sortedSlots = [...daySlots].sort((a, b) => {
+      // First sort by start_time
+      const startTimeCompare = a.start_time.localeCompare(b.start_time);
+      if (startTimeCompare !== 0) return startTimeCompare;
+      
+      // If start_times are equal, sort by end_time
+      const endTimeCompare = a.end_time.localeCompare(b.end_time);
+      if (endTimeCompare !== 0) return endTimeCompare;
+      
+      // If both times are equal, sort alphabetically by name
+      const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
+      const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
+      return aName.localeCompare(bName);
+    });
+    
     const slotsByShiftType = {
-      day: daySlots.filter(s => s.shift_type === 'day'),
-      afternoon: daySlots.filter(s => s.shift_type === 'afternoon'),
-      night: daySlots.filter(s => s.shift_type === 'night')
+      day: sortedSlots.filter(s => s.shift_type === 'day'),
+      afternoon: sortedSlots.filter(s => s.shift_type === 'afternoon'),
+      night: sortedSlots.filter(s => s.shift_type === 'night')
     };
 
     if (daySlots.length === 0) {
