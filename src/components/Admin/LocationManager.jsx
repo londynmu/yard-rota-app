@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import ConfirmDialog from '../UI/ConfirmDialog';
+import Notification from '../UI/Notification';
 
 export default function LocationManager() {
   const [locations, setLocations] = useState([]);
@@ -7,7 +9,16 @@ export default function LocationManager() {
   const [editLocationId, setEditLocationId] = useState(null);
   const [editLocationName, setEditLocationName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [notification, setNotification] = useState({ visible: false, message: '', type: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    visible: false, 
+    title: '',
+    message: '',
+    locationId: null,
+    locationName: '',
+    action: null,
+    isDestructive: false
+  });
   const newLocationInputRef = React.useRef(null);
 
   useEffect(() => {
@@ -19,6 +30,14 @@ export default function LocationManager() {
       newLocationInputRef.current.focus();
     }
   }, []);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ visible: true, message, type });
+  };
+
+  const closeNotification = () => {
+    setNotification({ ...notification, visible: false });
+  };
 
   const fetchLocations = async () => {
     try {
@@ -39,10 +58,7 @@ export default function LocationManager() {
       setLocations(data || []);
     } catch (error) {
       console.error('Error fetching locations:', error);
-      setMessage({ 
-        text: 'Failed to load locations: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      showNotification('Failed to load locations: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -50,7 +66,7 @@ export default function LocationManager() {
 
   const handleAddLocation = async () => {
     if (!newLocation.trim()) {
-      setMessage({ text: 'Location name cannot be empty', type: 'error' });
+      showNotification('Location name cannot be empty', 'error');
       return;
     }
 
@@ -71,18 +87,14 @@ export default function LocationManager() {
       setNewLocation('');
       await fetchLocations();
       
-      setMessage({ text: 'Location added successfully', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 1000);
+      showNotification('Location added successfully');
     } catch (error) {
       console.error('Error adding location:', error);
       
       if (error.code === '23505') {
-        setMessage({ text: 'This location name already exists', type: 'error' });
+        showNotification('This location name already exists', 'error');
       } else {
-        setMessage({ 
-          text: 'Failed to add location: ' + (error.message || 'Unknown error'), 
-          type: 'error' 
-        });
+        showNotification('Failed to add location: ' + (error.message || 'Unknown error'), 'error');
       }
     } finally {
       setLoading(false);
@@ -101,7 +113,7 @@ export default function LocationManager() {
 
   const updateLocation = async (id) => {
     if (!editLocationName.trim()) {
-      setMessage({ text: 'Location name cannot be empty', type: 'error' });
+      showNotification('Location name cannot be empty', 'error');
       return;
     }
 
@@ -119,22 +131,31 @@ export default function LocationManager() {
       setEditLocationName('');
       await fetchLocations();
       
-      setMessage({ text: 'Location updated successfully', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 1000);
+      showNotification('Location updated successfully');
     } catch (error) {
       console.error('Error updating location:', error);
       
       if (error.code === '23505') {
-        setMessage({ text: 'This location name already exists', type: 'error' });
+        showNotification('This location name already exists', 'error');
       } else {
-        setMessage({ 
-          text: 'Failed to update location: ' + (error.message || 'Unknown error'), 
-          type: 'error' 
-        });
+        showNotification('Failed to update location: ' + (error.message || 'Unknown error'), 'error');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmToggleLocationStatus = (id, name, currentStatus) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    setConfirmDialog({
+      visible: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Location`,
+      message: `Are you sure you want to ${action} "${name}"?`,
+      locationId: id,
+      locationName: name,
+      action: () => toggleLocationStatus(id, currentStatus),
+      isDestructive: false
+    });
   };
 
   const toggleLocationStatus = async (id, currentStatus) => {
@@ -150,21 +171,54 @@ export default function LocationManager() {
       
       await fetchLocations();
       
-      setMessage({ 
-        text: `Location ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
-        type: 'success' 
-      });
-      
-      setTimeout(() => setMessage({ text: '', type: '' }), 1000);
+      showNotification(`Location ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error('Error toggling location status:', error);
-      setMessage({ 
-        text: 'Failed to update location status: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      showNotification('Failed to update location status: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmDeleteLocation = (id, name) => {
+    setConfirmDialog({
+      visible: true,
+      title: "Delete Location",
+      message: `Are you sure you want to permanently delete the location "${name}"? This action cannot be undone.`,
+      locationId: id,
+      locationName: name,
+      action: () => deleteLocation(id),
+      isDestructive: true
+    });
+  };
+
+  const deleteLocation = async (id) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('locations')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      await fetchLocations();
+      
+      showNotification('Location deleted successfully');
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      showNotification('Failed to delete location: ' + (error.message || 'Unknown error'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      ...confirmDialog,
+      visible: false
+    });
   };
 
   return (
@@ -247,18 +301,26 @@ export default function LocationManager() {
                       <button
                         onClick={() => updateLocation(location.id)}
                         disabled={loading}
-                        className="text-green-400 hover:text-green-300 transition-colors"
+                        className="text-green-400 hover:text-green-300 transition-colors p-2"
                         aria-label="Save location"
+                        title="Save location"
                       >
-                        Save
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="sr-only">Save</span>
                       </button>
                       <button
                         onClick={cancelEditing}
                         disabled={loading}
-                        className="text-red-400 hover:text-red-300 transition-colors"
+                        className="text-red-400 hover:text-red-300 transition-colors p-2"
                         aria-label="Cancel editing"
+                        title="Cancel editing"
                       >
-                        Cancel
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="sr-only">Cancel</span>
                       </button>
                     </>
                   ) : (
@@ -266,22 +328,48 @@ export default function LocationManager() {
                       <button
                         onClick={() => startEditing(location)}
                         disabled={loading}
-                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                        className="text-blue-400 hover:text-blue-300 transition-colors p-2"
                         aria-label="Edit location"
+                        title="Edit location"
                       >
-                        Edit
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span className="sr-only">Edit</span>
                       </button>
                       <button
-                        onClick={() => toggleLocationStatus(location.id, location.is_active)}
+                        onClick={() => confirmToggleLocationStatus(location.id, location.name, location.is_active)}
                         disabled={loading}
                         className={`${
                           location.is_active 
                             ? 'text-red-400 hover:text-red-300' 
                             : 'text-green-400 hover:text-green-300'
-                        } transition-colors`}
+                        } transition-colors p-2`}
                         aria-label={location.is_active ? 'Deactivate location' : 'Activate location'}
+                        title={location.is_active ? 'Deactivate location' : 'Activate location'}
                       >
-                        {location.is_active ? 'Deactivate' : 'Activate'}
+                        {location.is_active ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                        <span className="sr-only">{location.is_active ? 'Deactivate' : 'Activate'}</span>
+                      </button>
+                      <button
+                        onClick={() => confirmDeleteLocation(location.id, location.name)}
+                        disabled={loading}
+                        className="text-red-500 hover:text-red-400 transition-colors p-2"
+                        aria-label="Delete location"
+                        title="Delete location"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span className="sr-only">Delete</span>
                       </button>
                     </>
                   )}
@@ -292,16 +380,30 @@ export default function LocationManager() {
         )}
       </div>
       
-      {/* Message display */}
-      {message.text && (
-        <div className={`mt-4 p-3 rounded-md ${
-          message.type === 'success' 
-            ? 'bg-green-500/20 text-green-100 border border-green-400/30' 
-            : 'bg-red-500/20 text-red-100 border border-red-400/30'
-        }`}>
-          {message.text}
-        </div>
-      )}
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.visible}
+        onClose={closeConfirmDialog}
+        onConfirm={() => {
+          if (confirmDialog.action) {
+            confirmDialog.action();
+          }
+          closeConfirmDialog();
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.isDestructive ? "Delete" : "Yes"}
+        cancelText="Cancel"
+        isDestructive={confirmDialog.isDestructive}
+      />
+      
+      {/* Notification Component */}
+      <Notification
+        isVisible={notification.visible}
+        message={notification.message}
+        type={notification.type}
+        onClose={closeNotification}
+      />
     </div>
   );
 } 

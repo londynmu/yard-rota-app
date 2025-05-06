@@ -66,7 +66,7 @@ const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed md:absolute left-0 right-0 md:left-auto md:right-0 top-[4.5rem] md:top-auto md:mt-2 w-full md:w-80 bg-black/95 md:bg-black/80 backdrop-blur-xl rounded-b-lg md:rounded-lg shadow-lg z-50 border border-white/20 overflow-hidden mx-auto md:mx-0 max-w-md md:max-w-full">
+        <div className="fixed md:absolute right-0 left-0 md:left-auto top-16 md:top-auto md:mt-1 w-full md:w-80 bg-gradient-to-b from-gray-800 to-gray-900 rounded-none md:rounded-lg shadow-xl z-50 border-t md:border border-white/20 overflow-hidden md:max-w-xs mx-auto md:mx-0">
           <div className="p-3 border-b border-white/20 flex justify-between items-center">
             <h3 className="text-white font-bold">Notifications</h3>
             {unreadCount > 0 && (
@@ -82,7 +82,7 @@ const NotificationBell = () => {
           {/* Pending approvals section */}
           {pendingApprovals > 0 && (
             <div 
-              className="p-3 border-b border-white/10 bg-blue-900/40 cursor-pointer hover:bg-blue-900/60"
+              className="p-3 border-b border-white/10 bg-blue-900/30 cursor-pointer hover:bg-blue-900/50 transition-colors"
               onClick={handleApprovalClick}
             >
               <div className="flex items-center">
