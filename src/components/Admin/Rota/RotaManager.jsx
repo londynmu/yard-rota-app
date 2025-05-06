@@ -763,9 +763,12 @@ const RotaManager = () => {
 
   // Group slots by shift type
   const slotsByShift = {
-    day: slots.filter(slot => slot.shift_type === 'day'),
-    afternoon: slots.filter(slot => slot.shift_type === 'afternoon'),
+    day: slots.filter(slot => slot.shift_type === 'day')
+      .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.end_time.localeCompare(b.end_time)),
+    afternoon: slots.filter(slot => slot.shift_type === 'afternoon')
+      .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.end_time.localeCompare(b.end_time)),
     night: slots.filter(slot => slot.shift_type === 'night')
+      .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.end_time.localeCompare(b.end_time))
   };
 
   const goToPreviousDay = () => {
