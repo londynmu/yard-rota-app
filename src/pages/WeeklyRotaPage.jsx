@@ -427,9 +427,6 @@ const WeeklyRotaPage = () => {
                     <div>
                       <h3 className="text-base font-bold text-white leading-tight">
                         {format(dateObj, 'EEEE')}
-                        {isToday && (
-                          <span className="ml-2 text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full uppercase font-bold align-middle">Today</span>
-                        )}
                       </h3>
                       
                       {dayData.length > 0 ? (
