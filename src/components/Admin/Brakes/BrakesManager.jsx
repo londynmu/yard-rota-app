@@ -269,71 +269,63 @@ const BrakesManager = () => {
       
       // Fetch available staff for the selected date (needs to run regardless of where assignments came from)
       try {
-        // Step 1: Get user IDs of staff marked as 'Available' (case-insensitive) for the selected date
-        console.log(`[fetchBreakData] Querying availability for date: ${selectedDate}, status: 'Available' (case-insensitive)`);
+        // Step 1: Get user IDs of staff who are scheduled to work on the selected date
+        console.log(`[fetchBreakData] Querying scheduled_rota for date: ${selectedDate}`);
         
-        // Fetch all records for the date first, then filter by status case-insensitively in JS
-        const { data: availabilityRecords, error: availableError } = await supabase
-          .from('availability')
-          .select('user_id, status')
-          .eq('date', selectedDate);
+        // Fetch all scheduled shifts for this date
+        const { data: scheduledShifts, error: scheduledError } = await supabase
+          .from('scheduled_rota')
+          .select('user_id, shift_type')
+          .eq('date', selectedDate)
+          .not('user_id', 'is', null);
           
-        if (availableError) {
-          console.error('[fetchBreakData] Error querying availability table:', availableError);
-          throw availableError;
+        if (scheduledError) {
+          console.error('[fetchBreakData] Error querying scheduled_rota table:', scheduledError);
+          throw scheduledError;
         }
         
-        console.log(`[fetchBreakData] Raw availability records found for ${selectedDate}:`, availabilityRecords || []);
+        console.log(`[fetchBreakData] Scheduled shifts found for ${selectedDate}:`, scheduledShifts || []);
         
-        // Filter case-insensitively for 'available'
-        const availableData = availabilityRecords?.filter(record => 
-          record.status?.toLowerCase() === 'available'
+        // Filter shifts by the current selected shift type
+        const filteredShifts = scheduledShifts?.filter(record => 
+          record.shift_type?.toLowerCase() === selectedShift.toLowerCase()
         ) || [];
 
-        console.log(`[fetchBreakData] Filtered availability data (status='available', case-insensitive):`, availableData);
+        console.log(`[fetchBreakData] Filtered shifts (shift_type='${selectedShift}'):`, filteredShifts);
 
-        if (!availableData || availableData.length === 0) {
-          console.log(`[fetchBreakData] No staff found with status 'available' (case-insensitive) in availability table for ${selectedDate}. Setting availableStaff to empty.`);
+        if (!filteredShifts || filteredShifts.length === 0) {
+          console.log(`[fetchBreakData] No staff found scheduled for shift '${selectedShift}' on ${selectedDate}. Setting availableStaff to empty.`);
           setAvailableStaff([]);
-          // We stop here if no one is available according to the availability table
+          // We stop here if no one is scheduled for this shift on this date
         } else {
-          // Step 2: Get profile details for the available user IDs
-          const userIds = availableData.map(record => record.user_id);
-          console.log('[fetchBreakData] User IDs found in availability:', userIds);
+          // Step 2: Get profile details for the scheduled user IDs
+          const userIds = filteredShifts.map(record => record.user_id);
+          // Remove duplicates (if a user has multiple shifts)
+          const uniqueUserIds = [...new Set(userIds)];
+          console.log('[fetchBreakData] Unique User IDs found in scheduled_rota:', uniqueUserIds);
           
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name, shift_preference')
-            .in('id', userIds);
+            .in('id', uniqueUserIds);
             
           if (profilesError) {
-            console.error('[fetchBreakData] Error fetching profiles for available users:', profilesError);
+            console.error('[fetchBreakData] Error fetching profiles for scheduled users:', profilesError);
             throw profilesError;
           }
           
-          console.log('[fetchBreakData] Profiles found for available users:', profilesData || []);
+          console.log('[fetchBreakData] Profiles found for scheduled users:', profilesData || []);
             
-          // Step 3: Filter profiles by selected shift and calculate break times based on current scheduledBreaks state
-          const processedAvailable = profilesData
-            .filter(profile => {
-              // Zmieniona logika filtrowania pracowników - tylko dokładne dopasowanie zmiany
-              const staffShift = (profile.shift_preference || '').toLowerCase();
-              const currentShift = selectedShift.toLowerCase();
-              
-              // Tylko dokładne dopasowanie zmiany (bez pokazywania afternoon na day i night)
-              const isMatch = staffShift === currentShift;
-              
-              return isMatch;
-            })
-            .map(profile => { // SIMPLIFIED: Only return base info initially
-              return {
-                id: profile.id,
-                first_name: profile.first_name,
-                last_name: profile.last_name,
-                preferred_shift: profile.shift_preference || 'Unknown',
-                is_available: true, // Marked as available from the availability table query
-              };
-            });
+          // Step 3: Map profiles to our staff structure
+          const processedAvailable = profilesData.map(profile => {
+            return {
+              id: profile.id,
+              first_name: profile.first_name,
+              last_name: profile.last_name,
+              preferred_shift: profile.shift_preference || 'Unknown',
+              is_available: true, // They are scheduled, so they are "available" for breaks
+            };
+          });
 
           console.log('[fetchBreakData] Final processed available staff list (base):', processedAvailable);
           setAvailableStaff(processedAvailable); // Set base list
