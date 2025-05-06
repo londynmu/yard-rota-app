@@ -11,6 +11,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [localAssignedCount, setLocalAssignedCount] = useState(slot.assigned_employees.length);
   const [showCapacityAlert, setShowCapacityAlert] = useState(false);
   const [minBreakMinutes, setMinBreakMinutes] = useState(60); // Default value
+  const [task, setTask] = useState('');
+  const [taskSuggestions, setTaskSuggestions] = useState([]);
+  const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
 
   // Format time to remove seconds (HH:MM)
   const formatTimeWithoutSeconds = (timeString) => {
@@ -71,6 +74,62 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
     fetchMinBreakSetting();
   }, []);
+
+  // Fetch task suggestions
+  useEffect(() => {
+    const fetchTaskSuggestions = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_all_unique_tasks');
+        
+        if (error) {
+          console.error('Error fetching task suggestions:', error);
+          return;
+        }
+        
+        if (data) {
+          setTaskSuggestions(data.map(item => item.task));
+        }
+      } catch (error) {
+        console.error('Error in fetchTaskSuggestions:', error);
+      }
+    };
+    
+    fetchTaskSuggestions();
+  }, []);
+
+  // Handle task input
+  const handleTaskChange = (e) => {
+    const value = e.target.value;
+    
+    // Auto-capitalize first letter
+    let formattedValue = value;
+    if (value.length > 0) {
+      formattedValue = value.charAt(0).toUpperCase() + value.slice(1);
+    }
+    
+    setTask(formattedValue);
+    
+    // Show suggestions if there are matching ones
+    if (formattedValue.length > 0) {
+      const filtered = taskSuggestions.filter(suggestion => 
+        suggestion.toLowerCase().includes(formattedValue.toLowerCase())
+      );
+      
+      if (filtered.length > 0) {
+        setShowTaskSuggestions(true);
+      } else {
+        setShowTaskSuggestions(false);
+      }
+    } else {
+      setShowTaskSuggestions(false);
+    }
+  };
+  
+  // Handle task suggestion selection
+  const handleTaskSuggestionClick = (suggestion) => {
+    setTask(suggestion);
+    setShowTaskSuggestions(false);
+  };
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -357,8 +416,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     }
   };
 
-  const handleAssignEmployee = (employeeId, isCurrentlyAssigned) => {
-    onAssign(employeeId, !isCurrentlyAssigned);
+  const handleAssignEmployee = (employeeId, isCurrentlyAssigned, task) => {
+    onAssign(employeeId, !isCurrentlyAssigned, task);
     
     // Update local state to reflect the change and track capacity
     if (isCurrentlyAssigned) {
@@ -431,6 +490,53 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+        
+        {/* Task Assignment Input */}
+        <div className="mx-4 mt-4">
+          <div className="relative">
+            <label htmlFor="task-input" className="block text-sm font-medium text-white mb-1">
+              Assign Task <span className="text-gray-400 text-xs">(optional)</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                id="task-input"
+                value={task}
+                onChange={handleTaskChange}
+                placeholder="e.g. VMU cover"
+                className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              {task && (
+                <button 
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                  onClick={() => setTask('')}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {showTaskSuggestions && (
+              <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-white/20 rounded-md shadow-lg max-h-60 overflow-auto">
+                <ul className="py-1">
+                  {taskSuggestions
+                    .filter(suggestion => suggestion.toLowerCase().includes(task.toLowerCase()))
+                    .map((suggestion, index) => (
+                      <li 
+                        key={index} 
+                        className="px-3 py-2 cursor-pointer hover:bg-white/10 text-white"
+                        onClick={() => handleTaskSuggestionClick(suggestion)}
+                      >
+                        {suggestion}
+                      </li>
+                    ))
+                  }
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Information about scheduling constraints */}
@@ -619,7 +725,10 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   </div>
                   
                   <button
-                    onClick={() => handleAssignEmployee(employee.id, employee.isAssigned)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAssignEmployee(employee.id, employee.isAssigned, task);
+                    }}
                     className={`px-3 py-1.5 rounded text-sm flex-shrink-0 ${
                       employee.isAssigned
                         ? 'bg-red-500/20 border-red-400/30 text-red-200 hover:bg-red-500/30'

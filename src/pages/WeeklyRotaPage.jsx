@@ -38,7 +38,8 @@ const WeeklyRotaPage = () => {
             location,
             start_time,
             end_time,
-            user_id
+            user_id,
+            task
           `)
           .gte('date', start)
           .lte('date', end);
@@ -201,6 +202,14 @@ const WeeklyRotaPage = () => {
                             </svg>
                             {fmtTime(slot.start_time)} - {fmtTime(slot.end_time)}
                           </span>
+                          
+                          {/* Task Indicator */}
+                          {slot.task && (
+                            <span className="inline-flex items-center text-xs text-white bg-red-500/20 border border-red-500/30 px-2 py-0.5 rounded-full">
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                              {slot.task}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

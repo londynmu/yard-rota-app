@@ -430,7 +430,7 @@ const RotaManager = () => {
     }
   };
 
-  const handleEmployeeAssignment = async (slotId, employeeId, isAssigning) => {
+  const handleEmployeeAssignment = async (slotId, employeeId, isAssigning, task) => {
     try {
       // Get the slot details
       const slotToAssign = slots.find(slot => slot.id === slotId);
@@ -539,7 +539,8 @@ const RotaManager = () => {
             start_time: slotToAssign.start_time,
             end_time: slotToAssign.end_time,
             capacity: slotToAssign.capacity,
-            user_id: employeeId
+            user_id: employeeId,
+            task: task || null // Include the task if provided
           });
 
         if (error) throw error;
@@ -1167,8 +1168,8 @@ const RotaManager = () => {
         <AssignModal
           slot={selectedSlot}
           onClose={() => setShowAssignModal(false)}
-          onAssign={(employeeId, isAssigning) => 
-            handleEmployeeAssignment(selectedSlot.id, employeeId, isAssigning)
+          onAssign={(employeeId, isAssigning, task) => 
+            handleEmployeeAssignment(selectedSlot.id, employeeId, isAssigning, task)
           }
         />,
         document.body
