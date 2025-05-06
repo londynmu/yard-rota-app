@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import LocationManager from './LocationManager';
-import AgencyManager from './AgencyManager';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -274,9 +273,6 @@ export default function SettingsManager() {
           
           {/* Location Manager */}
           <LocationManager />
-  
-          {/* Agency Manager */}
-          <AgencyManager />
         </>
       )}
       

@@ -8,6 +8,7 @@ import SettingsManager from '../components/Admin/SettingsManager';
 import UserApprovalPage from './UserApprovalPage';
 import LoginStats from '../components/Admin/LoginStats';
 import BreaksConfigManager from '../components/Admin/BreaksConfigManager';
+import AgencyConfigManager from '../components/Admin/AgencyConfigManager';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
@@ -191,7 +192,7 @@ export default function AdminPage() {
         <div className="border-b border-white/20 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-md px-6 py-4">
           <div className="overflow-x-auto pb-1">
             <div className="flex flex-nowrap whitespace-nowrap border-b border-white/10 mb-[-1px] min-w-full">
-              {['users', 'approvals', 'availability', 'settings', 'breaks config', 'stats'].map((tab) => (
+              {['users', 'approvals', 'availability', 'settings', 'breaks config', 'agencies', 'stats'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -214,6 +215,7 @@ export default function AdminPage() {
           {activeTab === 'availability' && <AvailabilityManager />}
           {activeTab === 'settings' && <SettingsManager />}
           {activeTab === 'breaks config' && <BreaksConfigManager />}
+          {activeTab === 'agencies' && <AgencyConfigManager />}
           {activeTab === 'stats' && <LoginStats />}
         </div>
       </div>
