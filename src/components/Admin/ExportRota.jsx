@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { format, addDays, startOfWeek } from 'date-fns';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
 
 const ExportRota = () => {
@@ -345,8 +345,8 @@ const ExportRota = () => {
         tableRows.push(row);
       });
       
-      // Add table to document with jspdf-autotable
-      doc.autoTable({
+      // Initialize autoTable plugin
+      autoTable(doc, {
         startY: 35,
         head: [tableColumn],
         body: tableRows,
@@ -415,7 +415,10 @@ const ExportRota = () => {
           const pageSize = doc.internal.pageSize;
           const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
           doc.setFontSize(8);
-          doc.text(`Page ${data.pageNumber} of ${doc.getNumberOfPages()}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
+          
+          // Get the total number of pages before generating the document
+          const totalPages = doc.getNumberOfPages();
+          doc.text(`Page ${data.pageNumber} of ${totalPages}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
         }
       });
       
@@ -459,35 +462,46 @@ const ExportRota = () => {
     setShowConfirmation(false);
 
     try {
-      // Generate CSV content
-      const csvContent = generateCSV();
+      // Generate CSV file (will download automatically)
+      generateCSV();
       
-      // For each selected agency
-      for (const agencyId of selectedAgencies) {
-        const agency = agencies.find(a => a.id === agencyId);
-        
-        if (!agency) continue;
-        
-        // Send email with attachments via backend function
-        const { error } = await supabase.functions.invoke('send-rota-email', {
-          body: {
-            recipient: agency.email,
-            agencyName: agency.name,
-            weekStart: format(new Date(startDate), 'dd/MM/yyyy'),
-            weekEnd: format(addDays(new Date(startDate), 6), 'dd/MM/yyyy'),
-            csvData: csvContent,
-            message: emailMessage,
-            sender: currentUser?.email || 'unknown'
-          }
-        });
-        
-        if (error) throw error;
+      // Generate PDF file (will download automatically)
+      generatePDF();
+      
+      // Prepare email - we'll use mailto protocol to open the default email client
+      const selectedEmails = selectedAgencies
+        .map(agencyId => {
+          const agency = agencies.find(a => a.id === agencyId);
+          return agency?.email;
+        })
+        .filter(email => email) // Remove any undefined emails
+        .join(',');
+      
+      if (!selectedEmails) {
+        throw new Error('No valid email addresses found');
       }
       
-      setSuccess(`Schedule sent to ${selectedAgencies.length} agencies successfully`);
+      // Format date range for subject
+      const weekRange = `${format(new Date(startDate), 'dd/MM/yyyy')} - ${format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}`;
+      
+      // Create email subject - now using "Shunters" in the title as shown in screenshot
+      const subject = encodeURIComponent(`Weekly Shunters Schedule: ${weekRange}`);
+      
+      // Create email body to match exactly what's in the screenshot
+      const body = encodeURIComponent(
+        `Please find attached the weekly shunters schedule for ${weekRange}.\n\n` +
+        `Please confirm receipt of this schedule.\n\n` +
+        `Best regards\n\n` +
+        `Keith Thomas`
+      );
+      
+      // Open default email client with prefilled information
+      window.location.href = `mailto:${selectedEmails}?subject=${subject}&body=${body}`;
+      
+      setSuccess(`CSV and PDF files downloaded. Email draft prepared for ${selectedAgencies.length} agencies.`);
     } catch (err) {
-      console.error('Error sending emails:', err);
-      setError('Failed to send emails to agencies');
+      console.error('Error preparing email:', err);
+      setError('Failed to prepare email draft: ' + err.message);
     } finally {
       setLoading(false);
     }

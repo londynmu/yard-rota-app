@@ -5,6 +5,7 @@ import AssignModal from './AssignModal';
 import TimePicker from './TimePicker';
 import EditSlotModal from './EditSlotModal';
 import ExportRotaButton from '../ExportRotaButton';
+import { createPortal } from 'react-dom';
 
 // Add date-fns for date manipulation
 import { format, addDays, parseISO } from 'date-fns';
@@ -834,7 +835,7 @@ const RotaManager = () => {
       </div>
 
       {/* Add Slot Modal */}
-      {showAddSlotModal && (
+      {showAddSlotModal && createPortal(
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-black/80 border border-white/30 rounded-lg p-4 sm:p-6 w-[95%] sm:w-auto sm:max-w-md mx-auto">
             <h3 className="text-xl font-medium text-white mb-4">Add New Slot</h3>
@@ -976,11 +977,12 @@ const RotaManager = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Time Picker Modal */}
-      {showTimePickerModal && (
+      {showTimePickerModal && createPortal(
         <TimePicker 
           onClose={() => {
             setShowTimePickerModal(false);
@@ -988,22 +990,24 @@ const RotaManager = () => {
           }}
           onSelectTime={handleTimeSelect}
           initialTime={activeTimeField === 'start' ? (slotToEdit ? slotToEdit.start_time : newSlot.start_time) : (slotToEdit ? slotToEdit.end_time : newSlot.end_time)}
-        />
+        />,
+        document.body
       )}
 
       {/* Assign Employee Modal */}
-      {showAssignModal && selectedSlot && (
+      {showAssignModal && selectedSlot && createPortal(
         <AssignModal
           slot={selectedSlot}
           onClose={() => setShowAssignModal(false)}
           onAssign={(employeeId, isAssigning) => 
             handleEmployeeAssignment(selectedSlot.id, employeeId, isAssigning)
           }
-        />
+        />,
+        document.body
       )}
 
       {/* Edit Slot Modal */}
-      {showEditModal && slotToEdit && (
+      {showEditModal && slotToEdit && createPortal(
         <EditSlotModal
           slot={slotToEdit}
           locations={locations}
@@ -1014,7 +1018,8 @@ const RotaManager = () => {
           onUpdate={handleUpdateSlot}
           onDelete={handleDeleteSlot}
           onOpenTimePicker={handleOpenTimePickerForEdit}
-        />
+        />,
+        document.body
       )}
     </div>
   );
