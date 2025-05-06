@@ -267,6 +267,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             // Handle overnight slot times
             const adjustedSlotEndMinutes = slotEndMinutes < slotStartMinutes ? slotEndMinutes + 1440 : slotEndMinutes;
 
+            // Prioritize exact end time match
+            if (profileEndMinutes === slotEndMinutes) {
+              matchScore += 4; // Higher weight for exact end time match
+            }
+
             // Check if slot is fully contained within preferred time
             if (profileStartMinutes <= slotStartMinutes && adjustedProfileEndMinutes >= adjustedSlotEndMinutes) {
               matchScore += 2; // Slot fully contained within preference
