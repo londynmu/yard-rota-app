@@ -68,6 +68,9 @@ const EditSlotModal = ({ slot, onClose, onUpdate, onDelete, locations, onOpenTim
     );
   };
 
+  // Sprawdź, czy obecna lokalizacja slotu jest nadal aktywna
+  const isCurrentLocationActive = locations.some(loc => loc.name === editedSlot.location);
+
   const modalContent = (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999]">
       <div className="bg-black/80 border border-white/30 rounded-lg max-w-md w-[95%] m-4">
@@ -87,13 +90,30 @@ const EditSlotModal = ({ slot, onClose, onUpdate, onDelete, locations, onOpenTim
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-white mb-1">Location</label>
+            {!isCurrentLocationActive && (
+              <div className="mb-2 text-amber-400 text-sm">
+                <strong>Note:</strong> The current location is no longer active. Please choose a new location.
+              </div>
+            )}
             <select
               value={editedSlot.location}
               onChange={(e) => setEditedSlot({...editedSlot, location: e.target.value})}
-              className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
+              className={`w-full bg-gray-900 text-white border ${!isCurrentLocationActive ? 'border-amber-500' : 'border-white/20'} rounded-md px-3 py-2 focus:outline-none focus:border-white/50`}
             >
+              {/* Jeśli obecna lokalizacja nie jest aktywna, ale chcemy ją pokazać w select */}
+              {!isCurrentLocationActive && (
+                <option value={editedSlot.location} className="bg-gray-900 text-amber-400">
+                  {editedSlot.location} (inactive)
+                </option>
+              )}
+              
+              {/* Lista aktywnych lokalizacji */}
               {locations.map(location => (
-                <option key={location.id} value={location.name} className="bg-gray-900 text-white">
+                <option 
+                  key={location.id} 
+                  value={location.name} 
+                  className="bg-gray-900 text-white"
+                >
                   {location.name}
                 </option>
               ))}
@@ -186,6 +206,7 @@ const EditSlotModal = ({ slot, onClose, onUpdate, onDelete, locations, onOpenTim
               <button
                 onClick={handleSave}
                 className="px-3 py-2 bg-blue-600/30 border border-blue-400/30 rounded-md text-white hover:bg-blue-600/40 transition-colors"
+                disabled={!isCurrentLocationActive && editedSlot.location === slot.location}
               >
                 Save Changes
               </button>

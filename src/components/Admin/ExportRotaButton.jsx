@@ -15,7 +15,7 @@ const ExportRotaButton = () => {
 
   const ModalContent = () => (
     <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
-      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-auto my-auto">
+      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto mx-auto my-auto">
         <div className="absolute top-4 right-4">
           <button 
             onClick={closeModal}

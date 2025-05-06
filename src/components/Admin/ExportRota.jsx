@@ -142,16 +142,38 @@ const ExportRota = () => {
     }
   };
 
-  // Funkcja do grupowania danych według pracowników
-  const groupDataByStaff = () => {
-    // Grupowanie danych według pracowników
-    const staffMap = {};
+  // Funkcja do grupowania danych według lokalizacji
+  const groupDataByLocation = () => {
+    // Grupowanie danych według lokalizacji
+    const locationMap = {};
     
     rotaData.forEach(row => {
-      if (!staffMap[row.staff]) {
-        staffMap[row.staff] = {
-          name: row.staff,
-          agency: row.agency, // Używamy rzeczywistej agencji z danych
+      const location = row.location;
+      
+      // Inicjalizuj strukturę dla lokalizacji, jeśli nie istnieje
+      if (!locationMap[location]) {
+        locationMap[location] = {
+          name: location,
+          agencies: {}
+        };
+      }
+      
+      const agency = row.agency;
+      
+      // Inicjalizuj strukturę dla agencji w danej lokalizacji, jeśli nie istnieje
+      if (!locationMap[location].agencies[agency]) {
+        locationMap[location].agencies[agency] = {
+          name: agency,
+          staff: {}
+        };
+      }
+      
+      const staffName = row.staff;
+      
+      // Inicjalizuj strukturę dla pracownika, jeśli nie istnieje
+      if (!locationMap[location].agencies[agency].staff[staffName]) {
+        locationMap[location].agencies[agency].staff[staffName] = {
+          name: staffName,
           shifts: {
             saturday: [],
             sunday: [],
@@ -164,26 +186,42 @@ const ExportRota = () => {
         };
       }
       
-      // Określ dzień tygodnia i dodaj zmianę do odpowiedniego dnia
+      // Dodaj zmianę do odpowiedniego dnia dla danego pracownika
       const dayLower = row.day.toLowerCase();
-      if (staffMap[row.staff].shifts[dayLower]) {
-        staffMap[row.staff].shifts[dayLower].push({
+      if (locationMap[location].agencies[agency].staff[staffName].shifts[dayLower]) {
+        locationMap[location].agencies[agency].staff[staffName].shifts[dayLower].push({
           date: row.date,
-          location: row.location,
           time: row.time
         });
       }
     });
     
-    // Konwertuj na tablicę i sortuj według agencji, a następnie według nazwiska
-    return Object.values(staffMap).sort((a, b) => {
-      // Najpierw sortuj według agencji
-      if (a.agency < b.agency) return -1;
-      if (a.agency > b.agency) return 1;
+    // Konwertuj zagnieżdżoną mapę na strukturę tablicową dla łatwiejszego użycia
+    const result = Object.keys(locationMap).sort().map(locationName => {
+      const location = locationMap[locationName];
       
-      // W obrębie agencji sortuj według nazwiska
-      return a.name.localeCompare(b.name);
+      // Konwertuj agencje na tablicę i sortuj alfabetycznie
+      const agencies = Object.keys(location.agencies).sort().map(agencyName => {
+        const agency = location.agencies[agencyName];
+        
+        // Konwertuj pracowników na tablicę i sortuj alfabetycznie
+        const staff = Object.keys(agency.staff).sort().map(staffName => {
+          return agency.staff[staffName];
+        });
+        
+        return {
+          name: agency.name,
+          staff: staff
+        };
+      });
+      
+      return {
+        name: location.name,
+        agencies: agencies
+      };
     });
+    
+    return result;
   };
 
   // Generate and download CSV
@@ -194,8 +232,8 @@ const ExportRota = () => {
     }
 
     try {
-      // Grupowanie danych według pracowników
-      const staffData = groupDataByStaff();
+      // Grupowanie danych według lokalizacji
+      const locationData = groupDataByLocation();
       
       // Pobieranie zakresu dat dla nagłówków kolumn
       const dates = Array.from({ length: 7 }, (_, i) => {
@@ -210,41 +248,50 @@ const ExportRota = () => {
       let csvRows = [];
       
       // Nagłówek
-      const headerRow = ['Name', 'Agency'];
+      const headerRow = ['Name', 'Agency', 'Location'];
       dates.forEach(d => {
         headerRow.push(`${d.day} (${d.date})`);
       });
       csvRows.push(headerRow.join(','));
       
-      // Ostatnia agencja do śledzenia zmian i dodawania separatorów
-      let lastAgency = null;
-      
-      // Dodawanie danych pracowników
-      staffData.forEach(staff => {
-        // Dodaj pusty wiersz jako separator między agencjami
-        if (lastAgency !== null && lastAgency !== staff.agency) {
-          csvRows.push(Array(headerRow.length).fill('').join(','));
-        }
-        lastAgency = staff.agency;
+      // Przejdź przez wszystkie lokalizacje
+      locationData.forEach(location => {
+        // Dodaj nagłówek lokalizacji
+        csvRows.push(Array(headerRow.length).fill('').join(','));
+        csvRows.push([`Location: ${location.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
         
-        const row = [staff.name, staff.agency];
-        
-        // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
-        ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-          const dayShifts = staff.shifts[day];
-          if (dayShifts.length === 0) {
-            row.push('');
-          } else {
-            const shiftsText = dayShifts.map(shift => {
-              // Usuń typ zmiany z wyświetlania jeśli istnieje
-              const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
-              return timeOnly;
-            }).join('; ');
-            row.push(`"${shiftsText}"`);
+        // Przejdź przez wszystkie agencje w tej lokalizacji
+        location.agencies.forEach(agency => {
+          // Dodaj nagłówek agencji
+          csvRows.push([`Agency: ${agency.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
+          
+          // Przejdź przez wszystkich pracowników w tej agencji
+          agency.staff.forEach(staff => {
+            const row = [staff.name, agency.name, location.name];
+            
+            // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
+            ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+              const dayShifts = staff.shifts[day];
+              if (dayShifts.length === 0) {
+                row.push('');
+              } else {
+                const shiftsText = dayShifts.map(shift => {
+                  // Usuń typ zmiany z wyświetlania jeśli istnieje
+                  const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
+                  return timeOnly;
+                }).join('; ');
+                row.push(`"${shiftsText}"`);
+              }
+            });
+            
+            csvRows.push(row.join(','));
+          });
+          
+          // Dodaj odstęp po agencji, jeśli to nie jest ostatnia agencja w lokalizacji
+          if (agency !== location.agencies[location.agencies.length - 1]) {
+            csvRows.push(Array(headerRow.length).fill('').join(','));
           }
         });
-        
-        csvRows.push(row.join(','));
       });
       
       // Create blob and download
@@ -280,8 +327,8 @@ const ExportRota = () => {
     }
 
     try {
-      // Grupowanie danych według pracowników i agencji
-      const staffData = groupDataByStaff();
+      // Grupowanie danych według lokalizacji
+      const locationData = groupDataByLocation();
       
       // Pobieranie zakresu dat dla nagłówków kolumn
       const dates = Array.from({ length: 7 }, (_, i) => {
@@ -305,7 +352,7 @@ const ExportRota = () => {
       doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
       
       // Przygotuj nagłówki kolumn
-      const tableColumn = ['Name', 'Agency'];
+      const tableColumn = ['Name', 'Agency', 'Location'];
       dates.forEach(d => {
         tableColumn.push(`${d.day}\n(${d.date})`);
       });
@@ -313,36 +360,42 @@ const ExportRota = () => {
       // Przygotuj dane tabeli
       const tableRows = [];
       
-      // Śledź zmiany agencji, aby dodać nagłówki agencji
-      let currentAgency = null;
-      
-      staffData.forEach(staff => {
-        // Dodaj wiersz nagłówka agencji, jeśli zmienia się agencja
-        if (currentAgency !== staff.agency) {
-          currentAgency = staff.agency;
+      // Przejdź przez wszystkie lokalizacje
+      locationData.forEach(location => {
+        // Dodaj nagłówek lokalizacji
+        tableRows.push([
+          { content: `Location: ${location.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: [0, 0, 0] } }
+        ]);
+        
+        // Przejdź przez wszystkie agencje w tej lokalizacji
+        location.agencies.forEach(agency => {
+          // Dodaj nagłówek agencji
           tableRows.push([
-            { content: `Agency: ${staff.agency}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: [0, 0, 0] } }
+            { content: `Agency: ${agency.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: [0, 0, 0] } }
           ]);
-        }
-        
-        const row = [staff.name, staff.agency];
-        
-        // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
-        ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-          const dayShifts = staff.shifts[day];
-          if (dayShifts.length === 0) {
-            row.push('');
-          } else {
-            const shiftsText = dayShifts.map(shift => {
-              // Usuń typ zmiany z wyświetlania jeśli istnieje
-              const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
-              return timeOnly;
-            }).join('\n');
-            row.push(shiftsText);
-          }
+          
+          // Przejdź przez wszystkich pracowników w tej agencji
+          agency.staff.forEach(staff => {
+            const row = [staff.name, agency.name, location.name];
+            
+            // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
+            ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+              const dayShifts = staff.shifts[day];
+              if (dayShifts.length === 0) {
+                row.push('');
+              } else {
+                const shiftsText = dayShifts.map(shift => {
+                  // Usuń typ zmiany z wyświetlania jeśli istnieje
+                  const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
+                  return timeOnly;
+                }).join('\n');
+                row.push(shiftsText);
+              }
+            });
+            
+            tableRows.push(row);
+          });
         });
-        
-        tableRows.push(row);
       });
       
       // Initialize autoTable plugin
@@ -361,7 +414,7 @@ const ExportRota = () => {
           cellPadding: 2
         },
         columnStyles: {
-          0: { cellWidth: 40 },  // Name
+          0: { cellWidth: 40 },  // Location
           1: { cellWidth: 30 },  // Agency
           // Pozostałe kolumny (dni) mają równą szerokość
         },
@@ -371,7 +424,7 @@ const ExportRota = () => {
         },
         margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Zmniejsz marginesy
         didParseCell: function(data) {
-          // Dla nagłówków agencji ustawia się kolSpan
+          // Dla nagłówków lokalizacji ustawia się kolSpan
           if (data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.colSpan) {
             data.cell.colSpan = data.cell.raw.colSpan;
             if (data.cell.raw.styles) {
@@ -379,8 +432,8 @@ const ExportRota = () => {
             }
           }
           
-          // Dla nagłówków agencji, ustaw również pageBreak na 'before' aby
-          // uniknąć łamania grupy tej samej agencji między stronami
+          // Dla nagłówków lokalizacji, ustaw również pageBreak na 'before' aby
+          // uniknąć łamania grupy tej samej lokalizacji między stronami
           if (data.cell.raw && 
               typeof data.cell.raw === 'object' && 
               data.cell.raw.colSpan && 
@@ -396,7 +449,7 @@ const ExportRota = () => {
               data.column.index === 0 && 
               data.cell.text && 
               typeof data.cell.text === 'string' &&
-              !data.cell.raw?.colSpan) { // Nie jest nagłówkiem agencji
+              !data.cell.raw?.colSpan) { // Nie jest nagłówkiem lokalizacji
                 
             // Jeśli jest zbyt mało miejsca dla całego wiersza, zacznij od nowej strony
             if (data.cursor.y > doc.internal.pageSize.height - 50) {
@@ -529,7 +582,7 @@ const ExportRota = () => {
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white"
+          className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white [color-scheme:dark]"
         />
         <p className="text-white/60 text-sm mt-1">
           Week: {startDate} to {startDate ? format(addDays(new Date(startDate), 6), 'yyyy-MM-dd') : ''}

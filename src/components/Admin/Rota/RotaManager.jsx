@@ -22,7 +22,12 @@ const RotaManager = () => {
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [slotToEdit, setSlotToEdit] = useState(null);
-  const [selectedLocation, setSelectedLocation] = useState('all'); // 'all' or specific location name
+  const [modalError, setModalError] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    // Próbujemy odczytać ostatnio wybraną lokalizację z localStorage
+    const savedLocation = localStorage.getItem('selected_rota_location_view');
+    return savedLocation || 'all';
+  });
   const [newSlot, setNewSlot] = useState({
     shift_type: 'day',
     location: '',
@@ -59,12 +64,17 @@ const RotaManager = () => {
             ...prev, 
             location: locationExists ? savedLocation : data[0].name 
           }));
-        }
-
-        // Also load the last selected location view from localStorage
-        const lastSelectedLocation = localStorage.getItem('selected_rota_location_view');
-        if (lastSelectedLocation) {
-          setSelectedLocation(lastSelectedLocation);
+          
+          // Check if the selected location view is still valid (active)
+          const selectedLocationValid = 
+            selectedLocation === 'all' || 
+            data.some(loc => loc.name === selectedLocation);
+            
+          if (!selectedLocationValid) {
+            // Reset to 'all' if the previously selected location is no longer active
+            setSelectedLocation('all');
+            localStorage.setItem('selected_rota_location_view', 'all');
+          }
         }
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -73,7 +83,7 @@ const RotaManager = () => {
     };
 
     fetchLocations();
-  }, []);
+  }, [selectedLocation]);
 
   // Fetch slots for the current date
   useEffect(() => {
@@ -157,8 +167,32 @@ const RotaManager = () => {
 
   const handleAddSlot = async () => {
     try {
+      // Reset modalnego błędu przed każdą próbą
+      setModalError(null);
+      
       if (!newSlot.location) {
-        setError('Please select a location');
+        setModalError('Please select a location');
+        return;
+      }
+
+      // Sprawdź bezpośrednio w bazie danych czy slot o takich samych parametrach już istnieje
+      const { data: existingSlots, error: checkError } = await supabase
+        .from('scheduled_rota')
+        .select('id')
+        .eq('date', currentDate)
+        .eq('shift_type', newSlot.shift_type)
+        .eq('location', newSlot.location)
+        .eq('start_time', newSlot.start_time)
+        .eq('end_time', newSlot.end_time);
+      
+      if (checkError) {
+        console.error('Error checking for duplicate slots:', checkError);
+        throw checkError;
+      }
+      
+      if (existingSlots && existingSlots.length > 0) {
+        // Użyj nowego stanu modalError zamiast globalnego error
+        setModalError('A slot with the same location and time already exists. Please find and edit the existing slot instead of creating a duplicate.');
         return;
       }
 
@@ -195,9 +229,16 @@ const RotaManager = () => {
       }]);
 
       setShowAddSlotModal(false);
+      setModalError(null); // Wyczyść błąd modalu
+      setSuccessMessage('Slot added successfully');
     } catch (error) {
       console.error('Error adding slot:', error);
-      setError('Failed to add slot');
+      // Użyj modalError dla błędów w procesie dodawania slota, jeśli modal jest otwarty
+      if (showAddSlotModal) {
+        setModalError('Failed to add slot. Please try again.');
+      } else {
+        setError('Failed to add slot');
+      }
     }
   };
 
@@ -248,13 +289,20 @@ const RotaManager = () => {
 
   const handleUpdateSlot = async (slotId, updatedData) => {
     try {
+      // Sprawdź, czy wybrana lokalizacja jest aktywna
+      const isLocationActive = locations.some(loc => loc.name === updatedData.location);
+      if (!isLocationActive) {
+        setError(`Cannot update slot. Location "${updatedData.location}" is not active.`);
+        return;
+      }
+      
       // Get the slot to update
       const slotToUpdate = slots.find(slot => slot.id === slotId);
       if (!slotToUpdate) {
         setError('Slot not found');
         return;
       }
-
+      
       // Update the base record (the one without user_id or with the first user_id)
       const { error } = await supabase
         .from('scheduled_rota')
@@ -269,7 +317,7 @@ const RotaManager = () => {
       if (error) throw error;
 
       // If there are assigned employees, update their records too
-      if (slotToUpdate.assigned_employees.length > 0) {
+      if (slotToUpdate.assigned_employees && slotToUpdate.assigned_employees.length > 0) {
         for (const userId of slotToUpdate.assigned_employees) {
           if (userId) {
             // Skip the base record that we already updated above
@@ -293,20 +341,23 @@ const RotaManager = () => {
         }
       }
 
-      // Update the slot in UI
-      setSlots(prev => prev.map(slot => {
-        if (slot.id === slotId) {
-          return {
-            ...slot,
-            location: updatedData.location,
-            start_time: updatedData.start_time,
-            end_time: updatedData.end_time,
-            capacity: updatedData.capacity
-          };
-        }
-        return slot;
-      }));
+      // Update local state
+      setSlots(prevSlots => {
+        return prevSlots.map(slot => {
+          if (slot.id === slotId) {
+            return {
+              ...slot,
+              location: updatedData.location,
+              start_time: updatedData.start_time,
+              end_time: updatedData.end_time,
+              capacity: updatedData.capacity
+            };
+          }
+          return slot;
+        });
+      });
 
+      setSuccessMessage('Slot updated successfully');
       setError(null);
     } catch (error) {
       console.error('Error updating slot:', error);
@@ -679,11 +730,20 @@ const RotaManager = () => {
     return format(dateObj, 'EEE'); // Short day name
   };
 
-  // Handle location change
-  const handleLocationChange = (e) => {
-    const location = e.target.value;
+  const handleLocationTabClick = (location) => {
     setSelectedLocation(location);
     localStorage.setItem('selected_rota_location_view', location);
+  };
+
+  // Resetowanie błędu modalu przy otwieraniu/zamykaniu
+  const openAddSlotModal = () => {
+    setModalError(null);
+    setShowAddSlotModal(true);
+  };
+
+  const closeAddSlotModal = () => {
+    setModalError(null);
+    setShowAddSlotModal(false);
   };
 
   if (loading && !slots.length) {
@@ -697,19 +757,33 @@ const RotaManager = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="w-full">
-          <select
-            value={selectedLocation}
-            onChange={handleLocationChange}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition-colors"
-          >
-            <option value="all">All Locations</option>
+        {/* Location Tabs - replacing dropdown */}
+        <div className="w-full overflow-x-auto">
+          <div className="flex border-b border-white/20 min-w-max">
+            <button
+              onClick={() => handleLocationTabClick('all')}
+              className={`px-4 py-2 font-medium whitespace-nowrap transition-colors ${
+                selectedLocation === 'all'
+                  ? 'border-b-2 border-purple-400 text-white'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              All Locations
+            </button>
             {locations.map(location => (
-              <option key={location.id} value={location.name}>
+              <button
+                key={location.id}
+                onClick={() => handleLocationTabClick(location.name)}
+                className={`px-4 py-2 font-medium whitespace-nowrap transition-colors ${
+                  selectedLocation === location.name
+                    ? 'border-b-2 border-purple-400 text-white'
+                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                }`}
+              >
                 {location.name}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
         
         <div className="w-full">
@@ -764,7 +838,7 @@ const RotaManager = () => {
         
         <div className="flex flex-wrap gap-2 w-full">
           <button
-            onClick={() => setShowAddSlotModal(true)}
+            onClick={openAddSlotModal}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors"
           >
             Add Slot
@@ -840,6 +914,25 @@ const RotaManager = () => {
           <div className="bg-black/80 border border-white/30 rounded-lg p-4 sm:p-6 w-[95%] sm:w-auto sm:max-w-md mx-auto">
             <h3 className="text-xl font-medium text-white mb-4">Add New Slot</h3>
             
+            {/* Komunikat o błędzie w modalu */}
+            {modalError && (
+              <div className="mb-4 p-3 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md text-red-100">
+                <div className="flex items-start">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-300 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p>{modalError}</p>
+                    {modalError.includes('already exists') && (
+                      <p className="mt-1 text-sm text-red-200/80 italic">
+                        Tip: Go back to the main view and look for a slot with the same location and time. You can click the edit button to adjust its capacity.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-white mb-1">Shift Type</label>
@@ -881,12 +974,20 @@ const RotaManager = () => {
                 <label className="block text-white mb-1">Location</label>
                 <select
                   value={newSlot.location}
-                  onChange={(e) => setNewSlot({...newSlot, location: e.target.value})}
+                  onChange={(e) => {
+                    setNewSlot({ ...newSlot, location: e.target.value });
+                    // Save the selected location as preferred
+                    localStorage.setItem('preferred_rota_location', e.target.value);
+                  }}
                   className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
                 >
-                  <option value="" className="bg-gray-900 text-white">Select Location</option>
+                  {/* Tylko aktywne lokalizacje */}
                   {locations.map(location => (
-                    <option key={location.id} value={location.name} className="bg-gray-900 text-white">
+                    <option 
+                      key={location.id} 
+                      value={location.name}
+                      className="bg-gray-900 text-white"
+                    >
                       {location.name}
                     </option>
                   ))}
@@ -922,56 +1023,49 @@ const RotaManager = () => {
               </div>
               
               <div>
-                <label className="block text-white mb-1">Capacity (staff needed)</label>
-                <div className="flex items-center bg-gray-900 border border-white/20 rounded-md overflow-hidden">
+                <label className="block text-white mb-1">Capacity (Staff needed)</label>
+                <div className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => setNewSlot({...newSlot, capacity: Math.max(1, newSlot.capacity - 1)})}
-                    className="px-3 py-2 hover:bg-gray-800 focus:outline-none text-white"
-                    aria-label="Decrease capacity"
+                    onClick={() => {
+                      if (newSlot.capacity > 1) {
+                        setNewSlot({ ...newSlot, capacity: newSlot.capacity - 1 });
+                      }
+                    }}
+                    className="px-2 py-1 bg-gray-800 text-white border border-white/20 rounded-l-md hover:bg-gray-700"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                     </svg>
                   </button>
-                  
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    min="1"
-                    value={newSlot.capacity}
-                    onChange={(e) => {
-                      const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
-                      setNewSlot({...newSlot, capacity: value});
-                    }}
-                    className="w-full bg-gray-900 text-white py-2 focus:outline-none focus:bg-gray-800 text-center border-x border-white/20"
-                  />
-                  
+                  <div className="px-4 py-1 bg-gray-900 text-white border-y border-white/20 text-center w-16">
+                    {newSlot.capacity}
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setNewSlot({...newSlot, capacity: newSlot.capacity + 1})}
-                    className="px-3 py-2 hover:bg-gray-800 focus:outline-none text-white"
-                    aria-label="Increase capacity"
+                    onClick={() => setNewSlot({ ...newSlot, capacity: newSlot.capacity + 1 })}
+                    className="px-2 py-1 bg-gray-800 text-white border border-white/20 rounded-r-md hover:bg-gray-700"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </button>
                 </div>
               </div>
             </div>
             
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="mt-6 flex justify-end space-x-2">
               <button
-                onClick={() => setShowAddSlotModal(false)}
-                className="px-3 py-2 sm:px-4 sm:py-2 border border-white/20 rounded-md text-white hover:bg-white/10 transition-colors"
+                type="button"
+                onClick={closeAddSlotModal}
+                className="px-4 py-2 bg-gray-800 text-white border border-white/20 rounded hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleAddSlot}
-                className="px-3 py-2 sm:px-4 sm:py-2 bg-blue-600/30 border border-blue-400/30 rounded-md text-white hover:bg-blue-600/40 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
               >
                 Add Slot
               </button>
