@@ -9,6 +9,7 @@ import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
 import BrakesPage from '../pages/BrakesPage';
+import AvailableShiftsPage from '../pages/AvailableShiftsPage';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
@@ -137,6 +138,7 @@ export default function HomePage() {
     if (path === '/profile') return 'Your Profile';
     if (path === '/rota-planner') return 'Rota Planner';
     if (path === '/brakes') return 'Breaks';
+    if (path === '/available-shifts') return 'Available Shifts';
     
     return 'My Rota';
   };
@@ -234,6 +236,16 @@ export default function HomePage() {
                 My Rota
               </Link>
               <Link
+                to="/available-shifts"
+                className={`px-4 py-2 text-sm font-medium ${
+                  location.pathname === '/available-shifts' 
+                    ? 'text-white font-bold' 
+                    : 'text-white/80'
+                }`}
+              >
+                Available Shifts
+              </Link>
+              <Link
                 to="/brakes"
                 className={`px-4 py-2 text-sm font-medium ${
                   location.pathname === '/brakes' 
@@ -275,7 +287,11 @@ export default function HomePage() {
               aria-label="Menu"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
               </svg>
             </button>
             
@@ -310,15 +326,15 @@ export default function HomePage() {
         </div>
         
         {mobileMenuOpen && (
-          <div className="md:hidden backdrop-blur-xl bg-black/60 border-t border-white/30 shadow-lg">
+          <div className="md:hidden bg-black/80 backdrop-blur-xl border-b border-white/10">
             <div className="px-2 pt-2 pb-3 space-y-1">
               <Link
                 to="/calendar"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                className={`block px-3 py-2 rounded-md ${
                   location.pathname === '/calendar' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
                 }`}
               >
                 Main Page
@@ -326,10 +342,10 @@ export default function HomePage() {
               <Link
                 to="/team"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                className={`block px-3 py-2 rounded-md ${
                   location.pathname === '/team' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
                 }`}
               >
                 Team View
@@ -337,21 +353,32 @@ export default function HomePage() {
               <Link
                 to="/my-rota"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                className={`block px-3 py-2 rounded-md ${
                   location.pathname === '/my-rota' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
                 }`}
               >
                 My Rota
               </Link>
               <Link
+                to="/available-shifts"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-md ${
+                  location.pathname === '/available-shifts' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
+                }`}
+              >
+                Available Shifts
+              </Link>
+              <Link
                 to="/brakes"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                className={`block px-3 py-2 rounded-md ${
                   location.pathname === '/brakes' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
                 }`}
               >
                 Breaks
@@ -361,10 +388,10 @@ export default function HomePage() {
                   <Link
                     to="/admin"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                    className={`block px-3 py-2 rounded-md ${
                       location.pathname === '/admin' 
-                        ? 'text-white font-bold' 
-                        : 'text-white/80'
+                        ? 'bg-blue-500 text-white' 
+                        : 'text-white/70'
                     }`}
                   >
                     Admin Panel
@@ -372,10 +399,10 @@ export default function HomePage() {
                   <Link
                     to="/rota-planner"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                    className={`block px-3 py-2 rounded-md ${
                       location.pathname === '/rota-planner' 
-                        ? 'text-white font-bold' 
-                        : 'text-white/80'
+                        ? 'bg-blue-500 text-white' 
+                        : 'text-white/70'
                     }`}
                   >
                     Rota Planner
@@ -385,17 +412,17 @@ export default function HomePage() {
               <Link
                 to="/profile"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block w-full text-left px-3 py-2 text-base font-medium ${
+                className={`block px-3 py-2 rounded-md ${
                   location.pathname === '/profile' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
+                    ? 'bg-blue-500 text-white' 
+                    : 'text-white/70'
                 }`}
               >
                 Profile
               </Link>
               <button
                 onClick={handleSignOut}
-                className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-red-300"
+                className="block px-3 py-2 rounded-md text-base font-medium text-red-300"
               >
                 Log out
               </button>
@@ -414,6 +441,7 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
+          <Route path="/available-shifts" element={<AvailableShiftsPage />} />
           <Route path="/brakes" element={<BrakesPage />} />
           <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />

@@ -821,6 +821,46 @@ const RotaManager = () => {
     setShowAddSlotModal(false);
   };
 
+  // Add function to toggle slot availability
+  const handleToggleSlotAvailability = async (slotId, setAvailable) => {
+    try {
+      setError(null);
+      
+      // Find the slot in the current state
+      const slot = slots.find(s => s.id === slotId);
+      if (!slot) {
+        console.error('Slot not found:', slotId);
+        return;
+      }
+      
+      // Update the slot status in the database
+      const { error: updateError } = await supabase
+        .from('scheduled_rota')
+        .update({ 
+          status: setAvailable ? 'available' : null 
+        })
+        .eq('id', slotId);
+      
+      if (updateError) throw updateError;
+      
+      // Update slot in the local state
+      setSlots(currentSlots => 
+        currentSlots.map(s => 
+          s.id === slotId ? { ...s, status: setAvailable ? 'available' : null } : s
+        )
+      );
+      
+      setSuccessMessage(
+        setAvailable 
+          ? 'Shift marked as available for employees to claim' 
+          : 'Shift removed from available shifts'
+      );
+    } catch (error) {
+      console.error('Error toggling slot availability:', error);
+      setError(`Failed to update shift availability: ${error.message}`);
+    }
+  };
+
   if (loading && !slots.length) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -973,8 +1013,11 @@ const RotaManager = () => {
                   <SlotCard
                     key={slot.id}
                     slot={slot}
-                    onAssign={() => handleOpenAssignModal(slot)}
-                    onEdit={() => handleOpenEditModal(slot)}
+                    handleOpenAssignModal={handleOpenAssignModal}
+                    handleDeleteSlot={handleDeleteSlot}
+                    handleOpenEditModal={handleOpenEditModal}
+                    handleToggleSlotAvailability={handleToggleSlotAvailability}
+                    isAdmin={true}
                   />
                 ))}
               </div>
