@@ -78,6 +78,7 @@ If you encounter errors:
 
 ## Recent Changes (YYYY-MM-DD)
 
+- **Add Agency Deletion (2024-06-11):** Added the ability to permanently delete agencies in the "Agencies" tab of the admin dashboard. A confirmation dialog appears before deletion to prevent accidental removals. This feature complements the existing activation/deactivation functionality, allowing administrators to completely remove agencies that are no longer needed.
 - **Add Locations Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Locations" w panelu administracyjnym. Przeniesiono funkcjonalność zarządzania lokalizacjami z zakładki "Settings" do nowo utworzonej zakładki, co znacząco poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z lokalizacjami.
 - **Add Agencies Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Agencies" w panelu administracyjnym. Przeniesiono funkcjonalność zarządzania agencjami z zakładki "Settings" do nowo utworzonej zakładki, co znacząco poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z agencjami.
 - **Add Breaks Config Tab (2024-06-11):** Utworzono nową, oddzielną zakładkę "Breaks Config" w panelu administracyjnym. Przeniesiono zawartość "System Configuration" z zakładki "Settings" do nowo utworzonej zakładki, co poprawia organizację interfejsu i ułatwia dostęp do ustawień związanych z przerwami między zmianami.

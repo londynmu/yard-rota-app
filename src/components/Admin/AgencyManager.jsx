@@ -227,6 +227,40 @@ export default function AgencyManager() {
     }
   };
 
+  const deleteAgency = async (id, name) => {
+    if (!confirm(`Are you sure you want to permanently delete the agency "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('agencies')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      await fetchAgencies();
+      
+      setMessage({ 
+        text: 'Agency deleted successfully', 
+        type: 'success' 
+      });
+      
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    } catch (error) {
+      console.error('Error deleting agency:', error);
+      setMessage({ 
+        text: 'Failed to delete agency: ' + (error.message || 'Unknown error'), 
+        type: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
       <h3 className="text-lg font-semibold text-white mb-4">Agency Management</h3>
@@ -488,6 +522,14 @@ export default function AgencyManager() {
                           aria-label={agency.is_active ? 'Deactivate agency' : 'Activate agency'}
                         >
                           {agency.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => deleteAgency(agency.id, agency.name)}
+                          disabled={loading}
+                          className="text-red-500 hover:text-red-400 transition-colors"
+                          aria-label="Delete agency"
+                        >
+                          Delete
                         </button>
                       </div>
                     </div>
