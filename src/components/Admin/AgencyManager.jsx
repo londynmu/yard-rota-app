@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import ConfirmDialog from '../UI/ConfirmDialog';
+import Notification from '../UI/Notification';
 
 export default function AgencyManager() {
   const [agencies, setAgencies] = useState([]);
@@ -19,7 +21,15 @@ export default function AgencyManager() {
     notes: ''
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [notification, setNotification] = useState({ visible: false, message: '', type: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    visible: false, 
+    title: '',
+    message: '',
+    agencyId: null,
+    agencyName: '',
+    action: null
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const newAgencyInputRef = React.useRef(null);
 
@@ -32,6 +42,14 @@ export default function AgencyManager() {
       newAgencyInputRef.current.focus();
     }
   }, [showAddForm]);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ visible: true, message, type });
+  };
+
+  const closeNotification = () => {
+    setNotification({ ...notification, visible: false });
+  };
 
   const fetchAgencies = async () => {
     try {
@@ -52,10 +70,7 @@ export default function AgencyManager() {
       setAgencies(data || []);
     } catch (error) {
       console.error('Error fetching agencies:', error);
-      setMessage({ 
-        text: 'Failed to load agencies: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      showNotification('Failed to load agencies: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -73,7 +88,7 @@ export default function AgencyManager() {
 
   const handleAddAgency = async () => {
     if (!newAgency.name.trim()) {
-      setMessage({ text: 'Agency name cannot be empty', type: 'error' });
+      showNotification('Agency name cannot be empty', 'error');
       return;
     }
 
@@ -107,18 +122,14 @@ export default function AgencyManager() {
       setShowAddForm(false);
       await fetchAgencies();
       
-      setMessage({ text: 'Agency added successfully', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      showNotification('Agency added successfully');
     } catch (error) {
       console.error('Error adding agency:', error);
       
       if (error.code === '23505') {
-        setMessage({ text: 'This agency name already exists', type: 'error' });
+        showNotification('This agency name already exists', 'error');
       } else {
-        setMessage({ 
-          text: 'Failed to add agency: ' + (error.message || 'Unknown error'), 
-          type: 'error' 
-        });
+        showNotification('Failed to add agency: ' + (error.message || 'Unknown error'), 'error');
       }
     } finally {
       setLoading(false);
@@ -149,7 +160,7 @@ export default function AgencyManager() {
 
   const updateAgency = async (id) => {
     if (!editAgencyData.name.trim()) {
-      setMessage({ text: 'Agency name cannot be empty', type: 'error' });
+      showNotification('Agency name cannot be empty', 'error');
       return;
     }
 
@@ -179,22 +190,30 @@ export default function AgencyManager() {
       });
       await fetchAgencies();
       
-      setMessage({ text: 'Agency updated successfully', type: 'success' });
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      showNotification('Agency updated successfully');
     } catch (error) {
       console.error('Error updating agency:', error);
       
       if (error.code === '23505') {
-        setMessage({ text: 'This agency name already exists', type: 'error' });
+        showNotification('This agency name already exists', 'error');
       } else {
-        setMessage({ 
-          text: 'Failed to update agency: ' + (error.message || 'Unknown error'), 
-          type: 'error' 
-        });
+        showNotification('Failed to update agency: ' + (error.message || 'Unknown error'), 'error');
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmToggleAgencyStatus = (id, name, currentStatus) => {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    setConfirmDialog({
+      visible: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Agency`,
+      message: `Are you sure you want to ${action} "${name}"?`,
+      agencyId: id,
+      agencyName: name,
+      action: () => toggleAgencyStatus(id, currentStatus)
+    });
   };
 
   const toggleAgencyStatus = async (id, currentStatus) => {
@@ -210,28 +229,28 @@ export default function AgencyManager() {
       
       await fetchAgencies();
       
-      setMessage({ 
-        text: `Agency ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
-        type: 'success' 
-      });
-      
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      showNotification(`Agency ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       console.error('Error toggling agency status:', error);
-      setMessage({ 
-        text: 'Failed to update agency status: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      showNotification('Failed to update agency status: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteAgency = async (id, name) => {
-    if (!confirm(`Are you sure you want to permanently delete the agency "${name}"? This action cannot be undone.`)) {
-      return;
-    }
+  const confirmDeleteAgency = (id, name) => {
+    setConfirmDialog({
+      visible: true,
+      title: "Delete Agency",
+      message: `Are you sure you want to permanently delete the agency "${name}"? This action cannot be undone.`,
+      agencyId: id,
+      agencyName: name,
+      action: () => deleteAgency(id),
+      isDestructive: true
+    });
+  };
 
+  const deleteAgency = async (id) => {
     try {
       setLoading(true);
       
@@ -244,21 +263,20 @@ export default function AgencyManager() {
       
       await fetchAgencies();
       
-      setMessage({ 
-        text: 'Agency deleted successfully', 
-        type: 'success' 
-      });
-      
-      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      showNotification('Agency deleted successfully');
     } catch (error) {
       console.error('Error deleting agency:', error);
-      setMessage({ 
-        text: 'Failed to delete agency: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      showNotification('Failed to delete agency: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      ...confirmDialog,
+      visible: false
+    });
   };
 
   return (
@@ -506,30 +524,48 @@ export default function AgencyManager() {
                         <button
                           onClick={() => startEditing(agency)}
                           disabled={loading}
-                          className="text-blue-400 hover:text-blue-300 transition-colors"
+                          className="text-blue-400 hover:text-blue-300 transition-colors p-2"
                           aria-label="Edit agency"
+                          title="Edit agency"
                         >
-                          Edit
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span className="sr-only">Edit</span>
                         </button>
                         <button
-                          onClick={() => toggleAgencyStatus(agency.id, agency.is_active)}
+                          onClick={() => confirmToggleAgencyStatus(agency.id, agency.name, agency.is_active)}
                           disabled={loading}
                           className={`${
                             agency.is_active 
                               ? 'text-red-400 hover:text-red-300' 
                               : 'text-green-400 hover:text-green-300'
-                          } transition-colors`}
+                          } transition-colors p-2`}
                           aria-label={agency.is_active ? 'Deactivate agency' : 'Activate agency'}
+                          title={agency.is_active ? 'Deactivate agency' : 'Activate agency'}
                         >
-                          {agency.is_active ? 'Deactivate' : 'Activate'}
+                          {agency.is_active ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                          <span className="sr-only">{agency.is_active ? 'Deactivate' : 'Activate'}</span>
                         </button>
                         <button
-                          onClick={() => deleteAgency(agency.id, agency.name)}
+                          onClick={() => confirmDeleteAgency(agency.id, agency.name)}
                           disabled={loading}
-                          className="text-red-500 hover:text-red-400 transition-colors"
+                          className="text-red-500 hover:text-red-400 transition-colors p-2"
                           aria-label="Delete agency"
+                          title="Delete agency"
                         >
-                          Delete
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span className="sr-only">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -565,16 +601,30 @@ export default function AgencyManager() {
         )}
       </div>
       
-      {/* Message display */}
-      {message.text && (
-        <div className={`mt-4 p-3 rounded-md ${
-          message.type === 'success' 
-            ? 'bg-green-500/20 text-green-100 border border-green-400/30' 
-            : 'bg-red-500/20 text-red-100 border border-red-400/30'
-        }`}>
-          {message.text}
-        </div>
-      )}
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.visible}
+        onClose={closeConfirmDialog}
+        onConfirm={() => {
+          if (confirmDialog.action) {
+            confirmDialog.action();
+          }
+          closeConfirmDialog();
+        }}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.isDestructive ? "Delete" : "Yes"}
+        cancelText="Cancel"
+        isDestructive={confirmDialog.isDestructive}
+      />
+      
+      {/* Notification Component */}
+      <Notification
+        isVisible={notification.visible}
+        message={notification.message}
+        type={notification.type}
+        onClose={closeNotification}
+      />
     </div>
   );
 } 
