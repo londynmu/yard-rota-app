@@ -38,6 +38,9 @@ export default function AdminPage() {
   // Efekt do zapisywania aktywnej zakładki w localStorage
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
+    
+    // Scroll to top when changing tabs to prevent automatic scrolling to middle/bottom
+    window.scrollTo(0, 0);
   }, [activeTab]);
 
   // Efekt do sprawdzania uprawnień admina PO załadowaniu AuthContext

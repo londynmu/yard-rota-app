@@ -11,7 +11,22 @@ import { createPortal } from 'react-dom';
 import { format, addDays, parseISO } from 'date-fns';
 
 const RotaManager = () => {
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  // Helper to update date and persist immediately
+  const updateDateAndSave = (newDate) => {
+    setCurrentDate(newDate);
+    localStorage.setItem('rota_planner_current_date', newDate);
+  };
+
+  const [currentDate, setCurrentDate] = useState(() => {
+    // Get saved date from localStorage with proper default to today
+    const savedDate = localStorage.getItem('rota_planner_current_date');
+    if (savedDate) {
+      return savedDate;
+    } else {
+      // Only if no saved date is found, use today's date
+      return new Date().toISOString().split('T')[0];
+    }
+  });
   const [locations, setLocations] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +53,51 @@ const RotaManager = () => {
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null); // 'start' or 'end'
   const [timePickerCallback, setTimePickerCallback] = useState(null);
+
+  // Save current date to localStorage whenever it changes (double safety)
+  useEffect(() => {
+    if (currentDate) {
+      localStorage.setItem('rota_planner_current_date', currentDate);
+    }
+  }, [currentDate]);
+
+  // Save scroll position when user scrolls
+  useEffect(() => {
+    const saveScroll = () => {
+      localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    };
+
+    window.addEventListener('scroll', saveScroll);
+
+    // Robust scroll restoration function with retries
+    const restoreScroll = () => {
+      const saved = localStorage.getItem('rota_planner_scroll_position');
+      if (!saved) return;
+      const target = parseInt(saved, 10);
+      let attempts = 0;
+      const maxAttempts = 10;
+      const attemptRestore = () => {
+        // If we can already scroll to target, do it and exit
+        if (document.body.scrollHeight >= target) {
+          window.scrollTo({ top: target, behavior: 'auto' });
+        } else if (attempts < maxAttempts) {
+          attempts += 1;
+          // Wait a bit and try again, content might not be fully rendered yet
+          setTimeout(attemptRestore, 200);
+        }
+      };
+      attemptRestore();
+    };
+
+    // Run once on mount
+    restoreScroll();
+
+    return () => {
+      window.removeEventListener('scroll', saveScroll);
+      // Save final scroll position when component unmounts
+      localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    };
+  }, []);
 
   // Fetch locations
   useEffect(() => {
@@ -140,6 +200,17 @@ const RotaManager = () => {
         });
         
         setSlots(Array.from(slotsMap.values()));
+
+        // Restore scroll position after slots are loaded
+        setTimeout(() => {
+          const savedScrollPosition = localStorage.getItem('rota_planner_scroll_position');
+          if (savedScrollPosition) {
+            window.scrollTo({
+              top: parseInt(savedScrollPosition),
+              behavior: 'auto'
+            });
+          }
+        }, 200);
       } catch (error) {
         console.error('Error fetching slots:', error);
         setError('Failed to load schedule');
@@ -162,7 +233,9 @@ const RotaManager = () => {
   }, [successMessage]);
 
   const handleDateChange = (e) => {
-    setCurrentDate(e.target.value);
+    // Save current scroll position before changing date
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    updateDateAndSave(e.target.value);
   };
 
   const handleAddSlot = async () => {
@@ -698,21 +771,58 @@ const RotaManager = () => {
 
   // Group slots by shift type
   const slotsByShift = {
-    day: slots.filter(slot => slot.shift_type === 'day'),
-    afternoon: slots.filter(slot => slot.shift_type === 'afternoon'),
-    night: slots.filter(slot => slot.shift_type === 'night')
+    day: slots.filter(slot => slot.shift_type === 'day').sort((a, b) => {
+      // Sort by start time first
+      const startTimeA = timeToMinutes(a.start_time);
+      const startTimeB = timeToMinutes(b.start_time);
+      if (startTimeA !== startTimeB) {
+        return startTimeA - startTimeB; // Earlier start time first
+      }
+      // If start times are equal, sort by end time
+      const endTimeA = timeToMinutes(a.end_time);
+      const endTimeB = timeToMinutes(b.end_time);
+      return endTimeA - endTimeB; // Earlier end time first
+    }),
+    afternoon: slots.filter(slot => slot.shift_type === 'afternoon').sort((a, b) => {
+      // Sort by start time first
+      const startTimeA = timeToMinutes(a.start_time);
+      const startTimeB = timeToMinutes(b.start_time);
+      if (startTimeA !== startTimeB) {
+        return startTimeA - startTimeB; // Earlier start time first
+      }
+      // If start times are equal, sort by end time
+      const endTimeA = timeToMinutes(a.end_time);
+      const endTimeB = timeToMinutes(b.end_time);
+      return endTimeA - endTimeB; // Earlier end time first
+    }),
+    night: slots.filter(slot => slot.shift_type === 'night').sort((a, b) => {
+      // Sort by start time first
+      const startTimeA = timeToMinutes(a.start_time);
+      const startTimeB = timeToMinutes(b.start_time);
+      if (startTimeA !== startTimeB) {
+        return startTimeA - startTimeB; // Earlier start time first
+      }
+      // If start times are equal, sort by end time
+      const endTimeA = timeToMinutes(a.end_time);
+      const endTimeB = timeToMinutes(b.end_time);
+      return endTimeA - endTimeB; // Earlier end time first
+    })
   };
 
   const goToPreviousDay = () => {
+    // Save current scroll position before changing date
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const previousDay = addDays(currentDateObj, -1);
-    setCurrentDate(format(previousDay, 'yyyy-MM-dd'));
+    updateDateAndSave(format(previousDay, 'yyyy-MM-dd'));
   };
 
   const goToNextDay = () => {
+    // Save current scroll position before changing date
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const nextDay = addDays(currentDateObj, 1);
-    setCurrentDate(format(nextDay, 'yyyy-MM-dd'));
+    updateDateAndSave(format(nextDay, 'yyyy-MM-dd'));
   };
 
   const formatDisplayDate = (dateString) => {
@@ -731,6 +841,8 @@ const RotaManager = () => {
   };
 
   const handleLocationTabClick = (location) => {
+    // Save current scroll position before changing location
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     setSelectedLocation(location);
     localStorage.setItem('selected_rota_location_view', location);
   };
