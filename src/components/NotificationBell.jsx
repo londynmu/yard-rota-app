@@ -4,31 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 const NotificationBell = () => {
   // Use default values to prevent errors if context is not available
-  const { notifications = [], unreadCount = 0, pendingApprovals = 0, markAllAsRead } = useNotifications() || {};
+  const { unreadCount = 0, pendingApprovals = 0, markAllAsRead } = useNotifications() || {};
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-
-  // Format date to "X time ago" format
-  const formatTimeAgo = (date) => {
-    if (!date) return '';
-    
-    try {
-      const now = new Date();
-      const diffMs = now - new Date(date);
-      const diffSec = Math.floor(diffMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHour = Math.floor(diffMin / 60);
-      const diffDay = Math.floor(diffHour / 24);
-
-      if (diffSec < 60) return `${diffSec} second${diffSec !== 1 ? 's' : ''} ago`;
-      if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
-      if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
-      return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
-    } catch (error) {
-      return '';
-    }
-  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -87,8 +66,8 @@ const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-black/80 backdrop-blur-xl rounded-lg shadow-lg z-50 border border-white/20 overflow-hidden">
-          <div className="p-2 border-b border-white/20 flex justify-between items-center">
+        <div className="fixed md:absolute left-0 right-0 md:left-auto md:right-0 top-[4.5rem] md:top-auto md:mt-2 w-full md:w-80 bg-black/95 md:bg-black/80 backdrop-blur-xl rounded-b-lg md:rounded-lg shadow-lg z-50 border border-white/20 overflow-hidden mx-auto md:mx-0 max-w-md md:max-w-full">
+          <div className="p-3 border-b border-white/20 flex justify-between items-center">
             <h3 className="text-white font-bold">Notifications</h3>
             {unreadCount > 0 && (
               <button
@@ -122,10 +101,29 @@ const NotificationBell = () => {
             </div>
           )}
 
+          {/* Notification navigation arrows */}
+          {pendingApprovals === 0 && (
+            <div className="flex items-center justify-between py-3 px-4 border-b border-white/10">
+              <button className="text-white/70 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <div className="text-center text-white/70 text-sm font-medium">
+                May 2024
+              </div>
+              <button className="text-white/70 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* Empty state */}
           {pendingApprovals === 0 && (
-            <div className="p-4 text-center text-white/60">
-              No notifications to display
+            <div className="p-6 text-center">
+              <p className="text-white/80 text-sm font-medium">No notifications to display</p>
             </div>
           )}
         </div>
