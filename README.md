@@ -78,7 +78,6 @@ If you encounter errors:
 
 ## Recent Changes (YYYY-MM-DD)
 
-- **Improve Slot Sorting in Rota Planner (2024-05-20):** Modified the display order of slots within each shift type (Day, Afternoon, Night) to be sorted by start time first, then by end time. Slots with earlier start times now appear first (left side), followed by slots with later start times. When slots have identical start times, they are ordered by end time (earlier end times first). This improves readability and logical flow when viewing the schedule.
 - **Add Scroll Position Persistence in Rota Planner (2024-05-20):** Implemented scroll position persistence in the Rota Planner page. Now, when a user changes the date or location, or refreshes the page, the system restores their previous scroll position. This ensures users don't lose their place when navigating through different days or filtering by locations.
 - **Fix Persistent Rota Planner Date on Refresh (2024-05-20):** Fixed an issue where refreshing the Rota Planner page would reset the date back to the current day. Modified the date initialization logic to properly honor the stored date from localStorage, ensuring the view remains exactly as left by the user even after refreshing the browser.
 - **Persistent Rota Planner Date (2024-05-17):** Implemented date persistence in the Rota Planner page. The system now remembers the last viewed date when navigating away from and back to the Rota Planner, ensuring a seamless user experience.

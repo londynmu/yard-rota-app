@@ -11,12 +11,6 @@ import { createPortal } from 'react-dom';
 import { format, addDays, parseISO } from 'date-fns';
 
 const RotaManager = () => {
-  // Helper to update date and persist immediately
-  const updateDateAndSave = (newDate) => {
-    setCurrentDate(newDate);
-    localStorage.setItem('rota_planner_current_date', newDate);
-  };
-
   const [currentDate, setCurrentDate] = useState(() => {
     // Get saved date from localStorage with proper default to today
     const savedDate = localStorage.getItem('rota_planner_current_date');
@@ -54,11 +48,9 @@ const RotaManager = () => {
   const [activeTimeField, setActiveTimeField] = useState(null); // 'start' or 'end'
   const [timePickerCallback, setTimePickerCallback] = useState(null);
 
-  // Save current date to localStorage whenever it changes (double safety)
+  // Save current date to localStorage whenever it changes
   useEffect(() => {
-    if (currentDate) {
-      localStorage.setItem('rota_planner_current_date', currentDate);
-    }
+    localStorage.setItem('rota_planner_current_date', currentDate);
   }, [currentDate]);
 
   // Save scroll position when user scrolls
@@ -235,7 +227,7 @@ const RotaManager = () => {
   const handleDateChange = (e) => {
     // Save current scroll position before changing date
     localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
-    updateDateAndSave(e.target.value);
+    setCurrentDate(e.target.value);
   };
 
   const handleAddSlot = async () => {
@@ -771,42 +763,9 @@ const RotaManager = () => {
 
   // Group slots by shift type
   const slotsByShift = {
-    day: slots.filter(slot => slot.shift_type === 'day').sort((a, b) => {
-      // Sort by start time first
-      const startTimeA = timeToMinutes(a.start_time);
-      const startTimeB = timeToMinutes(b.start_time);
-      if (startTimeA !== startTimeB) {
-        return startTimeA - startTimeB; // Earlier start time first
-      }
-      // If start times are equal, sort by end time
-      const endTimeA = timeToMinutes(a.end_time);
-      const endTimeB = timeToMinutes(b.end_time);
-      return endTimeA - endTimeB; // Earlier end time first
-    }),
-    afternoon: slots.filter(slot => slot.shift_type === 'afternoon').sort((a, b) => {
-      // Sort by start time first
-      const startTimeA = timeToMinutes(a.start_time);
-      const startTimeB = timeToMinutes(b.start_time);
-      if (startTimeA !== startTimeB) {
-        return startTimeA - startTimeB; // Earlier start time first
-      }
-      // If start times are equal, sort by end time
-      const endTimeA = timeToMinutes(a.end_time);
-      const endTimeB = timeToMinutes(b.end_time);
-      return endTimeA - endTimeB; // Earlier end time first
-    }),
-    night: slots.filter(slot => slot.shift_type === 'night').sort((a, b) => {
-      // Sort by start time first
-      const startTimeA = timeToMinutes(a.start_time);
-      const startTimeB = timeToMinutes(b.start_time);
-      if (startTimeA !== startTimeB) {
-        return startTimeA - startTimeB; // Earlier start time first
-      }
-      // If start times are equal, sort by end time
-      const endTimeA = timeToMinutes(a.end_time);
-      const endTimeB = timeToMinutes(b.end_time);
-      return endTimeA - endTimeB; // Earlier end time first
-    })
+    day: slots.filter(slot => slot.shift_type === 'day'),
+    afternoon: slots.filter(slot => slot.shift_type === 'afternoon'),
+    night: slots.filter(slot => slot.shift_type === 'night')
   };
 
   const goToPreviousDay = () => {
@@ -814,7 +773,7 @@ const RotaManager = () => {
     localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const previousDay = addDays(currentDateObj, -1);
-    updateDateAndSave(format(previousDay, 'yyyy-MM-dd'));
+    setCurrentDate(format(previousDay, 'yyyy-MM-dd'));
   };
 
   const goToNextDay = () => {
@@ -822,7 +781,7 @@ const RotaManager = () => {
     localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const nextDay = addDays(currentDateObj, 1);
-    updateDateAndSave(format(nextDay, 'yyyy-MM-dd'));
+    setCurrentDate(format(nextDay, 'yyyy-MM-dd'));
   };
 
   const formatDisplayDate = (dateString) => {
