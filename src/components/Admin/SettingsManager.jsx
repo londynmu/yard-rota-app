@@ -6,20 +6,14 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function SettingsManager() {
   // State for various settings
-  const [workHoursStart, setWorkHoursStart] = useState('08:00');
-  const [workHoursEnd, setWorkHoursEnd] = useState('16:00');
-  const [weekStartDay, setWeekStartDay] = useState('saturday');
-  const [defaultShiftLength, setDefaultShiftLength] = useState(8);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [reminderDays, setReminderDays] = useState(2);
   const [availabilityUpdates, setAvailabilityUpdates] = useState(true);
   const [minStaffingDay, setMinStaffingDay] = useState(3);
   const [minStaffingNight, setMinStaffingNight] = useState(2);
-  const [minBreakBetweenSlots, setMinBreakBetweenSlots] = useState(60); // Value in minutes (for DB)
-  const [minBreakHours, setMinBreakHours] = useState(1); // Value in hours (for UI)
   
   // State for active section
-  const [activeSection, setActiveSection] = useState('system');
+  const [activeSection, setActiveSection] = useState('notifications');
   
   // For form submissions and changes
   const [isSaving, setIsSaving] = useState(false);
@@ -44,21 +38,14 @@ export default function SettingsManager() {
             return acc;
           }, {});
           
-          // Update state with values from database
-          if (settingsMap.working_hours_start) setWorkHoursStart(settingsMap.working_hours_start);
-          if (settingsMap.working_hours_end) setWorkHoursEnd(settingsMap.working_hours_end);
-          if (settingsMap.default_shift_length) setDefaultShiftLength(Number(settingsMap.default_shift_length));
+          // Update notification settings if available
+          if (settingsMap.email_notifications) setEmailNotifications(settingsMap.email_notifications === 'true');
+          if (settingsMap.reminder_days) setReminderDays(Number(settingsMap.reminder_days));
+          if (settingsMap.availability_updates) setAvailabilityUpdates(settingsMap.availability_updates === 'true');
           
-          // Set min break between slots if available
-          if (settingsMap.min_break_between_slots) {
-            const minutes = Number(settingsMap.min_break_between_slots);
-            setMinBreakBetweenSlots(minutes);
-            setMinBreakHours(minutes / 60); // Convert minutes from DB to hours for UI
-          } else {
-            // Default to 9 hours (540 minutes) if not set in DB
-            setMinBreakBetweenSlots(540);
-            setMinBreakHours(9);
-          }
+          // Update team settings if available
+          if (settingsMap.min_staffing_day) setMinStaffingDay(Number(settingsMap.min_staffing_day));
+          if (settingsMap.min_staffing_night) setMinStaffingNight(Number(settingsMap.min_staffing_night));
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
@@ -83,15 +70,7 @@ export default function SettingsManager() {
       // Determine which settings to update based on the section
       let settingsToUpdate = [];
       
-      if (section === 'System') {
-        settingsToUpdate = [
-          { key: 'working_hours_start', value: workHoursStart },
-          { key: 'working_hours_end', value: workHoursEnd },
-          { key: 'default_shift_length', value: defaultShiftLength.toString() },
-          { key: 'min_break_between_slots', value: minBreakBetweenSlots.toString() } // Save minutes to DB
-        ];
-      }
-      else if (section === 'Notification') {
+      if (section === 'Notification') {
         settingsToUpdate = [
           { key: 'email_notifications', value: emailNotifications.toString() },
           { key: 'reminder_days', value: reminderDays.toString() },
@@ -181,16 +160,6 @@ export default function SettingsManager() {
       <div className="flex mb-6 overflow-x-auto pb-2 -mx-4 px-4">
         <button
           className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
-            activeSection === 'system' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
-          }`}
-          onClick={() => setActiveSection('system')}
-        >
-          System Config
-        </button>
-        <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
             activeSection === 'notifications' 
               ? 'bg-blue-600/60 text-white' 
               : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
@@ -210,105 +179,6 @@ export default function SettingsManager() {
           Team Management
         </button>
       </div>
-      
-      {/* System Configuration Settings */}
-      {activeSection === 'system' && (
-        <>
-          <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-            <h3 className="text-lg font-semibold text-white mb-4">System Configuration</h3>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Working Hours
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="time"
-                  value={workHoursStart}
-                  onChange={(e) => setWorkHoursStart(e.target.value)}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-                />
-                <span className="text-white">to</span>
-                <input
-                  type="time"
-                  value={workHoursEnd}
-                  onChange={(e) => setWorkHoursEnd(e.target.value)}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Week Start Day
-              </label>
-              <select
-                value={weekStartDay}
-                onChange={(e) => setWeekStartDay(e.target.value)}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="monday">Monday</option>
-                <option value="saturday">Saturday</option>
-                <option value="sunday">Sunday</option>
-              </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Default Shift Length (hours)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="24"
-                value={defaultShiftLength}
-                onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-white text-sm font-medium mb-2">
-                Minimum Break Between Shifts (hours)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="24"
-                step="0.25"
-                value={minBreakHours}
-                onChange={(e) => {
-                  const hours = Number(e.target.value);
-                  setMinBreakHours(hours);
-                  // Convert hours to minutes for DB storage
-                  setMinBreakBetweenSlots(Math.round(hours * 60));
-                }}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-white/60 text-xs mt-1">
-                Minimum time required between consecutive shifts for an employee
-              </p>
-            </div>
-            
-            <button
-              type="button"
-              onClick={() => saveSettings('System')}
-              disabled={isSaving}
-              className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
-                isSaving ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSaving ? 'Saving...' : 'Save System Settings'}
-            </button>
-          </div>
-          
-          {/* Location Manager */}
-          <LocationManager />
-
-          {/* Agency Manager */}
-          <AgencyManager />
-        </>
-      )}
       
       {/* Notification Settings */}
       {activeSection === 'notifications' && (
@@ -358,48 +228,56 @@ export default function SettingsManager() {
       
       {/* Team Management Settings */}
       {activeSection === 'team' && (
-        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Team Management</h3>
-          
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Minimum Staffing Level (Day Shift)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={minStaffingDay}
-              onChange={(e) => setMinStaffingDay(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-            />
+        <>
+          <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
+            <h3 className="text-lg font-semibold text-white mb-4">Team Management</h3>
+            
+            <div className="mb-4">
+              <label className="block text-white text-sm font-medium mb-2">
+                Minimum Staffing Level (Day Shift)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={minStaffingDay}
+                onChange={(e) => setMinStaffingDay(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-white text-sm font-medium mb-2">
+                Minimum Staffing Level (Night Shift)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={minStaffingNight}
+                onChange={(e) => setMinStaffingNight(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => saveSettings('Team')}
+              disabled={isSaving}
+              className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+                isSaving ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isSaving ? 'Saving...' : 'Save Team Settings'}
+            </button>
           </div>
           
-          <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
-              Minimum Staffing Level (Night Shift)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={minStaffingNight}
-              onChange={(e) => setMinStaffingNight(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          
-          <button
-            type="button"
-            onClick={() => saveSettings('Team')}
-            disabled={isSaving}
-            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
-              isSaving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isSaving ? 'Saving...' : 'Save Team Settings'}
-          </button>
-        </div>
+          {/* Location Manager */}
+          <LocationManager />
+  
+          {/* Agency Manager */}
+          <AgencyManager />
+        </>
       )}
       
       {/* Success/Error Message */}
