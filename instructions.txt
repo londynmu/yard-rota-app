@@ -47,3 +47,89 @@ useEffect(() => {
 . jezeli robisz jakis modal to upewnij sie ze literki sa widoczne  na przyklad czarne na bialym tle . 
 . jezeli tworzysz okienko do ustawiania czasu to rob tak aby bylo mozliwe wstawianie czasu co 15 minut (nie 900 sekund) tylko w formacie 00 15 30 45 
 . na widoku mobilnym wyswietlanie powinno byc z minimalnymi marginesami , I jezeli jest kontener jakis to niech zajmuje prawie  cala szerokosc ekranu dla lepszej obslugi i widocznosci zawartych w nim elementow
+
+## Powiadomienia (Toast Notifications)
+
+Wszystkie powiadomienia w aplikacji powinny:
+- Pojawiać się na środku ekranu z efektem rozmycia tła (backdrop-blur)
+- Mieć animacje wejścia/wyjścia (fade-in + scale)
+- Być dobrze widoczne z kontrastowymi kolorami
+- Automatycznie znikać po 2 sekundach
+- Używać ikon odpowiednich do typu powiadomienia (success, error, info)
+
+Implementacja wzorcowa:
+```jsx
+// ToastNotification.jsx
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
+
+export default function ToastNotification({ message, type = 'info', onClose, autoCloseTime = 2000 }) {
+  const [visible, setVisible] = useState(false);
+  
+  useEffect(() => {
+    // Show with a tiny delay for animation
+    const showTimer = setTimeout(() => {
+      setVisible(true);
+    }, 10);
+    
+    // Auto-close after specified time
+    const closeTimer = setTimeout(() => {
+      setVisible(false);
+      setTimeout(onClose, 300); // Wait for fade out
+    }, autoCloseTime);
+    
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(closeTimer);
+    };
+  }, [onClose, autoCloseTime]);
+  
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+      {/* Semi-transparent backdrop with blur */}
+      <div className={`absolute inset-0 backdrop-blur-sm bg-black/10 transition-opacity duration-300 
+        ${visible ? 'opacity-100' : 'opacity-0'}`} />
+        
+      {/* Toast container */}
+      <div className={`
+        px-5 py-4 rounded-lg shadow-2xl max-w-md text-center font-medium 
+        transition-all duration-300 transform
+        ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
+        ${type === 'success' ? 'bg-green-600/90 text-white border border-green-500' : 
+          type === 'error' ? 'bg-red-600/90 text-white border border-red-500' :
+          'bg-blue-600/90 text-white border border-blue-500'}
+      `}>
+        <div className="flex items-center justify-center space-x-3">
+          {/* Icon based on type */}
+          <span className="text-base">{message}</span>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+```
+
+Użycie:
+```jsx
+const [toast, setToast] = useState(null);
+
+// Pokaż powiadomienie
+const showToast = (message, type = 'info') => {
+  setToast({ message, type });
+};
+
+// Wyczyść powiadomienie
+const clearToast = () => {
+  setToast(null);
+};
+
+// W komponencie
+{toast && (
+  <ToastNotification 
+    message={toast.message} 
+    type={toast.type} 
+    onClose={clearToast} 
+  />
+)}
+```
