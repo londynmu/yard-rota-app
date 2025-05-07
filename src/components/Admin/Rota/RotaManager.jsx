@@ -1007,165 +1007,167 @@ const RotaManager = () => {
 
       {/* Add Slot Modal */}
       {showAddSlotModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-black/80 border border-white/30 rounded-lg p-4 sm:p-6 w-[95%] sm:w-auto sm:max-w-md mx-auto">
-            <h3 className="text-xl font-medium text-white mb-4">Add New Slot</h3>
-            
-            {/* Komunikat o błędzie w modalu */}
-            {modalError && (
-              <div className="mb-4 p-3 bg-white text-black rounded-md shadow-sm border border-gray-300">
-                <div className="flex items-start">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">{modalError}</p>
-                    {modalError.includes('already exists') && (
-                      <p className="mt-1 text-sm text-gray-600 italic">
-                        Tip: Go back to the main view and look for a slot with the same location and time. You can click the edit button to adjust its capacity.
-                      </p>
-                    )}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 rounded-lg shadow-xl overflow-hidden w-full max-w-xl mx-auto">
+            <div className="p-6 flex flex-col gap-5">
+              <h3 className="text-xl font-medium text-white mb-4">Add New Slot</h3>
+              
+              {/* Komunikat o błędzie w modalu */}
+              {modalError && (
+                <div className="mb-4 p-3 bg-white text-black rounded-md shadow-sm border border-gray-300">
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="font-medium">{modalError}</p>
+                      {modalError.includes('already exists') && (
+                        <p className="mt-1 text-sm text-gray-600 italic">
+                          Tip: Go back to the main view and look for a slot with the same location and time. You can click the edit button to adjust its capacity.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-white mb-1">Shift Type</label>
-                <select
-                  value={newSlot.shift_type}
-                  onChange={(e) => {
-                    const shiftType = e.target.value;
-                    let startTime = newSlot.start_time;
-                    let endTime = newSlot.end_time;
-                    
-                    // Set default times based on shift type
-                    if (shiftType === 'day') {
-                      startTime = '05:45';
-                      endTime = '18:00';
-                    } else if (shiftType === 'afternoon') {
-                      startTime = '14:00';
-                      endTime = '02:30';
-                    } else if (shiftType === 'night') {
-                      startTime = '17:45';
-                      endTime = '06:00';
-                    }
-                    
-                    setNewSlot({
-                      ...newSlot, 
-                      shift_type: shiftType,
-                      start_time: startTime,
-                      end_time: endTime
-                    });
-                  }}
-                  className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
-                >
-                  <option value="day" className="bg-gray-900 text-white">Day</option>
-                  <option value="afternoon" className="bg-gray-900 text-white">Afternoon</option>
-                  <option value="night" className="bg-gray-900 text-white">Night</option>
-                </select>
-              </div>
+              )}
               
-              <div>
-                <label className="block text-white mb-1">Location</label>
-                <select
-                  value={newSlot.location}
-                  onChange={(e) => {
-                    setNewSlot({ ...newSlot, location: e.target.value });
-                    // Save the selected location as preferred
-                    localStorage.setItem('preferred_rota_location', e.target.value);
-                  }}
-                  className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
-                >
-                  {/* Tylko aktywne lokalizacje */}
-                  {locations.map(location => (
-                    <option 
-                      key={location.id} 
-                      value={location.name}
-                      className="bg-gray-900 text-white"
-                    >
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-white mb-1">Start Time</label>
-                  <button 
-                    onClick={() => handleTimePickerOpen('start')}
-                    className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
+                  <label className="block text-white mb-1">Shift Type</label>
+                  <select
+                    value={newSlot.shift_type}
+                    onChange={(e) => {
+                      const shiftType = e.target.value;
+                      let startTime = newSlot.start_time;
+                      let endTime = newSlot.end_time;
+                      
+                      // Set default times based on shift type
+                      if (shiftType === 'day') {
+                        startTime = '05:45';
+                        endTime = '18:00';
+                      } else if (shiftType === 'afternoon') {
+                        startTime = '14:00';
+                        endTime = '02:30';
+                      } else if (shiftType === 'night') {
+                        startTime = '17:45';
+                        endTime = '06:00';
+                      }
+                      
+                      setNewSlot({
+                        ...newSlot, 
+                        shift_type: shiftType,
+                        start_time: startTime,
+                        end_time: endTime
+                      });
+                    }}
+                    className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
                   >
-                    <span>{newSlot.start_time}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
+                    <option value="day" className="bg-gray-900 text-white">Day</option>
+                    <option value="afternoon" className="bg-gray-900 text-white">Afternoon</option>
+                    <option value="night" className="bg-gray-900 text-white">Night</option>
+                  </select>
                 </div>
                 
                 <div>
-                  <label className="block text-white mb-1">End Time</label>
-                  <button 
-                    onClick={() => handleTimePickerOpen('end')}
-                    className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
+                  <label className="block text-white mb-1">Location</label>
+                  <select
+                    value={newSlot.location}
+                    onChange={(e) => {
+                      setNewSlot({ ...newSlot, location: e.target.value });
+                      // Save the selected location as preferred
+                      localStorage.setItem('preferred_rota_location', e.target.value);
+                    }}
+                    className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
                   >
-                    <span>{newSlot.end_time}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
+                    {/* Tylko aktywne lokalizacje */}
+                    {locations.map(location => (
+                      <option 
+                        key={location.id} 
+                        value={location.name}
+                        className="bg-gray-900 text-white"
+                      >
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-white mb-1">Start Time</label>
+                    <button 
+                      onClick={() => handleTimePickerOpen('start')}
+                      className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
+                    >
+                      <span>{newSlot.start_time}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-white mb-1">End Time</label>
+                    <button 
+                      onClick={() => handleTimePickerOpen('end')}
+                      className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
+                    >
+                      <span>{newSlot.end_time}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-white mb-1">Capacity (Staff needed)</label>
+                  <div className="flex items-center bg-gray-800 rounded-lg border border-white/20 overflow-hidden w-full">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newSlot.capacity > 1) {
+                          setNewSlot({ ...newSlot, capacity: newSlot.capacity - 1 });
+                        }
+                      }}
+                      className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <div className="py-3 bg-gray-900 text-white text-center flex-1 font-medium text-lg">
+                      {newSlot.capacity}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewSlot({ ...newSlot, capacity: newSlot.capacity + 1 })}
+                      className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
               
-              <div>
-                <label className="block text-white mb-1">Capacity (Staff needed)</label>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (newSlot.capacity > 1) {
-                        setNewSlot({ ...newSlot, capacity: newSlot.capacity - 1 });
-                      }
-                    }}
-                    className="px-2 py-1 bg-gray-800 text-white border border-white/20 rounded-l-md hover:bg-gray-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    </svg>
-                  </button>
-                  <div className="px-4 py-1 bg-gray-900 text-white border-y border-white/20 text-center w-16">
-                    {newSlot.capacity}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setNewSlot({ ...newSlot, capacity: newSlot.capacity + 1 })}
-                    className="px-2 py-1 bg-gray-800 text-white border border-white/20 rounded-r-md hover:bg-gray-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </button>
-                </div>
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={closeAddSlotModal}
+                  className="px-4 py-2 bg-gray-800 text-white border border-white/20 rounded hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddSlot}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Add Slot
+                </button>
               </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={closeAddSlotModal}
-                className="px-4 py-2 bg-gray-800 text-white border border-white/20 rounded hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAddSlot}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                Add Slot
-              </button>
             </div>
           </div>
         </div>,

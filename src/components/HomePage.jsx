@@ -9,7 +9,6 @@ import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
 import BrakesPage from '../pages/BrakesPage';
-import AvailableShiftsPage from '../pages/AvailableShiftsPage';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
@@ -138,7 +137,6 @@ export default function HomePage() {
     if (path === '/profile') return 'Your Profile';
     if (path === '/rota-planner') return 'Rota Planner';
     if (path === '/brakes') return 'Breaks';
-    if (path === '/available-shifts') return 'Available Shifts';
     
     return 'My Rota';
   };
@@ -234,16 +232,6 @@ export default function HomePage() {
                 }`}
               >
                 My Rota
-              </Link>
-              <Link
-                to="/available-shifts"
-                className={`px-4 py-2 text-sm font-medium ${
-                  location.pathname === '/available-shifts' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
-                }`}
-              >
-                Available Shifts
               </Link>
               <Link
                 to="/brakes"
@@ -362,17 +350,6 @@ export default function HomePage() {
                 My Rota
               </Link>
               <Link
-                to="/available-shifts"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md ${
-                  location.pathname === '/available-shifts' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'text-white/70'
-                }`}
-              >
-                Available Shifts
-              </Link>
-              <Link
                 to="/brakes"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-md ${
@@ -441,7 +418,6 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
-          <Route path="/available-shifts" element={<AvailableShiftsPage />} />
           <Route path="/brakes" element={<BrakesPage />} />
           <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />

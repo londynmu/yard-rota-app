@@ -10,8 +10,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
     start_time: slot?.start_time || '09:00',
     end_time: slot?.end_time || '17:00',
     capacity: slot?.capacity || 1,
-    shift_type: slot?.shift_type || 'day',
-    task: slot?.task || ''
+    shift_type: slot?.shift_type || 'day'
   });
   const [error, setError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -24,8 +23,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
         start_time: slot.start_time || '09:00',
         end_time: slot.end_time || '17:00',
         capacity: slot.capacity || 1,
-        shift_type: slot.shift_type || 'day',
-        task: slot.task || ''
+        shift_type: slot.shift_type || 'day'
       });
     }
   }, [slot]);
@@ -78,34 +76,39 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
 
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Shift</h3>
+      <div className="bg-gray-900 rounded-lg shadow-xl max-w-md w-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/20">
+          <h3 className="text-xl font-medium text-white">Edit Shift</h3>
         </div>
         
         <div className="p-6">
           {error && (
-            <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
+            <div className="mb-4 bg-white text-black p-3 rounded-md shadow-sm border border-gray-300">
+              <div className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="font-medium">{error}</p>
+              </div>
             </div>
           )}
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-white mb-1">
                 Location
               </label>
               <select
                 name="location"
                 value={editedSlot.location}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
               >
                 {!isCurrentLocationActive && editedSlot.location && (
-                  <option value={editedSlot.location}>{editedSlot.location} (inactive)</option>
+                  <option value={editedSlot.location} className="bg-gray-900 text-white">{editedSlot.location} (inactive)</option>
                 )}
                 {locations.map(loc => (
-                  <option key={loc.name} value={loc.name}>
+                  <option key={loc.name} value={loc.name} className="bg-gray-900 text-white">
                     {loc.name}
                   </option>
                 ))}
@@ -114,80 +117,96 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-white mb-1">
                   Start Time
                 </label>
-                <div
+                <button
                   onClick={() => onShowTimePicker('start_time', editedSlot.start_time, time => handleTimeChange('start_time', time))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm cursor-pointer hover:bg-gray-50"
+                  className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
                 >
-                  {editedSlot.start_time.substring(0, 5)}
-                </div>
+                  <span>{editedSlot.start_time.substring(0, 5)}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-white mb-1">
                   End Time
                 </label>
-                <div
+                <button
                   onClick={() => onShowTimePicker('end_time', editedSlot.end_time, time => handleTimeChange('end_time', time))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm cursor-pointer hover:bg-gray-50"
+                  className="w-full flex items-center justify-between bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
                 >
-                  {editedSlot.end_time.substring(0, 5)}
-                </div>
+                  <span>{editedSlot.end_time.substring(0, 5)}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
               </div>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-white mb-1">
                 Shift Type
               </label>
               <select
                 name="shift_type"
                 value={editedSlot.shift_type}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full bg-gray-900 text-white border border-white/20 rounded-md px-3 py-2 focus:outline-none focus:border-white/50"
               >
-                <option value="day">Day</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="night">Night</option>
+                <option value="day" className="bg-gray-900 text-white">Day</option>
+                <option value="afternoon" className="bg-gray-900 text-white">Afternoon</option>
+                <option value="night" className="bg-gray-900 text-white">Night</option>
               </select>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-white mb-1">
                 Capacity
               </label>
-              <input
-                type="number"
-                name="capacity"
-                value={editedSlot.capacity}
-                onChange={handleInputChange}
-                min="1"
-                max="20"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Task/Notes (Optional)
-              </label>
-              <textarea
-                name="task"
-                value={editedSlot.task || ''}
-                onChange={handleInputChange}
-                rows="2"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter any task details or notes..."
-              />
+              <div className="flex items-center bg-gray-800 rounded-lg border border-white/20 overflow-hidden w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editedSlot.capacity > 1) {
+                      setEditedSlot(prev => ({
+                        ...prev,
+                        capacity: prev.capacity - 1
+                      }));
+                    }
+                  }}
+                  className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                  </svg>
+                </button>
+                <div className="py-3 bg-gray-900 text-white text-center flex-1 font-medium text-lg">
+                  {editedSlot.capacity}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditedSlot(prev => ({
+                    ...prev,
+                    capacity: prev.capacity + 1
+                  }))}
+                  className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </button>
+              </div>
             </div>
             
             <div className="flex justify-between space-x-3 mt-6">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 bg-gray-800 text-white border border-white/20 rounded hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
@@ -195,7 +214,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 disabled={isSaving}
               >
                 {isSaving ? (

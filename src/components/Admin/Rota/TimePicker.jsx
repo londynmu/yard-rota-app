@@ -1,9 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 const TimePicker = ({ onClose, onSelectTime, initialTime = '08:00' }) => {
   const [selectedHour, setSelectedHour] = useState(initialTime.split(':')[0]);
   const [selectedMinute, setSelectedMinute] = useState(initialTime.split(':')[1]);
+  
+  // Refs do kontenerów przewijanych
+  const hoursContainerRef = useRef(null);
+  const minutesContainerRef = useRef(null);
+  
+  // Refs do aktualnie wybranych elementów
+  const selectedHourRef = useRef(null);
+  const selectedMinuteRef = useRef(null);
   
   // Available hours (00-23)
   const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -17,6 +25,28 @@ const TimePicker = ({ onClose, onSelectTime, initialTime = '08:00' }) => {
     return () => {
       document.body.style.overflow = 'auto';
     };
+  }, []);
+  
+  // Przewijanie do aktualnie wybranej godziny i minuty po otwarciu
+  useEffect(() => {
+    // Dajemy krótkie opóźnienie, aby DOM miał czas się wyrenderować
+    const timer = setTimeout(() => {
+      if (selectedHourRef.current && hoursContainerRef.current) {
+        selectedHourRef.current.scrollIntoView({
+          behavior: 'auto',
+          block: 'center'
+        });
+      }
+      
+      if (selectedMinuteRef.current && minutesContainerRef.current) {
+        selectedMinuteRef.current.scrollIntoView({
+          behavior: 'auto',
+          block: 'center'
+        });
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
   }, []);
   
   const handleConfirm = () => {
@@ -45,10 +75,14 @@ const TimePicker = ({ onClose, onSelectTime, initialTime = '08:00' }) => {
               {/* Hour selector */}
               <div className="flex flex-col items-center">
                 <span className="text-white/70 mb-2">Hour</span>
-                <div className="bg-black/50 border border-white/20 rounded-lg p-2 h-48 overflow-y-auto w-20">
+                <div 
+                  ref={hoursContainerRef}
+                  className="bg-black/50 border border-white/20 rounded-lg p-2 h-48 overflow-y-auto w-20 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"
+                >
                   {hours.map(hour => (
                     <button
                       key={hour}
+                      ref={selectedHour === hour ? selectedHourRef : null}
                       className={`w-full text-center py-2 rounded-md mb-1 ${
                         selectedHour === hour 
                           ? 'bg-blue-600/50 text-white border border-blue-400/30' 
@@ -67,10 +101,14 @@ const TimePicker = ({ onClose, onSelectTime, initialTime = '08:00' }) => {
               {/* Minute selector */}
               <div className="flex flex-col items-center">
                 <span className="text-white/70 mb-2">Minute</span>
-                <div className="bg-black/50 border border-white/20 rounded-lg p-2 h-48 w-20">
+                <div 
+                  ref={minutesContainerRef}
+                  className="bg-black/50 border border-white/20 rounded-lg p-2 h-48 w-20 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"
+                >
                   {minutes.map(minute => (
                     <button
                       key={minute}
+                      ref={selectedMinute === minute ? selectedMinuteRef : null}
                       className={`w-full text-center py-2 rounded-md mb-1 ${
                         selectedMinute === minute 
                           ? 'bg-blue-600/50 text-white border border-blue-400/30' 

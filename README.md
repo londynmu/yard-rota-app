@@ -88,6 +88,8 @@ W przypadku błędów:
 ## Ostatnie zmiany
 
 ### Czerwiec 2024
+- **Usunięto funkcjonalność Available Shifts (2024-06-15):** Usunięto stronę Available Shifts i wszystkie związane z nią komponenty. Funkcjonalność samodzielnego zgłaszania się do zmian została tymczasowo wyłączona.
+  - Zmienione pliki: `src/pages/AvailableShiftsPage.jsx` (usunięty), `src/components/HomePage.jsx` (usunięto nawigację i routing)
 - **Naprawiono zgłaszanie się do dostępnych zmian (2024-06-14):** Poprawiono logikę w `AvailableShiftsPage.jsx` w funkcji `handleClaimShift`. Wcześniej, zapytanie o dostępne rekordy do przypisania pracownika mogło zwracać pusty wynik, nawet jeśli istniały wolne miejsca w slocie oznaczonym jako "available". Zmiana polega na tym, że najpierw weryfikowany jest status głównego rekordu slotu (czy nadal jest `available`), a następnie wyszukiwany jest dowolny pasujący rekord (data, lokalizacja, czas) z `user_id` ustawionym na `null`. Ten konkretny, znaleziony rekord jest następnie aktualizowany o ID pracownika, a jego status zmieniany na `null` (ponieważ to miejsce jest już zajęte).
   - Zmienione pliki: `src/pages/AvailableShiftsPage.jsx`
 - **Naprawiono problem z trwałością statusu "dostępności" slotu (2024-06-14):** Poprawiono logikę przełączania dostępności slotu w `RotaManager.jsx`. Gdy slot jest oznaczany jako niedostępny, wszystkie powiązane rekordy w bazie danych (`scheduled_rota`) są aktualizowane (status na `null`). Zapewnia to, że zmiana statusu jest prawidłowo odzwierciedlana po odświeżeniu strony. Poprzednio aktualizowany był tylko jeden rekord, co przy logice grupowania slotów mogło prowadzić do przywrócenia statusu "available", jeśli inne powiązane rekordy nadal miały taki status.

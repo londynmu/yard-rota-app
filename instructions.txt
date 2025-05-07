@@ -133,3 +133,82 @@ const clearToast = () => {
   />
 )}
 ```
+
+## Komponenty Liczbowe (Capacity Selector)
+
+Komponenty do wyboru liczb (np. pojemność, ilość) powinny:
+- Być zawarte w jednym prostokątnym elemencie z zaokrąglonymi rogami
+- Zajmować pełną szerokość dostępnego kontenera
+- Mieć trzy sekcje o równej szerokości: minus, wyświetlacz wartości, plus
+- Mieć wyraźny kontrast między tłem przycisków a tłem wyświetlanej wartości
+- Być wystarczająco duże, aby łatwo je obsługiwać na urządzeniach mobilnych
+
+Przykładowa implementacja:
+```jsx
+<div className="flex items-center bg-gray-800 rounded-lg border border-white/20 overflow-hidden w-full">
+  <button
+    type="button"
+    onClick={() => {
+      if (value > minValue) {
+        onChange(value - 1);
+      }
+    }}
+    className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+  >
+    <svg /* Ikona minusa */ />
+  </button>
+  <div className="py-3 bg-gray-900 text-white text-center flex-1 font-medium text-lg">
+    {value}
+  </div>
+  <button
+    type="button"
+    onClick={() => onChange(value + 1)}
+    className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+  >
+    <svg /* Ikona plusa */ />
+  </button>
+</div>
+```
+
+## Selektory Czasu (TimePicker)
+
+Selektory czasu powinny:
+- Automatycznie przewijać się do aktualnie wybranej wartości po otwarciu (bez ręcznego przewijania)
+- Używać formatu minut 00, 15, 30, 45 dla 15-minutowych przyrostów
+- Mieć czytelne, kontrastowe kolory dla wybranych wartości
+- Wyraźnie oznaczać aktualnie wybraną godzinę/minutę
+
+Implementacja automatycznego przewijania do aktualnej wartości:
+```jsx
+// Refs do kontenerów i wybranych elementów
+const hoursContainerRef = useRef(null);
+const selectedHourRef = useRef(null);
+
+// Efekt dla automatycznego przewijania po otwarciu
+useEffect(() => {
+  const timer = setTimeout(() => {
+    if (selectedHourRef.current && hoursContainerRef.current) {
+      selectedHourRef.current.scrollIntoView({
+        behavior: 'auto',
+        block: 'center'
+      });
+    }
+  }, 50);
+  
+  return () => clearTimeout(timer);
+}, []);
+
+// W komponencie
+<div ref={hoursContainerRef} className="overflow-y-auto">
+  {hours.map(hour => (
+    <button
+      key={hour}
+      ref={selectedHour === hour ? selectedHourRef : null}
+      className={selectedHour === hour ? 'bg-blue-600' : ''}
+      onClick={() => setSelectedHour(hour)}
+    >
+      {hour}
+    </button>
+  ))}
+</div>
+```
