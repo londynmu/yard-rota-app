@@ -13,6 +13,7 @@ const SlotCard = ({
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
+  const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   
   // Check if slot has assigned employees array
   const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
@@ -44,19 +45,49 @@ const SlotCard = ({
     fetchUsers();
   }, [slot.assigned_employees]);
 
+  // Update isAvailable when slot status changes
   useEffect(() => {
+    console.log(`[SlotCard ${slot.id}] slot.status changed:`, slot.status);
     setIsAvailable(slot.status === 'available');
   }, [slot.status]);
+  
+  // Log slot status changes
+  useEffect(() => {
+    console.log(`[SlotCard ${slot.id}] Current status: slot.status=${slot.status}, isAvailable=${isAvailable}`);
+  }, [slot.status, isAvailable, slot.id]);
 
   const formatTime = (timeString) => {
     return timeString.substring(0, 5); // HH:MM format
   };
 
   // Handle toggling slot availability
-  const toggleAvailability = (e) => {
+  const toggleAvailability = async (e) => {
     e.stopPropagation();
-    handleToggleSlotAvailability(slot.id, !isAvailable);
-    setIsAvailable(!isAvailable);
+    
+    if (isTogglingAvailability) {
+      console.log('[SlotCard] Already processing a toggle request, ignoring');
+      return;
+    }
+    
+    console.log('[SlotCard] Toggle availability clicked, current status:', isAvailable);
+    console.log('[SlotCard] Slot data:', slot);
+    
+    setIsTogglingAvailability(true);
+    
+    try {
+      // Call function from RotaManager.jsx
+      await handleToggleSlotAvailability(slot.id, !isAvailable);
+      
+      // Let parent component update the slot status
+      // We don't update local state here because the slot prop will be updated
+      // and trigger the useEffect for slot.status changes
+      console.log('[SlotCard] Availability toggle successful');
+    } catch (error) {
+      console.error('[SlotCard] Error toggling availability:', error);
+      // Don't update local state on error
+    } finally {
+      setIsTogglingAvailability(false);
+    }
   };
 
   return (
@@ -70,7 +101,7 @@ const SlotCard = ({
         <div>
           <h3 className="text-white font-bold">{slot.location}</h3>
           <div className="flex items-center mt-1">
-            <div className="bg-white/10 px-2 py-1 rounded-md text-sm text-white">
+            <div className="bg-black/50 border border-white/20 text-white px-3 py-1.5 rounded-md text-sm font-medium">
               {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
             </div>
           </div>
@@ -78,17 +109,17 @@ const SlotCard = ({
       </div>
       
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1">
+        <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Shift type and capacity icons */}
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            slot.shift_type === 'day' ? 'bg-amber-500/20 text-amber-300' :
-            slot.shift_type === 'afternoon' ? 'bg-orange-500/20 text-orange-300' :
-            'bg-blue-500/20 text-blue-300'
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            slot.shift_type === 'day' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/30' :
+            slot.shift_type === 'afternoon' ? 'bg-orange-500/30 text-orange-200 border border-orange-400/30' :
+            'bg-blue-600/40 text-blue-200 border border-blue-400/30'
           }`}>
             {slot.shift_type.charAt(0).toUpperCase() + slot.shift_type.slice(1)}
           </span>
           
-          <div className="text-xs bg-white/10 text-white px-2 py-0.5 rounded-full">
+          <div className="text-xs bg-black/50 text-white border border-white/20 px-2 py-0.5 rounded-full">
             <span className="font-medium">{assignedCount}</span>
             <span className="mx-1">/</span>
             <span>{slot.capacity}</span>
@@ -96,32 +127,37 @@ const SlotCard = ({
           
           {/* Display available badge if slot is available for self-service */}
           {isAvailable && (
-            <div className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full">
+            <div className="text-xs bg-green-600/40 text-green-200 border border-green-400/30 px-2 py-0.5 rounded-full font-medium">
               Available
             </div>
           )}
         </div>
         
         <div className="flex items-center space-x-2">
-          {/* Time display */}
-          <div className="text-sm text-white/80">
-            {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
-          </div>
+          {/* Remove duplicate time display since we have it prominently at the top */}
           
           {/* Action buttons - only show if user is admin */}
           {isAdmin && (
-            <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity duration-200">
+            <div className="opacity-100 flex space-x-1 transition-opacity duration-200">
               {/* Toggle availability button */}
               <button
                 onClick={toggleAvailability}
+                disabled={isTogglingAvailability}
                 className={`p-1 rounded-full ${
-                  isAvailable 
-                    ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
-                    : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                  isTogglingAvailability 
+                    ? 'bg-gray-500/20 text-gray-300 cursor-not-allowed' 
+                    : isAvailable 
+                      ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
+                      : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
                 }`}
                 title={isAvailable ? "Remove from available shifts" : "Mark as available for self-service"}
               >
-                {isAvailable ? (
+                {isTogglingAvailability ? (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : isAvailable ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
@@ -137,7 +173,13 @@ const SlotCard = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleOpenEditModal(slot);
+                  console.log('[SlotCard] Edit button clicked, slot data:', slot);
+                  console.log('[SlotCard] typeof handleOpenEditModal:', typeof handleOpenEditModal, handleOpenEditModal);
+                  if (typeof handleOpenEditModal === 'function') {
+                    handleOpenEditModal(slot);
+                  } else {
+                    console.error('[SlotCard] handleOpenEditModal is NOT a function!');
+                  }
                 }}
                 className="p-1 rounded-full bg-white/10 text-white hover:bg-white/20"
                 title="Edit shift"

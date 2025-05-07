@@ -54,7 +54,7 @@ export default function AvailableShiftsPage() {
         // Get current date in format YYYY-MM-DD
         const today = new Date().toISOString().split('T')[0];
         
-        // Fetch available shifts
+        // Fetch available shifts (base slots)
         const { data: availableData, error: availableError } = await supabase
           .from('scheduled_rota')
           .select(`
@@ -65,7 +65,8 @@ export default function AvailableShiftsPage() {
             start_time,
             end_time,
             capacity,
-            task
+            task,
+            status
           `)
           .eq('location', selectedLocation)
           .eq('status', 'available')
@@ -73,7 +74,74 @@ export default function AvailableShiftsPage() {
           .order('date', { ascending: true })
           .order('start_time', { ascending: true });
         
-        if (availableError) throw availableError;
+        if (availableError) {
+          console.error('Error fetching available shifts:', availableError);
+          throw availableError;
+        }
+        
+        // Pobierz wszystkie przypisane osoby - aby policzyć zajęte miejsca
+        const { data: assignedData, error: assignedError } = await supabase
+          .from('scheduled_rota')
+          .select(`
+            date,
+            location,
+            shift_type,
+            start_time,
+            end_time
+          `)
+          .eq('location', selectedLocation)
+          .gte('date', today)
+          .not('user_id', 'is', null);
+        
+        if (assignedError) {
+          console.error('Error fetching assigned data:', assignedError);
+          throw assignedError;
+        }
+        
+        console.log('Available shifts data:', availableData);
+        console.log('Assigned data:', assignedData);
+        
+        // Zlicz przypisania per slot (identyfikowany przez datę, lokalizację, czas)
+        const assignedCountMap = {};
+        assignedData.forEach(assignment => {
+          // Klucz to kombinacja atrybutów, które jednoznacznie identyfikują slot
+          const key = `${assignment.date}_${assignment.location}_${assignment.start_time}_${assignment.end_time}`;
+          assignedCountMap[key] = (assignedCountMap[key] || 0) + 1;
+        });
+        
+        console.log('Assigned count map:', assignedCountMap);
+        
+        // Rozwiń dostępne sloty uwzględniając już zajęte miejsca
+        const expandedShifts = [];
+        
+        // Grupuj sloty z tymi samymi parametrami, ale wybierz ten z najmniejszym ID jako reprezentatywny
+        const slotGroups = {};
+        
+        availableData.forEach(shift => {
+          const key = `${shift.date}_${shift.location}_${shift.start_time}_${shift.end_time}`;
+          if (!slotGroups[key] || shift.id < slotGroups[key].id) {
+            slotGroups[key] = shift;
+          }
+        });
+        
+        // Teraz użyj tylko unikalnych slotów (jeden per grupa)
+        Object.values(slotGroups).forEach(shift => {
+          // Stwórz ten sam klucz, aby znaleźć liczbę zajętych miejsc
+          const key = `${shift.date}_${shift.location}_${shift.start_time}_${shift.end_time}`;
+          const assignedCount = assignedCountMap[key] || 0;
+          
+          // Ile zostało wolnych miejsc
+          const availableCapacity = Math.max(shift.capacity - assignedCount, 0);
+          console.log(`Slot ${key}: capacity=${shift.capacity}, assigned=${assignedCount}, available=${availableCapacity}`);
+          
+          // Dodaj tyle instancji slotu, ile zostało wolnych miejsc
+          for (let i = 0; i < availableCapacity; i++) {
+            expandedShifts.push({
+              ...shift,
+              _slotIndex: i // Dodaj indeks, aby rozróżnić multiple instancje tego samego slotu
+            });
+          }
+        });
         
         // Fetch user's already claimed shifts
         const { data: userShiftsData, error: userShiftsError } = await supabase
@@ -93,7 +161,7 @@ export default function AvailableShiftsPage() {
         
         if (userShiftsError) throw userShiftsError;
         
-        setAvailableShifts(availableData || []);
+        setAvailableShifts(expandedShifts || []);
         setUserShifts(userShiftsData || []);
       } catch (error) {
         console.error('Error fetching shifts:', error);
@@ -152,48 +220,89 @@ export default function AvailableShiftsPage() {
   const handleClaimShift = async (shift) => {
     if (!user) return;
     
-    setClaimingShift(shift.id);
+    setClaimingShift(shift.id + (shift._slotIndex !== undefined ? `_${shift._slotIndex}` : '')); // Make claimingShift ID unique for UI
     setError(null);
     
     try {
-      // Check if shift is still available
-      const { data: currentShift, error: checkError } = await supabase
+      console.log('Claiming shift:', shift);
+      
+      // The `shift` object comes from `availableShifts` which are already filtered for `status: 'available'`
+      // and represent individual available spots. The `shift.id` is the ID of the *primary* record
+      // for that available slot group.
+      // We need to find *any* record belonging to this logical slot that is currently unassigned.
+
+      // First, double-check if the *primary* slot is still marked as available (it should be)
+      const { data: primarySlotCheck, error: primaryCheckError } = await supabase
         .from('scheduled_rota')
-        .select('id, status')
-        .eq('id', shift.id)
+        .select('id, status, capacity, user_id')
+        .eq('id', shift.id) // shift.id is the ID of the representative slot for this group
         .single();
-      
-      if (checkError) throw checkError;
-      
-      if (currentShift.status !== 'available') {
-        setError('This shift is no longer available');
+
+      if (primaryCheckError) {
+        console.error('Error checking primary slot status:', primaryCheckError);
+        throw primaryCheckError;
+      }
+
+      if (!primarySlotCheck || primarySlotCheck.status !== 'available') {
+        setError('This shift is no longer available or has been changed.');
+        setAvailableShifts(prev => prev.filter(s => !(s.id === shift.id && s._slotIndex === shift._slotIndex))); // Optimistically remove
+        return;
+      }
+
+      // Now, find an actual unassigned record for this logical slot group.
+      // This could be the primary record itself (if its user_id is null) or another record 
+      // that shares the same slot characteristics (date, time, location) but has user_id = null.
+      const { data: assignableRecords, error: findAssignableError } = await supabase
+        .from('scheduled_rota')
+        .select('id, user_id')
+        .eq('date', shift.date)
+        .eq('location', shift.location)
+        .eq('start_time', shift.start_time)
+        .eq('end_time', shift.end_time)
+        .is('user_id', null) // Find one that is not yet taken
+        .limit(1); // Get one assignable record
+
+      if (findAssignableError) {
+        console.error('Error finding an assignable record for the slot:', findAssignableError);
+        throw findAssignableError;
+      }
+
+      console.log('Assignable records found for this slot group:', assignableRecords);
+
+      if (!assignableRecords || assignableRecords.length === 0) {
+        setError('Sorry, this shift was just claimed by someone else or is no longer available.');
+        // Refresh available shifts as a spot was likely taken
+        setAvailableShifts(prev => prev.filter(s => !(s.id === shift.id && s._slotIndex === shift._slotIndex))); // Optimistically remove
         return;
       }
       
-      // Call the claim_shift function
-      const { data, error } = await supabase.rpc('claim_shift', { 
-        shift_id: shift.id,
-        user_id: user.id
-      });
-      
-      if (error) throw error;
-      
-      if (data.success) {
-        setSuccessMessage('Shift claimed successfully!');
-        
-        // Update local state
-        setAvailableShifts(current => 
-          current.filter(s => s.id !== shift.id)
-        );
-        
-        // Add to user shifts
-        setUserShifts(current => [...current, shift]);
-      } else {
-        setError(data.message || 'Failed to claim shift');
+      const recordToAssignId = assignableRecords[0].id;
+      console.log('Attempting to assign user to recordId:', recordToAssignId);
+
+      // Update the specific unassigned record with the user's ID
+      const { error: updateError } = await supabase
+        .from('scheduled_rota')
+        .update({ user_id: user.id, status: null }) // Assign user, and clear 'available' status from this specific record
+        .eq('id', recordToAssignId);
+
+      if (updateError) {
+        console.error('Error updating shift with user ID:', updateError);
+        throw updateError;
       }
+
+      setSuccessMessage(`Successfully claimed shift: ${shift.location} on ${formatDate(shift.date)} at ${shift.start_time.substring(0,5)}`);
+      
+      // Update UI optimistically and then re-fetch for consistency
+      setUserShifts(prev => [...prev, { ...shift, id: recordToAssignId, user_id: user.id }]);
+      setAvailableShifts(prev => prev.filter(s => !(s.id === shift.id && s._slotIndex === shift._slotIndex) ));
+      
+      // Optionally, trigger a full refresh of available shifts after a short delay 
+      // to ensure data consistency, though optimistic updates handle immediate UI.
+      // fetchShifts(); // Or a more targeted update if possible
+
     } catch (error) {
-      console.error('Error claiming shift:', error);
-      setError('Failed to claim shift: ' + (error.message || 'Unknown error'));
+      console.error('Failed to claim shift:', error);
+      setError(`Failed to claim shift: ${error.message}`);
     } finally {
       setClaimingShift(null);
     }
@@ -272,25 +381,25 @@ export default function AvailableShiftsPage() {
             </div>
             
             <ul className="divide-y divide-white/10">
-              {shifts.map((shift) => {
+              {shifts.map((shift, i) => {
                 const conflict = hasConflict(shift);
                 
                 return (
-                  <li key={shift.id} className="p-4">
+                  <li key={i} className="p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                       <div className="mb-2 sm:mb-0">
                         <div className="flex items-center space-x-2">
-                          <span className="inline-flex items-center text-sm bg-white/10 px-2 py-1 rounded-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <span className="inline-flex items-center text-sm bg-black/50 text-white px-3 py-1.5 rounded-md font-medium border border-white/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             {shift.start_time.substring(0, 5)} - {shift.end_time.substring(0, 5)}
                           </span>
                           
-                          <span className={`text-sm px-2 py-1 rounded-md ${
-                            shift.shift_type === 'day' ? 'bg-amber-500/20 text-amber-300' :
-                            shift.shift_type === 'afternoon' ? 'bg-orange-500/20 text-orange-300' :
-                            'bg-blue-500/20 text-blue-300'
+                          <span className={`text-sm px-2 py-1 rounded-md font-medium ${
+                            shift.shift_type === 'day' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/30' :
+                            shift.shift_type === 'afternoon' ? 'bg-orange-500/30 text-orange-200 border border-orange-400/30' :
+                            'bg-blue-600/40 text-blue-200 border border-blue-400/30'
                           }`}>
                             {shift.shift_type.charAt(0).toUpperCase() + shift.shift_type.slice(1)}
                           </span>

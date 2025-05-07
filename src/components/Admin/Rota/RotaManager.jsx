@@ -153,7 +153,8 @@ const RotaManager = () => {
             start_time,
             end_time,
             capacity,
-            user_id
+            user_id,
+            status
           `)
           .eq('date', currentDate);
         
@@ -165,6 +166,8 @@ const RotaManager = () => {
         const { data, error } = await query;
 
         if (error) throw error;
+        
+        console.log("[RotaManager] Fetched slots:", data);
 
         // Group slots by user_id
         const slotsMap = new Map();
@@ -181,12 +184,16 @@ const RotaManager = () => {
               start_time: slot.start_time,
               end_time: slot.end_time,
               capacity: slot.capacity,
-              assigned_employees: slot.user_id ? [slot.user_id] : []
+              assigned_employees: slot.user_id ? [slot.user_id] : [],
+              status: slot.status
             });
           } else {
             const existingSlot = slotsMap.get(key);
             if (slot.user_id) {
               existingSlot.assigned_employees.push(slot.user_id);
+            }
+            if (slot.status === 'available' && existingSlot.status !== 'available') {
+              existingSlot.status = 'available';
             }
           }
         });
@@ -274,7 +281,8 @@ const RotaManager = () => {
             start_time: newSlot.start_time,
             end_time: newSlot.end_time,
             capacity: newSlot.capacity,
-            user_id: null // Initially no user assigned
+            user_id: null, // Initially no user assigned
+            status: null // Initially not available for self-service
           }
         ])
         .select();
@@ -290,7 +298,8 @@ const RotaManager = () => {
         start_time: data[0].start_time,
         end_time: data[0].end_time,
         capacity: data[0].capacity,
-        assigned_employees: []
+        assigned_employees: [],
+        status: 'available'
       }]);
 
       setShowAddSlotModal(false);
@@ -348,8 +357,10 @@ const RotaManager = () => {
   };
 
   const handleOpenEditModal = (slot) => {
+    console.log('[RotaManager] handleOpenEditModal called with slot:', slot);
     setSlotToEdit(slot);
     setShowEditModal(true);
+    console.log('[RotaManager] showEditModal should be true, slotToEdit set');
   };
 
   const handleUpdateSlot = async (slotId, updatedData) => {
@@ -375,7 +386,8 @@ const RotaManager = () => {
           location: updatedData.location,
           start_time: updatedData.start_time,
           end_time: updatedData.end_time,
-          capacity: updatedData.capacity
+          capacity: updatedData.capacity,
+          status: updatedData.status // Dodajemy pole status do aktualizacji
         })
         .eq('id', slotId);
 
@@ -415,7 +427,8 @@ const RotaManager = () => {
               location: updatedData.location,
               start_time: updatedData.start_time,
               end_time: updatedData.end_time,
-              capacity: updatedData.capacity
+              capacity: updatedData.capacity,
+              status: updatedData.status // Dodajemy pole status do aktualizacji w stanie lokalnym
             };
           }
           return slot;
@@ -743,7 +756,8 @@ const RotaManager = () => {
         start_time: slot.start_time,
         end_time: slot.end_time,
         capacity: slot.capacity,
-        assigned_employees: []
+        assigned_employees: [],
+        status: 'available'
       }));
       
       setSlots(prev => [...prev, ...newSlots]);
@@ -825,39 +839,83 @@ const RotaManager = () => {
   const handleToggleSlotAvailability = async (slotId, setAvailable) => {
     try {
       setError(null);
-      
-      // Find the slot in the current state
-      const slot = slots.find(s => s.id === slotId);
-      if (!slot) {
-        console.error('Slot not found:', slotId);
-        return;
+      console.log("[RotaManager] Toggling slot availability:", { slotId, setAvailable });
+
+      const slotToToggle = slots.find(s => s.id === slotId); // This is the grouped slot from local state
+      if (!slotToToggle) {
+        console.error('Slot not found in local state:', slotId);
+        throw new Error('Slot not found');
+      }
+      console.log("[RotaManager] Found slot in local state:", slotToToggle);
+      console.log("[RotaManager] Current slot status from local state:", slotToToggle.status);
+
+      const newStatus = setAvailable ? 'available' : null;
+      let updatedDbRecords = [];
+
+      if (newStatus === null) { // Setting to 'unavailable'
+        console.log("[RotaManager] Setting slot to UNAVAILABLE. Updating all matching DB records.");
+        const { data, error: updateError } = await supabase
+          .from('scheduled_rota')
+          .update({ status: null })
+          .eq('date', slotToToggle.date)
+          .eq('shift_type', slotToToggle.shift_type)
+          .eq('location', slotToToggle.location)
+          .eq('start_time', slotToToggle.start_time)
+          .eq('end_time', slotToToggle.end_time)
+          .select();
+
+        if (updateError) {
+          console.error("[RotaManager] Error updating all matching slot records to null:", updateError);
+          throw updateError;
+        }
+        updatedDbRecords = data;
+        console.log("[RotaManager] DB update result (all records to null):", updatedDbRecords);
+
+      } else { // Setting to 'available'
+        console.log("[RotaManager] Setting slot to AVAILABLE. Updating primary DB record.");
+        const { data, error: updateError } = await supabase
+          .from('scheduled_rota')
+          .update({ status: 'available' })
+          .eq('id', slotId) // slotId is the ID of the primary record for the group
+          .select();
+
+        if (updateError) {
+          console.error("[RotaManager] Error updating primary slot record to available:", updateError);
+          throw updateError;
+        }
+        updatedDbRecords = data;
+        console.log("[RotaManager] DB update result (primary record to available):", updatedDbRecords);
+      }
+
+      if (!updatedDbRecords || updatedDbRecords.length === 0) {
+        console.error("[RotaManager] Update successful but no data returned from DB");
+        throw new Error("No data returned from update operation");
+      }
+
+      const primaryUpdatedRecord = updatedDbRecords.find(r => r.id === slotId) || updatedDbRecords[0];
+      if (primaryUpdatedRecord.status !== newStatus) {
+          console.error(`[RotaManager] Status not updated correctly in DB. Expected: ${newStatus}, Got: ${primaryUpdatedRecord.status} for record ID ${primaryUpdatedRecord.id}`);
+          throw new Error("Status update failed in DB");
       }
       
-      // Update the slot status in the database
-      const { error: updateError } = await supabase
-        .from('scheduled_rota')
-        .update({ 
-          status: setAvailable ? 'available' : null 
-        })
-        .eq('id', slotId);
-      
-      if (updateError) throw updateError;
-      
-      // Update slot in the local state
-      setSlots(currentSlots => 
-        currentSlots.map(s => 
-          s.id === slotId ? { ...s, status: setAvailable ? 'available' : null } : s
+      setSlots(currentSlots =>
+        currentSlots.map(s =>
+          s.id === slotId ? { ...s, status: newStatus } : s
         )
       );
-      
+
+      console.log("[RotaManager] Local state updated for slotId:", slotId, "New UI status:", newStatus);
       setSuccessMessage(
         setAvailable 
           ? 'Shift marked as available for employees to claim' 
           : 'Shift removed from available shifts'
       );
+      
+      return true; // Signal success
     } catch (error) {
-      console.error('Error toggling slot availability:', error);
+      console.error('[RotaManager] Error toggling slot availability:', error);
       setError(`Failed to update shift availability: ${error.message}`);
+      throw error; // Rethrow error so SlotCard can handle it
     }
   };
 
@@ -1221,6 +1279,7 @@ const RotaManager = () => {
       {/* Edit Slot Modal */}
       {showEditModal && slotToEdit && createPortal(
         <EditSlotModal
+          isOpen={showEditModal}
           slot={slotToEdit}
           locations={locations}
           onClose={() => {
@@ -1228,8 +1287,7 @@ const RotaManager = () => {
             setSlotToEdit(null);
           }}
           onUpdate={handleUpdateSlot}
-          onDelete={handleDeleteSlot}
-          onOpenTimePicker={handleOpenTimePickerForEdit}
+          onShowTimePicker={handleOpenTimePickerForEdit}
         />,
         document.body
       )}

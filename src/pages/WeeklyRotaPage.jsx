@@ -232,16 +232,18 @@ const WeeklyRotaPage = () => {
                       className={`p-3 ${isCurrentUser ? 'bg-amber-500/10 border-l-2 border-l-amber-400' : ''}`}
                     >
                       <div className="flex flex-col">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className={`font-medium ${isCurrentUser ? 'text-amber-300' : 'text-white'}`}>
-                              {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                        <div className="flex flex-wrap items-start justify-between">
+                          <div className="flex flex-wrap items-center space-x-2 break-words w-full">
+                            <div className="text-wrap break-words max-w-full">
+                              <span className={`font-medium ${isCurrentUser ? 'text-amber-300' : 'text-white'}`}>
+                                {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                              </span>
                               {isCurrentUser && (
                                 <span className="ml-2 text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full uppercase font-bold">
                                   You
                                 </span>
                               )}
-                            </span>
+                            </div>
                           </div>
                         </div>
                         
@@ -536,8 +538,8 @@ const WeeklyRotaPage = () => {
                 </div>
                 
                 {/* Mobile: Conditionally visible details area with transition */}
-                <div className={`transition-all duration-300 ease-in-out overflow-hidden md:hidden
-                  ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`transition-all duration-300 ease-in-out overflow-auto md:hidden
+                  ${isExpanded ? 'max-h-[75vh] opacity-100' : 'max-h-0 opacity-0'}`}>
                   <div className="p-3">
                     <DayDetails dateStr={dateStr} />
                   </div>
