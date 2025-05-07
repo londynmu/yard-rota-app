@@ -7,13 +7,11 @@ const SlotCard = ({
   handleOpenAssignModal, 
   handleDeleteSlot, 
   handleOpenEditModal,
-  handleToggleSlotAvailability,
   isAdmin 
 }) => {
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
-  const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   
   // Check if slot has assigned employees array
   const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
@@ -60,36 +58,6 @@ const SlotCard = ({
     return timeString.substring(0, 5); // HH:MM format
   };
 
-  // Handle toggling slot availability
-  const toggleAvailability = async (e) => {
-    e.stopPropagation();
-    
-    if (isTogglingAvailability) {
-      console.log('[SlotCard] Already processing a toggle request, ignoring');
-      return;
-    }
-    
-    console.log('[SlotCard] Toggle availability clicked, current status:', isAvailable);
-    console.log('[SlotCard] Slot data:', slot);
-    
-    setIsTogglingAvailability(true);
-    
-    try {
-      // Call function from RotaManager.jsx
-      await handleToggleSlotAvailability(slot.id, !isAvailable);
-      
-      // Let parent component update the slot status
-      // We don't update local state here because the slot prop will be updated
-      // and trigger the useEffect for slot.status changes
-      console.log('[SlotCard] Availability toggle successful');
-    } catch (error) {
-      console.error('[SlotCard] Error toggling availability:', error);
-      // Don't update local state on error
-    } finally {
-      setIsTogglingAvailability(false);
-    }
-  };
-
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
@@ -124,51 +92,12 @@ const SlotCard = ({
             <span className="mx-1">/</span>
             <span>{slot.capacity}</span>
           </div>
-          
-          {/* Display available badge if slot is available for self-service */}
-          {isAvailable && (
-            <div className="text-xs bg-green-600/40 text-green-200 border border-green-400/30 px-2 py-0.5 rounded-full font-medium">
-              Available
-            </div>
-          )}
         </div>
         
         <div className="flex items-center space-x-2">
-          {/* Remove duplicate time display since we have it prominently at the top */}
-          
           {/* Action buttons - only show if user is admin */}
           {isAdmin && (
             <div className="opacity-100 flex space-x-1 transition-opacity duration-200">
-              {/* Toggle availability button */}
-              <button
-                onClick={toggleAvailability}
-                disabled={isTogglingAvailability}
-                className={`p-1 rounded-full ${
-                  isTogglingAvailability 
-                    ? 'bg-gray-500/20 text-gray-300 cursor-not-allowed' 
-                    : isAvailable 
-                      ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
-                      : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                }`}
-                title={isAvailable ? "Remove from available shifts" : "Mark as available for self-service"}
-              >
-                {isTogglingAvailability ? (
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : isAvailable ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
-              
               {/* Edit button */}
               <button
                 onClick={(e) => {
@@ -249,7 +178,6 @@ SlotCard.propTypes = {
   handleOpenAssignModal: PropTypes.func.isRequired,
   handleDeleteSlot: PropTypes.func.isRequired,
   handleOpenEditModal: PropTypes.func.isRequired,
-  handleToggleSlotAvailability: PropTypes.func.isRequired,
   isAdmin: PropTypes.bool.isRequired
 };
 

@@ -13,17 +13,8 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
     shift_type: slot?.shift_type || 'day',
     task: slot?.task || ''
   });
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [isAvailable, setIsAvailable] = useState(slot?.status === 'available');
   const [error, setError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Update isAvailable when slot changes
-  useEffect(() => {
-    if (slot) {
-      setIsAvailable(slot.status === 'available');
-    }
-  }, [slot]);
 
   // Update form data when slot changes
   useEffect(() => {
@@ -54,7 +45,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
       // Prepare data for update
       const dataToUpdate = {
         ...editedSlot,
-        status: isAvailable ? 'available' : null // Update status based on isAvailable toggle
+        status: slot?.status // Zachowaj istniejący status
       };
       
       await onUpdate(slot.id, dataToUpdate);
@@ -192,31 +183,6 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
               />
             </div>
             
-            <div className="flex items-center mt-4">
-              <label className="flex items-center cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={isAvailable}
-                    onChange={() => setIsAvailable(!isAvailable)}
-                  />
-                  <div className={`block w-10 h-6 rounded-full ${isAvailable ? 'bg-green-400' : 'bg-gray-400'}`}></div>
-                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${isAvailable ? 'transform translate-x-4' : ''}`}></div>
-                </div>
-                <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium">
-                  Available for self-service
-                </div>
-              </label>
-            </div>
-            
-            {isAvailable && (
-              <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm">
-                This shift will be visible to all employees who can claim it themselves.
-                {slot?.user_id && <div className="mt-2 font-bold">Note: Making this available will remove the currently assigned employee.</div>}
-              </div>
-            )}
-
             <div className="flex justify-between space-x-3 mt-6">
               <button
                 type="button"

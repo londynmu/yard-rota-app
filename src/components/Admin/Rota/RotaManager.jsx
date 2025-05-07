@@ -831,92 +831,8 @@ const RotaManager = () => {
   };
 
   const closeAddSlotModal = () => {
-    setModalError(null);
     setShowAddSlotModal(false);
-  };
-
-  // Add function to toggle slot availability
-  const handleToggleSlotAvailability = async (slotId, setAvailable) => {
-    try {
-      setError(null);
-      console.log("[RotaManager] Toggling slot availability:", { slotId, setAvailable });
-
-      const slotToToggle = slots.find(s => s.id === slotId); // This is the grouped slot from local state
-      if (!slotToToggle) {
-        console.error('Slot not found in local state:', slotId);
-        throw new Error('Slot not found');
-      }
-      console.log("[RotaManager] Found slot in local state:", slotToToggle);
-      console.log("[RotaManager] Current slot status from local state:", slotToToggle.status);
-
-      const newStatus = setAvailable ? 'available' : null;
-      let updatedDbRecords = [];
-
-      if (newStatus === null) { // Setting to 'unavailable'
-        console.log("[RotaManager] Setting slot to UNAVAILABLE. Updating all matching DB records.");
-        const { data, error: updateError } = await supabase
-          .from('scheduled_rota')
-          .update({ status: null })
-          .eq('date', slotToToggle.date)
-          .eq('shift_type', slotToToggle.shift_type)
-          .eq('location', slotToToggle.location)
-          .eq('start_time', slotToToggle.start_time)
-          .eq('end_time', slotToToggle.end_time)
-          .select();
-
-        if (updateError) {
-          console.error("[RotaManager] Error updating all matching slot records to null:", updateError);
-          throw updateError;
-        }
-        updatedDbRecords = data;
-        console.log("[RotaManager] DB update result (all records to null):", updatedDbRecords);
-
-      } else { // Setting to 'available'
-        console.log("[RotaManager] Setting slot to AVAILABLE. Updating primary DB record.");
-        const { data, error: updateError } = await supabase
-          .from('scheduled_rota')
-          .update({ status: 'available' })
-          .eq('id', slotId) // slotId is the ID of the primary record for the group
-          .select();
-
-        if (updateError) {
-          console.error("[RotaManager] Error updating primary slot record to available:", updateError);
-          throw updateError;
-        }
-        updatedDbRecords = data;
-        console.log("[RotaManager] DB update result (primary record to available):", updatedDbRecords);
-      }
-
-      if (!updatedDbRecords || updatedDbRecords.length === 0) {
-        console.error("[RotaManager] Update successful but no data returned from DB");
-        throw new Error("No data returned from update operation");
-      }
-
-      const primaryUpdatedRecord = updatedDbRecords.find(r => r.id === slotId) || updatedDbRecords[0];
-      if (primaryUpdatedRecord.status !== newStatus) {
-          console.error(`[RotaManager] Status not updated correctly in DB. Expected: ${newStatus}, Got: ${primaryUpdatedRecord.status} for record ID ${primaryUpdatedRecord.id}`);
-          throw new Error("Status update failed in DB");
-      }
-      
-      setSlots(currentSlots =>
-        currentSlots.map(s =>
-          s.id === slotId ? { ...s, status: newStatus } : s
-        )
-      );
-
-      console.log("[RotaManager] Local state updated for slotId:", slotId, "New UI status:", newStatus);
-      setSuccessMessage(
-        setAvailable 
-          ? 'Shift marked as available for employees to claim' 
-          : 'Shift removed from available shifts'
-      );
-      
-      return true; // Signal success
-    } catch (error) {
-      console.error('[RotaManager] Error toggling slot availability:', error);
-      setError(`Failed to update shift availability: ${error.message}`);
-      throw error; // Rethrow error so SlotCard can handle it
-    }
+    setModalError(null);
   };
 
   if (loading && !slots.length) {
@@ -1044,15 +960,21 @@ const RotaManager = () => {
         </div>
       )}
 
+      {/* Komunikat o błędzie */}
       {error && (
-        <div className="bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md p-3 text-red-100 mb-4">
-          {error}
-          <button
-            className="ml-2 text-white/80 hover:text-white font-bold"
-            onClick={() => setError(null)}
-          >
-            &times;
-          </button>
+        <div className="fixed inset-x-0 top-24 flex items-center justify-center z-50 px-4">
+          <div className="bg-white text-black px-6 py-3 rounded-lg shadow-lg border border-gray-300 flex items-center space-x-3 max-w-md">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm sm:text-base font-medium">{error}</span>
+            <button
+              className="ml-2 text-gray-600 hover:text-gray-800 font-bold"
+              onClick={() => setError(null)}
+            >
+              &times;
+            </button>
+          </div>
         </div>
       )}
 
@@ -1074,7 +996,6 @@ const RotaManager = () => {
                     handleOpenAssignModal={handleOpenAssignModal}
                     handleDeleteSlot={handleDeleteSlot}
                     handleOpenEditModal={handleOpenEditModal}
-                    handleToggleSlotAvailability={handleToggleSlotAvailability}
                     isAdmin={true}
                   />
                 ))}
@@ -1092,15 +1013,15 @@ const RotaManager = () => {
             
             {/* Komunikat o błędzie w modalu */}
             {modalError && (
-              <div className="mb-4 p-3 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md text-red-100">
+              <div className="mb-4 p-3 bg-white text-black rounded-md shadow-sm border border-gray-300">
                 <div className="flex items-start">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-300 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                   <div>
-                    <p>{modalError}</p>
+                    <p className="font-medium">{modalError}</p>
                     {modalError.includes('already exists') && (
-                      <p className="mt-1 text-sm text-red-200/80 italic">
+                      <p className="mt-1 text-sm text-gray-600 italic">
                         Tip: Go back to the main view and look for a slot with the same location and time. You can click the edit button to adjust its capacity.
                       </p>
                     )}
