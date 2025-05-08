@@ -848,13 +848,13 @@ const RotaManager = () => {
       <div className="flex flex-col gap-4">
         {/* Location Tabs - replacing dropdown */}
         <div className="w-full overflow-x-auto">
-          <div className="flex border-b border-white/20 min-w-max">
+          <div className="flex border-b border-slate-700/50 min-w-max">
             <button
               onClick={() => handleLocationTabClick('all')}
               className={`px-4 py-2 font-medium whitespace-nowrap transition-colors ${
                 selectedLocation === 'all'
-                  ? 'border-b-2 border-purple-400 text-white'
-                  : 'text-white/70 hover:text-white hover:bg-white/5'
+                  ? 'border-b-2 border-blue-500/70 text-white'
+                  : 'text-white/70 hover:text-white hover:bg-slate-800/40'
               }`}
             >
               All Locations
@@ -865,8 +865,8 @@ const RotaManager = () => {
                 onClick={() => handleLocationTabClick(location.name)}
                 className={`px-4 py-2 font-medium whitespace-nowrap transition-colors ${
                   selectedLocation === location.name
-                    ? 'border-b-2 border-purple-400 text-white'
-                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                    ? 'border-b-2 border-blue-500/70 text-white'
+                    : 'text-white/70 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 {location.name}
@@ -876,10 +876,10 @@ const RotaManager = () => {
         </div>
         
         <div className="w-full">
-          <div className="relative flex items-center overflow-hidden rounded-md border border-white/20 bg-white/10 backdrop-blur-sm">
+          <div className="relative flex items-center overflow-hidden rounded-md border border-slate-700/40 bg-slate-800/30 backdrop-blur-sm">
             <button 
               onClick={goToPreviousDay}
-              className="px-3 py-2 text-white hover:bg-white/20 transition-colors"
+              className="px-3 py-2 text-white hover:bg-slate-700/40 transition-colors"
               aria-label="Previous day"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -915,7 +915,7 @@ const RotaManager = () => {
             
             <button 
               onClick={goToNextDay}
-              className="px-3 py-2 text-white hover:bg-white/20 transition-colors"
+              className="px-3 py-2 text-white hover:bg-slate-700/40 transition-colors"
               aria-label="Next day"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -928,14 +928,14 @@ const RotaManager = () => {
         <div className="flex flex-wrap gap-2 w-full">
           <button
             onClick={openAddSlotModal}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors"
+            className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
           >
             Add Slot
           </button>
           
           <button
             onClick={handleCopyFromPreviousWeek}
-            className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors flex items-center justify-center"
+            className="flex-1 px-4 py-2 bg-slate-700/80 text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all flex items-center justify-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
               <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
@@ -944,15 +944,17 @@ const RotaManager = () => {
             <span>Copy Last Week</span>
           </button>
           
-          <ExportRotaButton />
+          <div className="flex-shrink-0">
+            <ExportRotaButton />
+          </div>
         </div>
       </div>
 
       {/* Komponent komunikatu sukcesu */}
       {successMessage && (
         <div className="fixed inset-x-0 top-24 flex items-center justify-center z-50 px-4">
-          <div className="bg-gradient-to-r from-green-500/90 to-green-600/90 backdrop-blur-sm text-white px-6 py-3 rounded-lg shadow-lg border border-green-400/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in max-w-md">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in max-w-md backdrop-blur-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm sm:text-base">{successMessage}</span>
@@ -963,13 +965,13 @@ const RotaManager = () => {
       {/* Komunikat o błędzie */}
       {error && (
         <div className="fixed inset-x-0 top-24 flex items-center justify-center z-50 px-4">
-          <div className="bg-white text-black px-6 py-3 rounded-lg shadow-lg border border-gray-300 flex items-center space-x-3 max-w-md">
+          <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 max-w-md backdrop-blur-sm">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm sm:text-base font-medium">{error}</span>
             <button
-              className="ml-2 text-gray-600 hover:text-gray-800 font-bold"
+              className="ml-2 text-slate-600 hover:text-slate-800 font-bold"
               onClick={() => setError(null)}
             >
               &times;
@@ -981,12 +983,12 @@ const RotaManager = () => {
       <div className="space-y-8">
         {Object.entries(slotsByShift).map(([shiftType, shiftSlots]) => (
           <div key={shiftType} className="space-y-4">
-            <h3 className="text-xl font-medium capitalize text-white/90 border-b border-white/20 pb-2">
+            <h3 className="text-xl font-medium capitalize text-white/90 border-b border-slate-700/40 pb-2">
               {shiftType} Shift
             </h3>
             
             {shiftSlots.length === 0 ? (
-              <p className="text-white/70 italic">No slots scheduled for this shift</p>
+              <p className="text-slate-400 italic">No slots scheduled for this shift</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {shiftSlots.map(slot => (

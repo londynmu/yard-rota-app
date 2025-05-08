@@ -16,6 +16,7 @@ const SlotCard = ({
   // Check if slot has assigned employees array
   const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
   const fillPercentage = (assignedCount / slot.capacity) * 100;
+  const isSlotFull = assignedCount >= slot.capacity;
   
   useEffect(() => {
     const fetchUsers = async () => {
@@ -58,36 +59,79 @@ const SlotCard = ({
     return timeString.substring(0, 5); // HH:MM format
   };
 
+  // Funkcja określająca kolor bocznego znacznika w zależności od typu zmiany
+  const getShiftIndicatorColor = (shiftType) => {
+    switch(shiftType) {
+      case 'day':
+        return 'bg-blue-700/40';
+      case 'afternoon':
+        return 'bg-indigo-700/40';
+      case 'night':
+        return 'bg-slate-600/40';
+      default:
+        return 'bg-gray-600/40';
+    }
+  };
+
+  // Determine border color based on slot fullness
+  const getBorderColor = () => {
+    if (isSlotFull) {
+      return 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]';
+    } else if (fillPercentage === 0) {
+      return 'border-red-500/70 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse-red';
+    } else {
+      return 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] animate-pulse-yellow';
+    }
+  };
+
+  // Get status text and color for the status badge
+  const getStatusInfo = () => {
+    if (isSlotFull) {
+      return { text: 'Full', bgColor: 'bg-green-500/30', textColor: 'text-green-200' };
+    } else if (fillPercentage === 0) {
+      return { text: 'Empty', bgColor: 'bg-red-500/30', textColor: 'text-red-200' };
+    } else {
+      return { text: 'Partial', bgColor: 'bg-yellow-500/30', textColor: 'text-yellow-200' };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
-      className={`bg-gradient-to-r from-black/60 to-black/70 backdrop-blur-sm hover:from-black/70 hover:to-black/80 rounded-lg p-4 border border-white/20 shadow-xl cursor-pointer transition group relative`}
+      className={`bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-sm hover:from-slate-800/90 hover:to-slate-700/90 rounded-lg p-4 ${getBorderColor()} shadow-xl cursor-pointer transition group relative overflow-hidden`}
     >
-      <div className="absolute top-0 left-0 h-1 bg-white/30" style={{ width: `${fillPercentage}%` }}></div>
+      {/* Status badge in top right corner */}
+      <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor} border border-slate-700/40`}>
+        {statusInfo.text}
+      </div>
+
+      {/* Pionowy pasek oznaczający typ zmiany */}
+      <div className={`absolute top-0 left-0 w-1.5 h-full ${getShiftIndicatorColor(slot.shift_type)}`}></div>
       
-      <div className="flex justify-between items-start mb-3">
+      {/* Pasek wypełnienia */}
+      <div className={`absolute top-0 left-0 h-1.5 ${isSlotFull ? 'bg-green-500/70' : fillPercentage === 0 ? 'bg-red-500/70' : 'bg-yellow-500/70'}`} style={{ width: `${fillPercentage}%` }}></div>
+      
+      <div className="flex justify-between items-start mb-3 pl-2">
         <div>
           <h3 className="text-white font-bold">{slot.location}</h3>
           <div className="flex items-center mt-1">
-            <div className="bg-black/50 border border-white/20 text-white px-3 py-1.5 rounded-md text-sm font-medium">
+            <div className="bg-slate-800/70 border border-slate-600/30 text-white px-3 py-1.5 rounded-md text-sm font-medium">
               {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
             </div>
           </div>
         </div>
       </div>
       
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pl-2">
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Shift type and capacity icons */}
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            slot.shift_type === 'day' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/30' :
-            slot.shift_type === 'afternoon' ? 'bg-orange-500/30 text-orange-200 border border-orange-400/30' :
-            'bg-blue-600/40 text-blue-200 border border-blue-400/30'
-          }`}>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-800/80 text-slate-200 border border-slate-600/30">
             {slot.shift_type.charAt(0).toUpperCase() + slot.shift_type.slice(1)}
           </span>
           
-          <div className="text-xs bg-black/50 text-white border border-white/20 px-2 py-0.5 rounded-full">
+          <div className={`text-xs ${isSlotFull ? 'bg-green-900/50 border-green-600/50' : fillPercentage === 0 ? 'bg-red-900/50 border-red-600/50' : 'bg-yellow-900/50 border-yellow-600/50'} text-white border px-2 py-0.5 rounded-full`}>
             <span className="font-medium">{assignedCount}</span>
             <span className="mx-1">/</span>
             <span>{slot.capacity}</span>
@@ -110,7 +154,7 @@ const SlotCard = ({
                     console.error('[SlotCard] handleOpenEditModal is NOT a function!');
                   }
                 }}
-                className="p-1 rounded-full bg-white/10 text-white hover:bg-white/20"
+                className="p-1 rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/60"
                 title="Edit shift"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,7 +168,7 @@ const SlotCard = ({
                   e.stopPropagation();
                   handleDeleteSlot(slot.id);
                 }}
-                className="p-1 rounded-full bg-red-500/20 text-red-300 hover:bg-red-500/30"
+                className="p-1 rounded-full bg-slate-800/50 text-red-300/80 hover:bg-slate-700/60"
                 title="Delete shift"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,17 +181,17 @@ const SlotCard = ({
       </div>
       
       {/* Assigned employees section */}
-      <div className="mt-3">
+      <div className="mt-3 pl-2">
         <div className="flex flex-col space-y-2">
           {loading ? (
-            <div className="animate-pulse bg-white/10 h-6 rounded"></div>
+            <div className="animate-pulse bg-slate-700/40 h-6 rounded"></div>
           ) : assignedUsers.length > 0 ? (
             assignedUsers.map(user => (
-              <div key={user.id} className="flex items-center space-x-2 py-1 px-2 rounded bg-white/5">
+              <div key={user.id} className="flex items-center space-x-2 py-1 px-2 rounded bg-slate-800/40 border border-slate-700/30">
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={`${user.first_name} ${user.last_name}`} className="h-6 w-6 rounded-full" />
                 ) : (
-                  <div className="h-6 w-6 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs">
+                  <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-white text-xs">
                     {user.first_name?.[0]}{user.last_name?.[0]}
                   </div>
                 )}
@@ -155,7 +199,12 @@ const SlotCard = ({
               </div>
             ))
           ) : (
-            <div className="text-sm text-white/50 italic">No employees assigned</div>
+            <div className="text-sm text-red-300 font-medium bg-red-500/10 border border-red-600/20 rounded py-1.5 px-3 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              No employees assigned
+            </div>
           )}
         </div>
       </div>

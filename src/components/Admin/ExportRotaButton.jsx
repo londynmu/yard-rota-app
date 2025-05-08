@@ -15,7 +15,7 @@ const ExportRotaButton = () => {
 
   const ModalContent = () => (
     <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
-      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto mx-auto my-auto">
+      <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto mx-auto my-auto border border-slate-700/40">
         <div className="absolute top-4 right-4">
           <button 
             onClick={closeModal}
@@ -37,7 +37,7 @@ const ExportRotaButton = () => {
     <>
       <button
         onClick={openExportModal}
-        className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50 transition-colors flex items-center justify-center"
+        className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all flex items-center justify-center"
       >
         <svg 
           xmlns="http://www.w3.org/2000/svg" 

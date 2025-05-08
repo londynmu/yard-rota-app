@@ -145,7 +145,7 @@ Komponenty do wyboru liczb (np. pojemność, ilość) powinny:
 
 Przykładowa implementacja:
 ```jsx
-<div className="flex items-center bg-gray-800 rounded-lg border border-white/20 overflow-hidden w-full">
+<div className="flex items-center bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden w-full">
   <button
     type="button"
     onClick={() => {
@@ -153,19 +153,23 @@ Przykładowa implementacja:
         onChange(value - 1);
       }
     }}
-    className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+    className="flex-1 h-10 bg-slate-900/50 text-white flex items-center justify-center hover:bg-slate-700/70"
   >
-    <svg /* Ikona minusa */ />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
   </button>
-  <div className="py-3 bg-gray-900 text-white text-center flex-1 font-medium text-lg">
+  <div className="flex-1 h-10 flex items-center justify-center text-white font-bold">
     {value}
   </div>
   <button
     type="button"
     onClick={() => onChange(value + 1)}
-    className="px-4 py-3 text-white hover:bg-gray-700 flex-1 flex justify-center"
+    className="flex-1 h-10 bg-slate-900/50 text-white flex items-center justify-center hover:bg-slate-700/70"
   >
-    <svg /* Ikona plusa */ />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+    </svg>
   </button>
 </div>
 ```
@@ -212,3 +216,50 @@ useEffect(() => {
   ))}
 </div>
 ```
+
+## Design Wizualny Aplikacji
+
+### Kolorystyka i Styl UI
+
+Aplikacja powinna używać stonowanych, profesjonalnych kolorów z przewagą:
+- Ciemne odcienie niebieskawego szarego (slate-800, slate-900) dla tła
+- Odcienie niebieskiego (blue-600/80, blue-700/90) dla przycisków akcji głównych
+- Odcienie szarego (slate-700/80) dla przycisków akcji drugorzędnych
+- Biały z przezroczystością dla tekstów i niektórych elementów UI
+
+Przykładowy schemat kolorów:
+- Tło główne: bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-sm
+- Przyciski główne: bg-blue-600/80 border border-blue-500/30 hover:bg-blue-700/90
+- Przyciski drugorzędne: bg-slate-700/80 border border-slate-600/30 hover:bg-slate-600/90
+- Karty: border border-slate-700/40
+- Pola formularza: bg-slate-800/50 border border-slate-700/50
+
+### Principia Projektowe
+- Unikać jaskrawych kolorów wskazujących na aplikację dla dzieci
+- Stosować rounded-lg dla zaokrąglonych rogów elementów
+- Używać border border-slate-700/40 dla delikatnych obramowań
+- Stosować shadow-md dla cieni dodających głębi
+- Utrzymywać spójny styl na całej aplikacji
+- Zachować glassmorphic design przez użycie przezroczystości i backdrop-blur-sm
+
+### TimePicker (Wybór czasu)
+
+Komponent wyboru czasu powinien:
+- Automatycznie przewijać się do aktualnie wybranej wartości po otwarciu
+- Mieć czytelne oznaczenia godzin i minut
+- Używać kolorów spójnych z resztą aplikacji
+- Zapewniać wyraźne oznaczenie aktualnie wybranej wartości
+
+Przykładowa implementacja przewijania do zaznaczonej wartości:
+```jsx
+useEffect(() => {
+  // Scroll do wybranej godziny po montażu komponentu
+  if (hoursContainerRef.current && selectedHourRef.current) {
+    selectedHourRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }
+  
+  // Scroll do wybranej minuty po montażu komponentu
+  if (minutesContainerRef.current && selectedMinuteRef.current) {
+    selectedMinuteRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }
+}, []);

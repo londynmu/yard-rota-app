@@ -569,12 +569,12 @@ const ExportRota = () => {
   };
 
   return (
-    <div className="bg-black/80 border border-white/20 rounded-xl p-4 md:p-6 space-y-6">
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 space-y-6 shadow-xl">
       <h2 className="text-xl font-semibold text-white">Export & Send Weekly Schedule</h2>
       
       {/* Date Selection */}
       <div>
-        <label htmlFor="start-date" className="block text-white mb-2">
+        <label htmlFor="start-date" className="block text-white mb-1">
           Select Week (Starting Saturday)
         </label>
         <input
@@ -582,9 +582,9 @@ const ExportRota = () => {
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white [color-scheme:dark]"
+          className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-white [color-scheme:dark] focus:outline-none"
         />
-        <p className="text-white/60 text-sm mt-1">
+        <p className="text-slate-400 text-sm mt-1">
           Week: {startDate} to {startDate ? format(addDays(new Date(startDate), 6), 'yyyy-MM-dd') : ''}
         </p>
       </div>
@@ -594,7 +594,7 @@ const ExportRota = () => {
         <button
           onClick={fetchRotaForWeek}
           disabled={fetchingData}
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-800/50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {fetchingData ? (
             <>
@@ -606,7 +606,7 @@ const ExportRota = () => {
         </button>
         
         {rotaData.length > 0 && (
-          <p className="text-green-400 text-sm mt-2">
+          <p className="text-slate-300 text-sm mt-2">
             {rotaData.length} shifts loaded for selected week
           </p>
         )}
@@ -617,13 +617,13 @@ const ExportRota = () => {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={generateCSV}
-            className="px-4 py-2 bg-blue-600/30 border border-blue-400/30 rounded text-white hover:bg-blue-600/40"
+            className="px-4 py-2 bg-slate-700/80 text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
           >
             Download CSV
           </button>
           <button
             onClick={generatePDF}
-            className="px-4 py-2 bg-green-600/30 border border-green-400/30 rounded text-white hover:bg-green-600/40"
+            className="px-4 py-2 bg-slate-700/80 text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
           >
             Download PDF
           </button>
@@ -635,7 +635,7 @@ const ExportRota = () => {
         <div>
           <h3 className="text-lg font-medium text-white mb-3">Send to Agency Managers</h3>
           
-          <div className="mb-4 max-h-60 overflow-y-auto bg-white/5 rounded border border-white/10 p-3">
+          <div className="mb-4 max-h-60 overflow-y-auto bg-slate-800/50 rounded border border-slate-700/50 p-3">
             {agencies.map(agency => (
               <div key={agency.id} className="flex items-center mb-2">
                 <input
@@ -643,7 +643,7 @@ const ExportRota = () => {
                   id={`agency-${agency.id}`}
                   checked={selectedAgencies.includes(agency.id)}
                   onChange={() => handleAgencySelection(agency.id)}
-                  className="mr-2 accent-purple-500 w-4 h-4"
+                  className="mr-2 accent-blue-500 w-4 h-4"
                 />
                 <label htmlFor={`agency-${agency.id}`} className="text-white cursor-pointer">
                   {agency.name} ({agency.email})
@@ -654,14 +654,14 @@ const ExportRota = () => {
           
           {/* Recipients Preview */}
           {selectedAgencies.length > 0 && (
-            <div className="mb-4 p-3 bg-white/5 rounded border border-white/10">
+            <div className="mb-4 p-3 bg-slate-800/50 rounded border border-slate-700/50">
               <h4 className="text-white text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
               <div className="max-h-32 overflow-y-auto">
                 {selectedAgencies.map(agencyId => {
                   const agency = agencies.find(a => a.id === agencyId);
                   return (
                     <div key={agencyId} className="text-white mb-1 flex items-center">
-                      <div className="bg-purple-500/20 px-2 py-1 rounded-full text-xs mr-2">
+                      <div className="bg-blue-600/30 px-2 py-1 rounded-full text-xs mr-2">
                         To
                       </div>
                       {agency?.name}: {agency?.email}
@@ -674,7 +674,7 @@ const ExportRota = () => {
           
           {/* Email Message Template */}
           <div className="mb-4">
-            <label htmlFor="email-message" className="block text-white mb-2">
+            <label htmlFor="email-message" className="block text-white mb-1">
               Email Message
             </label>
             <textarea
@@ -682,7 +682,7 @@ const ExportRota = () => {
               value={emailMessage}
               onChange={(e) => setEmailMessage(e.target.value)}
               rows={5}
-              className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white resize-y"
+              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-white resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="Enter custom message to send with the schedule..."
             />
           </div>
@@ -690,7 +690,7 @@ const ExportRota = () => {
           <button
             onClick={confirmSend}
             disabled={loading || selectedAgencies.length === 0}
-            className="w-full px-4 py-2 bg-red-600/30 border border-red-400/30 rounded text-white hover:bg-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
           </button>
@@ -699,18 +699,28 @@ const ExportRota = () => {
       
       {/* Error/Success Messages */}
       {error && (
-        <div className="bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md p-3 text-red-100">
-          {error}
-          <button className="ml-2 text-white/80 hover:text-white font-bold" onClick={() => setError(null)}>
+        <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in backdrop-blur-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            {error}
+          </div>
+          <button className="text-slate-600 hover:text-slate-800 font-bold" onClick={() => setError(null)}>
             &times;
           </button>
         </div>
       )}
       
       {success && (
-        <div className="bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-md p-3 text-green-100">
-          {success}
-          <button className="ml-2 text-white/80 hover:text-white font-bold" onClick={() => setSuccess(null)}>
+        <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in backdrop-blur-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            {success}
+          </div>
+          <button className="text-slate-600 hover:text-slate-800 font-bold" onClick={() => setSuccess(null)}>
             &times;
           </button>
         </div>
@@ -719,9 +729,9 @@ const ExportRota = () => {
       {/* Confirmation Dialog */}
       {showConfirmation && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 md:mx-0">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Send</h3>
-            <div className="text-gray-700 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
+            <h3 className="text-xl font-bold text-white mb-4">Confirm Send</h3>
+            <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
               {currentUser && (
                 <p><span className="font-medium">From:</span> {currentUser.email}</p>
               )}
@@ -734,13 +744,19 @@ const ExportRota = () => {
                   );
                 })}
               </ul>
-              <p className="text-sm text-gray-600">Week period: {format(new Date(startDate), 'dd/MM/yyyy')} - {format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}</p>
+              <p className="text-sm text-slate-400">Week period: {format(new Date(startDate), 'dd/MM/yyyy')} - {format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}</p>
             </div>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-              <button onClick={cancelSend} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-gray-800 font-medium transition-colors">
+              <button 
+                onClick={cancelSend} 
+                className="px-4 py-2 bg-slate-800/80 text-white rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+              >
                 Cancel
               </button>
-              <button onClick={sendToAgencies} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white font-medium transition-colors">
+              <button 
+                onClick={sendToAgencies} 
+                className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+              >
                 Yes, I&apos;m 100% Sure - Send Now
               </button>
             </div>
