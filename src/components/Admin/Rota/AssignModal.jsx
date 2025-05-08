@@ -449,13 +449,30 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           : emp
       )
     );
+    
+    // Clear the task input field after assignment
+    setTask('');
+    setShowTaskSuggestions(false);
   };
 
   // Filter and sort by selected tab
   const getFilteredEmployees = () => {
     return availableEmployees
       .filter(employee => {
-        // Filter based on tab and other criteria
+        // First, check if employee matches our location criteria for all tabs except "other_locations"
+        if (selectedTab !== 'other_locations' && !employee.isAssigned &&
+            employee.preferred_location !== 'Both' && 
+            employee.preferred_location !== slot.location) {
+          return false;
+        }
+        
+        // For "other_locations" tab, only show employees from different locations
+        if (selectedTab === 'other_locations') {
+          return employee.preferred_location !== slot.location && 
+                 employee.preferred_location !== 'Both';
+        }
+        
+        // Then filter based on tab and other criteria
         if (selectedTab === 'assigned') {
           return employee.isAssigned;
         } else if (selectedTab === 'available') {
@@ -590,6 +607,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               <option value="assigned">Assigned</option>
               <option value="conflicts">Conflicts</option>
               <option value="unavailable">Unavailable</option>
+              <option value="other_locations">Other Locations</option>
             </select>
           </div>
 
@@ -637,13 +655,23 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             </button>
             <button
               onClick={() => setSelectedTab('unavailable')}
-              className={`px-3 py-1.5 flex-1 sm:rounded-tr-md ${
+              className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'unavailable' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border-t border-b`}
+            >
+              Unavailable
+            </button>
+            <button
+              onClick={() => setSelectedTab('other_locations')}
+              className={`px-3 py-1.5 flex-1 sm:rounded-tr-md ${
+                selectedTab === 'other_locations' 
                   ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                   : 'bg-white/10 border-white/20 text-white/70'
               } border-r border-t border-b`}
             >
-              Unavailable
+              Other Locations
             </button>
           </div>
           
@@ -797,12 +825,17 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               {selectedTab === 'available' ? (
                 <div>
                   <p className="text-sm">No employees who prefer {slot.shift_type} shifts are available</p>
-                  <p className="text-xs mt-2">Check the "Other Shifts" tab to see staff with different shift preferences</p>
+                  <p className="text-xs mt-2">Check the &quot;Other Shifts&quot; tab to see staff with different shift preferences</p>
                 </div>
               ) : selectedTab === 'other_shifts' ? (
                 <div>
                   <p className="text-sm">No employees with different shift preferences are available</p>
                   <p className="text-xs mt-2">All available staff prefer {slot.shift_type} shifts</p>
+                </div>
+              ) : selectedTab === 'other_locations' ? (
+                <div>
+                  <p className="text-sm">No employees from other locations found</p>
+                  <p className="text-xs mt-2">All staff are assigned to {slot.location} or have it as their preferred location</p>
                 </div>
               ) : (
                 <p className="text-sm">No matching employees found</p>

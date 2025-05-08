@@ -12,6 +12,7 @@ const SlotCard = ({
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Check if slot has assigned employees array
   const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
@@ -97,11 +98,53 @@ const SlotCard = ({
 
   const statusInfo = getStatusInfo();
 
+  // Delete confirmation dialog
+  const DeleteConfirmationModal = () => {
+    if (!showDeleteConfirm) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-5 max-w-md mx-4 animate-fade-in-up">
+          <h3 className="text-xl font-bold text-white mb-3">Confirm Delete</h3>
+          <p className="text-white/90 mb-5">
+            Are you sure you want to delete this slot?
+            {assignedCount > 0 && (
+              <span className="block mt-2 text-red-300 font-medium">
+                This slot has {assignedCount} assigned employee{assignedCount !== 1 ? 's' : ''}.
+              </span>
+            )}
+          </p>
+          
+          <div className="flex space-x-3 justify-end">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                handleDeleteSlot(slot.id);
+                setShowDeleteConfirm(false);
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
       className={`bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-sm hover:from-slate-800/90 hover:to-slate-700/90 rounded-lg p-4 ${getBorderColor()} shadow-xl cursor-pointer transition group relative overflow-hidden`}
     >
+      {/* Delete confirmation modal */}
+      <DeleteConfirmationModal />
+      
       {/* Status badge in top right corner */}
       <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor} border border-slate-700/40`}>
         {statusInfo.text}
@@ -166,7 +209,7 @@ const SlotCard = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeleteSlot(slot.id);
+                  setShowDeleteConfirm(true);
                 }}
                 className="p-1 rounded-full bg-slate-800/50 text-red-300/80 hover:bg-slate-700/60"
                 title="Delete shift"

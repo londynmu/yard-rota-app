@@ -88,6 +88,9 @@ W przypadku błędów:
 ## Ostatnie zmiany
 
 ### Czerwiec 2024
+- **Dodano widget informujący o dzisiejszej zmianie (2024-06-20):** Zaimplementowano widget "Today's Shift" na stronie głównej, który pokazuje szczegółowe informacje o zmianie użytkownika zaplanowanej na dzisiejszy dzień. Widget wyświetla godziny rozpoczęcia i zakończenia, lokalizację, typ zmiany oraz status (aktywna/nieaktywna). W przypadku aktywnej zmiany widoczny jest czas pozostały do jej zakończenia oraz informacje o nadchodzących lub trwających przerwach. Komponent automatycznie odświeża się co 15 minut i jest w pełni responsywny.
+  - Nowe pliki: `src/components/User/TodaysShiftInfo.jsx`
+  - Zmienione pliki: `src/pages/CalendarPage.jsx`, `tailwind.config.js`
 - **Dodano udostępnianie PDF przez WhatsApp (2024-06-17):** Dodano możliwość generowania i udostępniania harmonogramu w formacie PDF przez WhatsApp. PDF zawiera uporządkowany i sformatowany harmonogram w orientacji poziomej, z podziałem na dni i typy zmian. Funkcja ta pozwala na łatwiejsze czytanie i drukowanie grafików przez odbiorców. Dodano dwa przyciski udostępniania (tekst i PDF) na desktopie oraz jeden przycisk z opcjami na urządzeniach mobilnych.
   - Zmienione pliki: `src/pages/WeeklyRotaPage.jsx`
 - **Ulepszone filtry typów zmian w widoku My Rota (2024-06-16):** Zmodyfikowano układ filtrów typów zmian (dniówka/popołudnie/noc) w widoku My Rota. Filtry zostały przeniesione do tej samej linii co nawigacja dat i wybór lokalizacji, co poprawia ergonomię interfejsu i pozwala na szybsze przełączanie między różnymi widokami.

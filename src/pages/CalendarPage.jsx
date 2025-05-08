@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
 import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
-import MyBreakInfo from '../components/User/MyBreakInfo';
+import ShiftDashboard from '../components/User/ShiftDashboard';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 
@@ -238,8 +238,8 @@ export default function CalendarPage() {
         />
       </div>
       
-      {/* --- My Break Info Bar --- Moved below the calendar */} 
-      <MyBreakInfo />
+      {/* Combined Shift and Break Dashboard */}
+      <ShiftDashboard />
       
       {/* Availability Dialog */}
       {selectedDate && (
