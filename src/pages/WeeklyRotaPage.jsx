@@ -5,6 +5,7 @@ import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { createPortal } from 'react-dom';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -22,6 +23,8 @@ const WeeklyRotaPage = () => {
   const [expandedDayMobile, setExpandedDayMobile] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('Rugby');
   const [selectedShiftType, setSelectedShiftType] = useState('all');
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadedFile, setDownloadedFile] = useState({ fileName: '', dateRange: '' });
 
   // Load last selected location and shift type from localStorage or set defaults
   useEffect(() => {
@@ -346,138 +349,171 @@ const WeeklyRotaPage = () => {
   // Generate PDF and share via WhatsApp
   const generateAndSharePDF = () => {
     try {
-      // Create a new PDF document in landscape mode
+      // Create new PDF document (A4 landscape - jak w ExportRota.jsx)
       const doc = new jsPDF('landscape');
+
+      // Format date range for title (taki sam format jak w ExportRota.jsx)
+      const dateRange = `${format(weekStart, 'dd/MM/yyyy')} - ${format(addDays(weekStart, 6), 'dd/MM/yyyy')}`;
+      const title = `Weekly Schedule: ${dateRange}`;
       
       // Add title
-      const dateRange = `${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`;
-      const title = `${selectedLocation} Schedule: ${dateRange}`;
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.text(title, 14, 20);
       
       // Add generation timestamp
       doc.setFontSize(10);
-      doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}`, 14, 28);
-      
-      // Group data by day
-      const tableData = [];
-      
-      // Process each day
-      Object.entries(dailyRotaData).forEach(([date, slots]) => {
-        const dateObj = new Date(date);
-        const dayName = format(dateObj, 'EEEE, MMM d');
-        
-        // Filter and group slots by shift type
-        const daySlots = slots.filter(slot => slot.profiles);
-        const slotsByType = {
-          day: daySlots.filter(s => s.shift_type === 'day'),
-          afternoon: daySlots.filter(s => s.shift_type === 'afternoon'),
-          night: daySlots.filter(s => s.shift_type === 'night')
+      doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+
+      // Rysuję prostokąt z informacją o lokalizacji
+      doc.setFillColor(240, 240, 240);
+      doc.roundedRect(14, 32, 100, 10, 1, 1, 'F');
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Location: ${selectedLocation}`, 18, 39);
+      doc.setTextColor(0, 0, 0);
+
+      // Prepare dates array for column headers - taki sam format jak w ExportRota.jsx
+      const dates = Array.from({ length: 7 }, (_, i) => {
+        const date = addDays(weekStart, i);
+        return {
+          day: format(date, 'EEEE'),
+          date: format(date, 'dd/MM/yyyy'),
+          dayOfMonth: format(date, 'dd/MM/yyyy')
         };
-        
-        // Add day header
-        tableData.push([
-          { content: `📅 ${dayName}`, colSpan: 4, styles: { 
-            fontStyle: 'bold', 
-            fillColor: [45, 55, 72], 
-            textColor: [255, 255, 255],
+      });
+      
+      // Create column headers
+      const tableColumn = ['Name'];
+      dates.forEach(d => {
+        // Bardziej wyraźny format nagłówka kolumny
+        tableColumn.push({
+          content: d.day,
+          styles: {
             halign: 'center',
-            fontSize: 12
-          }}
-        ]);
-        
-        // Add shift type headers and rows
-        Object.entries(slotsByType).forEach(([type, typeSlots]) => {
-          if (typeSlots.length > 0) {
-            // Get emoji and styling for shift type
-            const getShiftConfig = (type) => {
-              if (type === 'day') {
-                return { emoji: '☀️', fillColor: [245, 158, 11, 0.2], textColor: [120, 53, 15] };
-              } else if (type === 'afternoon') {
-                return { emoji: '🌆', fillColor: [249, 115, 22, 0.2], textColor: [154, 52, 18] };
-              } else {
-                return { emoji: '🌙', fillColor: [59, 130, 246, 0.2], textColor: [30, 64, 175] };
-              }
-            };
-            
-            const config = getShiftConfig(type);
-            
-            // Add shift type header
-            tableData.push([
-              { content: `${config.emoji} ${type.toUpperCase()} SHIFT`, colSpan: 4, styles: { 
-                fontStyle: 'bold', 
-                fillColor: config.fillColor, 
-                textColor: config.textColor,
-                fontSize: 11
-              }}
-            ]);
-            
-            // Add column headers
-            tableData.push([
-              { content: 'Name', styles: { fontStyle: 'bold' } },
-              { content: 'Time', styles: { fontStyle: 'bold' } },
-              { content: 'Duration', styles: { fontStyle: 'bold' } },
-              { content: 'Task', styles: { fontStyle: 'bold' } }
-            ]);
-            
-            // Add employees for this shift type
-            typeSlots.forEach(slot => {
-              const name = slot.profiles ? `${slot.profiles.first_name} ${slot.profiles.last_name}` : 'Unknown';
-              const timeStr = `${fmtTime(slot.start_time)} - ${fmtTime(slot.end_time)}`;
-              
-              // Calculate shift duration
-              const startParts = slot.start_time.split(':');
-              const endParts = slot.end_time.split(':');
-              let startMins = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-              let endMins = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-              
-              // Handle overnight shifts
-              if (endMins < startMins) {
-                endMins += 24 * 60;
-              }
-              
-              const durationMins = endMins - startMins;
-              const hours = Math.floor(durationMins / 60);
-              const mins = durationMins % 60;
-              const durationStr = `${hours}h${mins > 0 ? ` ${mins}m` : ''}`;
-              
-              tableData.push([
-                name,
-                timeStr,
-                durationStr,
-                slot.task || '-'
-              ]);
-            });
-            
-            // Add spacer row
-            tableData.push([
-              { content: '', colSpan: 4, styles: { cellPadding: 2 } }
-            ]);
+            valign: 'middle',
+            fontStyle: 'bold',
+            cellWidth: 'wrap'
           }
         });
       });
       
+      // Group all employees from all days - najpierw zbieramy wszystkich pracowników
+      const employeesMap = {}; // key: user_id, value: {name, shifts: {date: [shift]}}
+      
+      // Collect all employees and their shifts across all days
+      Object.entries(dailyRotaData).forEach(([date, slots]) => {
+        const filteredSlots = slots.filter(slot => slot.profiles);
+        
+        filteredSlots.forEach(slot => {
+          const userId = slot.user_id;
+          const name = slot.profiles ? `${slot.profiles.first_name} ${slot.profiles.last_name}` : 'Unknown';
+          
+          if (!employeesMap[userId]) {
+            employeesMap[userId] = {
+              name,
+              shifts: {}
+            };
+          }
+          
+          if (!employeesMap[userId].shifts[date]) {
+            employeesMap[userId].shifts[date] = [];
+          }
+          
+          employeesMap[userId].shifts[date].push({
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            shift_type: slot.shift_type,
+            task: slot.task
+          });
+        });
+      });
+      
+      // Convert to array and sort by name alphabetically
+      const employees = Object.values(employeesMap).sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+      
+      // Prepare table data with location header
+      const tableData = [];
+      
+      // Add employee rows
+      employees.forEach(employee => {
+        const row = [employee.name];
+        
+        // For each day of the week, add shift info
+        dates.forEach((dateInfo, index) => {
+          const currentDate = format(addDays(weekStart, index), 'yyyy-MM-dd');
+          const shiftsForDay = employee.shifts[currentDate] || [];
+          
+          if (shiftsForDay.length === 0) {
+            row.push(''); // No shift on this day
+          } else {
+            // Format shifts info, sorted by start time
+            const shiftsText = shiftsForDay
+              .sort((a, b) => a.start_time.localeCompare(b.start_time))
+              .map(shift => {
+                // Bardzo prosty format - tylko godziny bez oznaczeń pory dnia
+                let shiftInfo = `${fmtTime(shift.start_time)}-${fmtTime(shift.end_time)}`;
+                
+                // Dodaj zadanie na nowej linii, jeśli istnieje
+                if (shift.task) {
+                  shiftInfo += `\n${shift.task}`;
+                }
+                
+                return shiftInfo;
+              })
+              .join('\n');
+              
+            row.push(shiftsText);
+          }
+        });
+        
+        tableData.push(row);
+      });
+      
       // Generate the table
       autoTable(doc, {
-        startY: 35,
+        startY: 44, // Table headers start at Y=44
+        head: [tableColumn],
+        foot: [tableColumn], // Powtarzaj nagłówki na dole każdej strony
         body: tableData,
         theme: 'grid',
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
+        styles: { 
+          overflow: 'linebreak', 
+          fontSize: 7,  // Mniejsza czcionka, aby tekst nie wychodził poza komórki
+          cellPadding: 1,
+          lineColor: [210, 210, 210],
+          lineWidth: 0.1,
+          valign: 'middle'
+        },
+        headStyles: { 
+          fillColor: [50, 50, 80], // Ciemniejszy niebieski - bardziej zgodny z przykładem
+          textColor: [255, 255, 255],
+          halign: 'center',
+          fontStyle: 'bold',
+          cellPadding: 3
+        },
+        footStyles: {
+          fillColor: [50, 50, 80],
+          textColor: [255, 255, 255],
+          halign: 'center',
+          fontStyle: 'bold',
+          cellPadding: 1
+        },
+        columnStyles: {
+          0: { cellWidth: 35 }, // Name column - węższa kolumna z nazwiskami
+          // Remaining columns (days) have equal width
+        },
+        alternateRowStyles: {
+          fillColor: [240, 240, 250] // Jaśniejszy niebieski dla alternatywnych wierszy
+        },
+        rowPageBreak: 'avoid', // Avoid breaking rows across pages
+        bodyStyles: {
+          minCellHeight: 10,
           lineColor: [200, 200, 200],
           lineWidth: 0.1
         },
-        headStyles: {
-          fillColor: [66, 66, 66],
-          textColor: [255, 255, 255]
-        },
-        columnStyles: {
-          0: { cellWidth: 60 },  // Name
-          1: { cellWidth: 40 },  // Time
-          2: { cellWidth: 30 },  // Duration
-          3: { cellWidth: 'auto' } // Task
-        },
+        margin: { top: 44, right: 10, bottom: 10, left: 10 }, // Ensure table respects this top margin
         didParseCell: function(data) {
           // Apply colSpan for header cells
           if (data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.colSpan) {
@@ -486,19 +522,88 @@ const WeeklyRotaPage = () => {
               Object.assign(data.cell.styles, data.cell.raw.styles);
             }
           }
+          
+          // For location headers, also set pageBreak to 'before'
+          if (data.cell.raw && 
+              typeof data.cell.raw === 'object' && 
+              data.cell.raw.colSpan && 
+              data.row.index > 0 && 
+              data.row.section === 'body') {
+            data.row.pageBreak = 'before';
+          }
+          
+          // Formatowanie komórek (zastępuje createdCell)
+          // Dla kolumn z dniami tygodnia (nie dla kolumny z nazwiskami)
+          if (data.column.index > 0) {
+            // Upewnij się, że tekst nie wychodzi poza komórkę
+            data.cell.styles.cellWidth = 'wrap';
+            data.cell.styles.cellPadding = 1;
+            // Wyśrodkuj tekst w komórkach z datami
+            data.cell.styles.halign = 'center';
+          }
+          
+          // Dla kolumny z nazwiskami
+          if (data.column.index === 0 && data.section === 'body') {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.halign = 'left';
+          }
+        },
+        willDrawCell: function(data) {
+          // If a row contains an employee name, ensure all cells for this employee are on the same page
+          if (data.row.section === 'body' && 
+              data.column.index === 0 && 
+              data.cell.text && 
+              typeof data.cell.text === 'string' &&
+              !data.cell.raw?.colSpan) { // Not a location header
+                
+            // If there's not enough space for the entire row, start from a new page
+            if (data.cursor.y > doc.internal.pageSize.height - 50) {
+              data.cursor.y = data.cursor.y + data.cursor.y / 2;
+            }
+          }
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'head' && data.column.index > 0) {
+            const dayIndex = data.column.index - 1;
+            if (dayIndex >= 0 && dayIndex < dates.length) {
+              const dateStr = dates[dayIndex].dayOfMonth;
+              
+              // Pozycja dla daty (pod nagłówkiem)
+              const x = data.cell.x + data.cell.width / 2;
+              const y = data.cell.y + data.cell.height - 2;
+              
+              // Dodaj datę pod nagłówkiem dnia tygodnia
+              doc.setFontSize(6);
+              doc.setTextColor(0, 0, 0);
+              doc.text(dateStr, x, y, {
+                align: 'center'
+              });
+            }
+          }
         },
         didDrawPage: function(data) {
           // Add header on each page
-          doc.setFontSize(16);
+          doc.setFontSize(14);
           doc.text(title, 14, 20);
           doc.setFontSize(10);
-          doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}`, 14, 28);
+          doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+          
+          // Rysuję prostokąt z informacją o lokalizacji
+          doc.setFillColor(240, 240, 240);
+          doc.roundedRect(14, 32, 100, 10, 1, 1, 'F');
+          doc.setFontSize(11);
+          doc.setTextColor(40, 40, 40);
+          doc.text(`Location: ${selectedLocation}`, 18, 39);
+          doc.setTextColor(0, 0, 0);
           
           // Add footer with page number
           const pageSize = doc.internal.pageSize;
           const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
           doc.setFontSize(8);
-          doc.text(`Page ${data.pageNumber} of ${doc.getNumberOfPages()}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
+          
+          // Get the total number of pages
+          const totalPages = doc.getNumberOfPages();
+          doc.text(`Page ${data.pageNumber} of ${totalPages}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
         }
       });
       
@@ -506,20 +611,32 @@ const WeeklyRotaPage = () => {
       const fileName = `${selectedLocation}_Schedule_${format(weekStart, 'yyyy-MM-dd')}.pdf`;
       
       // Save the PDF file to the user's device
-      doc.save(fileName);
+      try {
+        doc.save(fileName);
+      } catch (error) {
+        console.error('PDF save failed:', error);
+        alert('Failed to save PDF. Please try again.');
+        return; // Stop execution to prevent showing modal for failed download
+      }
       
-      // Show confirmation and offer to share via WhatsApp
-      setTimeout(() => {
-        if (confirm(`PDF downloaded as "${fileName}". Would you like to share it via WhatsApp?`)) {
-          // Create a simple message with date range to share via WhatsApp
-          const message = encodeURIComponent(`Schedule for ${selectedLocation} (${dateRange}). Please see the PDF I've just sent you separately.`);
-          window.open(`https://wa.me/?text=${message}`, '_blank');
-        }
-      }, 1000);
+      // Show custom modal instead of browser confirm
+      setDownloadedFile({
+        fileName,
+        dateRange
+      });
+      setShowDownloadModal(true);
+      
     } catch (err) {
-      console.error('Error generating PDF:', err);
-      alert('Failed to generate PDF. Please try again.');
+      console.error('Error generating PDF:', err.message || err);
+      alert(`Failed to generate PDF: ${err.message || 'Unknown error'}. Please try again.`);
     }
+  };
+
+  // Funkcja do udostępniania przez WhatsApp po pobraniu pliku
+  const shareAfterDownload = () => {
+    const message = encodeURIComponent(`Schedule for ${selectedLocation} (${downloadedFile.dateRange}). Please see the PDF I've just sent you separately.`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+    setShowDownloadModal(false);
   };
 
   if (loading) {
@@ -900,6 +1017,41 @@ const WeeklyRotaPage = () => {
           })}
         </div>
       </div>
+
+      {/* Download File Modal */}
+      {showDownloadModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
+            <h3 className="text-xl font-bold text-white mb-4">PDF Downloaded</h3>
+            <div className="text-slate-300 mb-6 space-y-3">
+              <p>
+                <span className="font-medium">File: </span>
+                <span className="text-blue-400">{downloadedFile.fileName}</span>
+              </p>
+              <p className="text-sm text-slate-400">Week: {downloadedFile.dateRange}</p>
+              <p className="mt-4">Would you like to share the schedule via WhatsApp?</p>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button 
+                onClick={() => setShowDownloadModal(false)} 
+                className="px-4 py-2 bg-slate-800/80 text-white rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+              >
+                Close
+              </button>
+              <button 
+                onClick={shareAfterDownload}
+                className="px-4 py-2 bg-green-600/80 text-white rounded border border-green-500/30 hover:bg-green-700/90 shadow-md backdrop-blur-sm transition-all flex items-center justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4 mr-2" fill="currentColor">
+                  <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375a9.869 9.869 0 01-1.516-5.26c0-5.445 4.455-9.885 9.942-9.885a9.865 9.865 0 017.021 2.91 9.788 9.788 0 012.909 6.99c-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652a12.062 12.062 0 005.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411" />
+                </svg>
+                Share via WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

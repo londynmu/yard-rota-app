@@ -147,6 +147,10 @@ W przypadku błędów:
   - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
 - **Assign Task – automatyczne zerowanie pola (2024-07-04):** Po przypisaniu pracownika pole "Assign Task" jest automatycznie czyszczone, a lista sugestii zamykana.
   - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
+- **Podział ekranu Export & Send Weekly Schedule na 4-krokowy kreator (2024-07-05):** Komponent `ExportRota.jsx` został przebudowany – teraz użytkownik przechodzi przez kolejne kroki (1) wybór tygodnia i pobranie danych, (2) pobieranie plików CSV/PDF, (3) wybór agencji, (4) edycja wiadomości e-mail i wysłanie. Dodano pasek postępu oraz przyciski "Back/Next". Logika generowania plików i otwierania mailto: nie zmieniła się.
+- **Ulepszony interfejs pobierania plików w Export & Send (2024-07-05):** Zastąpiono domyślny mechanizm pobierania przeglądarki niestandardowym modalem pobierania plików w komponencie `ExportRota.jsx`. Zamiast automatycznego pobierania plików CSV/PDF, użytkownicy widzą teraz stylizowany, spójny z resztą aplikacji modal z przyciskiem do pobierania pliku.
+- **Ulepszony interfejs pobierania PDF w My Rota (2024-07-05):** Zastąpiono domyślny mechanizm potwierdzenia przeglądarki (confirm) po pobraniu PDF w widoku My Rota niestandardowym modalem w stylu aplikacji. Nowy modal pokazuje nazwę pobranego pliku, zakres dat i oferuje przyciski do zamknięcia lub udostępnienia przez WhatsApp.
+- **Ujednolicony format PDF w My Rota (2024-07-05):** Zoptymalizowano format generowanego PDF w widoku My Rota, zgodnie ze standardami firmowymi. PDF wyświetla dane w formie przejrzystej tabeli z nazwiskami pracowników w wierszach i dniami tygodnia w kolumnach. Zmiany obejmują: prosty format godzin (HH:MM-HH:MM), wyśrodkowany tekst w komórkach, nazwy zadań pod godzinami, nagłówki z nazwami dni i datami, naprzemienne kolorowanie wierszy oraz stopkę z numeracją stron.
 
 ## Wytyczne dotyczące kodu i UI
 

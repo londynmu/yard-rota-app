@@ -19,6 +19,20 @@ const ExportRota = () => {
     `Please find attached the weekly staff schedule for the upcoming week.\n\nPlease confirm receipt of this schedule.\n\nThank you.`
   );
   const [currentUser, setCurrentUser] = useState(null);
+  const [step, setStep] = useState(1);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadInfo, setDownloadInfo] = useState({ url: '', fileName: '', type: '' });
+
+  // Helper – can we go to the next step?
+  const isNextDisabled = () => {
+    if (step === 1) {
+      return rotaData.length === 0; // need data first
+    }
+    if (step === 3) {
+      return selectedAgencies.length === 0; // need at least one agency
+    }
+    return false;
+  };
 
   // Fetch agencies list
   useEffect(() => {
@@ -298,18 +312,15 @@ const ExportRota = () => {
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      
-      // Create download link
-      const link = document.createElement('a');
       const fileName = `rota_${startDate}_${format(addDays(new Date(startDate), 6), 'yyyy-MM-dd')}.csv`;
       
-      link.setAttribute('href', url);
-      link.setAttribute('download', fileName);
-      link.style.visibility = 'hidden';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Show download modal instead of auto-downloading
+      setDownloadInfo({
+        url,
+        fileName,
+        type: 'CSV'
+      });
+      setShowDownloadModal(true);
       
       return csvContent; // Return for potential email attachment
     } catch (err) {
@@ -475,9 +486,18 @@ const ExportRota = () => {
         }
       });
       
-      // Save PDF
+      // Get the PDF as blob URL instead of saving directly
       const fileName = `rota_${startDate}_${format(addDays(new Date(startDate), 6), 'yyyy-MM-dd')}.pdf`;
-      doc.save(fileName);
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      
+      // Show download modal
+      setDownloadInfo({
+        url,
+        fileName,
+        type: 'PDF'
+      });
+      setShowDownloadModal(true);
       
       return doc; // Return for potential email attachment
     } catch (err) {
@@ -569,51 +589,55 @@ const ExportRota = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 space-y-6 shadow-xl">
-      <h2 className="text-xl font-semibold text-white">Export & Send Weekly Schedule</h2>
-      
-      {/* Date Selection */}
-      <div>
-        <label htmlFor="start-date" className="block text-white mb-1">
-          Select Week (Starting Saturday)
-        </label>
-        <input
-          id="start-date"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-white [color-scheme:dark] focus:outline-none"
-        />
-        <p className="text-slate-400 text-sm mt-1">
-          Week: {startDate} to {startDate ? format(addDays(new Date(startDate), 6), 'yyyy-MM-dd') : ''}
-        </p>
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 shadow-xl space-y-6">
+      {/* Heading */}
+      <h2 className="text-xl font-semibold text-white mb-4">Export & Send Weekly Schedule</h2>
+
+      {/* Progress bar */}
+      <div className="flex items-center space-x-3">
+        <span className="text-slate-400 text-sm">Step {step} / 4</span>
+        <div className="flex-1 h-2 bg-slate-700/60 rounded">
+          <div
+            className="h-2 bg-blue-500 rounded transition-all duration-300"
+            style={{ width: `${(step / 4) * 100}%` }}
+          />
+        </div>
       </div>
-      
-      {/* Fetch data button */}
-      <div>
-        <button
-          onClick={fetchRotaForWeek}
-          disabled={fetchingData}
-          className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {fetchingData ? (
-            <>
-              <span className="animate-pulse">Loading data...</span>
-            </>
-          ) : (
-            'Fetch Schedule Data'
-          )}
-        </button>
-        
-        {rotaData.length > 0 && (
-          <p className="text-slate-300 text-sm mt-2">
-            {rotaData.length} shifts loaded for selected week
-          </p>
-        )}
-      </div>
-      
-      {/* Download buttons */}
-      {rotaData.length > 0 && (
+
+      {/* STEP 1 – Week selection & Fetch */}
+      {step === 1 && (
+        <>
+          <div>
+            <label htmlFor="start-date" className="block text-white mb-1">Select Week (Starting Saturday)</label>
+            <input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-white [color-scheme:dark] focus:outline-none"
+            />
+            <p className="text-slate-400 text-sm mt-1">
+              Week: {startDate} to {startDate ? format(addDays(new Date(startDate), 6), 'yyyy-MM-dd') : ''}
+            </p>
+          </div>
+
+          <div>
+            <button
+              onClick={fetchRotaForWeek}
+              disabled={fetchingData}
+              className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {fetchingData ? <span className="animate-pulse">Loading data...</span> : 'Fetch Schedule Data'}
+            </button>
+            {rotaData.length > 0 && (
+              <p className="text-slate-300 text-sm mt-2">{rotaData.length} shifts loaded for selected week</p>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* STEP 2 – Download files */}
+      {step === 2 && (
         <div className="flex flex-wrap gap-3">
           <button
             onClick={generateCSV}
@@ -629,12 +653,11 @@ const ExportRota = () => {
           </button>
         </div>
       )}
-      
-      {/* Agency Selection */}
-      {agencies.length > 0 && rotaData.length > 0 && (
-        <div>
+
+      {/* STEP 3 – Agency selection */}
+      {step === 3 && agencies.length > 0 && (
+        <>
           <h3 className="text-lg font-medium text-white mb-3">Send to Agency Managers</h3>
-          
           <div className="mb-4 max-h-60 overflow-y-auto bg-slate-800/50 rounded border border-slate-700/50 p-3">
             {agencies.map(agency => (
               <div key={agency.id} className="flex items-center mb-2">
@@ -651,8 +674,6 @@ const ExportRota = () => {
               </div>
             ))}
           </div>
-          
-          {/* Recipients Preview */}
           {selectedAgencies.length > 0 && (
             <div className="mb-4 p-3 bg-slate-800/50 rounded border border-slate-700/50">
               <h4 className="text-white text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
@@ -661,9 +682,7 @@ const ExportRota = () => {
                   const agency = agencies.find(a => a.id === agencyId);
                   return (
                     <div key={agencyId} className="text-white mb-1 flex items-center">
-                      <div className="bg-blue-600/30 px-2 py-1 rounded-full text-xs mr-2">
-                        To
-                      </div>
+                      <div className="bg-blue-600/30 px-2 py-1 rounded-full text-xs mr-2">To</div>
                       {agency?.name}: {agency?.email}
                     </div>
                   );
@@ -671,12 +690,14 @@ const ExportRota = () => {
               </div>
             </div>
           )}
-          
-          {/* Email Message Template */}
+        </>
+      )}
+
+      {/* STEP 4 – Email message & send */}
+      {step === 4 && (
+        <>
           <div className="mb-4">
-            <label htmlFor="email-message" className="block text-white mb-1">
-              Email Message
-            </label>
+            <label htmlFor="email-message" className="block text-white mb-1">Email Message</label>
             <textarea
               id="email-message"
               value={emailMessage}
@@ -686,7 +707,6 @@ const ExportRota = () => {
               placeholder="Enter custom message to send with the schedule..."
             />
           </div>
-          
           <button
             onClick={confirmSend}
             disabled={loading || selectedAgencies.length === 0}
@@ -694,9 +714,31 @@ const ExportRota = () => {
           >
             {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
           </button>
-        </div>
+        </>
       )}
-      
+
+      {/* Navigation buttons */}
+      <div className="flex justify-between pt-4">
+        {step > 1 ? (
+          <button
+            onClick={() => setStep(step - 1)}
+            className="px-4 py-2 bg-slate-700/80 text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+          >
+            Back
+          </button>
+        ) : <span />}
+
+        {step < 4 && (
+          <button
+            onClick={() => setStep(step + 1)}
+            disabled={isNextDisabled()}
+            className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        )}
+      </div>
+
       {/* Error/Success Messages */}
       {error && (
         <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in backdrop-blur-sm">
@@ -759,6 +801,37 @@ const ExportRota = () => {
               >
                 Yes, I&apos;m 100% Sure - Send Now
               </button>
+            </div>
+          </div>
+        </div>, document.body)}
+
+      {/* Download File Modal */}
+      {showDownloadModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
+            <h3 className="text-xl font-bold text-white mb-4">Download File</h3>
+            <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
+              <p>
+                <span className="font-medium">File ready: </span>
+                <span className="text-blue-400">{downloadInfo.fileName}</span>
+              </p>
+              <p className="text-sm text-slate-400">Week: {format(new Date(startDate), 'dd/MM/yyyy')} - {format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}</p>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button 
+                onClick={() => setShowDownloadModal(false)} 
+                className="px-4 py-2 bg-slate-800/80 text-white rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+              <a 
+                href={downloadInfo.url}
+                download={downloadInfo.fileName}
+                onClick={() => setShowDownloadModal(false)}
+                className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all text-center"
+              >
+                Download {downloadInfo.type}
+              </a>
             </div>
           </div>
         </div>, document.body)}
