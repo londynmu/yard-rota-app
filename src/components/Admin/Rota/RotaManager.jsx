@@ -925,26 +925,32 @@ const RotaManager = () => {
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 w-full">
+        <div className="flex space-x-2 w-full border border-slate-700/40 bg-slate-800/30 backdrop-blur-sm rounded-md overflow-hidden">
           <button
             onClick={openAddSlotModal}
-            className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+            className="flex-1 px-2 py-1.5 flex items-center justify-center bg-blue-600/80 text-white hover:bg-blue-700/90 transition-all border-r border-slate-700/40"
+            title="Add Slot"
           >
-            Add Slot
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Add Slot</span>
           </button>
           
           <button
             onClick={handleCopyFromPreviousWeek}
-            className="flex-1 px-4 py-2 bg-slate-700/80 text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all flex items-center justify-center"
+            className="flex-1 px-2 py-1.5 flex items-center justify-center bg-slate-700/80 text-white hover:bg-slate-600/90 transition-all border-r border-slate-700/40"
+            title="Copy Last Week"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
               <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
               <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
             </svg>
-            <span>Copy Last Week</span>
+            <span className="text-sm hidden sm:inline">Copy Last Week</span>
+            <span className="text-sm inline sm:hidden">Copy</span>
           </button>
           
-          <div className="flex-shrink-0">
+          <div className="flex-1 flex items-center justify-center bg-slate-700/80 text-white hover:bg-slate-600/90 transition-all">
             <ExportRotaButton />
           </div>
         </div>

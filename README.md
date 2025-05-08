@@ -88,6 +88,14 @@ W przypadku błędów:
 ## Ostatnie zmiany
 
 ### Czerwiec 2024
+- **Dodano udostępnianie PDF przez WhatsApp (2024-06-17):** Dodano możliwość generowania i udostępniania harmonogramu w formacie PDF przez WhatsApp. PDF zawiera uporządkowany i sformatowany harmonogram w orientacji poziomej, z podziałem na dni i typy zmian. Funkcja ta pozwala na łatwiejsze czytanie i drukowanie grafików przez odbiorców. Dodano dwa przyciski udostępniania (tekst i PDF) na desktopie oraz jeden przycisk z opcjami na urządzeniach mobilnych.
+  - Zmienione pliki: `src/pages/WeeklyRotaPage.jsx`
+- **Ulepszone filtry typów zmian w widoku My Rota (2024-06-16):** Zmodyfikowano układ filtrów typów zmian (dniówka/popołudnie/noc) w widoku My Rota. Filtry zostały przeniesione do tej samej linii co nawigacja dat i wybór lokalizacji, co poprawia ergonomię interfejsu i pozwala na szybsze przełączanie między różnymi widokami.
+  - Zmienione pliki: `src/pages/WeeklyRotaPage.jsx`
+- **Dodano filtrowanie według typów zmian (2024-06-16):** Dodano nowe zakładki do filtrowania zmian według typu (dniówka/popołudnie/noc) w widoku My Rota na komputerach. Umożliwia to łatwe przeglądanie tylko wybranych typów zmian. Wybór użytkownika jest zapisywany między sesjami.
+  - Zmienione pliki: `src/pages/WeeklyRotaPage.jsx`
+- **Ulepszono widok przypisywania pracowników (2024-06-16):** Zmodyfikowano interfejs AssignModal, aby oddzielać pracowników według preferencji zmian. Pracownicy preferujący zmianę aktualnie przypisywaną są pokazywani domyślnie w zakładce "Available", a pracownicy preferujący inne zmiany są dostępni w nowej zakładce "Other Shifts". Zmiana ta ułatwia przypisywanie pracowników zgodnie z ich preferencjami, jednocześnie zachowując możliwość przypisania każdego dostępnego pracownika.
+  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
 - **Usunięto funkcjonalność Available Shifts (2024-06-15):** Usunięto stronę Available Shifts i wszystkie związane z nią komponenty. Funkcjonalność samodzielnego zgłaszania się do zmian została tymczasowo wyłączona.
   - Zmienione pliki: `src/pages/AvailableShiftsPage.jsx` (usunięty), `src/components/HomePage.jsx` (usunięto nawigację i routing)
 - **Naprawiono zgłaszanie się do dostępnych zmian (2024-06-14):** Poprawiono logikę w `AvailableShiftsPage.jsx` w funkcji `handleClaimShift`. Wcześniej, zapytanie o dostępne rekordy do przypisania pracownika mogło zwracać pusty wynik, nawet jeśli istniały wolne miejsca w slocie oznaczonym jako "available". Zmiana polega na tym, że najpierw weryfikowany jest status głównego rekordu slotu (czy nadal jest `available`), a następnie wyszukiwany jest dowolny pasujący rekord (data, lokalizacja, czas) z `user_id` ustawionym na `null`. Ten konkretny, znaleziony rekord jest następnie aktualizowany o ID pracownika, a jego status zmieniany na `null` (ponieważ to miejsce jest już zajęte).

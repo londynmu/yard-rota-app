@@ -459,10 +459,19 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         if (selectedTab === 'assigned') {
           return employee.isAssigned;
         } else if (selectedTab === 'available') {
+          // Only show employees who prefer this shift type AND are available without conflicts
           return !employee.isAssigned && 
                  !employee.hasOverlappingConflict && 
                  !employee.hasBreakTimeConflict && 
-                 employee.availabilityStatus.toLowerCase() === 'available';
+                 employee.availabilityStatus.toLowerCase() === 'available' &&
+                 employee.shift_preference === slot.shift_type; // Only matching shift preference
+        } else if (selectedTab === 'other_shifts') {
+          // Show employees who prefer different shift types but are otherwise available
+          return !employee.isAssigned && 
+                 !employee.hasOverlappingConflict && 
+                 !employee.hasBreakTimeConflict && 
+                 employee.availabilityStatus.toLowerCase() === 'available' &&
+                 employee.shift_preference !== slot.shift_type; // Different shift preference
         } else if (selectedTab === 'conflicts') {
           return !employee.isAssigned && 
                  (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
@@ -484,8 +493,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const modalContent = (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="bg-black/80 border border-white/30 rounded-lg overflow-hidden max-h-[95vh] max-w-2xl w-full m-4 flex flex-col">
-        <div className="p-4 border-b border-white/20 flex justify-between items-center sticky top-0 bg-black/90 z-10">
-          <h3 className="text-xl font-medium text-white">
+        <div className="p-2 border-b border-white/20 flex justify-between items-center sticky top-0 bg-black/90 z-10">
+          <h3 className="text-base font-medium text-white">
             {slot.location}: {getFormattedDate(slot.date)}, {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
           </h3>
           <button 
@@ -493,14 +502,14 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             className="text-white/70 hover:text-white ml-2 flex-shrink-0"
           >
             <span className="sr-only">Close</span>
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
         {/* Task Assignment Input */}
-        <div className="mx-4 mt-4">
+        <div className="mx-3 mt-2">
           <div className="relative">
             <label htmlFor="task-input" className="block text-sm font-medium text-white mb-1">
               Assign Task <span className="text-gray-400 text-xs">(optional)</span>
@@ -512,7 +521,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                 value={task}
                 onChange={handleTaskChange}
                 placeholder="e.g. VMU cover"
-                className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
               {task && (
                 <button 
@@ -546,42 +555,38 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           </div>
         </div>
         
-        {/* Information about scheduling constraints */}
+        {/* Hide the information about scheduling constraints on mobile */}
         {minBreakMinutes > 0 && (
-          <div className="mx-4 mt-4 p-3 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-md text-blue-100 flex items-center hidden sm:flex">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <div className="mx-3 mt-2 p-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-md text-blue-100 flex items-center hidden sm:flex">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 011 1v4a1 1 0 11-2 0v-4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
-            <div className="text-sm">
-              <p>Scheduling conflicts are detected automatically:</p>
-              <ul className="list-disc list-inside mt-1 ml-2">
-                <li><span className="font-semibold">Shift Overlap</span>: Staff cannot be assigned to shifts that overlap with existing assignments</li>
-                <li><span className="font-semibold">Minimum Time Off</span>: Staff must have at least {formatMinutesToHours(minBreakMinutes)} off between shifts</li>
-              </ul>
-              <p className="mt-1">Staff with scheduling conflicts appear in the &quot;Conflicts&quot; tab.</p>
+            <div className="text-xs">
+              <p>Scheduling conflicts: <span className="font-medium">Shift Overlap</span> | <span className="font-medium">Min Break: {formatMinutesToHours(minBreakMinutes)}</span></p>
             </div>
           </div>
         )}
         
         {/* Capacity Alert - Shows immediately when capacity is reached */}
         {showCapacityAlert && (
-          <div className="mx-4 mt-4 p-3 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md text-red-100 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <div className="mx-3 mt-2 p-2 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-md text-red-100 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
-            <span>Full capacity has been reached. You cannot assign more staff to this slot.</span>
+            <span className="text-xs">Full capacity reached. You cannot assign more staff.</span>
           </div>
         )}
         
-        <div className="p-4 border-b border-white/20 bg-black/90 sticky top-[65px] z-10">
+        <div className="p-2 border-b border-white/20 bg-black/90 sticky top-[50px] z-10">
           {/* Mobile: dropdown selector */}
-          <div className="sm:hidden mb-3">
+          <div className="sm:hidden mb-2">
             <select
               value={selectedTab}
               onChange={(e) => setSelectedTab(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full bg-white/10 border border-white/20 rounded-md text-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <option value="available">Available</option>
+              <option value="available">Available ({slot.shift_type} Shift)</option>
+              <option value="other_shifts">Other Shifts</option>
               <option value="assigned">Assigned</option>
               <option value="conflicts">Conflicts</option>
               <option value="unavailable">Unavailable</option>
@@ -592,27 +597,37 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           <div className="hidden sm:flex w-full">
             <button
               onClick={() => setSelectedTab('available')}
-              className={`px-3 py-2 flex-1 sm:rounded-l-md rounded-t-md ${
+              className={`px-3 py-1.5 flex-1 sm:rounded-tl-md ${
                 selectedTab === 'available' 
                   ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                   : 'bg-white/10 border-white/20 text-white/70'
-              } border`}
+              } border-l border-t border-b`}
             >
-              Available
+              Available ({slot.shift_type})
+            </button>
+            <button
+              onClick={() => setSelectedTab('other_shifts')}
+              className={`px-3 py-1.5 flex-1 ${
+                selectedTab === 'other_shifts' 
+                  ? 'bg-blue-600/30 border-blue-400/30 text-white' 
+                  : 'bg-white/10 border-white/20 text-white/70'
+              } border-t border-b`}
+            >
+              Other Shifts
             </button>
             <button
               onClick={() => setSelectedTab('assigned')}
-              className={`px-3 py-2 flex-1 ${
+              className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'assigned' 
                   ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                   : 'bg-white/10 border-white/20 text-white/70'
-              } border-t sm:border-t border-b`}
+              } border-t border-b`}
             >
               Assigned
             </button>
             <button
               onClick={() => setSelectedTab('conflicts')}
-              className={`px-3 py-2 flex-1 ${
+              className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'conflicts' 
                   ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                   : 'bg-white/10 border-white/20 text-white/70'
@@ -622,59 +637,59 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             </button>
             <button
               onClick={() => setSelectedTab('unavailable')}
-              className={`px-3 py-2 flex-1 sm:rounded-r-md rounded-b-md ${
+              className={`px-3 py-1.5 flex-1 sm:rounded-tr-md ${
                 selectedTab === 'unavailable' 
                   ? 'bg-blue-600/30 border-blue-400/30 text-white' 
                   : 'bg-white/10 border-white/20 text-white/70'
-              } border`}
+              } border-r border-t border-b`}
             >
               Unavailable
             </button>
           </div>
           
           {/* Enhanced Capacity Indicator */}
-          <div className="mt-4">
+          <div className="mt-2">
             <div className="flex justify-between items-center mb-1 text-white">
-              <span className="font-medium">Staff Capacity</span>
-              <span className={localAssignedCount >= slot.capacity ? "text-red-300 font-bold" : "text-white/80"}>
+              <span className="font-medium text-xs">Staff Capacity</span>
+              <span className={localAssignedCount >= slot.capacity ? "text-red-300 font-bold text-xs" : "text-white/80 text-xs"}>
                 {localAssignedCount}/{slot.capacity}
                 {localAssignedCount >= slot.capacity && (
-                  <span className="ml-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" viewBox="0 0 20 20" fill="currentColor">
+                  <span className="ml-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </span>
                 )}
               </span>
             </div>
-            <div className="w-full bg-gray-700/50 rounded-full h-2.5">
-              <div className={`${capacityColorClass} h-2.5 rounded-full transition-all duration-300`} style={{ width: `${Math.min(100, capacityPercentage)}%` }}></div>
+            <div className="w-full bg-gray-700/50 rounded-full h-2">
+              <div className={`${capacityColorClass} h-2 rounded-full transition-all duration-300`} style={{ width: `${Math.min(100, capacityPercentage)}%` }}></div>
             </div>
             {localAssignedCount >= slot.capacity && (
-              <p className="text-red-300 text-sm mt-1">Full capacity reached. You cannot assign more staff.</p>
+              <p className="text-red-300 text-xs mt-1">Full capacity reached.</p>
             )}
           </div>
         </div>
         
-        <div className="overflow-y-auto p-4 flex-1">
+        <div className="overflow-y-auto p-2 flex-1">
           {loading ? (
-            <div className="flex flex-col items-center py-4 gap-2">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
-              <div className="text-white/70">Loading employees...</div>
+            <div className="flex flex-col items-center py-2 gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
+              <div className="text-white/70 text-sm">Loading employees...</div>
             </div>
           ) : availableEmployees.length === 0 ? (
-            <div className="flex justify-center py-4">
-              <p className="text-white/70">No employees found. Please check database connection.</p>
+            <div className="flex justify-center py-2">
+              <p className="text-white/70 text-sm">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
             <ul className="space-y-2">
               {getFilteredEmployees().map(employee => (
                 <li 
                   key={employee.id} 
-                  className="bg-white/5 backdrop-blur-sm rounded-md p-3 border border-white/10 flex justify-between items-center"
+                  className="bg-white/5 backdrop-blur-sm rounded-md p-2 border border-white/10 flex justify-between items-center"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
                       {employee.avatar_url ? (
                         <img 
                           src={employee.avatar_url} 
@@ -682,7 +697,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-lg font-medium text-white">
+                        <span className="text-base font-medium text-white">
                           {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
                         </span>
                       )}
@@ -692,46 +707,57 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       <div className="font-medium text-white flex items-center gap-1">
                         {employee.first_name} {employee.last_name}
                         {typeof employee.weeklyShifts === 'number' && (
-                          <span className="bg-white text-black font-bold text-xs px-1.5 py-0.5 rounded-md shadow-sm border border-white/10">
+                          <span className="bg-white text-black font-bold text-xs px-1 py-0.5 rounded-md shadow-sm border border-white/10">
                             {employee.weeklyShifts}
                           </span>
                         )}
                         
-                        {/* Display performance score if available */}
+                        {/* Performance score badge */}
                         {employee.performance_score && (
-                          <span className="bg-green-500/20 border border-green-500/30 text-green-300 font-bold text-xs px-1.5 py-0.5 rounded-md ml-1">
+                          <span className="bg-green-500/20 border border-green-500/30 text-green-300 font-bold text-xs px-1 py-0.5 rounded-md ml-1">
                             {employee.performance_score}
                           </span>
                         )}
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-1 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded ${getAvailabilityClass(employee.availabilityStatus)}`}>
+                        {/* Availability status */}
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${getAvailabilityClass(employee.availabilityStatus)}`}>
                           {employee.availabilityStatus}
                         </span>
                         
-                        {employee.shift_preference === slot.shift_type && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
-                            Preferred shift
+                        {/* Star rating system for preferences */}
+                        <div className="flex space-x-1 items-center">
+                          {/* Preferred shift star */}
+                          <span className={`${employee.shift_preference === slot.shift_type ? 'text-blue-500' : 'text-white/20'}`} title="Preferred shift">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
                           </span>
-                        )}
-                        
-                        {(employee.preferred_location === slot.location || employee.preferred_location === 'Both') && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
-                            Preferred location
+                          
+                          {/* Preferred location star */}
+                          <span className={`${(employee.preferred_location === slot.location || employee.preferred_location === 'Both') ? 'text-purple-500' : 'text-white/20'}`} title="Preferred location">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                            </svg>
                           </span>
-                        )}
+                          
+                          {/* Preferred time icon */}
+                          {employee.custom_start_time && employee.custom_end_time && (
+                            <span className="text-teal-500" title={`Preferred time: ${employee.custom_start_time} - ${employee.custom_end_time}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
                         
+                        {/* Break conflict warning */}
                         {employee.hasBreakConflict && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-300">
-                            Break conflict
-                          </span>
-                        )}
-                        
-                        {/* Display Preferred Time Range */}
-                        {employee.custom_start_time && employee.custom_end_time && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-300">
-                            Pref: {employee.custom_start_time} - {employee.custom_end_time}
+                          <span className="text-orange-500" title="Break time conflict">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
                           </span>
                         )}
                       </div>
@@ -743,7 +769,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       e.stopPropagation();
                       handleAssignEmployee(employee.id, employee.isAssigned, task);
                     }}
-                    className={`px-3 py-1.5 rounded text-sm flex-shrink-0 ${
+                    className={`px-2 py-1 rounded text-xs flex-shrink-0 ${
                       employee.isAssigned
                         ? 'bg-red-500/20 border-red-400/30 text-red-200 hover:bg-red-500/30'
                         : employee.hasBreakConflict
@@ -755,29 +781,40 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     disabled={(!employee.isAssigned && localAssignedCount >= slot.capacity) || (!employee.isAssigned && employee.hasBreakConflict)}
                     title={
                       employee.hasOverlappingConflict 
-                        ? `This staff member has a scheduling conflict - already assigned to an overlapping shift during this time` 
+                        ? `This staff member has a scheduling conflict - already assigned to an overlapping shift` 
                         : employee.hasBreakTimeConflict
                         ? `This staff member needs at least ${formatMinutesToHours(minBreakMinutes)} time off between shifts`
                         : ''
                     }
                   >
-                    {employee.isAssigned ? 'Remove' : employee.hasOverlappingConflict ? 'Shift Overlap' : employee.hasBreakTimeConflict ? 'Break Too Short' : 'Assign'}
+                    {employee.isAssigned ? 'Remove' : employee.hasOverlappingConflict ? 'Overlap' : employee.hasBreakTimeConflict ? 'Break' : 'Assign'}
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="text-center py-6 text-white/70">
-              <p>No matching employees found</p>
-              <p className="text-sm mt-1">Try adjusting your search or filters</p>
+            <div className="text-center py-4 text-white/70">
+              {selectedTab === 'available' ? (
+                <div>
+                  <p className="text-sm">No employees who prefer {slot.shift_type} shifts are available</p>
+                  <p className="text-xs mt-2">Check the "Other Shifts" tab to see staff with different shift preferences</p>
+                </div>
+              ) : selectedTab === 'other_shifts' ? (
+                <div>
+                  <p className="text-sm">No employees with different shift preferences are available</p>
+                  <p className="text-xs mt-2">All available staff prefer {slot.shift_type} shifts</p>
+                </div>
+              ) : (
+                <p className="text-sm">No matching employees found</p>
+              )}
             </div>
           )}
         </div>
         
-        <div className="p-4 border-t border-white/20 flex justify-end sticky bottom-0 bg-black/90 z-10">
+        <div className="p-2 border-t border-white/20 flex justify-end sticky bottom-0 bg-black/90 z-10">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white hover:bg-white/20 transition-colors"
+            className="px-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white hover:bg-white/20 transition-colors text-sm"
           >
             Done
           </button>
