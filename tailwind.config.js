@@ -13,6 +13,7 @@ export default {
         'pulse-yellow': 'pulseYellow 3s infinite',
         'pulse-green': 'pulseGreen 2s infinite',
         'slide-in': 'slideIn 0.3s ease-out',
+        'fade-scale': 'fadeScale 0.25s ease-out',
       },
       keyframes: {
         fadeInUp: {
@@ -58,6 +59,16 @@ export default {
           '50%': {
             boxShadow: '0 0 0 4px rgba(34, 197, 94, 0.2)'
           },
+        },
+        fadeScale: {
+          '0%': {
+            opacity: '0',
+            transform: 'scale(0.95)'
+          },
+          '100%': {
+            opacity: '1',
+            transform: 'scale(1)'
+          }
         },
       },
     },

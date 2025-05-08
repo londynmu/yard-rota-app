@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
+import { createPortal } from 'react-dom';
 
 const SlotCard = ({ 
   slot, 
@@ -102,9 +103,9 @@ const SlotCard = ({
   const DeleteConfirmationModal = () => {
     if (!showDeleteConfirm) return null;
     
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-5 max-w-md mx-4 animate-fade-in-up">
+    const modalContent = (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-5 w-full max-w-md animate-fade-scale">
           <h3 className="text-xl font-bold text-white mb-3">Confirm Delete</h3>
           <p className="text-white/90 mb-5">
             Are you sure you want to delete this slot?
@@ -114,7 +115,6 @@ const SlotCard = ({
               </span>
             )}
           </p>
-          
           <div className="flex space-x-3 justify-end">
             <button
               onClick={() => setShowDeleteConfirm(false)}
@@ -135,6 +135,7 @@ const SlotCard = ({
         </div>
       </div>
     );
+    return createPortal(modalContent, document.body);
   };
 
   return (

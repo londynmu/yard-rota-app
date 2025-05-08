@@ -139,6 +139,15 @@ W przypadku błędów:
 - **Naprawiono błąd generowania PDF (2024-05-14):** Naprawiono błąd "W.autoTable is not a function".
 - **Naprawiono numerowanie stron w PDF (2024-05-14):** Naprawiono niepoprawne numerowanie stron w generowanych PDF-ach.
 
+### Lipiec 2024
+- **Nowy scentralizowany system powiadomień (2024-07-04):** Zaimplementowano `ToastContext` oraz komponent `Toast.jsx`, które zapewniają nowoczesne, animowane powiadomienia wyświetlane dokładnie na środku ekranu z efektem rozmycia tła. Komunikaty znikają po 2 s i są dostępne globalnie w aplikacji (wstrzyknięte w `main.jsx`).
+  - Nowe pliki: `src/components/ui/ToastContext.jsx`, `src/components/ui/Toast.jsx`
+  - Zmienione pliki: `tailwind.config.js` (dodano animację `fade-scale`), `src/main.jsx`, `src/components/Admin/Rota/RotaManager.jsx`
+- **AssignModal – zakładka Other Locations (2024-07-04):** Dodano nową zakładkę, która wyświetla wszystkich pracowników z innych lokalizacji (również niedostępnych). Zaktualizowano logikę filtrowania oraz widok mobilny/desktop.
+  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
+- **Assign Task – automatyczne zerowanie pola (2024-07-04):** Po przypisaniu pracownika pole "Assign Task" jest automatycznie czyszczone, a lista sugestii zamykana.
+  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
+
 ## Wytyczne dotyczące kodu i UI
 
 - Interfejs powinien być MOBILE-FRIENDLY

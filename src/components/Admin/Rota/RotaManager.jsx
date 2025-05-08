@@ -6,6 +6,7 @@ import TimePicker from './TimePicker';
 import EditSlotModal from './EditSlotModal';
 import ExportRotaButton from '../ExportRotaButton';
 import { createPortal } from 'react-dom';
+import { useToast } from '../../ui/ToastContext';
 
 // Add date-fns for date manipulation
 import { format, addDays, parseISO } from 'date-fns';
@@ -47,6 +48,7 @@ const RotaManager = () => {
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [activeTimeField, setActiveTimeField] = useState(null); // 'start' or 'end'
   const [timePickerCallback, setTimePickerCallback] = useState(null);
+  const toast = useToast();
 
   // Save current date to localStorage whenever it changes
   useEffect(() => {
@@ -224,12 +226,20 @@ const RotaManager = () => {
   // Dodaję funkcję do automatycznego usuwania komunikatu sukcesu po 3 sekundach
   useEffect(() => {
     if (successMessage) {
-      const timer = setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-      return () => clearTimeout(timer);
+      // Wyświetl toast zamiast lokalnego komunikatu
+      toast.success(successMessage);
+      setSuccessMessage(null); // Wyczyść, by nie pokazywać starego komponentu
     }
-  }, [successMessage]);
+  }, [successMessage, toast]);
+
+  // Wyświetlanie błędów jako toast
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      // Clear after showing to avoid repeated toasts
+      setError(null);
+    }
+  }, [error, toast]);
 
   const handleDateChange = (e) => {
     // Save current scroll position before changing date
@@ -955,36 +965,6 @@ const RotaManager = () => {
           </div>
         </div>
       </div>
-
-      {/* Komponent komunikatu sukcesu */}
-      {successMessage && (
-        <div className="fixed inset-x-0 top-24 flex items-center justify-center z-50 px-4">
-          <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in max-w-md backdrop-blur-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm sm:text-base">{successMessage}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Komunikat o błędzie */}
-      {error && (
-        <div className="fixed inset-x-0 top-24 flex items-center justify-center z-50 px-4">
-          <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 max-w-md backdrop-blur-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm sm:text-base font-medium">{error}</span>
-            <button
-              className="ml-2 text-slate-600 hover:text-slate-800 font-bold"
-              onClick={() => setError(null)}
-            >
-              &times;
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-8">
         {Object.entries(slotsByShift).map(([shiftType, shiftSlots]) => (
