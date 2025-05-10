@@ -87,6 +87,31 @@ W przypadku błędów:
 
 ## Ostatnie zmiany
 
+### Maj 2024
+- **Nowy scentralizowany system powiadomień (2024-05-09):** Zaimplementowano `ToastContext` oraz komponent `Toast.jsx`, które zapewniają nowoczesne, animowane powiadomienia wyświetlane dokładnie na środku ekranu z efektem rozmycia tła. Komunikaty znikają po 2 s i są dostępne globalnie w aplikacji (wstrzyknięte w `main.jsx`).
+  - Nowe pliki: `src/components/ui/ToastContext.jsx`, `src/components/ui/Toast.jsx`
+  - Zmienione pliki: `tailwind.config.js` (dodano animację `fade-scale`), `src/main.jsx`, `src/components/Admin/Rota/RotaManager.jsx`
+- **AssignModal – zakładka Other Locations (2024-05-09):** Dodano nową zakładkę, która wyświetla wszystkich pracowników z innych lokalizacji (również niedostępnych). Zaktualizowano logikę filtrowania oraz widok mobilny/desktop.
+  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
+- **Assign Task – automatyczne zerowanie pola (2024-05-09):** Po przypisaniu pracownika pole "Assign Task" jest automatycznie czyszczone, a lista sugestii zamykana.
+  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
+- **Podział ekranu Export & Send Weekly Schedule na 4-krokowy kreator (2024-05-09):** Komponent `ExportRota.jsx` został przebudowany – teraz użytkownik przechodzi przez kolejne kroki (1) wybór tygodnia i pobranie danych, (2) pobieranie plików CSV/PDF, (3) wybór agencji, (4) edycja wiadomości e-mail i wysłanie. Dodano pasek postępu oraz przyciski "Back/Next". Logika generowania plików i otwierania mailto: nie zmieniła się.
+- **Ulepszony interfejs pobierania plików w Export & Send (2024-05-09):** Zastąpiono domyślny mechanizm pobierania przeglądarki niestandardowym modalem pobierania plików w komponencie `ExportRota.jsx`. Zamiast automatycznego pobierania plików CSV/PDF, użytkownicy widzą teraz stylizowany, spójny z resztą aplikacji modal z przyciskiem do pobierania pliku.
+- **Ulepszony interfejs pobierania PDF w My Rota (2024-05-09):** Zastąpiono domyślny mechanizm potwierdzenia przeglądarki (confirm) po pobraniu PDF w widoku My Rota niestandardowym modalem w stylu aplikacji. Nowy modal pokazuje nazwę pobranego pliku, zakres dat i oferuje przyciski do zamknięcia lub udostępnienia przez WhatsApp.
+- **Ujednolicony format PDF w My Rota (2024-05-09):** Zoptymalizowano format generowanego PDF w widoku My Rota, zgodnie ze standardami firmowymi. PDF wyświetla dane w formie przejrzystej tabeli z nazwiskami pracowników w wierszach i dniami tygodnia w kolumnach. Zmiany obejmują: prosty format godzin (HH:MM-HH:MM), wyśrodkowany tekst w komórkach, nazwy zadań pod godzinami, nagłówki z nazwami dni i datami, naprzemienne kolorowanie wierszy oraz stopkę z numeracją stron.
+- **Zmieniono format wyświetlania czasu na 24h (2024-05-09):** Zmodyfikowano format wyświetlania czasu w całej aplikacji z 12-godzinnego (AM/PM) na 24-godzinny. Zmiana objęła komponenty TodaysShiftInfo i ShiftDashboard, zapewniając spójny format wyświetlania czasu w całej aplikacji.
+  - Zmienione pliki: `src/components/User/TodaysShiftInfo.jsx`, `src/components/User/ShiftDashboard.jsx`
+- **Ulepszono obsługę nocnych zmian (2024-05-09):** Przebudowano logikę obliczania czasu w komponencie TodaysShiftInfo oraz ShiftDashboard, aby poprawnie obsługiwać zmiany nocne przekraczające północ. Zmodyfikowano funkcje `isShiftNow`, `getShiftProgress` i `getTimeRemaining` aby prawidłowo obliczać postęp i pozostały czas dla zmian nocnych. Pasek postępu i status "ACTIVE" teraz poprawnie działają dla wszystkich typów zmian.
+  - Zmienione pliki: `src/components/User/TodaysShiftInfo.jsx`, `src/components/User/ShiftDashboard.jsx`
+- **Ulepszono modal udostępniania w My Rota (2024-05-09):** Zastąpiono natywne okno dialogowe `confirm` niestandardowym modalem wyboru formatu udostępniania (tekstowy lub PDF) w widoku `My Rota` na urządzeniach mobilnych. Nowy modal jest spójny wizualnie z resztą aplikacji.
+  - Zmienione pliki: `src/pages/WeeklyRotaPage.jsx`
+- **Ulepszono wybór daty w eksporcie grafiku (2024-05-09):** W modal "Export & Send Weekly Schedule", domyślna data jest teraz ustawiana na najbliższą sobotę. Dodatkowo, w kalendarzu można wybrać tylko soboty; inne dni są wyszarzone i nieaktywne. Zastąpiono standardowy `input[type="date"]` komponentem `react-datepicker`.
+  - Zmienione pliki: `src/components/Admin/ExportRota.jsx`
+- **Dodano ikonę kalendarza do DatePicker w eksporcie (2024-05-09):** W komponencie `ExportRota.jsx`, do pola wyboru daty (`react-datepicker`) dodano widoczną ikonę kalendarza, umieszczoną wewnątrz pola po prawej stronie.
+  - Zmienione pliki: `src/components/Admin/ExportRota.jsx`
+- **Rozszerzono modal eksportu i ulepszono kalendarz (2024-05-09):** Zwiększono rozmiar modalu eksportu grafiku i poprawiono wyświetlanie kalendarza, aby był w pełni widoczny. Ikona kalendarza została zmieniona na białą dla lepszej widoczności na ciemnym tle. Dodano style CSS zapewniające prawidłowe wyświetlanie kalendarza i wyraźne oznaczenie tylko dni sobotnich jako dostępnych do wyboru.
+  - Zmienione pliki: `src/components/Admin/ExportRota.jsx`
+
 ### Czerwiec 2024
 - **Dodano widget informujący o dzisiejszej zmianie (2024-06-20):** Zaimplementowano widget "Today's Shift" na stronie głównej, który pokazuje szczegółowe informacje o zmianie użytkownika zaplanowanej na dzisiejszy dzień. Widget wyświetla godziny rozpoczęcia i zakończenia, lokalizację, typ zmiany oraz status (aktywna/nieaktywna). W przypadku aktywnej zmiany widoczny jest czas pozostały do jej zakończenia oraz informacje o nadchodzących lub trwających przerwach. Komponent automatycznie odświeża się co 15 minut i jest w pełni responsywny.
   - Nowe pliki: `src/components/User/TodaysShiftInfo.jsx`
@@ -120,52 +145,3 @@ W przypadku błędów:
 - **Dodano zakładkę Agencies (2024-06-11):** Utworzono nową zakładkę "Agencies" w panelu administracyjnym.
 - **Dodano zakładkę Breaks Config (2024-06-11):** Utworzono nową zakładkę "Breaks Config" w panelu administracyjnym.
 - **Naprawiono sortowanie slotów w Rota Planner (2024-06-11):** Poprawiono kolejność wyświetlania slotów.
-
-### Maj 2024
-- **Dodano zapamiętywanie pozycji przewijania w Rota Planner (2024-05-20):** Zaimplementowano zapamiętywanie pozycji przewijania na stronie Rota Planner.
-- **Naprawiono trwałość daty Rota Planner przy odświeżaniu (2024-05-20):** Naprawiono problem, gdzie odświeżanie strony resetowało datę.
-- **Trwałość daty Rota Planner (2024-05-17):** Zaimplementowano zapamiętywanie ostatnio przeglądanej daty.
-- **Naprawiono automatyczne przewijanie zakładki Ustawienia (2024-05-17):** Naprawiono problem z automatycznym przewijaniem.
-- **Naprawiono dropdown powiadomień na urządzeniach mobilnych (2024-05-16):** Ulepszono wyświetlanie dropdown powiadomień.
-- **Ulepszono logikę przypisywania przerw (2024-05-16):** Zmodyfikowano funkcjonalność przypisywania przerw.
-- **Reorganizacja formatu eksportu według lokalizacji (2024-05-16):** Zmodyfikowano funkcjonalność eksportu CSV i PDF.
-- **Ulepszono komunikaty o błędach dla duplikatów slotów (2024-05-15):** Wzbogacono wyświetlanie błędów w modalu Add Slot.
-- **Zapobieganie duplikatom slotów (2024-05-15):** Dodano walidację w funkcjonalności Add Slot.
-- **Zakładki lokalizacji w Rota Planner (2024-05-14):** Zastąpiono dropdown wyboru lokalizacji systemem zakładek.
-- **Usunięto zakładkę Preferences z Settings (2024-05-14):** Usunięto zakładkę Preferences z panelu Settings w Admin Dashboard.
-- **Usunięto zakładkę Export z Admin Dashboard (2024-05-14):** Usunięto zakładkę Export z nawigacji Admin Dashboard.
-- **Ulepszono format e-maila (2024-05-14):** Zaktualizowano format wiadomości e-mail w funkcji Export schedule.
-- **Naprawiono funkcjonalność wysyłania e-maili (2024-05-14):** Naprawiono funkcjonalność wysyłania e-maili.
-- **Naprawiono błąd generowania PDF (2024-05-14):** Naprawiono błąd "W.autoTable is not a function".
-- **Naprawiono numerowanie stron w PDF (2024-05-14):** Naprawiono niepoprawne numerowanie stron w generowanych PDF-ach.
-
-### Lipiec 2024
-- **Nowy scentralizowany system powiadomień (2024-07-04):** Zaimplementowano `ToastContext` oraz komponent `Toast.jsx`, które zapewniają nowoczesne, animowane powiadomienia wyświetlane dokładnie na środku ekranu z efektem rozmycia tła. Komunikaty znikają po 2 s i są dostępne globalnie w aplikacji (wstrzyknięte w `main.jsx`).
-  - Nowe pliki: `src/components/ui/ToastContext.jsx`, `src/components/ui/Toast.jsx`
-  - Zmienione pliki: `tailwind.config.js` (dodano animację `fade-scale`), `src/main.jsx`, `src/components/Admin/Rota/RotaManager.jsx`
-- **AssignModal – zakładka Other Locations (2024-07-04):** Dodano nową zakładkę, która wyświetla wszystkich pracowników z innych lokalizacji (również niedostępnych). Zaktualizowano logikę filtrowania oraz widok mobilny/desktop.
-  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
-- **Assign Task – automatyczne zerowanie pola (2024-07-04):** Po przypisaniu pracownika pole "Assign Task" jest automatycznie czyszczone, a lista sugestii zamykana.
-  - Zmienione pliki: `src/components/Admin/Rota/AssignModal.jsx`
-- **Podział ekranu Export & Send Weekly Schedule na 4-krokowy kreator (2024-07-05):** Komponent `ExportRota.jsx` został przebudowany – teraz użytkownik przechodzi przez kolejne kroki (1) wybór tygodnia i pobranie danych, (2) pobieranie plików CSV/PDF, (3) wybór agencji, (4) edycja wiadomości e-mail i wysłanie. Dodano pasek postępu oraz przyciski "Back/Next". Logika generowania plików i otwierania mailto: nie zmieniła się.
-- **Ulepszony interfejs pobierania plików w Export & Send (2024-07-05):** Zastąpiono domyślny mechanizm pobierania przeglądarki niestandardowym modalem pobierania plików w komponencie `ExportRota.jsx`. Zamiast automatycznego pobierania plików CSV/PDF, użytkownicy widzą teraz stylizowany, spójny z resztą aplikacji modal z przyciskiem do pobierania pliku.
-- **Ulepszony interfejs pobierania PDF w My Rota (2024-07-05):** Zastąpiono domyślny mechanizm potwierdzenia przeglądarki (confirm) po pobraniu PDF w widoku My Rota niestandardowym modalem w stylu aplikacji. Nowy modal pokazuje nazwę pobranego pliku, zakres dat i oferuje przyciski do zamknięcia lub udostępnienia przez WhatsApp.
-- **Ujednolicony format PDF w My Rota (2024-07-05):** Zoptymalizowano format generowanego PDF w widoku My Rota, zgodnie ze standardami firmowymi. PDF wyświetla dane w formie przejrzystej tabeli z nazwiskami pracowników w wierszach i dniami tygodnia w kolumnach. Zmiany obejmują: prosty format godzin (HH:MM-HH:MM), wyśrodkowany tekst w komórkach, nazwy zadań pod godzinami, nagłówki z nazwami dni i datami, naprzemienne kolorowanie wierszy oraz stopkę z numeracją stron.
-
-## Wytyczne dotyczące kodu i UI
-
-- Interfejs powinien być MOBILE-FRIENDLY
-- Priorytetem jest prostota, szybkość i czytelność
-- Persistent UI State powinien być używany dla poprawy użyteczności
-- Modalne okienka powinny mieć czarny tekst na białym tle dla czytelności
-- Pola czasowe używają formatu 15-minutowego (00, 15, 30, 45)
-- Na widoku mobilnym należy używać minimalnych marginesów
-- Kontenery powinny zajmować prawie całą szerokość ekranu na urządzeniach mobilnych
-
-## Standardy kodowania
-
-- Zawsze aktualizuj README.md po zmianach
-- Pracuj z istniejącym kodem; nie dodawaj nowych funkcji bez wyraźnego polecenia
-- Konsultuj z użytkownikiem wszelkie decyzje projektowe
-- Upewnij się, że frontend współpracuje z backendem
-- Dostarczaj konkretne, praktyczne rozwiązania

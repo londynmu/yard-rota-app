@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, addDays, getDay, nextSaturday } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
+import DatePicker from 'react-datepicker';
+
+// Funkcja pomocnicza do uzyskania następnej soboty lub bieżącej, jeśli dzisiaj jest sobota
+const getNextOrCurrentSaturday = (date) => {
+  const today = getDay(date); // 0 (Niedziela) do 6 (Sobota)
+  if (today === 6) { // Jeśli dzisiaj jest sobota
+    return date;
+  }
+  return nextSaturday(date);
+};
 
 const ExportRota = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [startDate, setStartDate] = useState(format(startOfWeek(new Date(), { weekStartsOn: 6 }), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(getNextOrCurrentSaturday(new Date()));
   const [agencies, setAgencies] = useState([]);
   const [selectedAgencies, setSelectedAgencies] = useState([]);
   const [rotaData, setRotaData] = useState([]);
@@ -71,9 +81,10 @@ const ExportRota = () => {
     
     try {
       // Calculate end date (7 days)
-      const start = new Date(startDate);
+      const start = startDate;
       const end = addDays(start, 6);
-      const endDate = format(end, 'yyyy-MM-dd');
+      const formattedStartDate = format(start, 'yyyy-MM-dd');
+      const formattedEndDate = format(end, 'yyyy-MM-dd');
       
       // Fetch all scheduled slots for the date range
       const { data: scheduleData, error: scheduleError } = await supabase
@@ -87,8 +98,8 @@ const ExportRota = () => {
           end_time,
           user_id
         `)
-        .gte('date', startDate)
-        .lte('date', endDate)
+        .gte('date', formattedStartDate)
+        .lte('date', formattedEndDate)
         .not('user_id', 'is', null);
       
       if (scheduleError) throw scheduleError;
@@ -238,6 +249,12 @@ const ExportRota = () => {
     return result;
   };
 
+  // Funkcja do filtrowania dat, aby zezwolić tylko na soboty
+  const isSaturday = (date) => {
+    const day = getDay(date);
+    return day === 6; // 6 to sobota w date-fns (0 - niedziela)
+  };
+
   // Generate and download CSV
   const generateCSV = () => {
     if (rotaData.length === 0) {
@@ -312,7 +329,7 @@ const ExportRota = () => {
       const csvContent = csvRows.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const fileName = `rota_${startDate}_${format(addDays(new Date(startDate), 6), 'yyyy-MM-dd')}.csv`;
+      const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.csv`;
       
       // Show download modal instead of auto-downloading
       setDownloadInfo({
@@ -354,7 +371,7 @@ const ExportRota = () => {
       const doc = new jsPDF('landscape');
       
       // Add title
-      const title = `Weekly Schedule: ${format(new Date(startDate), 'dd/MM/yyyy')} - ${format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}`;
+      const title = `Weekly Schedule: ${format(startDate, 'dd/MM/yyyy')} - ${format(addDays(startDate, 6), 'dd/MM/yyyy')}`;
       doc.setFontSize(14);
       doc.text(title, 14, 20);
       
@@ -487,7 +504,7 @@ const ExportRota = () => {
       });
       
       // Get the PDF as blob URL instead of saving directly
-      const fileName = `rota_${startDate}_${format(addDays(new Date(startDate), 6), 'yyyy-MM-dd')}.pdf`;
+      const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.pdf`;
       const blob = doc.output('blob');
       const url = URL.createObjectURL(blob);
       
@@ -555,7 +572,7 @@ const ExportRota = () => {
       }
       
       // Format date range for subject
-      const weekRange = `${format(new Date(startDate), 'dd/MM/yyyy')} - ${format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}`;
+      const weekRange = `${format(startDate, 'dd/MM/yyyy')} - ${format(addDays(startDate, 6), 'dd/MM/yyyy')}`;
       
       // Create email subject - now using "Shunters" in the title as shown in screenshot
       const subject = encodeURIComponent(`Weekly Shunters Schedule: ${weekRange}`);
@@ -589,7 +606,7 @@ const ExportRota = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 shadow-xl space-y-6">
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 shadow-xl space-y-6 max-w-2xl mx-auto min-h-[520px]">
       {/* Heading */}
       <h2 className="text-xl font-semibold text-white mb-4">Export & Send Weekly Schedule</h2>
 
@@ -607,18 +624,98 @@ const ExportRota = () => {
       {/* STEP 1 – Week selection & Fetch */}
       {step === 1 && (
         <>
-          <div>
-            <label htmlFor="start-date" className="block text-white mb-1">Select Week (Starting Saturday)</label>
-            <input
-              id="start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-white [color-scheme:dark] focus:outline-none"
+          <div className="mb-8 relative">
+            <label htmlFor="start-date" className="block text-sm font-medium text-slate-300 mb-1">
+              Select Week (Starting Saturday)
+            </label>
+            <style>
+              {`
+                /* Styl dla ikony kalendarza - nadpisanie domyślnych styli */
+                .react-datepicker__calendar-icon {
+                  fill: white !important;
+                  stroke: white !important;
+                  color: white !important;
+                }
+                
+                /* Zwiększenie z-index dla kalendarza, aby był zawsze widoczny */
+                .react-datepicker-popper {
+                  z-index: 9999 !important;
+                }
+                
+                /* Zapewnienie, że kalendarz będzie widoczny wewnątrz modalnego okna */
+                .react-datepicker {
+                  font-size: 0.9rem !important;
+                  background-color: white !important;
+                  border-color: #e5e7eb !important;
+                  color: black !important;
+                }
+                
+                /* Style dla nagłówka kalendarza */
+                .react-datepicker__header {
+                  background-color: white !important;
+                  color: black !important;
+                  border-bottom-color: #e5e7eb !important;
+                }
+                
+                /* Style dla nazw dni tygodnia */
+                .react-datepicker__day-name {
+                  color: black !important;
+                }
+                
+                /* Style dla WSZYSTKICH dni - jasny szary */
+                .react-datepicker__day {
+                  color: black !important;
+                  background-color: #e5e7eb !important;
+                  border-radius: 0.3rem !important;
+                  margin: 0.166rem !important;
+                }
+                
+                /* Wyróżnienie sobót - ciemniejszy kolor (czarny) */
+                .react-datepicker__day.react-datepicker__day--saturday:not(.react-datepicker__day--disabled),
+                .react-datepicker__day[aria-label*="Saturday"]:not(.react-datepicker__day--disabled) {
+                  background-color: #1f2937 !important;
+                  color: white !important;
+                  font-weight: bold !important;
+                }
+                
+                /* Hover dla sobót */
+                .react-datepicker__day.react-datepicker__day--saturday:not(.react-datepicker__day--disabled):hover,
+                .react-datepicker__day[aria-label*="Saturday"]:not(.react-datepicker__day--disabled):hover {
+                  background-color: black !important;
+                }
+                
+                /* Wyróżnienie wybranej daty */
+                .react-datepicker__day--selected,
+                .react-datepicker__day--keyboard-selected {
+                  background-color: #3b82f6 !important;
+                  color: white !important;
+                  font-weight: bold !important;
+                }
+                
+                /* Styl dla dni poza miesiącem */
+                .react-datepicker__day--outside-month {
+                  opacity: 0.5 !important;
+                }
+              `}
+            </style>
+            <DatePicker
+              selected={startDate}
+              onChange={(date) => setStartDate(date)}
+              dateFormat="dd/MM/yyyy"
+              filterDate={isSaturday}
+              className="bg-slate-800/50 border border-slate-700/50 rounded-md p-2 text-white w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              wrapperClassName="w-full"
+              showIcon
+              calendarIconClassname="text-white cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
+              toggleCalendarOnIconClick
+              popperClassName="react-datepicker-popper"
+              calendarClassName="bg-slate-800 border border-slate-600 shadow-lg text-white"
             />
-            <p className="text-slate-400 text-sm mt-1">
-              Week: {startDate} to {startDate ? format(addDays(new Date(startDate), 6), 'yyyy-MM-dd') : ''}
-            </p>
+            {startDate && (
+              <p className="text-xs text-slate-400 mt-1">
+                Week: {format(startDate, 'yyyy-MM-dd')} to {format(addDays(startDate, 6), 'yyyy-MM-dd')}
+              </p>
+            )}
           </div>
 
           <div>
@@ -786,7 +883,7 @@ const ExportRota = () => {
                   );
                 })}
               </ul>
-              <p className="text-sm text-slate-400">Week period: {format(new Date(startDate), 'dd/MM/yyyy')} - {format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}</p>
+              <p className="text-sm text-slate-400">Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
             </div>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button 
@@ -815,7 +912,7 @@ const ExportRota = () => {
                 <span className="font-medium">File ready: </span>
                 <span className="text-blue-400">{downloadInfo.fileName}</span>
               </p>
-              <p className="text-sm text-slate-400">Week: {format(new Date(startDate), 'dd/MM/yyyy')} - {format(addDays(new Date(startDate), 6), 'dd/MM/yyyy')}</p>
+              <p className="text-sm text-slate-400">Week: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
             </div>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button 

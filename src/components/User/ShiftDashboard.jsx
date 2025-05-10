@@ -210,9 +210,7 @@ export default function ShiftDashboard() {
     if (!timeStr) return '';
     
     const [hours, minutes] = timeStr.split(':').map(Number);
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')}${ampm}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
   // Format a single break for display
@@ -254,66 +252,80 @@ export default function ShiftDashboard() {
   
   const isShiftNow = () => {
     if (!shift) return false;
-    
+
     const now = currentTime;
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
-    
+    let currentTimeValue = now.getHours() * 60 + now.getMinutes();
+
     const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
-    
-    const startTimeValue = startHour * 60 + startMinute;
-    const endTimeValue = endHour * 60 + endMinute;
-    
+
+    let startTimeValue = startHour * 60 + startMinute;
+    let endTimeValue = endHour * 60 + endMinute;
+
+    // Handle shifts that span midnight
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60; // extend to next day
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60; // treat current time as next-day time
+      }
+    }
+
     return currentTimeValue >= startTimeValue && currentTimeValue <= endTimeValue;
   };
   
   const getShiftProgress = () => {
     if (!shift) return 0;
-    
+
     const now = currentTime;
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
-    
+    let currentTimeValue = now.getHours() * 60 + now.getMinutes();
+
     const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
-    
-    const startTimeValue = startHour * 60 + startMinute;
-    const endTimeValue = endHour * 60 + endMinute;
-    
+
+    let startTimeValue = startHour * 60 + startMinute;
+    let endTimeValue = endHour * 60 + endMinute;
+
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60;
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60;
+      }
+    }
+
     if (currentTimeValue < startTimeValue) return 0;
     if (currentTimeValue > endTimeValue) return 100;
-    
+
     const totalDuration = endTimeValue - startTimeValue;
     const elapsed = currentTimeValue - startTimeValue;
-    
     return Math.floor((elapsed / totalDuration) * 100);
   };
   
   const getTimeRemaining = () => {
     if (!shift) return '';
-    
+
     const now = currentTime;
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
-    
+    let currentTimeValue = now.getHours() * 60 + now.getMinutes();
+
+    const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
-    const endTimeValue = endHour * 60 + endMinute;
-    
+
+    let startTimeValue = startHour * 60 + startMinute;
+    let endTimeValue = endHour * 60 + endMinute;
+
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60;
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60;
+      }
+    }
+
     if (currentTimeValue > endTimeValue) return 'Shift completed';
-    
+
     const minutesRemaining = endTimeValue - currentTimeValue;
     const hoursRemaining = Math.floor(minutesRemaining / 60);
     const mins = minutesRemaining % 60;
-    
-    if (hoursRemaining > 0) {
-      return `${hoursRemaining}h ${mins}m remaining`;
-    } else {
-      return `${mins}m remaining`;
-    }
+
+    return hoursRemaining > 0 ? `${hoursRemaining}h ${mins}m remaining` : `${mins}m remaining`;
   };
   
   const getNextBreak = () => {

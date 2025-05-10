@@ -88,13 +88,10 @@ export default function TodaysShiftInfo() {
   }, [user]);
 
   const formatTime = (timeStr) => {
-    // Convert 24h to 12h format with am/pm
     if (!timeStr) return '';
     
     const [hours, minutes] = timeStr.split(':').map(Number);
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')}${ampm}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
   
   const getShiftLabel = (type) => {
@@ -133,13 +130,22 @@ export default function TodaysShiftInfo() {
     const now = currentTime;
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
+    let currentTimeValue = currentHour * 60 + currentMinute;
     
     const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
     
-    const startTimeValue = startHour * 60 + startMinute;
-    const endTimeValue = endHour * 60 + endMinute;
+    let startTimeValue = startHour * 60 + startMinute;
+    let endTimeValue = endHour * 60 + endMinute;
+    
+    // Handle night shift crossing midnight
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60; // Add 24 hours
+      // If current time is less than start time, we're on the next day
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60;
+      }
+    }
     
     return currentTimeValue >= startTimeValue && currentTimeValue <= endTimeValue;
   };
@@ -150,13 +156,22 @@ export default function TodaysShiftInfo() {
     const now = currentTime;
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
+    let currentTimeValue = currentHour * 60 + currentMinute;
     
     const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
     
-    const startTimeValue = startHour * 60 + startMinute;
-    const endTimeValue = endHour * 60 + endMinute;
+    let startTimeValue = startHour * 60 + startMinute;
+    let endTimeValue = endHour * 60 + endMinute;
+    
+    // Handle night shift crossing midnight
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60; // Add 24 hours
+      // If current time is less than start time, we're on the next day
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60;
+      }
+    }
     
     if (currentTimeValue < startTimeValue) return 0;
     if (currentTimeValue > endTimeValue) return 100;
@@ -173,10 +188,22 @@ export default function TodaysShiftInfo() {
     const now = currentTime;
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    const currentTimeValue = currentHour * 60 + currentMinute;
+    let currentTimeValue = currentHour * 60 + currentMinute;
     
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
-    const endTimeValue = endHour * 60 + endMinute;
+    const [startHour, startMinute] = shift.start_time.split(':').map(Number);
+    
+    let endTimeValue = endHour * 60 + endMinute;
+    let startTimeValue = startHour * 60 + startMinute;
+    
+    // Handle night shift crossing midnight
+    if (endTimeValue <= startTimeValue) {
+      endTimeValue += 24 * 60; // Add 24 hours
+      // If current time is less than start time, we're on the next day
+      if (currentTimeValue < startTimeValue) {
+        currentTimeValue += 24 * 60;
+      }
+    }
     
     if (currentTimeValue > endTimeValue) return 'Shift completed';
     
