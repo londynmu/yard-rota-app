@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import ConfirmDialog from '../UI/ConfirmDialog';
-import Notification from '../UI/Notification';
+import { useToast } from '../ui/ToastContext';
 
 export default function LocationManager() {
   const [locations, setLocations] = useState([]);
@@ -9,17 +9,9 @@ export default function LocationManager() {
   const [editLocationId, setEditLocationId] = useState(null);
   const [editLocationName, setEditLocationName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState({ visible: false, message: '', type: '' });
-  const [confirmDialog, setConfirmDialog] = useState({ 
-    visible: false, 
-    title: '',
-    message: '',
-    locationId: null,
-    locationName: '',
-    action: null,
-    isDestructive: false
-  });
-  const newLocationInputRef = React.useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState({ visible: false, title: '', message: '', action: null });
+  const newLocationInputRef = useRef(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchLocations();
@@ -32,11 +24,13 @@ export default function LocationManager() {
   }, []);
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ visible: true, message, type });
-  };
-
-  const closeNotification = () => {
-    setNotification({ ...notification, visible: false });
+    if (type === 'success') {
+      toast.success(message);
+    } else if (type === 'error') {
+      toast.error(message);
+    } else {
+      toast.showToast(message, type);
+    }
   };
 
   const fetchLocations = async () => {
@@ -395,14 +389,6 @@ export default function LocationManager() {
         confirmText={confirmDialog.isDestructive ? "Delete" : "Yes"}
         cancelText="Cancel"
         isDestructive={confirmDialog.isDestructive}
-      />
-      
-      {/* Notification Component */}
-      <Notification
-        isVisible={notification.visible}
-        message={notification.message}
-        type={notification.type}
-        onClose={closeNotification}
       />
     </div>
   );

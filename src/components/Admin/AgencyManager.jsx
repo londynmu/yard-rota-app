@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import ConfirmDialog from '../UI/ConfirmDialog';
-import Notification from '../UI/Notification';
+import { useToast } from '../ui/ToastContext';
 
 export default function AgencyManager() {
   const [agencies, setAgencies] = useState([]);
@@ -21,17 +21,18 @@ export default function AgencyManager() {
     notes: ''
   });
   const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState({ visible: false, message: '', type: '' });
+  const [showAddForm, setShowAddForm] = useState(false);
+  const newAgencyInputRef = React.useRef(null);
+  const toast = useToast();
   const [confirmDialog, setConfirmDialog] = useState({ 
     visible: false, 
     title: '',
     message: '',
     agencyId: null,
     agencyName: '',
-    action: null
+    action: null,
+    isDestructive: false
   });
-  const [showAddForm, setShowAddForm] = useState(false);
-  const newAgencyInputRef = React.useRef(null);
 
   useEffect(() => {
     fetchAgencies();
@@ -44,11 +45,13 @@ export default function AgencyManager() {
   }, [showAddForm]);
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ visible: true, message, type });
-  };
-
-  const closeNotification = () => {
-    setNotification({ ...notification, visible: false });
+    if (type === 'success') {
+      toast.success(message);
+    } else if (type === 'error') {
+      toast.error(message);
+    } else {
+      toast.showToast(message, type);
+    }
   };
 
   const fetchAgencies = async () => {
@@ -212,7 +215,8 @@ export default function AgencyManager() {
       message: `Are you sure you want to ${action} "${name}"?`,
       agencyId: id,
       agencyName: name,
-      action: () => toggleAgencyStatus(id, currentStatus)
+      action: () => toggleAgencyStatus(id, currentStatus),
+      isDestructive: false
     });
   };
 
@@ -616,14 +620,6 @@ export default function AgencyManager() {
         confirmText={confirmDialog.isDestructive ? "Delete" : "Yes"}
         cancelText="Cancel"
         isDestructive={confirmDialog.isDestructive}
-      />
-      
-      {/* Notification Component */}
-      <Notification
-        isVisible={notification.visible}
-        message={notification.message}
-        type={notification.type}
-        onClose={closeNotification}
       />
     </div>
   );

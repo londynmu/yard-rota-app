@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import { useToast } from '../../components/ui/ToastContext';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -18,7 +19,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   const [avatar, setAvatar] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const toast = useToast();
   
   // Rota Planner fields
   const [customStartTime, setCustomStartTime] = useState('');
@@ -57,11 +58,12 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         setLocations(data || []);
       } catch (error) {
         console.error('Error fetching locations:', error);
+        toast.error('Error loading locations: ' + error.message);
       }
     };
     
     fetchLocations();
-  }, []);
+  }, [toast]);
   
   // Load available agencies
   useEffect(() => {
@@ -77,11 +79,12 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         setAgencies(data || []);
       } catch (error) {
         console.error('Error fetching agencies:', error);
+        toast.error('Error loading agencies: ' + error.message);
       }
     };
     
     fetchAgencies();
-  }, []);
+  }, [toast]);
 
   // Load user data when the component mounts
   useEffect(() => {
@@ -107,7 +110,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > 5 * 1024 * 1024) {
-        setMessage({ text: 'Image is too large. Maximum size is 5MB.', type: 'error' });
+        toast.error('Image is too large. Maximum size is 5MB.');
         return;
       }
       
@@ -183,7 +186,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     }
     
     setLoading(true);
-    setMessage({ text: '', type: '' });
     
     try {
       // Update user profile info
@@ -245,24 +247,16 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
       
       console.log('Update successful, response:', data);
       
-      setMessage({ 
-        text: 'Profile updated successfully!', 
-        type: 'success' 
-      });
+      toast.success('Profile updated successfully!');
       
-      // Notify parent component of success
+      // Call the success callback and close the form
       if (onSuccess) {
-        setTimeout(() => {
-          onSuccess(updates);
-        }, 500);
+        onSuccess(updates);
       }
-      
+      onClose();
     } catch (error) {
       console.error('Error updating user profile:', error);
-      setMessage({ 
-        text: 'Failed to update profile: ' + (error.message || 'Unknown error'), 
-        type: 'error' 
-      });
+      toast.error('Failed to update profile: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -328,16 +322,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4">
-            {message.text && (
-              <div className={`p-3 rounded-md mb-4 backdrop-blur-sm ${
-                message.type === 'error' 
-                ? 'bg-red-500/20 text-red-100 border border-red-400/30' 
-                : 'bg-green-500/20 text-green-100 border border-green-400/30'
-              }`}>
-                {message.text}
-              </div>
-            )}
-            
             {/* Avatar Upload */}
             <div className="mb-4">
               <label className="block text-white font-medium mb-2" htmlFor="admin-edit-avatar">

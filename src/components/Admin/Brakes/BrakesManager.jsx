@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
+import { useToast } from '../../../components/ui/ToastContext';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -22,8 +23,7 @@ const BrakesManager = () => {
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
+  const toast = useToast();
   
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
@@ -99,14 +99,12 @@ const BrakesManager = () => {
     if (!selectedDate || !selectedShift) return;
     console.log(`[fetchBreakData] Starting fetch for Date: ${selectedDate}, Shift: ${selectedShift}`);
     setIsLoading(true);
-    setError(null);
     // Clear previous data except scheduledBreaks if found in session
     setBreakSlots([]);
     setAvailableStaff([]);
-    // const standardSlotsToUpsert = []; // Object.values(modifiedStandardSlots).map(...) - removed persistence
 
     const sessionStorageKey = getSessionStorageKey();
-    let savedAssignments = sessionStorage.getItem(sessionStorageKey); // Changed const to let
+    let savedAssignments = sessionStorage.getItem(sessionStorageKey);
 
     try {
       // First, generate standard slots based on shift type
@@ -332,21 +330,16 @@ const BrakesManager = () => {
         }
       } catch (err) {
         console.error("[fetchBreakData] Error processing available staff:", err);
-        setError(`Failed to load available staff: ${err.message}`);
+        toast.error(`Failed to load available staff: ${err.message}`);
         setAvailableStaff([]); // Ensure it's cleared on error
       }
     } catch (err) {
-      console.error("[fetchBreakData] General error fetching break data:", err);
-      setError(`Failed to load break data: ${err.message}`);
-      // Clear all states on general failure
-      setBreakSlots([]);
-      setScheduledBreaks([]);
-      setAvailableStaff([]);
+      console.error('Error in fetchBreakData:', err);
+      toast.error('Failed to load break data: ' + err.message);
     } finally {
       setIsLoading(false);
-      console.log("[fetchBreakData] Fetch completed.");
     }
-  }, [selectedDate, selectedShift, getSessionStorageKey]); // Added getSessionStorageKey
+  }, [selectedDate, selectedShift, getSessionStorageKey, toast]); // Added getSessionStorageKey
 
   // NEW useEffect to calculate break times reactively based on scheduledBreaks and allSlots
   useEffect(() => {
@@ -414,8 +407,6 @@ const BrakesManager = () => {
   // --- Actions ---
   const handleSaveAllBreaks = async () => {
     setIsLoading(true);
-    setError(null);
-    setSuccessMessage('');
     
     const sessionStorageKey = getSessionStorageKey();
 
@@ -508,7 +499,7 @@ const BrakesManager = () => {
         if (upsertCustomError) {
           console.error("[handleSaveAllBreaks] Error upserting custom slots:", upsertCustomError);
           console.error("Data attempted for custom slots:", JSON.stringify(customSlotsToUpsert, null, 2));
-          setError("Warning: Could not save custom slot definitions.");
+          throw upsertCustomError; // This is critical, so throw
         } else {
           console.log("[handleSaveAllBreaks] Successfully upserted custom slots.");
         }
@@ -534,20 +525,15 @@ const BrakesManager = () => {
         }
       }
 
-      setSuccessMessage('Breaks saved successfully!');
-      // setModifiedStandardSlots({}); // Clear modified state after successful save - Removed
+      toast.success("Breaks schedule saved successfully!");
       sessionStorage.removeItem(sessionStorageKey); // Clear temporary state on successful save
       fetchBreakData(); // Refetch data to reflect saved state
       
-      // Automatically clear success message after 1 second
-      setTimeout(() => setSuccessMessage(''), 1000);
-    } catch (err) {
-      console.error("Error saving breaks:", err);
-      setError(`Failed to save breaks: ${err.message}`);
-      // Do not reset modifiedStandardSlots or clear session storage here on error, allow user to retry save
+    } catch (error) {
+      console.error('Error saving all breaks:', error);
+      toast.error("Failed to save breaks: " + error.message);
     } finally {
       setIsLoading(false);
-      // Removed the setTimeout from finally block as we now set it above
     }
   };
 
@@ -559,8 +545,7 @@ const BrakesManager = () => {
     );
     
     if (duplicateSlot) {
-      setError(`A slot starting at ${newSlotData.start_time} with duration ${newSlotData.duration_minutes} minutes already exists. Please use the edit function instead.`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`A slot starting at ${newSlotData.start_time} with duration ${newSlotData.duration_minutes} minutes already exists. Please use the edit function instead.`);
       return false;
     }
     
@@ -574,6 +559,14 @@ const BrakesManager = () => {
     
     setBreakSlots(prevSlots => [...prevSlots, newSlot].sort((a, b) => a.start_time.localeCompare(b.start_time)));
     // Note: Custom slot additions/edits require Save All Breaks - not saved to session temporarily
+    try {
+      toast.success("Custom break slot added successfully!");
+    } catch (error) {
+      console.error('Error adding custom slot:', error);
+      toast.error("Failed to add custom slot: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
     return true;
   };
 
@@ -582,8 +575,7 @@ const BrakesManager = () => {
     const slotToUpdate = breakSlots.find(slot => slot.id === slotId);
     
     if (!slotToUpdate) {
-      setError(`Could not find slot with ID ${slotId} to update.`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`Could not find slot with ID ${slotId} to update.`);
       return false;
     }
     
@@ -636,8 +628,7 @@ const BrakesManager = () => {
     );
     
     if (duplicateSlot) {
-      setError(`A slot starting at ${updatedData.start_time} with duration ${updatedData.duration_minutes} minutes already exists. Please choose different parameters.`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`A slot starting at ${updatedData.start_time} with duration ${updatedData.duration_minutes} minutes already exists. Please choose different parameters.`);
       return false;
     }
     
@@ -669,6 +660,15 @@ const BrakesManager = () => {
     }
     // Note: Custom slot updates require Save All Breaks - not saved to session temporarily
 
+    try {
+      toast.success("Custom break slot updated successfully!");
+    } catch (error) {
+      console.error('Error updating custom slot:', error);
+      toast.error("Failed to update custom slot: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+
     return true;
   };
 
@@ -677,14 +677,12 @@ const BrakesManager = () => {
     const slotToDelete = breakSlots.find(slot => slot.id === slotId);
     
     if (!slotToDelete) {
-      setError(`Could not find slot with ID ${slotId} to delete.`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`Could not find slot with ID ${slotId} to delete.`);
       return false;
     }
     
     if (!slotToDelete.is_custom) {
-      setError('Only custom slots can be deleted.');
-      setTimeout(() => setError(null), 1000);
+      toast.error('Only custom slots can be deleted.');
       return false;
     }
     
@@ -706,6 +704,15 @@ const BrakesManager = () => {
     // If the slot has a real database ID (not one of our temporary IDs), we'll delete it from DB
     // when Save All Breaks is clicked
     
+    try {
+      toast.success("Custom break slot deleted successfully!");
+    } catch (error) {
+      console.error('Error deleting custom slot:', error);
+      toast.error("Failed to delete custom slot: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+    
     return true;
   };
 
@@ -713,16 +720,14 @@ const BrakesManager = () => {
     // Check if slot is full using the CURRENT capacity from state
     const assignedToSlot = scheduledBreaks.filter(b => b.slot_id === slot.id);
     if (assignedToSlot.length >= slot.capacity) { // Use slot.capacity directly from the state
-      setError(`Cannot assign ${staff.first_name} ${staff.last_name} to this break: slot is full (${assignedToSlot.length}/${slot.capacity}).`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`Cannot assign ${staff.first_name} ${staff.last_name} to this break: slot is full (${assignedToSlot.length}/${slot.capacity}).`);
       return;
     }
     
     // Check if staff can be assigned to this slot (existing logic)
     const staffMember = availableStaff.find(s => s.id === staff.id);
     if (!staffMember) { // Check if staff exists in available list
-      setError(`Could not find staff member ${staff.first_name} ${staff.last_name} in available list.`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`Could not find staff member ${staff.first_name} ${staff.last_name} in available list.`);
       return;
     }
     
@@ -747,8 +752,7 @@ const BrakesManager = () => {
           if (slot.duration_minutes === 15 && staffMember.has_break_15) reason = 'already has a 15 min break.';
           if (slot.duration_minutes === 45 && staffMember.has_break_45) reason = 'already has a 45 min break.';
       }
-      setError(`Cannot assign ${staff.first_name} ${staff.last_name} to this break: ${reason}`);
-      setTimeout(() => setError(null), 1000);
+      toast.error(`Cannot assign ${staff.first_name} ${staff.last_name} to this break: ${reason}`);
       return;
     }
     
@@ -924,16 +928,7 @@ const BrakesManager = () => {
       </div>
 
         {/* Messages */}
-        {error && (
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-red-800 border border-red-600 text-red-100 px-4 py-3 rounded shadow-lg max-w-lg w-5/6 md:w-auto">
-            {error}
-          </div>
-        )}
-        {successMessage && (
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-green-800 border border-green-600 text-green-100 px-4 py-3 rounded shadow-lg max-w-lg w-5/6 md:w-auto">
-            {successMessage}
-          </div>
-        )}
+        {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
 
 
       {/* Break Slots Display */}

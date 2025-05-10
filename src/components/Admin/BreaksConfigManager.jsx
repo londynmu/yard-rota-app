@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { useToast } from '../../components/ui/ToastContext';
 
 export default function BreaksConfigManager() {
   // State for system configuration settings
@@ -12,8 +13,8 @@ export default function BreaksConfigManager() {
   
   // For form submissions and changes
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
   const [isLoading, setIsLoading] = useState(true);
+  const toast = useToast();
 
   // Load settings from database
   useEffect(() => {
@@ -51,22 +52,18 @@ export default function BreaksConfigManager() {
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
-        setSaveMessage({
-          text: 'Failed to load settings',
-          type: 'error'
-        });
+        toast.error('Failed to load settings');
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchSettings();
-  }, []);
+  }, [toast]);
 
   // Save system settings
   const saveSettings = async () => {
     setIsSaving(true);
-    setSaveMessage({ text: '', type: '' });
     
     try {
       // Define settings to update
@@ -93,21 +90,10 @@ export default function BreaksConfigManager() {
       }
       
       // Show success message
-      setSaveMessage({ 
-        text: 'Breaks configuration settings saved successfully', 
-        type: 'success' 
-      });
-      
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSaveMessage({ text: '', type: '' });
-      }, 3000);
+      toast.success('Breaks configuration settings saved successfully');
     } catch (error) {
       console.error('Error saving settings:', error);
-      setSaveMessage({ 
-        text: 'Failed to save settings: ' + error.message, 
-        type: 'error' 
-      });
+      toast.error('Failed to save settings: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -210,17 +196,6 @@ export default function BreaksConfigManager() {
           {isSaving ? 'Saving...' : 'Save Breaks Configuration'}
         </button>
       </div>
-      
-      {/* Success/Error Message */}
-      {saveMessage.text && (
-        <div className={`mt-4 p-3 rounded-md ${
-          saveMessage.type === 'success' 
-            ? 'bg-green-500/20 text-green-100 border border-green-400/30' 
-            : 'bg-red-500/20 text-red-100 border border-red-400/30'
-        }`}>
-          {saveMessage.text}
-        </div>
-      )}
     </div>
   );
 } 

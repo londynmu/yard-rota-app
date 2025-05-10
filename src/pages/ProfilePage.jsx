@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
+import { useToast } from '../components/ui/ToastContext';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -30,7 +31,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [unavailableDays, setUnavailableDays] = useState([]);
   const [notesForAdmin, setNotesForAdmin] = useState('');
   // Toast message for form validation
-  const [toast, setToast] = useState({ visible: false, message: '', type: '' });
+  const toast = useToast();
   // Available locations
   const [locations, setLocations] = useState([]);
   // Page visit timestamp to force location refresh
@@ -59,16 +60,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       window.removeEventListener('offline', handleOnlineStatus);
     };
   }, []);
-
-  // Auto-hide toast message after 1 second
-  useEffect(() => {
-    if (toast.visible) {
-      const timer = setTimeout(() => {
-        setToast({ ...toast, visible: false });
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Define fetchProfile with useCallback before using it in useEffect
   const fetchProfile = useCallback(async () => {
@@ -121,11 +112,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           text: 'Unable to connect to server. Please check your internet connection and try again.', 
           type: 'error' 
         });
+        toast.error('Unable to connect to server. Please check your internet connection and try again.');
       } else {
         setMessage({ 
           text: 'Failed to load profile data: ' + (error.message || 'Unknown error'), 
           type: 'error' 
         });
+        toast.error('Failed to load profile data: ' + (error.message || 'Unknown error'));
       }
       setProfileLoaded(true);
     } finally {
@@ -255,11 +248,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     // Validate time range
     if (customStartTime && customEndTime && customStartTime === customEndTime) {
       errors.timeRange = 'Start time and end time cannot be the same';
-      setToast({ 
-        visible: true, 
-        message: 'Start time and end time cannot be the same', 
-        type: 'error' 
-      });
+      toast.error('Start time and end time cannot be the same');
     }
     
     setFormErrors(errors);
@@ -272,6 +261,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     if (!supabaseClient) {
       console.error("Supabase client is not available in ProfilePage handleSubmit");
       setMessage({ text: 'An internal error occurred (client unavailable). Cannot save profile.', type: 'error' });
+      toast.error('An internal error occurred (client unavailable). Cannot save profile.');
       return;
     }
     
@@ -281,6 +271,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         text: 'You appear to be offline. Please check your internet connection before saving.', 
         type: 'error' 
       });
+      toast.error('You appear to be offline. Please check your internet connection before saving.');
       return;
     }
     
@@ -289,6 +280,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         text: 'Please complete all required fields', 
         type: 'error' 
       });
+      toast.error('Please complete all required fields');
       return;
     }
     
@@ -304,6 +296,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         if (!supabaseClient.storage) {
           console.error("Supabase client storage is not available.");
           setMessage({ text: 'Error: Storage service is not configured correctly.', type: 'error' });
+          toast.error('Error: Storage service is not configured correctly.');
           setLoading(false); // Stop loading state
           return; // Prevent further execution in this block
         }
@@ -406,6 +399,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         text: 'Profile updated successfully!', 
         type: 'success' 
       });
+      toast.success('Profile updated successfully!');
       
       // Update state with capitalized values
       setFirstName(capitalizedFirstName);
@@ -429,11 +423,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           text: 'Unable to connect to server. Please check your internet connection and try again.', 
           type: 'error' 
         });
+        toast.error('Unable to connect to server. Please check your internet connection and try again.');
       } else {
+        const errorMessage = 'Failed to update profile: ' + (error.message || 'Unknown error');
         setMessage({ 
-          text: 'Failed to update profile: ' + (error.message || 'Unknown error'), 
+          text: errorMessage, 
           type: 'error' 
         });
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -448,6 +445,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           text: 'Image size should be less than 7MB', 
           type: 'error' 
         });
+        toast.error('Image size should be less than 7MB');
         return;
       }
       setAvatar(file);
@@ -541,19 +539,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     return false;
   };
 
-  // Component for the toast message
-  const Toast = () => {
-    if (!toast.visible) return null;
-    
-    return (
-      <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-4 rounded-md shadow-lg ${
-        toast.type === 'error' ? 'bg-red-500/90' : 'bg-green-500/90'
-      } text-white max-w-sm w-full text-center transition-opacity duration-300`}>
-        {toast.message}
-      </div>
-    );
-  };
-
   // Handle loading state
   if (loading) {
     return (
@@ -576,7 +561,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   if (simplifiedView) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 flex justify-center items-center">
-        <Toast />
         <div className="w-full max-w-full p-4">
           {message.text && (
             <div className={`mb-4 p-3 rounded-md backdrop-blur-md ${
@@ -902,7 +886,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Standard view with more details and styling
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 py-8 px-8 sm:px-12 overflow-hidden relative text-white flex justify-center">
-      <Toast />
       <div className="w-full max-w-6xl relative">
         <div className="backdrop-blur-xl bg-black/60 rounded-xl shadow-2xl overflow-hidden border-2 border-white/30 p-6">
           {isOffline && (
