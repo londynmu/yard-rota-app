@@ -226,11 +226,10 @@ const RotaManager = () => {
   // Dodaję funkcję do automatycznego usuwania komunikatu sukcesu po 3 sekundach
   useEffect(() => {
     if (successMessage) {
-      // Wyświetl toast zamiast lokalnego komunikatu
-      toast.success(successMessage);
-      setSuccessMessage(null); // Wyczyść, by nie pokazywać starego komponentu
+      // Disable success notifications - just clear the message
+      setSuccessMessage(null);
     }
-  }, [successMessage, toast]);
+  }, [successMessage]);
 
   // Wyświetlanie błędów jako toast
   useEffect(() => {
