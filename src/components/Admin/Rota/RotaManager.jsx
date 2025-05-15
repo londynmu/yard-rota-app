@@ -354,6 +354,15 @@ const RotaManager = () => {
           slot.start_time === slotToDelete.start_time && 
           slot.end_time === slotToDelete.end_time)
       ));
+      
+      // Ensure all modals are closed and no slot is selected after deletion
+      setShowAssignModal(false);
+      setShowEditModal(false);
+      setSelectedSlot(null);
+      setSlotToEdit(null);
+      
+      // Show success toast
+      toast.success('Slot deleted successfully');
     } catch (error) {
       console.error('Error deleting slot:', error);
       setError('Failed to delete slot');
