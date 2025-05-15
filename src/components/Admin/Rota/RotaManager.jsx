@@ -5,6 +5,7 @@ import AssignModal from './AssignModal';
 import TimePicker from './TimePicker';
 import EditSlotModal from './EditSlotModal';
 import ExportRotaButton from '../ExportRotaButton';
+import TemplateModal from './TemplateModal';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../ui/ToastContext';
 
@@ -31,6 +32,7 @@ const RotaManager = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [slotToEdit, setSlotToEdit] = useState(null);
   const [modalError, setModalError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(() => {
@@ -853,6 +855,134 @@ const RotaManager = () => {
     setModalError(null);
   };
 
+  const openTemplateModal = () => {
+    setShowTemplateModal(true);
+  };
+
+  const closeTemplateModal = () => {
+    setShowTemplateModal(false);
+  };
+
+  const handleSaveTemplate = async (templateName) => {
+    try {
+      // Check if template name already exists
+      const { data: existingTemplates, error: checkError } = await supabase
+        .from('rota_templates')
+        .select('id')
+        .eq('name', templateName);
+      
+      if (checkError) throw checkError;
+      
+      if (existingTemplates && existingTemplates.length > 0) {
+        setModalError('A template with this name already exists. Please choose a different name.');
+        return false;
+      }
+      
+      // Prepare slots data for storage
+      const templateSlots = slots.map(slot => ({
+        shift_type: slot.shift_type,
+        location: slot.location,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slot.capacity
+      }));
+      
+      // Save template
+      const { error } = await supabase
+        .from('rota_templates')
+        .insert({
+          name: templateName,
+          slots: templateSlots,
+          created_at: new Date()
+        });
+      
+      if (error) throw error;
+      
+      toast.success(`Template "${templateName}" saved successfully`);
+      return true;
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast.error('Failed to save template');
+      return false;
+    }
+  };
+
+  const handleApplyTemplate = async (templateId) => {
+    try {
+      // Fetch template data
+      const { data: template, error: fetchError } = await supabase
+        .from('rota_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      if (!template || !template.slots || !Array.isArray(template.slots)) {
+        toast.error('Invalid template data');
+        return false;
+      }
+      
+      // Check for existing slots on the current date
+      const { data: existingSlots, error: checkError } = await supabase
+        .from('scheduled_rota')
+        .select('*')
+        .eq('date', currentDate);
+      
+      if (checkError) throw checkError;
+      
+      if (existingSlots && existingSlots.length > 0) {
+        const confirmation = window.confirm(
+          `There are already ${existingSlots.length} slots scheduled for this date. Applying a template will add to these existing slots. Continue?`
+        );
+        
+        if (!confirmation) return false;
+      }
+      
+      // Prepare slots for insertion
+      const slotsToInsert = template.slots.map(slot => ({
+        date: currentDate,
+        shift_type: slot.shift_type,
+        location: slot.location,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slot.capacity,
+        user_id: null,
+        status: null
+      }));
+      
+      // Insert slots from template
+      const { data: insertedSlots, error: insertError } = await supabase
+        .from('scheduled_rota')
+        .insert(slotsToInsert)
+        .select();
+      
+      if (insertError) throw insertError;
+      
+      // Add newly inserted slots to UI
+      const newSlots = insertedSlots.map(slot => ({
+        id: slot.id,
+        date: slot.date,
+        shift_type: slot.shift_type,
+        location: slot.location,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slot.capacity,
+        assigned_employees: [],
+        status: null
+      }));
+      
+      setSlots(prev => [...prev, ...newSlots]);
+      
+      toast.success(`Template "${template.name}" applied successfully`);
+      return true;
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast.error('Failed to apply template');
+      return false;
+    }
+  };
+
   if (loading && !slots.length) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -966,6 +1096,19 @@ const RotaManager = () => {
             </svg>
             <span className="text-sm hidden sm:inline">Copy Last Week</span>
             <span className="text-sm inline sm:hidden">Copy</span>
+          </button>
+          
+          <button
+            onClick={openTemplateModal}
+            className="flex-1 px-2 py-1.5 flex items-center justify-center bg-slate-700/80 text-white hover:bg-slate-600/90 transition-all border-r border-slate-700/40"
+            title="Templates"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm hidden sm:inline">Templates</span>
+            <span className="text-sm inline sm:hidden">Templates</span>
           </button>
           
           <div className="flex-1 flex items-center justify-center bg-slate-700/80 text-white hover:bg-slate-600/90 transition-all">
@@ -1207,6 +1350,17 @@ const RotaManager = () => {
           }}
           onUpdate={handleUpdateSlot}
           onShowTimePicker={handleOpenTimePickerForEdit}
+        />,
+        document.body
+      )}
+
+      {/* Template Modal */}
+      {showTemplateModal && createPortal(
+        <TemplateModal
+          onClose={closeTemplateModal}
+          onSaveTemplate={handleSaveTemplate}
+          onApplyTemplate={handleApplyTemplate}
+          currentDate={currentDate}
         />,
         document.body
       )}

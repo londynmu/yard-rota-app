@@ -87,6 +87,9 @@ If you encounter errors:
 ## Recent Changes
 
 ### May 2024
+- **Added Templates functionality in Rota Planner (2024-05-28):** Implemented a template system in Rota Planner allowing administrators to save the current day's slot configuration as a named template and apply it to other days. This speeds up schedule creation by reusing common patterns instead of recreating them manually each time. Templates are stored in the database and accessible via a dedicated modal with both "Save Current Layout" and "Apply Template" tabs.
+  - New files: `src/components/Admin/Rota/TemplateModal.jsx`, `supabase/migrations/20250510112711_create_rota_templates.sql`
+  - Modified files: `src/components/Admin/Rota/RotaManager.jsx`
 - **New centralized notification system (2024-05-09):** Implemented `ToastContext` and `Toast.jsx` component providing modern, animated notifications displayed in the center of the screen with background blur effect. Messages disappear after 2 seconds and are globally available throughout the application (injected in `main.jsx`).
   - New files: `src/components/ui/ToastContext.jsx`, `src/components/ui/Toast.jsx`
   - Modified files: `tailwind.config.js` (added `fade-scale` animation), `src/main.jsx`, `src/components/Admin/Rota/RotaManager.jsx`
