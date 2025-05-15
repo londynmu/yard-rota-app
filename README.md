@@ -87,6 +87,12 @@ If you encounter errors:
 ## Recent Changes
 
 ### May 2024
+- **Added User Day Notes System (2024-05-28):** Implemented a new feature allowing users to leave notes about specific days (like early departure requests) that managers will see when assigning shifts. This helps prevent overlooking important availability information during scheduling. The system includes:
+  - User profile section for adding/managing day notes
+  - Confirmation modal that appears when attempting to assign a user who has a note for that day
+  - Backend storage and management of user notes with appropriate security controls
+  - New files: `src/components/Admin/Rota/UserNoteModal.jsx`, `supabase/migrations/20250528120000_create_user_day_notes.sql`
+  - Modified files: `src/components/Admin/Rota/AssignModal.jsx`, `src/pages/UserProfile.jsx`
 - **Added Templates functionality in Rota Planner (2024-05-28):** Implemented a template system in Rota Planner allowing administrators to save the current day's slot configuration as a named template and apply it to other days. This speeds up schedule creation by reusing common patterns instead of recreating them manually each time. Templates are stored in the database and accessible via a dedicated modal with both "Save Current Layout" and "Apply Template" tabs.
   - New files: `src/components/Admin/Rota/TemplateModal.jsx`, `supabase/migrations/20250510112711_create_rota_templates.sql`
   - Modified files: `src/components/Admin/Rota/RotaManager.jsx`

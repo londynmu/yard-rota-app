@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
 import { format } from 'date-fns';
 
@@ -268,4 +269,12 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
   );
 };
 
-export default TemplateModal; 
+export default TemplateModal;
+
+// Add prop types validation
+TemplateModal.propTypes = {
+  onClose: PropTypes.func.isRequired,
+  onSaveTemplate: PropTypes.func.isRequired,
+  onApplyTemplate: PropTypes.func.isRequired,
+  currentDate: PropTypes.string.isRequired
+}; 

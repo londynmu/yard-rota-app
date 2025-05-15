@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { format, parseISO } from 'date-fns';
+import UserNoteModal from './UserNoteModal';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
   const [availableEmployees, setAvailableEmployees] = useState([]);
@@ -14,6 +15,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [task, setTask] = useState('');
   const [taskSuggestions, setTaskSuggestions] = useState([]);
   const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
+  const [showUserNoteModal, setShowUserNoteModal] = useState(false);
+  const [userNoteData, setUserNoteData] = useState(null);
 
   // Format time to remove seconds (HH:MM)
   const formatTimeWithoutSeconds = (timeString) => {
@@ -423,8 +426,64 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     }
   };
 
-  const handleAssignEmployee = (employeeId, isCurrentlyAssigned, task) => {
-    onAssign(employeeId, !isCurrentlyAssigned, task);
+  const checkUserNote = async (employeeId) => {
+    try {
+      // Check if user has a note for this day in availability table
+      const { data, error } = await supabase
+        .from('availability')
+        .select('id, comment')
+        .eq('user_id', employeeId)
+        .eq('date', slot.date);
+
+      if (error) {
+        console.error('Error checking user note in availability:', error);
+        return null;
+      }
+
+      // Return the first comment if found
+      if (data && data.length > 0 && data[0].comment && data[0].comment.trim() !== '') {
+        return {
+          id: data[0].id,
+          note: data[0].comment
+        };
+      }
+
+      return null;
+    } catch (err) {
+      console.error('Error in checkUserNote:', err);
+      return null;
+    }
+  };
+
+  const handleAssignEmployee = async (employeeId, isCurrentlyAssigned, taskText) => {
+    // If we're removing the employee, just do it without checking for notes
+    if (isCurrentlyAssigned) {
+      processAssignment(employeeId, isCurrentlyAssigned, taskText);
+      return;
+    }
+
+    // If we're adding the employee, check for notes
+    const employee = availableEmployees.find(emp => emp.id === employeeId);
+    const noteData = await checkUserNote(employeeId);
+
+    if (noteData && noteData.note) {
+      // Set data for the note modal
+      setUserNoteData({
+        note: noteData.note,
+        employee: employee,
+        employeeId: employeeId,
+        isCurrentlyAssigned: isCurrentlyAssigned,
+        taskText: taskText
+      });
+      setShowUserNoteModal(true);
+    } else {
+      // No note, proceed with assignment
+      processAssignment(employeeId, isCurrentlyAssigned, taskText);
+    }
+  };
+
+  const processAssignment = (employeeId, isCurrentlyAssigned, taskText) => {
+    onAssign(employeeId, !isCurrentlyAssigned, taskText);
     
     // Update local state to reflect the change and track capacity
     if (isCurrentlyAssigned) {
@@ -453,6 +512,23 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     // Clear the task input field after assignment
     setTask('');
     setShowTaskSuggestions(false);
+  };
+
+  const handleConfirmAssign = () => {
+    if (userNoteData) {
+      processAssignment(
+        userNoteData.employeeId,
+        userNoteData.isCurrentlyAssigned,
+        userNoteData.taskText
+      );
+      setUserNoteData(null);
+      setShowUserNoteModal(false);
+    }
+  };
+
+  const handleCancelAssign = () => {
+    setUserNoteData(null);
+    setShowUserNoteModal(false);
   };
 
   // Filter and sort by selected tab
@@ -857,7 +933,21 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   );
   
   // Use React Portal to render the modal outside the normal DOM hierarchy
-  return createPortal(modalContent, document.body);
+  return (
+    <>
+      {createPortal(modalContent, document.body)}
+      
+      {showUserNoteModal && userNoteData && (
+        <UserNoteModal
+          note={userNoteData.note}
+          employee={userNoteData.employee}
+          date={slot.date}
+          onClose={handleCancelAssign}
+          onConfirm={handleConfirmAssign}
+        />
+      )}
+    </>
+  );
 };
 
 AssignModal.propTypes = {
