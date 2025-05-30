@@ -633,8 +633,24 @@ export default function ShiftDashboard() {
                   {/* Flattened team breaks - simple list display */}
                   {breakInfo.teamBreaks
                     .sort((a, b) => {
-                      // Sort by time
-                      return a.break_start_time.localeCompare(b.break_start_time);
+                      // Sort for night shift - times starting from 18:00 first, then times after midnight last
+                      const timeA = a.break_start_time.substring(0, 5);
+                      const timeB = b.break_start_time.substring(0, 5);
+                      
+                      const [hourA] = timeA.split(':').map(Number);
+                      const [hourB] = timeB.split(':').map(Number);
+                      
+                      // Convert to night shift order: 18-23 first, then 0-6
+                      const nightOrderA = hourA >= 18 ? hourA - 18 : hourA + 6;
+                      const nightOrderB = hourB >= 18 ? hourB - 18 : hourB + 6;
+                      
+                      // Compare by night shift order
+                      if (nightOrderA !== nightOrderB) {
+                        return nightOrderA - nightOrderB;
+                      }
+                      
+                      // If same hour, compare full time
+                      return timeA.localeCompare(timeB);
                     })
                     .map((breakItem, index) => {
                       const isCurrentUser = breakItem.user_id === user?.id;
