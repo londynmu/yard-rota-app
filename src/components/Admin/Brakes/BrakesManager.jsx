@@ -14,10 +14,35 @@ const BrakesManager = () => {
     const savedDate = localStorage.getItem('brakes_selected_date');
     return savedDate || new Date().toISOString().split('T')[0];
   });
+  
   const [selectedShift, setSelectedShift] = useState(() => {
     const savedShift = localStorage.getItem('brakes_selected_shift');
     return savedShift || 'Day';
   });
+
+  // Helper function to adjust time for night shift sorting
+  const adjustTimeForNightShift = (timeStr, shiftType) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    let totalMinutes = hours * 60 + minutes;
+    
+    // For night shift, if time is after midnight (00:00-12:00), 
+    // add 24h to sort correctly
+    if (shiftType.toLowerCase() === 'night' && hours < 12) {
+      totalMinutes += 24 * 60;
+    }
+    
+    return totalMinutes;
+  };
+
+  // Helper function to sort break slots considering night shift
+  const sortBreakSlots = (slots, shiftType) => {
+    return slots.sort((a, b) => {
+      const timeA = adjustTimeForNightShift(a.start_time, shiftType);
+      const timeB = adjustTimeForNightShift(b.start_time, shiftType);
+      return timeA - timeB;
+    });
+  };
+
   const [showCustomSlotForm, setShowCustomSlotForm] = useState(false);
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
@@ -177,10 +202,10 @@ const BrakesManager = () => {
       }
   
       // Combine standard and custom slots
-      const allSlots = [
+      const allSlots = sortBreakSlots([
         ...standardSlotsWithIds,
         ...customSlotsData
-      ].sort((a, b) => a.start_time.localeCompare(b.start_time));
+      ], selectedShift);
       
       console.log('[fetchBreakData] Combined all slots (standard + custom):', allSlots);
       setBreakSlots(allSlots);
@@ -557,7 +582,7 @@ const BrakesManager = () => {
       break_type: newSlotData.break_type || 'Custom Slot'
     };
     
-    setBreakSlots(prevSlots => [...prevSlots, newSlot].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+    setBreakSlots(prevSlots => sortBreakSlots([...prevSlots, newSlot], selectedShift));
     // Note: Custom slot additions/edits require Save All Breaks - not saved to session temporarily
     try {
       toast.success("Custom break slot added successfully!");
@@ -583,10 +608,13 @@ const BrakesManager = () => {
     if (!slotToUpdate.is_custom) {
       // Just update the capacity for standard slots
       setBreakSlots(prevSlots => 
-        prevSlots.map(slot => 
-          slot.id === slotId 
-            ? { ...slot, capacity: updatedData.capacity } 
-            : slot
+        sortBreakSlots(
+          prevSlots.map(slot => 
+            slot.id === slotId 
+              ? { ...slot, capacity: updatedData.capacity } 
+              : slot
+          ),
+          selectedShift
         )
       );
       
@@ -634,11 +662,14 @@ const BrakesManager = () => {
     
     // Update custom slot with all fields
     setBreakSlots(prevSlots => 
-      prevSlots.map(slot => 
-        slot.id === slotId 
-          ? { ...slot, ...updatedData } 
-          : slot
-      ).sort((a, b) => a.start_time.localeCompare(b.start_time))
+      sortBreakSlots(
+        prevSlots.map(slot => 
+          slot.id === slotId 
+            ? { ...slot, ...updatedData } 
+            : slot
+        ),
+        selectedShift
+      )
     );
     
     // Update any scheduled breaks that reference this slot if capacity decreased
