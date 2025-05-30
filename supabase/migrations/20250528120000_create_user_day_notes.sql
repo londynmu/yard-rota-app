@@ -53,4 +53,16 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER update_user_day_notes_updated_at
 BEFORE UPDATE ON user_day_notes
 FOR EACH ROW
-EXECUTE FUNCTION update_user_day_notes_updated_at(); 
+EXECUTE FUNCTION update_user_day_notes_updated_at();
+
+-- Nadaj uprawnienia do zarządzania przerwami wszystkim użytkownikom
+GRANT SELECT, INSERT, UPDATE, DELETE ON breaks TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON break_types TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON break_schedules TO authenticated;
+
+-- Nadaj uprawnienia do sekwencji (jeśli są używane)
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Nadaj uprawnienia do wykonywania funkcji związanych z przerwami
+GRANT EXECUTE ON FUNCTION get_break_schedule TO authenticated;
+GRANT EXECUTE ON FUNCTION calculate_break_time TO authenticated; 
