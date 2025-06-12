@@ -874,14 +874,12 @@ const WeeklyRotaPage = () => {
                 key={dateStr}
                 className={`
                   bg-white/5 
-                  backdrop-blur-sm 
                   rounded-xl 
                   shadow-xl
                   overflow-hidden
                   border border-white/10
-                  transition-all duration-200
                   ${isToday ? 'ring-2 ring-blue-400' : ''} 
-                  ${isWeekend ? 'bg-gradient-to-br from-purple-900/20 to-black/40' : ''}
+                  ${isWeekend ? 'bg-black' : ''}
                   ${userHasShift ? 'border-l-2 border-l-amber-400' : ''}
                   relative
                 `}
@@ -892,13 +890,12 @@ const WeeklyRotaPage = () => {
                     relative
                     p-3 md:p-2
                     border-b border-white/10 
-                    bg-gradient-to-r from-gray-800/80 to-gray-900/80
+                    bg-gray-800
                     cursor-pointer
                     flex items-center justify-between
-                    backdrop-blur-md
                     sticky top-0 z-10
-                    ${userHasShift ? 'bg-gradient-to-r from-amber-900/40 to-gray-900/80' : ''}
-                    ${isToday ? 'from-blue-900/40' : ''}
+                    ${userHasShift ? 'bg-amber-900' : ''}
+                    ${isToday ? 'bg-blue-900' : ''}
                   `}
                   onClick={handleHeaderClick}
                 >

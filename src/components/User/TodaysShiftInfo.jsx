@@ -290,7 +290,7 @@ export default function TodaysShiftInfo() {
   const nextBreak = getNextBreak();
 
   return (
-    <div className={`w-full mb-4 bg-gradient-to-r ${getShiftColor(shift.shift_type)} backdrop-blur-xl rounded-lg border overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300`}>
+    <div className={`w-full mb-4 bg-gradient-to-r ${getShiftColor(shift.shift_type)} rounded-lg border overflow-hidden shadow-lg`}>
       {/* Top accent bar */}
       <div className={`h-1 ${getShiftAccentColor(shift.shift_type)}`}></div>
       
@@ -303,7 +303,7 @@ export default function TodaysShiftInfo() {
               </svg>
               <h2 className="text-lg font-bold text-white">Today&apos;s Shift</h2>
               {shiftActive && (
-                <span className="ml-2 bg-green-500 text-xs font-semibold text-white px-2 py-0.5 rounded-full animate-pulse-green shadow-sm shadow-green-600/50">
+                <span className="ml-2 bg-green-500 text-xs font-semibold text-white px-2 py-0.5 rounded-full shadow-sm shadow-green-600/50">
                   ACTIVE
                 </span>
               )}

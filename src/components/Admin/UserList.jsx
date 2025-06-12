@@ -409,15 +409,52 @@ export default function UserList({ users, onRefresh }) {
       setProcessingUser(userToDelete.id);
       setError(null);
       closeDeleteModal();
+
+      // First get the user's avatar URL to delete it later
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', userToDelete.id)
+        .single();
+
+      if (userError) {
+        throw userError;
+      }
+
+      // If user has an avatar, delete it from storage
+      if (userData?.avatar_url) {
+        const avatarPath = userData.avatar_url.split('/').slice(-2).join('/'); // Get 'avatars/filename.ext'
+        const { error: storageError } = await supabase.storage
+          .from('avatars')
+          .remove([avatarPath]);
+
+        if (storageError) {
+          console.error('Error deleting avatar:', storageError);
+          // Continue with user deletion even if avatar deletion fails
+        }
+      }
       
-      // Simplified: Always delete from profiles
-      const { error } = await supabase
+      // Delete from profiles table - this will cascade to other tables due to foreign key constraints
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userToDelete.id);
         
-      if (error) {
-        throw error;
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Deactivate the user in auth.users (we can't delete directly, but we can deactivate)
+      const { error: deactivateError } = await supabase.auth.updateUser({
+        data: { 
+          is_active: false,
+          deactivated_at: new Date().toISOString(),
+          deactivated_by: 'admin'
+        }
+      });
+
+      if (deactivateError) {
+        throw deactivateError;
       }
       
       // Refresh the user list
@@ -429,6 +466,9 @@ export default function UserList({ users, onRefresh }) {
     } catch (error) {
       console.error('Error deleting user:', error);
       setError(`Failed to delete user: ${error.message}`);
+      
+      // Reopen the modal if there was an error
+      setShowDeleteModal(true);
     } finally {
       setProcessingUser(null);
     }

@@ -153,13 +153,13 @@ export default function SettingsManager() {
   }
   
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
+    <div className="bg-white/5 rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
       {/* Settings Sections Navigation */}
       <div className="flex mb-6 overflow-x-auto pb-2 -mx-4 px-4">
         <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium mr-2 ${
             activeSection === 'notifications' 
-              ? 'bg-blue-600/60 text-white' 
+              ? 'bg-blue-600 text-white' 
               : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
           }`}
           onClick={() => setActiveSection('notifications')}
@@ -167,9 +167,9 @@ export default function SettingsManager() {
           Notifications
         </button>
         <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 transition-colors ${
+          className={`px-4 py-2 rounded-lg font-medium mr-2 ${
             activeSection === 'team' 
-              ? 'bg-blue-600/60 text-white' 
+              ? 'bg-blue-600 text-white' 
               : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
           }`}
           onClick={() => setActiveSection('team')}
@@ -274,12 +274,12 @@ export default function SettingsManager() {
       {saveMessage.text && (
         <div className={`mt-4 p-3 rounded-md ${
           saveMessage.type === 'success' 
-            ? 'bg-green-500/20 text-green-100 border border-green-400/30' 
-            : 'bg-red-500/20 text-red-100 border border-red-400/30'
+            ? 'bg-green-500 text-green-100 border border-green-400' 
+            : 'bg-red-500 text-red-100 border border-red-400'
         }`}>
           {saveMessage.text}
         </div>
       )}
     </div>
   );
-} 
+}

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -329,12 +330,12 @@ export default function TeamView() {
   const fadeIn = !initialLoading ? "opacity-100 transition-opacity duration-300" : "opacity-0";
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 py-4 sm:py-8 px-0 sm:px-6 md:px-8 lg:px-12 overflow-hidden relative text-white flex justify-center">
+    <div className="min-h-screen bg-black py-4 sm:py-8 px-0 sm:px-6 md:px-8 lg:px-12 overflow-hidden relative text-white flex justify-center">
       <div className="w-full sm:max-w-6xl relative">
         {/* Comment tooltip popup */}
         {commentTooltip.visible && (
           <div 
-            className="fixed bg-black/90 backdrop-blur-xl px-3 py-2 rounded-lg border border-white/30 shadow-lg text-white text-xs z-50 max-w-[280px]"
+            className="fixed bg-black/90 px-3 py-2 rounded-lg border border-white/30 shadow-lg text-white text-xs z-50 max-w-[280px]"
             style={{
               left: `${commentTooltip.x}px`,
               top: `${commentTooltip.y}px`,

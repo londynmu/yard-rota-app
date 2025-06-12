@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
@@ -46,7 +47,7 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
   // Create portal content
   const modalContent = (
     <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-xl flex items-center justify-center z-[10000]"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]"
       style={{ 
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -59,19 +60,19 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
       onClick={onClose}
     >
       <div 
-        className="bg-black/70 backdrop-blur-xl rounded-xl shadow-2xl p-6 w-full max-w-sm mx-auto border-2 border-white/30 animate-fadeIn"
+        className="bg-black rounded-xl shadow-2xl p-6 w-full max-w-sm mx-auto border-2 border-white/30"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 className="text-xl font-bold leading-tight text-white drop-shadow-md">
+            <h2 className="text-xl font-bold leading-tight text-white">
               Edit Availability for {user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email}
             </h2>
             <p className="text-white/90 text-sm font-medium">{format(date, 'MMM d, yyyy')} - {dayOfWeek}</p>
           </div>
           <button
             type="button"
-            className="text-white/80 hover:text-white transition-colors hover:bg-white/10 p-1.5 rounded-full"
+            className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full"
             onClick={onClose}
             aria-label="Close"
           >

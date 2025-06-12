@@ -1333,7 +1333,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
   if (!isOpen || !slot) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50">
       <div className="bg-gray-800 text-white rounded-lg shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
         <div className="bg-gray-900 px-2 py-2 md:px-4 md:py-3 border-b border-gray-700 flex justify-between items-center">
           <h3 className="text-base md:text-lg font-semibold">
@@ -1341,7 +1341,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
           </h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
