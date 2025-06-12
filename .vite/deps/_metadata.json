@@ -1,55 +1,73 @@
 {
-  "hash": "e2717644",
-  "configHash": "dc9b3b98",
-  "lockfileHash": "e00ff515",
-  "browserHash": "7afe9c96",
+  "hash": "8fb0411c",
+  "configHash": "1fc1783d",
+  "lockfileHash": "2cdda8de",
+  "browserHash": "68c6943b",
   "optimized": {
-    "react": {
-      "src": "../../node_modules/react/index.js",
-      "file": "react.js",
-      "fileHash": "454452a8",
-      "needsInterop": true
-    },
-    "react-dom": {
-      "src": "../../node_modules/react-dom/index.js",
-      "file": "react-dom.js",
-      "fileHash": "780ecb81",
-      "needsInterop": true
-    },
-    "react/jsx-dev-runtime": {
-      "src": "../../node_modules/react/jsx-dev-runtime.js",
-      "file": "react_jsx-dev-runtime.js",
-      "fileHash": "6f3d2adf",
-      "needsInterop": true
-    },
-    "react/jsx-runtime": {
-      "src": "../../node_modules/react/jsx-runtime.js",
-      "file": "react_jsx-runtime.js",
-      "fileHash": "a2c33e33",
-      "needsInterop": true
-    },
     "@supabase/supabase-js": {
       "src": "../../node_modules/@supabase/supabase-js/dist/module/index.js",
       "file": "@supabase_supabase-js.js",
-      "fileHash": "93faa086",
+      "fileHash": "2f77b259",
       "needsInterop": false
+    },
+    "date-fns": {
+      "src": "../../node_modules/date-fns/index.js",
+      "file": "date-fns.js",
+      "fileHash": "a0b25ab2",
+      "needsInterop": false
+    },
+    "jspdf": {
+      "src": "../../node_modules/jspdf/dist/jspdf.es.min.js",
+      "file": "jspdf.js",
+      "fileHash": "8530e561",
+      "needsInterop": false
+    },
+    "jspdf-autotable": {
+      "src": "../../node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js",
+      "file": "jspdf-autotable.js",
+      "fileHash": "689d6fd9",
+      "needsInterop": true
     },
     "prop-types": {
       "src": "../../node_modules/prop-types/index.js",
       "file": "prop-types.js",
-      "fileHash": "8c18a437",
+      "fileHash": "a80dc727",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "001a4839",
+      "needsInterop": true
+    },
+    "react-datepicker": {
+      "src": "../../node_modules/react-datepicker/dist/index.es.js",
+      "file": "react-datepicker.js",
+      "fileHash": "4e879392",
+      "needsInterop": false
+    },
+    "react-dom": {
+      "src": "../../node_modules/react-dom/index.js",
+      "file": "react-dom.js",
+      "fileHash": "52a52ba8",
       "needsInterop": true
     },
     "react-dom/client": {
       "src": "../../node_modules/react-dom/client.js",
       "file": "react-dom_client.js",
-      "fileHash": "9006a1f0",
+      "fileHash": "9b109783",
       "needsInterop": true
     },
     "react-router-dom": {
       "src": "../../node_modules/react-router-dom/dist/index.mjs",
       "file": "react-router-dom.js",
-      "fileHash": "be4e3844",
+      "fileHash": "4c6ebdd4",
+      "needsInterop": false
+    },
+    "recharts": {
+      "src": "../../node_modules/recharts/es6/index.js",
+      "file": "recharts.js",
+      "fileHash": "3d3fbced",
       "needsInterop": false
     }
   },
@@ -60,8 +78,29 @@
     "browser-2YNC6QW7": {
       "file": "browser-2YNC6QW7.js"
     },
+    "html2canvas.esm-5JBGKC2T": {
+      "file": "html2canvas__esm-5JBGKC2T.js"
+    },
+    "purify.es-PFY64W4W": {
+      "file": "purify__es-PFY64W4W.js"
+    },
+    "index.es-RTJRFQ25": {
+      "file": "index__es-RTJRFQ25.js"
+    },
     "chunk-7W32CK3N": {
       "file": "chunk-7W32CK3N.js"
+    },
+    "chunk-OEB75HPB": {
+      "file": "chunk-OEB75HPB.js"
+    },
+    "chunk-EZTFGPRW": {
+      "file": "chunk-EZTFGPRW.js"
+    },
+    "chunk-LO3ZD4YY": {
+      "file": "chunk-LO3ZD4YY.js"
+    },
+    "chunk-2X33BNKP": {
+      "file": "chunk-2X33BNKP.js"
     },
     "chunk-3N2PMK3V": {
       "file": "chunk-3N2PMK3V.js"
