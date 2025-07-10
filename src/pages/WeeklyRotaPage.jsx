@@ -102,6 +102,20 @@ const WeeklyRotaPage = () => {
           profiles: profilesMap[slot.user_id] || null,
         }));
 
+        // Debug: Check for Dave Glover entries
+        const daveEntries = rotaWithProfiles.filter(slot => 
+          slot.profiles?.first_name === 'Dave' && slot.profiles?.last_name === 'Glover'
+        );
+        if (daveEntries.length > 0) {
+          console.log('[WeeklyRotaPage] Dave Glover entries found:', daveEntries.map(entry => ({
+            id: entry.id,
+            date: entry.date,
+            start_time: entry.start_time,
+            end_time: entry.end_time,
+            user_id: entry.user_id
+          })));
+        }
+
         // 4) Group all fetched slots by date
         const grouped = {};
         rotaWithProfiles.forEach((slot) => {

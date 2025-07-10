@@ -535,13 +535,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const getFilteredEmployees = () => {
     return availableEmployees
       .filter(employee => {
-        // First, check if employee matches our location criteria for all tabs except "other_locations"
-        if (selectedTab !== 'other_locations' && !employee.isAssigned &&
-            employee.preferred_location !== 'Both' && 
-            employee.preferred_location !== slot.location) {
-          return false;
-        }
-        
         // For "other_locations" tab, only show employees from different locations
         if (selectedTab === 'other_locations') {
           return employee.preferred_location !== slot.location && 
@@ -553,18 +546,22 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           return employee.isAssigned;
         } else if (selectedTab === 'available') {
           // Only show employees who prefer this shift type AND are available without conflicts
+          // Include employees with matching location preference OR "Both" preference
           return !employee.isAssigned && 
                  !employee.hasOverlappingConflict && 
                  !employee.hasBreakTimeConflict && 
                  employee.availabilityStatus.toLowerCase() === 'available' &&
-                 employee.shift_preference === slot.shift_type; // Only matching shift preference
+                 employee.shift_preference === slot.shift_type && // Only matching shift preference
+                 (employee.preferred_location === slot.location || employee.preferred_location === 'Both');
         } else if (selectedTab === 'other_shifts') {
           // Show employees who prefer different shift types but are otherwise available
+          // Include employees with matching location preference OR "Both" preference
           return !employee.isAssigned && 
                  !employee.hasOverlappingConflict && 
                  !employee.hasBreakTimeConflict && 
                  employee.availabilityStatus.toLowerCase() === 'available' &&
-                 employee.shift_preference !== slot.shift_type; // Different shift preference
+                 employee.shift_preference !== slot.shift_type && // Different shift preference
+                 (employee.preferred_location === slot.location || employee.preferred_location === 'Both');
         } else if (selectedTab === 'conflicts') {
           return !employee.isAssigned && 
                  (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
