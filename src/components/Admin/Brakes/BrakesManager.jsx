@@ -20,6 +20,20 @@ const BrakesManager = () => {
     return savedShift || 'Day';
   });
 
+  // Auto-navigate to today's date when entering Breaks page
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const lastVisitedBreaksPage = localStorage.getItem('brakes_last_visited');
+    const currentVisit = Date.now().toString();
+    
+    // If this is a new visit to breaks page (different day or first time), set today's date
+    if (!lastVisitedBreaksPage || 
+        (lastVisitedBreaksPage && new Date(parseInt(lastVisitedBreaksPage)).toDateString() !== new Date().toDateString())) {
+      setSelectedDate(today);
+      localStorage.setItem('brakes_last_visited', currentVisit);
+    }
+  }, []); // Run only once when component mounts
+
   // Helper function to adjust time for night shift sorting
   const adjustTimeForNightShift = (timeStr, shiftType) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -514,19 +528,42 @@ const BrakesManager = () => {
       // console.log("[handleSaveAllBreaks] Deleting existing standard slot definitions...");
       // const { error: deleteStdSlotsError } = await supabase...;
 
-      // 3. Upsert Custom Slot Definitions (using 'id' as conflict target)
+      // 3. Handle Custom Slot Definitions (split into new and existing)
       if (customSlotsToUpsert.length > 0) {
-        console.log("[handleSaveAllBreaks] Upserting custom slot definitions...");
-        const { error: upsertCustomError } = await supabase
-            .from('scheduled_breaks')
-            .upsert(customSlotsToUpsert, { onConflict: 'id' }); // Upsert based on primary key 'id'
+        // Split custom slots into new and existing
+        const newCustomSlots = customSlotsToUpsert.filter(slot => !slot.id);
+        const existingCustomSlots = customSlotsToUpsert.filter(slot => slot.id);
+        
+        // Insert new custom slots
+        if (newCustomSlots.length > 0) {
+          console.log("[handleSaveAllBreaks] Inserting new custom slot definitions...");
+          const { error: insertCustomError } = await supabase
+              .from('scheduled_breaks')
+              .insert(newCustomSlots);
 
-        if (upsertCustomError) {
-          console.error("[handleSaveAllBreaks] Error upserting custom slots:", upsertCustomError);
-          console.error("Data attempted for custom slots:", JSON.stringify(customSlotsToUpsert, null, 2));
-          throw upsertCustomError; // This is critical, so throw
-        } else {
-          console.log("[handleSaveAllBreaks] Successfully upserted custom slots.");
+          if (insertCustomError) {
+            console.error("[handleSaveAllBreaks] Error inserting new custom slots:", insertCustomError);
+            console.error("Data attempted for new custom slots:", JSON.stringify(newCustomSlots, null, 2));
+            throw insertCustomError;
+          } else {
+            console.log("[handleSaveAllBreaks] Successfully inserted new custom slots.");
+          }
+        }
+        
+        // Update existing custom slots
+        if (existingCustomSlots.length > 0) {
+          console.log("[handleSaveAllBreaks] Updating existing custom slot definitions...");
+          const { error: updateCustomError } = await supabase
+              .from('scheduled_breaks')
+              .upsert(existingCustomSlots, { onConflict: 'id' });
+
+          if (updateCustomError) {
+            console.error("[handleSaveAllBreaks] Error updating existing custom slots:", updateCustomError);
+            console.error("Data attempted for existing custom slots:", JSON.stringify(existingCustomSlots, null, 2));
+            throw updateCustomError;
+          } else {
+            console.log("[handleSaveAllBreaks] Successfully updated existing custom slots.");
+          }
         }
       }
 
@@ -1641,6 +1678,15 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
 
 // Slot Card Component to display a break slot
 const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaffClick }) => {
+  // Format start time to remove seconds (HH:MM:SS -> HH:MM)
+  const formatStartTime = () => {
+    try {
+      return slot.start_time.substring(0, 5); // Get only HH:MM part
+    } catch {
+      return slot.start_time || '??:??';
+    }
+  };
+
   // Calculate the end time for display
   const calculateEndTime = () => {
     try {
@@ -1677,7 +1723,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
       <div>
         <div className="flex justify-between items-center mb-1 md:mb-2">
           <span className="font-semibold text-sm md:text-base">
-            {slot.start_time} - {calculateEndTime()}
+            {formatStartTime()} - {calculateEndTime()}
           </span>
           <span className="text-xs bg-cyan-700 text-cyan-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
             {slot.duration_minutes} min

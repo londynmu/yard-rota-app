@@ -86,6 +86,16 @@ If you encounter errors:
 
 ## Recent Changes
 
+### January 2025
+- **Fixed time format display in custom break slots (2025-01-13):** Fixed the inconsistent time format display in custom break slots. Previously, custom slots showed time with seconds (20:00:00 - 21:00) while standard slots showed clean format (20:00 - 21:00). Added time formatting function to ensure all slots display time consistently in HH:MM format without seconds.
+  - Modified files: `src/components/Admin/Brakes/BrakesManager.jsx`
+- **Fixed custom slot creation error in Breaks (2025-01-13):** Fixed the "null value in column 'id' violates not-null constraint" error when creating custom break slots. The issue was caused by trying to upsert records where some had IDs and others didn't. Split the operation into separate insert (for new slots) and update (for existing slots) operations to handle the database constraints properly.
+  - Modified files: `src/components/Admin/Brakes/BrakesManager.jsx`
+- **Auto-navigate to today's date in Rota Planner page (2025-01-13):** Implemented automatic navigation to today's date when entering the Rota Planner page. The system checks if it's a new visit to the rota planner page (first time or different day) and automatically sets the date selector to today's date. This saves time by eliminating the need to manually change the date to today when planning shifts for the current day.
+  - Modified files: `src/components/Admin/Rota/RotaManager.jsx`
+- **Auto-navigate to today's date in Breaks page (2025-01-13):** Implemented automatic navigation to today's date when entering the Breaks page. The system checks if it's a new visit to the breaks page (first time or different day) and automatically sets the date selector to today's date. This saves time by eliminating the need to manually change the date to today when planning breaks for the current day.
+  - Modified files: `src/components/Admin/Brakes/BrakesManager.jsx`
+
 ### May 2024
 - **Added User Day Notes System (2024-05-28):** Implemented a new feature allowing users to leave notes about specific days (like early departure requests) that managers will see when assigning shifts. This helps prevent overlooking important availability information during scheduling. The system includes:
   - User profile section for adding/managing day notes

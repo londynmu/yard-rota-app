@@ -40,6 +40,20 @@ const RotaManager = () => {
     const savedLocation = localStorage.getItem('selected_rota_location_view');
     return savedLocation || 'all';
   });
+
+  // Auto-navigate to today's date when entering Rota Planner page
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const lastVisitedRotaPlanner = localStorage.getItem('rota_planner_last_visited');
+    const currentVisit = Date.now().toString();
+    
+    // If this is a new visit to rota planner page (different day or first time), set today's date
+    if (!lastVisitedRotaPlanner || 
+        (lastVisitedRotaPlanner && new Date(parseInt(lastVisitedRotaPlanner)).toDateString() !== new Date().toDateString())) {
+      setCurrentDate(today);
+      localStorage.setItem('rota_planner_last_visited', currentVisit);
+    }
+  }, []); // Run only once when component mounts
   const [newSlot, setNewSlot] = useState({
     shift_type: 'day',
     location: '',
