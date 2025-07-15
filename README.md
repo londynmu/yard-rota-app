@@ -9,8 +9,9 @@ Mobile-friendly application for managing employee shift schedules, designed with
 - Admin notification system
 - CSV and PDF schedule exports
 - Weekly schedule view with shift breakdown
-- Employee break management
+- Employee break management with user-based permissions
 - Self-assignment to available shifts by employees
+- Secure break management (users can only manage their own breaks)
 
 ## Administrative Tools
 
@@ -162,4 +163,58 @@ If you encounter errors:
 - **Added Locations tab (2024-06-11):** Created new "Locations" tab in the administrative panel.
 - **Added Agencies tab (2024-06-11):** Created new "Agencies" tab in the administrative panel.
 - **Added Breaks Config tab (2024-06-11):** Created new "Breaks Config" tab in the administrative panel.
+
+## Break Management Security System
+
+### Overview
+The break management system has been enhanced with comprehensive security policies to prevent users from interfering with each other's breaks while maintaining full administrative control.
+
+### Security Features
+
+#### User Permissions
+- **Own Breaks Only**: Regular users can only create, edit, and delete their own breaks
+- **View All Breaks**: All users can view everyone's breaks for coordination and planning
+- **Admin Override**: Administrators have full access to manage all breaks and system settings
+
+#### Database Security (RLS Policies)
+- **SELECT Policy**: All authenticated users can view all breaks
+- **INSERT Policy**: Users can only insert breaks for themselves (admins can insert for anyone)
+- **UPDATE Policy**: Users can only update their own breaks (admins can update any)
+- **DELETE Policy**: Users can only delete their own breaks (admins can delete any)
+- **Slot Management**: Only admins can create/modify custom slots and capacity settings
+
+#### Frontend Security
+- **Conditional UI**: Remove/edit buttons only appear for user's own breaks
+- **Permission Checks**: All break operations validate user permissions before execution
+- **Admin Controls**: Save, edit, and custom slot features restricted to admin users
+- **Toast Notifications**: Clear feedback when permission is denied
+
+#### Homepage Integration
+- **No Shift Display**: Users not scheduled for today can still see team breaks
+- **Shift-based Filtering**: Break display adapts to user's shift preference
+- **Real-time Updates**: Break information refreshes automatically
+- **Enhanced Loading States**: Clear feedback when loading breaks or when no breaks are scheduled
+- **Improved Navigation**: Added "View Breaks" button for easier access to break management
+
+### Implementation Details
+
+#### Files Modified
+- `supabase_breaks_security_policies.sql`: Database RLS policies
+- `src/components/Admin/Brakes/BrakesManager.jsx`: Frontend permission checks
+- `src/components/User/TodaysShiftInfo.jsx`: Homepage break display with enhanced UX
+
+#### Database Policies Created
+1. `Everyone can view all breaks` - SELECT for all authenticated users
+2. `Users can insert their own breaks` - INSERT with user_id validation
+3. `Users can update their own breaks` - UPDATE with user_id validation  
+4. `Users can delete their own breaks` - DELETE with user_id validation
+5. `Admins can manage break slot definitions` - Admin-only slot management
+
+#### Recent Updates (2025-01-17)
+- **Enhanced break visibility**: Improved display of team breaks on homepage for users without shifts
+- **Better user feedback**: Added loading, error, and no-data states for break information
+- **Improved debugging**: Added console logging to help troubleshoot break data issues
+- **UI enhancements**: Added "View Breaks" button on homepage for easier navigation
+
+This system ensures that employees can coordinate their breaks while preventing malicious interference, maintaining both security and usability.
 - **Fixed slot sorting in Rota Planner (2024-06-11):** Corrected slot display order.

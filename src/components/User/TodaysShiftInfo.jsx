@@ -4,6 +4,226 @@ import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 
+// Component to show breaks when user has no shift today
+function NoShiftWithBreaksView() {
+  const { user } = useAuth();
+  const [breakInfo, setBreakInfo] = useState(null); // null = loading, 'none' = no breaks, 'error' = error, object = breaks data
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Fetch user profile to get shift preference
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, shift_preference')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setUserProfile(data);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
+  // Fetch team break info
+  useEffect(() => {
+    if (!user || !userProfile) {
+      setBreakInfo(null);
+      return;
+    }
+
+    const fetchBreakInfo = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      console.log('[NoShiftWithBreaksView] Fetching breaks for date:', today);
+
+      try {
+        // Get all breaks for today
+        const { data: allBreaks, error: allBreaksError } = await supabase
+          .from('scheduled_breaks')
+          .select(`
+            id, 
+            user_id, 
+            break_start_time, 
+            break_duration_minutes, 
+            break_type,
+            shift_type,
+            profiles:user_id (
+              first_name, 
+              last_name
+            )
+          `)
+          .eq('date', today)
+          .not('user_id', 'is', null)
+          .order('break_start_time');
+
+        if (allBreaksError) {
+          console.error('[NoShiftWithBreaksView] Error fetching breaks:', allBreaksError);
+          throw allBreaksError;
+        }
+
+        console.log('[NoShiftWithBreaksView] Fetched breaks:', allBreaks);
+
+        if (allBreaks && allBreaks.length > 0) {
+          // Group breaks by shift type
+          const breaksByShift = {
+            day: allBreaks.filter(b => b.shift_type === 'day'),
+            afternoon: allBreaks.filter(b => b.shift_type === 'afternoon'),
+            night: allBreaks.filter(b => b.shift_type === 'night')
+          };
+          
+          console.log('[NoShiftWithBreaksView] Grouped breaks by shift:', breaksByShift);
+          setBreakInfo({ breaksByShift });
+        } else {
+          console.log('[NoShiftWithBreaksView] No breaks found for today');
+          setBreakInfo('none');
+        }
+      } catch (e) {
+        console.error('[NoShiftWithBreaksView] Error fetching break info:', e);
+        setBreakInfo('error');
+      }
+    };
+
+    fetchBreakInfo();
+  }, [user, userProfile]);
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  const calculateEndTime = (startTime, durationMinutes) => {
+    try {
+      const [hours, minutes] = startTime.split(':').map(Number);
+      const startDate = new Date();
+      startDate.setHours(hours, minutes, 0, 0);
+      const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+      return format(endDate, 'HH:mm');
+    } catch (e) {
+      console.error("Error calculating end time:", e);
+      return '??:??';
+    }
+  };
+
+  const formatBreakTime = (breakItem) => {
+    const startTime = breakItem.break_start_time.substring(0, 5);
+    const endTime = calculateEndTime(startTime, breakItem.break_duration_minutes);
+    return `${startTime} - ${endTime}`;
+  };
+
+  return (
+    <div className="w-full mb-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 p-4 shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="flex items-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-white/80">No shift scheduled for today.</p>
+      </div>
+
+      {/* Show team breaks */}
+      {breakInfo === null && (
+        <div className="mt-4 border-t border-slate-600/50 pt-4">
+          <div className="flex items-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <p className="text-white/60">Loading team breaks...</p>
+          </div>
+        </div>
+      )}
+
+      {breakInfo === 'none' && (
+        <div className="mt-4 border-t border-slate-600/50 pt-4">
+          <div className="flex items-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-white/60">No team breaks scheduled for today.</p>
+          </div>
+        </div>
+      )}
+
+      {breakInfo === 'error' && (
+        <div className="mt-4 border-t border-slate-600/50 pt-4">
+          <div className="flex items-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-red-300">Error loading team breaks.</p>
+          </div>
+        </div>
+      )}
+
+      {breakInfo && breakInfo !== 'none' && breakInfo !== 'error' && (
+        <div className="mt-4 border-t border-slate-600/50 pt-4">
+          <div className="flex items-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-white font-semibold">Team Breaks Today</h3>
+          </div>
+          
+          <div className="space-y-3">
+            {Object.entries(breakInfo.breaksByShift).map(([shiftType, breaks]) => {
+              if (breaks.length === 0) return null;
+              
+              const shiftConfig = {
+                day: { name: 'Day Shift', color: 'text-yellow-300', bgColor: 'bg-yellow-900/20' },
+                afternoon: { name: 'Afternoon Shift', color: 'text-orange-300', bgColor: 'bg-orange-900/20' },
+                night: { name: 'Night Shift', color: 'text-blue-300', bgColor: 'bg-blue-900/20' }
+              };
+              
+              const config = shiftConfig[shiftType];
+              
+              return (
+                <div key={shiftType} className={`${config.bgColor} rounded-lg p-3`}>
+                  <h4 className={`${config.color} font-medium mb-2`}>{config.name}</h4>
+                  <div className="space-y-1">
+                    {breaks.map((breakItem, index) => (
+                      <div key={`${shiftType}-${index}`} className="flex justify-between items-center text-sm">
+                        <span className="text-white">
+                          {breakItem.profiles ? 
+                            `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
+                            'Unknown User'}
+                        </span>
+                        <span className="text-white/70">
+                          {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-2 mt-4">
+        <Link to="/my-rota" className="text-blue-400 text-sm inline-flex items-center hover:text-blue-300 transition-colors">
+          View your full schedule
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </Link>
+        <Link to="/breaks" className="text-green-400 text-sm inline-flex items-center hover:text-green-300 transition-colors">
+          View Breaks
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function TodaysShiftInfo() {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
@@ -267,22 +487,7 @@ export default function TodaysShiftInfo() {
   }
 
   if (!shift) {
-    return (
-      <div className="w-full mb-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-slate-700/50 p-4 shadow-lg hover:shadow-xl transition-all duration-300">
-        <div className="flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-white/80">No shift scheduled for today.</p>
-        </div>
-        <Link to="/my-rota" className="mt-2 text-blue-400 text-sm inline-flex items-center hover:text-blue-300 transition-colors">
-          View your full schedule
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </Link>
-      </div>
-    );
+    return <NoShiftWithBreaksView />;
   }
 
   const shiftActive = isShiftNow();

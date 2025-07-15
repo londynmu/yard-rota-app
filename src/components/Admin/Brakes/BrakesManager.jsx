@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
 import { useToast } from '../../../components/ui/ToastContext';
+import { useAuth } from '../../../lib/AuthContext';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -10,6 +11,10 @@ import { useToast } from '../../../components/ui/ToastContext';
 // import AddCustomSlotForm from './AddCustomSlotForm';
 
 const BrakesManager = () => {
+  const { user } = useAuth();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
   const [selectedDate, setSelectedDate] = useState(() => {
     const savedDate = localStorage.getItem('brakes_selected_date');
     return savedDate || new Date().toISOString().split('T')[0];
@@ -19,6 +24,36 @@ const BrakesManager = () => {
     const savedShift = localStorage.getItem('brakes_selected_shift');
     return savedShift || 'Day';
   });
+
+  // Check user role and profile
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (!user) {
+        setCurrentUser(null);
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const { data: userProfile, error } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        setCurrentUser(userProfile);
+        setIsAdmin(userProfile.role === 'admin');
+      } catch (error) {
+        console.error('Error checking user role:', error);
+        setCurrentUser(null);
+        setIsAdmin(false);
+      }
+    };
+
+    checkUserRole();
+  }, [user]);
 
   // Auto-navigate to today's date when entering Breaks page
   useEffect(() => {
@@ -785,6 +820,12 @@ const BrakesManager = () => {
   };
 
   const handleAssignStaff = (staff, slot) => {
+    // Check if user has permission to assign this staff member
+    if (!isAdmin && staff.id !== currentUser?.id) {
+      toast.error('You can only assign yourself to breaks');
+      return;
+    }
+
     // Check if slot is full using the CURRENT capacity from state
     const assignedToSlot = scheduledBreaks.filter(b => b.slot_id === slot.id);
     if (assignedToSlot.length >= slot.capacity) { // Use slot.capacity directly from the state
@@ -873,6 +914,12 @@ const BrakesManager = () => {
   };
   
   const handleRemoveStaff = (assignment) => {
+    // Check if user has permission to remove this assignment
+    if (!isAdmin && assignment.user_id !== currentUser?.id) {
+      toast.error('You can only remove your own breaks');
+      return;
+    }
+
     // Remove assignment from scheduled breaks state
     const updatedAssignments = scheduledBreaks.filter(b => b.id !== assignment.id);
     setScheduledBreaks(updatedAssignments);
@@ -979,20 +1026,23 @@ const BrakesManager = () => {
             <option value="Night">Night (17:45 - 06:15)</option>
           </select>
         </div>
-         <div className="mt-auto">
-             <button
-                onClick={handleSaveAllBreaks}
-                disabled={isLoading}
-                className={`
-                  font-bold py-1 px-3 md:py-2 md:px-4 rounded transition duration-150 ease-in-out
-                  ${isLoading 
-                    ? 'bg-gray-500 cursor-not-allowed' 
-                    : 'bg-green-600 hover:bg-green-700 text-white'}
-                `}
-             >
-                {isLoading ? 'Saving...' : 'Save All Breaks'}
-            </button>
-        </div>
+         {/* Save button only for admins */}
+         {isAdmin && (
+           <div className="mt-auto">
+               <button
+                  onClick={handleSaveAllBreaks}
+                  disabled={isLoading}
+                  className={`
+                    font-bold py-1 px-3 md:py-2 md:px-4 rounded transition duration-150 ease-in-out
+                    ${isLoading 
+                      ? 'bg-gray-500 cursor-not-allowed' 
+                      : 'bg-green-600 hover:bg-green-700 text-white'}
+                  `}
+               >
+                  {isLoading ? 'Saving...' : 'Save All Breaks'}
+              </button>
+          </div>
+         )}
       </div>
 
         {/* Messages */}
@@ -1019,39 +1069,43 @@ const BrakesManager = () => {
                     onSlotClick={handleSlotClick}
                     onEditClick={handleEditSlot}
                     onRemoveStaffClick={handleRemoveStaff}
+                    currentUser={currentUser}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>
             </div>
           ))}
 
-          {/* Add Custom Slot Form */}
-          <div>
-            <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2">
-              <h2 className="text-xl font-semibold text-cyan-500 mt-4 md:mt-8">Create Custom Slot</h2>
-              <button 
-                onClick={() => setShowCustomSlotForm(!showCustomSlotForm)}
-                className="flex items-center text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-white"
-              >
-                {showCustomSlotForm ? 'Hide Form' : 'Show Form'}
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 ml-1 transition-transform ${showCustomSlotForm ? 'rotate-180' : ''}`} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
+          {/* Add Custom Slot Form - Only for admins */}
+          {isAdmin && (
+            <div>
+              <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2">
+                <h2 className="text-xl font-semibold text-cyan-500 mt-4 md:mt-8">Create Custom Slot</h2>
+                <button 
+                  onClick={() => setShowCustomSlotForm(!showCustomSlotForm)}
+                  className="flex items-center text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-white"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                  {showCustomSlotForm ? 'Hide Form' : 'Show Form'}
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-4 w-4 ml-1 transition-transform ${showCustomSlotForm ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              {showCustomSlotForm && (
+                <AddCustomSlotForm 
+                  onAddCustomSlot={handleAddCustomSlot}
+                  selectedShift={selectedShift}
+                />
+              )}
             </div>
-            {showCustomSlotForm && (
-              <AddCustomSlotForm 
-                onAddCustomSlot={handleAddCustomSlot}
-                selectedShift={selectedShift}
-              />
-            )}
-          </div>
+          )}
         </div>
       )}
 
@@ -1677,7 +1731,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
 };
 
 // Slot Card Component to display a break slot
-const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaffClick }) => {
+const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaffClick, currentUser, isAdmin }) => {
   // Format start time to remove seconds (HH:MM:SS -> HH:MM)
   const formatStartTime = () => {
     try {
@@ -1748,19 +1802,22 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
                 className="text-xs md:text-sm bg-gray-700/50 px-1 py-0.5 md:px-2 md:py-1 rounded flex justify-between items-center"
               >
                 <span className="truncate">{staff.user_name}</span>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering the card's onClick
-                    onRemoveStaffClick(staff);
-                  }} 
-                  className="remove-staff-button text-red-400 hover:text-red-300 ml-1 md:ml-2 p-0.5 rounded-full hover:bg-gray-600 transition-colors"
-                  aria-label={`Remove ${staff.user_name}`}
-                  title={`Remove ${staff.user_name}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                {/* Show remove button only if user is admin or it's their own break */}
+                {(isAdmin || staff.user_id === currentUser?.id) && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the card's onClick
+                      onRemoveStaffClick(staff);
+                    }} 
+                    className="remove-staff-button text-red-400 hover:text-red-300 ml-1 md:ml-2 p-0.5 rounded-full hover:bg-gray-600 transition-colors"
+                    aria-label={`Remove ${staff.user_name}`}
+                    title={`Remove ${staff.user_name}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1773,18 +1830,20 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
           : 'Click to assign staff'}
       </div>
       
-      {/* Edit button for all slots */}
-      <div className="flex justify-end gap-1 md:gap-2 mt-1 md:mt-2">
-        <button 
-          className="edit-slot-button text-xs text-yellow-400 hover:text-yellow-300"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent triggering the card's onClick
-            onEditClick(slot);
-          }}
-        >
-          Edit
-        </button>
-      </div>
+      {/* Edit button only for admins */}
+      {isAdmin && (
+        <div className="flex justify-end gap-1 md:gap-2 mt-1 md:mt-2">
+          <button 
+            className="edit-slot-button text-xs text-yellow-400 hover:text-yellow-300"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering the card's onClick
+              onEditClick(slot);
+            }}
+          >
+            Edit
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -1855,12 +1914,17 @@ SlotCard.propTypes = {
   assignedStaff: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
-      user_name: PropTypes.string.isRequired
+      user_name: PropTypes.string.isRequired,
+      user_id: PropTypes.string.isRequired
     })
   ).isRequired,
   onSlotClick: PropTypes.func.isRequired,
   onEditClick: PropTypes.func.isRequired,
-  onRemoveStaffClick: PropTypes.func.isRequired
+  onRemoveStaffClick: PropTypes.func.isRequired,
+  currentUser: PropTypes.shape({
+    id: PropTypes.string.isRequired
+  }),
+  isAdmin: PropTypes.bool.isRequired
 };
 
 export default BrakesManager; 
