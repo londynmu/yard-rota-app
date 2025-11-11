@@ -23,11 +23,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   
   // Rota Planner fields
   const [customStartTime, setCustomStartTime] = useState('');
-  const [customEndTime, setCustomEndTime] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
-  const [maxDailyHours, setMaxDailyHours] = useState('');
-  const [unavailableDays, setUnavailableDays] = useState([]);
-  const [notesForAdmin, setNotesForAdmin] = useState('');
   const [locations, setLocations] = useState([]);
   
   // Agency field
@@ -39,8 +35,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     lastName: '',
     shiftPreference: '',
     performanceScore: '',
-    timeRange: '',
-    maxDailyHours: ''
+    timeRange: ''
   });
 
   const modalRef = useRef(null);
@@ -96,11 +91,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
       setPerformanceScore(user.performance_score || 50);
       setAvatarUrl(user.avatar_url || null);
       setCustomStartTime(user.custom_start_time || '');
-      setCustomEndTime(user.custom_end_time || '');
       setPreferredLocation(user.preferred_location || '');
-      setMaxDailyHours(user.max_daily_hours || '');
-      setUnavailableDays(user.unavailable_days || []);
-      setNotesForAdmin(user.notes_for_admin || '');
       setAgencyId(user.agency_id || null);
     }
   }, [user]);
@@ -119,15 +110,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     }
   };
 
-  // Handle unavailable days selection
-  const handleUnavailableDayToggle = (day) => {
-    if (unavailableDays.includes(day)) {
-      setUnavailableDays(unavailableDays.filter(d => d !== day));
-    } else {
-      setUnavailableDays([...unavailableDays, day]);
-    }
-  };
-
   // Form validation
   const validateForm = () => {
     let isValid = true;
@@ -136,8 +118,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
       lastName: '',
       shiftPreference: '',
       performanceScore: '',
-      timeRange: '',
-      maxDailyHours: ''
+      timeRange: ''
     };
     
     // Basic validation
@@ -158,18 +139,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     
     if (performanceScore < 1 || performanceScore > 99) {
       errors.performanceScore = 'Performance score must be between 1 and 99';
-      isValid = false;
-    }
-    
-    // Custom start/end time validation
-    if ((customStartTime && !customEndTime) || (!customStartTime && customEndTime)) {
-      errors.timeRange = 'Both start and end times must be set together';
-      isValid = false;
-    }
-    
-    // Max daily hours validation
-    if (maxDailyHours && (maxDailyHours < 1 || maxDailyHours > 24)) {
-      errors.maxDailyHours = 'Max daily hours must be between 1 and 24';
       isValid = false;
     }
     
@@ -199,11 +168,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         updated_at: new Date().toISOString(),
         // Rota Planner fields
         custom_start_time: customStartTime || null,
-        custom_end_time: customEndTime || null,
         preferred_location: preferredLocation || null,
-        max_daily_hours: maxDailyHours ? parseInt(maxDailyHours, 10) : null,
-        unavailable_days: unavailableDays.length > 0 ? unavailableDays : null,
-        notes_for_admin: notesForAdmin || null,
         // Agency field
         agency_id: agencyId
       };
@@ -479,46 +444,19 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-white font-medium mb-2">
-                    Custom Working Hours (Optional)
+                  <label htmlFor="admin-edit-startTime" className="block text-white font-medium mb-2">
+                    Preferred Start Time
                   </label>
-                  <div className="flex space-x-2">
-                    <div className="flex-1">
-                      <label htmlFor="admin-edit-startTime" className="block text-white text-sm mb-1">
-                        Start Time
-                      </label>
-                      <input
-                        id="admin-edit-startTime"
-                        type="time"
-                        value={customStartTime}
-                        onChange={(e) => setCustomStartTime(e.target.value)}
-                        className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                          formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
-                        }`}
-                        disabled={loading}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label htmlFor="admin-edit-endTime" className="block text-white text-sm mb-1">
-                        End Time
-                      </label>
-                      <input
-                        id="admin-edit-endTime"
-                        type="time"
-                        value={customEndTime}
-                        onChange={(e) => setCustomEndTime(e.target.value)}
-                        className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                          formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
-                        }`}
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-                  {formErrors.timeRange && (
-                    <p className="mt-1 text-sm text-red-400">{formErrors.timeRange}</p>
-                  )}
+                  <input
+                    id="admin-edit-startTime"
+                    type="time"
+                    value={customStartTime}
+                    onChange={(e) => setCustomStartTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    disabled={loading}
+                  />
                   <p className="mt-1 text-xs text-white/60">
-                    Override default working hours for this staff member
+                    Preferred starting time for this staff member
                   </p>
                 </div>
                 
@@ -541,72 +479,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   <p className="mt-1 text-xs text-white/60">
                     Staff will be preferentially assigned to this location when possible
                   </p>
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-maxHours" className="block text-white font-medium mb-2">
-                    Maximum Daily Hours
-                  </label>
-                  <input
-                    id="admin-edit-maxHours"
-                    type="number"
-                    min="1"
-                    max="24"
-                    value={maxDailyHours}
-                    onChange={(e) => setMaxDailyHours(e.target.value)}
-                    className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                      formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
-                    }`}
-                    placeholder="e.g. 8"
-                    disabled={loading}
-                  />
-                  {formErrors.maxDailyHours && (
-                    <p className="mt-1 text-sm text-red-400">{formErrors.maxDailyHours}</p>
-                  )}
-                  <p className="mt-1 text-xs text-white/60">
-                    Maximum working hours per day (leave empty for no limit)
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="block text-white font-medium mb-2">
-                    Unavailable Days
-                  </label>
-                  <div className="grid grid-cols-7 gap-1">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => handleUnavailableDayToggle(day)}
-                        className={`py-1 px-1 text-center rounded text-xs sm:text-sm border ${
-                          unavailableDays.includes(day)
-                            ? 'bg-red-500/50 border-red-400/50 text-white'
-                            : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'
-                        }`}
-                        disabled={loading}
-                      >
-                        {day.substring(0, 3)}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-1 text-xs text-white/60">
-                    Mark days when the staff member is regularly unavailable
-                  </p>
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-notes" className="block text-white font-medium mb-2">
-                    Admin Notes
-                  </label>
-                  <textarea
-                    id="admin-edit-notes"
-                    value={notesForAdmin}
-                    onChange={(e) => setNotesForAdmin(e.target.value)}
-                    rows="3"
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Private notes visible to admin only"
-                    disabled={loading}
-                  ></textarea>
                 </div>
               </div>
             </div>

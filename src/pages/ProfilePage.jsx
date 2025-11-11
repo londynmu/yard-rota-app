@@ -25,11 +25,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [isOffline, setIsOffline] = useState(false);
   // Rota Planner additional fields
   const [customStartTime, setCustomStartTime] = useState('');
-  const [customEndTime, setCustomEndTime] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
-  const [maxDailyHours, setMaxDailyHours] = useState('');
-  const [unavailableDays, setUnavailableDays] = useState([]);
-  const [notesForAdmin, setNotesForAdmin] = useState('');
   // Toast message for form validation
   const toast = useToast();
   // Available locations
@@ -91,11 +87,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setAvatarUrl(data.avatar_url || '');
         // Load Rota Planner fields
         setCustomStartTime(data.custom_start_time || '');
-        setCustomEndTime(data.custom_end_time || '');
         setPreferredLocation(data.preferred_location || '');
-        setMaxDailyHours(data.max_daily_hours || '');
-        setUnavailableDays(data.unavailable_days || []);
-        setNotesForAdmin(data.notes_for_admin || '');
         setAgencyId(data.agency_id || null);
       }
       setProfileLoaded(true);
@@ -228,27 +220,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       errors.preferredLocation = 'Preferred location is required';
     }
     
-    // Make max daily hours required
-    if (!maxDailyHours) {
-      errors.maxDailyHours = 'Maximum daily hours is required';
-    } else if (maxDailyHours > 24 || maxDailyHours < 1) {
-      errors.maxDailyHours = 'Maximum daily hours must be between 1 and 24';
-    }
-    
     // Make custom start time required
     if (!customStartTime) {
       errors.customStartTime = 'Preferred start time is required';
-    }
-    
-    // Make custom end time required
-    if (!customEndTime) {
-      errors.customEndTime = 'Preferred end time is required';
-    }
-    
-    // Validate time range
-    if (customStartTime && customEndTime && customStartTime === customEndTime) {
-      errors.timeRange = 'Start time and end time cannot be the same';
-      toast.error('Start time and end time cannot be the same');
     }
     
     setFormErrors(errors);
@@ -333,11 +307,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         updated_at: new Date().toISOString(),
         // Add Rota Planner fields
         custom_start_time: customStartTime || null,
-        custom_end_time: customEndTime || null,
         preferred_location: preferredLocation || null,
-        max_daily_hours: maxDailyHours || null,
-        unavailable_days: unavailableDays.length > 0 ? unavailableDays : null,
-        notes_for_admin: notesForAdmin || null,
         agency_id: agencyId,
       };
       
@@ -502,42 +472,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     }
   };
 
-  const handleCustomEndTimeChange = (e) => {
-    const value = e.target.value;
-    if (value) {
-      const [hours, minutes] = value.split(':');
-      // Round minutes to nearest 15-minute interval (00, 15, 30, 45)
-      let roundedMinutes;
-      const min = parseInt(minutes);
-      if (min < 8) roundedMinutes = '00';
-      else if (min < 23) roundedMinutes = '15';
-      else if (min < 38) roundedMinutes = '30';
-      else if (min < 53) roundedMinutes = '45';
-      else roundedMinutes = '00';
-      
-      // Handle hour rollover if minutes were 53-59
-      let adjustedHours = parseInt(hours);
-      if (min >= 53) {
-        adjustedHours = (adjustedHours + 1) % 24;
-      }
-      
-      const formattedHours = adjustedHours.toString().padStart(2, '0');
-      const roundedTime = `${formattedHours}:${roundedMinutes}`;
-      setCustomEndTime(roundedTime);
-    } else {
-      setCustomEndTime('');
-    }
-  };
-
-  // Check if time range spans to next day
-  const checkTimeRange = () => {
-    if (customStartTime && customEndTime) {
-      const start = new Date(`2000-01-01T${customStartTime}`);
-      const end = new Date(`2000-01-01T${customEndTime}`);
-      return start > end;
-    }
-    return false;
-  };
 
   // Handle loading state
   if (loading) {
@@ -708,34 +642,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 {formErrors.customStartTime && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.customStartTime}</p>
                 )}
-                {checkTimeRange() && (
-                  <p className="text-sm text-blue-300 italic mt-1">
-                    This time range extends to the next day
-                  </p>
-                )}
-              </div>
-              
-              {/* Custom End Time */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="customEndTime">
-                  Preferred End Time {isRequired && <span className="text-red-300">*</span>}
-                  <Tooltip message="Time until which you can work. Helps to better match you to slots in the schedule." />
-                </label>
-                <input
-                  type="time"
-                  id="customEndTime"
-                  value={customEndTime}
-                  onChange={handleCustomEndTimeChange}
-                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                    formErrors.customEndTime || formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
-                  }`}
-                />
-                {formErrors.customEndTime && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.customEndTime}</p>
-                )}
-                {formErrors.timeRange && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.timeRange}</p>
-                )}
               </div>
               
               {/* Preferred Location */}
@@ -769,76 +675,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 {formErrors.preferredLocation && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.preferredLocation}</p>
                 )}
-              </div>
-              
-              {/* Max Daily Hours */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="maxDailyHours">
-                  Maximum Daily Hours {isRequired && <span className="text-red-300">*</span>}
-                  <Tooltip message="Maximum number of hours you can work in a single day. Used to ensure you're not scheduled for longer shifts than desired." />
-                </label>
-                <input
-                  type="number"
-                  id="maxDailyHours"
-                  min="1"
-                  max="24"
-                  value={maxDailyHours}
-                  onChange={(e) => setMaxDailyHours(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                    formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
-                  }`}
-                />
-                {formErrors.maxDailyHours && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.maxDailyHours}</p>
-                )}
-              </div>
-              
-              {/* Unavailable Days */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2">
-                  Unavailable Days <span className="text-xs text-white/70">(Optional)</span>
-                  <Tooltip message="Mark the days of the week when you generally cannot work. If you can work on specific instances of these days, set it separately in your availability." />
-                </label>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                    <label key={day} className={`flex items-center justify-center p-2 border rounded-md cursor-pointer ${
-                      unavailableDays.includes(day) 
-                        ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                        : 'border-white/20 text-white'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={unavailableDays.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setUnavailableDays([...unavailableDays, day]);
-                          } else {
-                            setUnavailableDays(unavailableDays.filter(d => d !== day));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      <span className="text-xs sm:text-sm">{day.substring(0, 3)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Notes For Admin */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="notesForAdmin">
-                  Notes for Admin <span className="text-xs text-white/70">(Optional)</span>
-                  <Tooltip message="Any special requirements or additional information that administrators should know when planning your schedule." />
-                </label>
-                <textarea
-                  id="notesForAdmin"
-                  value={notesForAdmin}
-                  onChange={(e) => setNotesForAdmin(e.target.value)}
-                  rows="3"
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                  placeholder="Any special requirements or notes..."
-                ></textarea>
               </div>
             </div>
             
@@ -1101,34 +937,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 {formErrors.customStartTime && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.customStartTime}</p>
                 )}
-                {checkTimeRange() && (
-                  <p className="text-sm text-blue-300 italic mt-1">
-                    This time range extends to the next day
-                  </p>
-                )}
-              </div>
-              
-              {/* Custom End Time */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="customEndTime">
-                  Preferred End Time {isRequired && <span className="text-red-300">*</span>}
-                  <Tooltip message="Time until which you can work. Helps to better match you to slots in the schedule." />
-                </label>
-                <input
-                  type="time"
-                  id="customEndTime"
-                  value={customEndTime}
-                  onChange={handleCustomEndTimeChange}
-                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                    formErrors.customEndTime || formErrors.timeRange ? 'border-red-400/70' : 'border-white/20'
-                  }`}
-                />
-                {formErrors.customEndTime && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.customEndTime}</p>
-                )}
-                {formErrors.timeRange && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.timeRange}</p>
-                )}
               </div>
               
               {/* Preferred Location */}
@@ -1162,76 +970,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 {formErrors.preferredLocation && (
                   <p className="text-sm text-red-300 mt-1">{formErrors.preferredLocation}</p>
                 )}
-              </div>
-              
-              {/* Max Daily Hours */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="maxDailyHours">
-                  Maximum Daily Hours {isRequired && <span className="text-red-300">*</span>}
-                  <Tooltip message="Maximum number of hours you can work in a single day. Used to ensure you're not scheduled for longer shifts than desired." />
-                </label>
-                <input
-                  type="number"
-                  id="maxDailyHours"
-                  min="1"
-                  max="24"
-                  value={maxDailyHours}
-                  onChange={(e) => setMaxDailyHours(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border focus:border-white/50 text-white ${
-                    formErrors.maxDailyHours ? 'border-red-400/70' : 'border-white/20'
-                  }`}
-                />
-                {formErrors.maxDailyHours && (
-                  <p className="text-sm text-red-300 mt-1">{formErrors.maxDailyHours}</p>
-                )}
-              </div>
-              
-              {/* Unavailable Days */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2">
-                  Unavailable Days <span className="text-xs text-white/70">(Optional)</span>
-                  <Tooltip message="Mark the days of the week when you generally cannot work. If you can work on specific instances of these days, set it separately in your availability." />
-                </label>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                    <label key={day} className={`flex items-center justify-center p-2 border rounded-md cursor-pointer ${
-                      unavailableDays.includes(day) 
-                        ? 'bg-blue-500/30 border-blue-400/70 text-white' 
-                        : 'border-white/20 text-white'
-                    }`}>
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={unavailableDays.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setUnavailableDays([...unavailableDays, day]);
-                          } else {
-                            setUnavailableDays(unavailableDays.filter(d => d !== day));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      <span className="text-xs sm:text-sm">{day.substring(0, 3)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Notes For Admin */}
-              <div className="mb-4">
-                <label className="block text-white font-medium mb-2" htmlFor="notesForAdmin">
-                  Notes for Admin <span className="text-xs text-white/70">(Optional)</span>
-                  <Tooltip message="Any special requirements or additional information that administrators should know when planning your schedule." />
-                </label>
-                <textarea
-                  id="notesForAdmin"
-                  value={notesForAdmin}
-                  onChange={(e) => setNotesForAdmin(e.target.value)}
-                  rows="3"
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm rounded-md focus:outline-none border border-white/20 focus:border-white/50 text-white"
-                  placeholder="Any special requirements or notes..."
-                ></textarea>
               </div>
             </div>
             
