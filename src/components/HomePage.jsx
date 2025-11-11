@@ -3,7 +3,6 @@ import { useAuth } from '../lib/AuthContext';
 import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
 import CalendarPage from '../pages/CalendarPage';
 import ProfilePage from '../pages/ProfilePage';
-import TeamView from '../pages/TeamView';
 import AdminPage from '../pages/AdminPage';
 import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
@@ -131,7 +130,6 @@ export default function HomePage() {
     const path = location.pathname;
     
     if (path === '/' || path === '/calendar') return 'Main Page';
-    if (path === '/team') return 'Team View';
     if (path === '/my-rota') return 'My Rota';
     if (path === '/admin') return 'Admin Dashboard';
     if (path === '/profile') return 'Your Profile';
@@ -212,16 +210,6 @@ export default function HomePage() {
                 }`}
               >
                 Main Page
-              </Link>
-              <Link
-                to="/team"
-                className={`px-4 py-2 text-sm font-medium ${
-                  location.pathname === '/team' 
-                    ? 'text-white font-bold' 
-                    : 'text-white/80'
-                }`}
-              >
-                Team View
               </Link>
               <Link
                 to="/my-rota"
@@ -328,17 +316,6 @@ export default function HomePage() {
                 Main Page
               </Link>
               <Link
-                to="/team"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md ${
-                  location.pathname === '/team' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'text-white/70'
-                }`}
-              >
-                Team View
-              </Link>
-              <Link
                 to="/my-rota"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-md ${
@@ -413,7 +390,6 @@ export default function HomePage() {
       <main className="flex-1 relative z-0">
         <Routes>
           <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/team" element={<TeamView />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
