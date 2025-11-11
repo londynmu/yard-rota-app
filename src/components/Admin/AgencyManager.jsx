@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import ConfirmDialog from '../UI/ConfirmDialog';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { useToast } from '../ui/ToastContext';
 
 export default function AgencyManager() {
