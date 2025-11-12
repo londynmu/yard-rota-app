@@ -19,6 +19,22 @@ const calculateEndTime = (startTime, durationMinutes) => {
   }
 };
 
+// Helper to sort breaks so that evening times (18:00+) appear before early morning times
+const getNightSortValue = (timeStr) => {
+  if (!timeStr) return Number.MAX_SAFE_INTEGER;
+  const normalized = timeStr.slice(0, 5); // HH:MM
+  const [hours, minutes] = normalized.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.MAX_SAFE_INTEGER;
+
+  let totalMinutes = hours * 60 + minutes;
+  // Move times before 18:00 to the end of the ordering (add 24h)
+  if (totalMinutes < 18 * 60) {
+    totalMinutes += 24 * 60;
+  }
+
+  return totalMinutes;
+};
+
 export default function ShiftDashboard() {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
@@ -236,17 +252,21 @@ export default function ShiftDashboard() {
           
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
           const uniqueBreaks = [];
-          const seenUserIds = new Set();
+          const seenBreakKeys = new Set();
           
           breaksWithProfiles.forEach(breakItem => {
             const key = `${breakItem.user_id}-${breakItem.break_start_time}`;
-            if (!seenUserIds.has(key)) {
-              seenUserIds.add(key);
+            if (!seenBreakKeys.has(key)) {
+              seenBreakKeys.add(key);
               uniqueBreaks.push(breakItem);
             }
           });
           
-          setAllBreaks(uniqueBreaks);
+          const sortedBreaks = uniqueBreaks.sort((a, b) => 
+            getNightSortValue(a.break_start_time) - getNightSortValue(b.break_start_time)
+          );
+          
+          setAllBreaks(sortedBreaks);
         } else {
           setAllBreaks([]);
         }
