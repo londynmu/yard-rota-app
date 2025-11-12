@@ -9,7 +9,6 @@ import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
 import BrakesPage from '../pages/BrakesPage';
 import NotificationBell from './NotificationBell';
-import ThemeToggle from './ui/ThemeToggle';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -271,7 +270,6 @@ export default function HomePage() {
               </svg>
             </button>
             
-            <ThemeToggle />
             {isAdmin && <NotificationBell />}
             
             <div className="relative">
