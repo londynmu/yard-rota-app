@@ -934,12 +934,8 @@ const BrakesManager = () => {
       return;
     }
 
-    // Check if slot is full using the CURRENT capacity from state
+    // No capacity limit: allow unlimited assignments per slot
     const assignedToSlot = scheduledBreaks.filter(b => b.slot_id === slot.id);
-    if (assignedToSlot.length >= slot.capacity) { // Use slot.capacity directly from the state
-      toast.error(`Cannot assign ${staff.first_name} ${staff.last_name} to this break: slot is full (${assignedToSlot.length}/${slot.capacity}).`);
-      return;
-    }
     
     // Check if staff can be assigned to this slot (existing logic)
     const staffMember = availableStaff.find(s => s.id === staff.id);
@@ -994,7 +990,7 @@ const BrakesManager = () => {
     const updatedAssignments = [...scheduledBreaks, newAssignment];
     setScheduledBreaks(updatedAssignments);
     sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
-    toast.success(`${staff.first_name} ${staff.last_name} added (pending). Click "Save Breaks" to persist.`);
+    // Removed per request: no toast after each add
     
     // Update staff break status
     setAvailableStaff(prev => 
@@ -1400,10 +1396,10 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
             <span className="text-gray-400 text-xs md:text-sm">Break Type:</span>{' '}
             <span className="font-medium text-xs md:text-sm">{slot.break_type}</span>
           </div>
-          <div className="mt-1">
-            <span className="text-gray-400 text-xs md:text-sm">Assigned:</span>{' '}
-            <span className="font-medium text-xs md:text-sm">{assignedStaff.length}/{slot.capacity}</span>
-          </div>
+           <div className="mt-1">
+             <span className="text-gray-400 text-xs md:text-sm">Assigned:</span>{' '}
+             <span className="font-medium text-xs md:text-sm">{assignedStaff.length}</span>
+           </div>
         </div>
         
         {/* Currently Assigned Staff */}
@@ -1465,7 +1461,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               {eligibleStaff.map(staff => (
                 <button 
                   key={staff.id}
-                  disabled={isProcessing || assignedStaff.length >= slot.capacity || isAllLocation}
+                   disabled={isProcessing || isAllLocation}
                   onClick={async () => {
                     if (isAllLocation) return;
                     setIsProcessing(true);
@@ -1473,7 +1469,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                     setIsProcessing(false);
                   }}
                   className={`w-full text-left flex items-center justify-between px-2 py-1 md:px-3 md:py-2 rounded transition-colors ${
-                    assignedStaff.length >= slot.capacity || isProcessing || isAllLocation
+                     isProcessing || isAllLocation
                       ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
                       : 'bg-gray-100 border border-gray-200 hover:bg-gray-200 focus:bg-gray-200'
                   }`}
@@ -1916,10 +1912,9 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
     }
   };
   
-  const isFull = assignedStaff.length >= slot.capacity;
   const cardClasses = `
     bg-white p-2 md:p-4 rounded-lg shadow-sm border 
-    ${isFull ? 'border-green-500' : 'border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer'}
+     border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer
     min-h-[120px] md:min-h-[150px] flex flex-col justify-between relative
   `;
   
@@ -1928,7 +1923,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
     if (e.target.closest('.remove-staff-button') || e.target.closest('.edit-slot-button')) {
       return;
     }
-    if (!isFull) onSlotClick(slot);
+    onSlotClick(slot);
   };
 
   return (
@@ -1952,15 +1947,9 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
             {slot.duration_minutes} min
           </span>
         </div>
-        <div className="text-xs md:text-sm text-charcoal mb-1 md:mb-2">
-          Capacity: {slot.capacity}
-        </div>
-        <div className="text-xs md:text-sm text-gray-600">
-          Assigned: {assignedStaff.length}/{slot.capacity}
-          <span className={`ml-1 md:ml-2 font-medium ${assignedStaff.length >= slot.capacity ? 'text-green-600' : 'text-amber-600'}`}>
-            {assignedStaff.length >= slot.capacity ? 'Full' : 'Available'}
-          </span>
-        </div>
+         <div className="text-xs md:text-sm text-gray-600">
+           Assigned: {assignedStaff.length}
+         </div>
         
         {/* List assigned staff with remove buttons */}
         {assignedStaff.length > 0 && (
@@ -1993,11 +1982,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
         )}
       </div>
       
-      <div className="mt-2 md:mt-3 text-center text-gray-500 text-xs italic">
-        {assignedStaff.length >= slot.capacity 
-          ? 'Slot is full' 
-          : 'Click to assign staff'}
-      </div>
+       <div className="mt-2 md:mt-3 text-center text-gray-500 text-xs italic">Click to assign staff</div>
       
       {/* Edit button only for admins */}
       {isAdmin && (
