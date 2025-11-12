@@ -63,62 +63,65 @@ const SlotCard = ({
 
   // Funkcja określająca kolor bocznego znacznika w zależności od typu zmiany
   const getShiftIndicatorColor = (shiftType) => {
-    switch(shiftType) {
+    switch (shiftType) {
       case 'day':
-        return 'bg-blue-700/40';
+        return 'bg-blue-500';
       case 'afternoon':
-        return 'bg-indigo-700/40';
+        return 'bg-indigo-500';
       case 'night':
-        return 'bg-slate-600/40';
+        return 'bg-slate-500';
       default:
-        return 'bg-gray-600/40';
+        return 'bg-gray-400';
     }
   };
 
-  // Determine border color based on slot fullness
-  const getBorderColor = () => {
-    if (isSlotFull) {
-      return 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.2)]';
-    } else if (fillPercentage === 0) {
-      return 'border-red-500/70 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse-red';
-    } else {
-      return 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] animate-pulse-yellow';
-    }
-  };
+  const stateStyles = isSlotFull
+    ? {
+        borderClass: 'border-green-300',
+        statusBadge: 'bg-green-100 text-green-700 border border-green-200',
+        progressBar: 'bg-green-500',
+        capacityBadge: 'bg-green-50 text-green-700 border border-green-200'
+      }
+    : fillPercentage === 0
+    ? {
+        borderClass: 'border-red-300',
+        statusBadge: 'bg-red-100 text-red-700 border border-red-200',
+        progressBar: 'bg-red-500',
+        capacityBadge: 'bg-red-50 text-red-700 border border-red-200'
+      }
+    : {
+        borderClass: 'border-yellow-300',
+        statusBadge: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
+        progressBar: 'bg-yellow-500',
+        capacityBadge: 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+      };
 
-  // Get status text and color for the status badge
-  const getStatusInfo = () => {
-    if (isSlotFull) {
-      return { text: 'Full', bgColor: 'bg-green-500/30', textColor: 'text-green-200' };
-    } else if (fillPercentage === 0) {
-      return { text: 'Empty', bgColor: 'bg-red-500/30', textColor: 'text-red-200' };
-    } else {
-      return { text: 'Partial', bgColor: 'bg-yellow-500/30', textColor: 'text-yellow-200' };
-    }
-  };
-
-  const statusInfo = getStatusInfo();
+  const statusInfo = isSlotFull
+    ? { text: 'Full' }
+    : fillPercentage === 0
+    ? { text: 'Empty' }
+    : { text: 'Partial' };
 
   // Delete confirmation dialog
   const DeleteConfirmationModal = () => {
     if (!showDeleteConfirm) return null;
     
     const modalContent = (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-5 w-full max-w-md animate-fade-scale">
-          <h3 className="text-xl font-bold text-charcoal mb-3">Confirm Delete</h3>
-          <p className="text-charcoal/90 mb-5">
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4">
+        <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-xl">
+          <h3 className="mb-3 text-xl font-bold text-charcoal">Confirm Delete</h3>
+          <p className="mb-5 text-gray-600">
             Are you sure you want to delete this slot?
             {assignedCount > 0 && (
-              <span className="block mt-2 text-red-300 font-medium">
+              <span className="mt-2 block text-sm font-semibold text-red-600">
                 This slot has {assignedCount} assigned employee{assignedCount !== 1 ? 's' : ''}.
               </span>
             )}
           </p>
-          <div className="flex space-x-3 justify-end">
+          <div className="flex justify-end space-x-3">
             <button
               onClick={() => setShowDeleteConfirm(false)}
-              className="px-4 py-2 bg-slate-700 text-charcoal rounded-md hover:bg-slate-600 transition-colors"
+              className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100 transition-colors"
             >
               Cancel
             </button>
@@ -127,7 +130,7 @@ const SlotCard = ({
                 handleDeleteSlot(slot.id);
                 setShowDeleteConfirm(false);
               }}
-              className="px-4 py-2 bg-red-600 text-charcoal rounded-md hover:bg-red-700 transition-colors"
+              className="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors"
             >
               Delete
             </button>
@@ -141,27 +144,30 @@ const SlotCard = ({
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
-      className={`bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-sm hover:from-slate-800/90 hover:to-slate-700/90 rounded-lg p-4 ${getBorderColor()} shadow-xl cursor-pointer transition group relative overflow-hidden`}
+      className={`relative overflow-hidden rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md cursor-pointer ${stateStyles.borderClass}`}
     >
       {/* Delete confirmation modal */}
       <DeleteConfirmationModal />
       
       {/* Status badge in top right corner */}
-      <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor} border border-slate-700/40`}>
+      <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold ${stateStyles.statusBadge}`}>
         {statusInfo.text}
       </div>
 
       {/* Pionowy pasek oznaczający typ zmiany */}
-      <div className={`absolute top-0 left-0 w-1.5 h-full ${getShiftIndicatorColor(slot.shift_type)}`}></div>
+      <div className={`absolute top-0 left-0 h-full w-1 ${getShiftIndicatorColor(slot.shift_type)}`}></div>
       
       {/* Pasek wypełnienia */}
-      <div className={`absolute top-0 left-0 h-1.5 ${isSlotFull ? 'bg-green-500/70' : fillPercentage === 0 ? 'bg-red-500/70' : 'bg-yellow-500/70'}`} style={{ width: `${fillPercentage}%` }}></div>
+      <div
+        className={`absolute top-0 left-0 h-1 ${stateStyles.progressBar}`}
+        style={{ width: `${Math.min(100, fillPercentage)}%` }}
+      ></div>
       
       <div className="flex justify-between items-start mb-3 pl-2">
         <div>
           <h3 className="text-charcoal font-bold">{slot.location}</h3>
           <div className="flex items-center mt-1">
-            <div className="bg-slate-800/70 border border-slate-600/30 text-charcoal px-3 py-1.5 rounded-md text-sm font-medium">
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-charcoal">
               {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
             </div>
           </div>
@@ -171,11 +177,11 @@ const SlotCard = ({
       <div className="flex items-center justify-between pl-2">
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Shift type and capacity icons */}
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-800/80 text-slate-200 border border-slate-600/30">
+          <span className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
             {slot.shift_type.charAt(0).toUpperCase() + slot.shift_type.slice(1)}
           </span>
           
-          <div className={`text-xs ${isSlotFull ? 'bg-green-900/50 border-green-600/50' : fillPercentage === 0 ? 'bg-red-900/50 border-red-600/50' : 'bg-yellow-900/50 border-yellow-600/50'} text-charcoal border px-2 py-0.5 rounded-full`}>
+          <div className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stateStyles.capacityBadge}`}>
             <span className="font-medium">{assignedCount}</span>
             <span className="mx-1">/</span>
             <span>{slot.capacity}</span>
@@ -185,7 +191,7 @@ const SlotCard = ({
         <div className="flex items-center space-x-2">
           {/* Action buttons - only show if user is admin */}
           {isAdmin && (
-            <div className="opacity-100 flex space-x-1 transition-opacity duration-200">
+            <div className="flex space-x-2 opacity-100 transition-opacity duration-200">
               {/* Edit button */}
               <button
                 onClick={(e) => {
@@ -198,7 +204,7 @@ const SlotCard = ({
                     console.error('[SlotCard] handleOpenEditModal is NOT a function!');
                   }
                 }}
-                className="p-1 rounded-full bg-slate-700/50 text-slate-300 hover:bg-slate-600/60"
+                className="rounded-full border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-100 hover:text-charcoal"
                 title="Edit shift"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -212,7 +218,7 @@ const SlotCard = ({
                   e.stopPropagation();
                   setShowDeleteConfirm(true);
                 }}
-                className="p-1 rounded-full bg-slate-800/50 text-red-300/80 hover:bg-slate-700/60"
+                className="rounded-full border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
                 title="Delete shift"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -228,14 +234,14 @@ const SlotCard = ({
       <div className="mt-3 pl-2">
         <div className="flex flex-col space-y-2">
           {loading ? (
-            <div className="animate-pulse bg-slate-700/40 h-6 rounded"></div>
+            <div className="h-6 animate-pulse rounded bg-gray-200"></div>
           ) : assignedUsers.length > 0 ? (
             assignedUsers.map(user => (
-              <div key={user.id} className="flex items-center space-x-2 py-1 px-2 rounded bg-slate-800/40 border border-slate-700/30">
+              <div key={user.id} className="flex items-center space-x-2 rounded border border-gray-200 bg-gray-50 py-1 px-2">
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={`${user.first_name} ${user.last_name}`} className="h-6 w-6 rounded-full" />
                 ) : (
-                  <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-charcoal text-xs">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
                     {user.first_name?.[0]}{user.last_name?.[0]}
                   </div>
                 )}
@@ -243,7 +249,7 @@ const SlotCard = ({
               </div>
             ))
           ) : (
-            <div className="text-sm text-red-300 font-medium bg-red-500/10 border border-red-600/20 rounded py-1.5 px-3 flex items-center">
+            <div className="flex items-center rounded border border-red-200 bg-red-50 py-1.5 px-3 text-sm font-medium text-red-700">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>

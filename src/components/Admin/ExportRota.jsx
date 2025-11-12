@@ -606,16 +606,16 @@ const ExportRota = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 shadow-xl space-y-6 max-w-2xl mx-auto min-h-[520px]">
+    <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 shadow-xl md:p-6 max-w-2xl mx-auto min-h-[520px]">
       {/* Heading */}
       <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send Weekly Schedule</h2>
 
       {/* Progress bar */}
       <div className="flex items-center space-x-3">
-        <span className="text-slate-400 text-sm">Step {step} / 4</span>
-        <div className="flex-1 h-2 bg-slate-700/60 rounded">
+        <span className="text-sm text-gray-500">Step {step} / 4</span>
+        <div className="flex-1 h-2 rounded bg-gray-200">
           <div
-            className="h-2 bg-blue-500 rounded transition-all duration-300"
+            className="h-2 rounded bg-black transition-all duration-300"
             style={{ width: `${(step / 4) * 100}%` }}
           />
         </div>
@@ -625,7 +625,7 @@ const ExportRota = () => {
       {step === 1 && (
         <>
           <div className="mb-8 relative">
-            <label htmlFor="start-date" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="start-date" className="mb-1 block text-sm font-medium text-charcoal">
               Select Week (Starting Saturday)
             </label>
             <style>
@@ -703,16 +703,16 @@ const ExportRota = () => {
               onChange={(date) => setStartDate(date)}
               dateFormat="dd/MM/yyyy"
               filterDate={isSaturday}
-              className="bg-slate-800/50 border border-slate-700/50 rounded-md p-2 text-charcoal w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white p-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
               wrapperClassName="w-full"
               showIcon
               calendarIconClassname="text-charcoal cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
               toggleCalendarOnIconClick
               popperClassName="react-datepicker-popper"
-              calendarClassName="bg-slate-800 border border-slate-600 shadow-lg text-charcoal"
+              calendarClassName="bg-white border border-gray-200 shadow-lg text-charcoal"
             />
             {startDate && (
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="mt-1 text-xs text-gray-500">
                 Week: {format(startDate, 'yyyy-MM-dd')} to {format(addDays(startDate, 6), 'yyyy-MM-dd')}
               </p>
             )}
@@ -722,12 +722,12 @@ const ExportRota = () => {
             <button
               onClick={fetchRotaForWeek}
               disabled={fetchingData}
-              className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               {fetchingData ? <span className="animate-pulse">Loading data...</span> : 'Fetch Schedule Data'}
             </button>
             {rotaData.length > 0 && (
-              <p className="text-slate-300 text-sm mt-2">{rotaData.length} shifts loaded for selected week</p>
+              <p className="mt-2 text-sm text-gray-600">{rotaData.length} shifts loaded for selected week</p>
             )}
           </div>
         </>
@@ -738,13 +738,13 @@ const ExportRota = () => {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={generateCSV}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
           >
             Download CSV
           </button>
           <button
             onClick={generatePDF}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
           >
             Download PDF
           </button>
@@ -755,7 +755,7 @@ const ExportRota = () => {
       {step === 3 && agencies.length > 0 && (
         <>
           <h3 className="text-lg font-medium text-charcoal mb-3">Send to Agency Managers</h3>
-          <div className="mb-4 max-h-60 overflow-y-auto bg-slate-800/50 rounded border border-slate-700/50 p-3">
+          <div className="mb-4 max-h-60 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-3">
             {agencies.map(agency => (
               <div key={agency.id} className="flex items-center mb-2">
                 <input
@@ -772,7 +772,7 @@ const ExportRota = () => {
             ))}
           </div>
           {selectedAgencies.length > 0 && (
-            <div className="mb-4 p-3 bg-slate-800/50 rounded border border-slate-700/50">
+            <div className="mb-4 rounded border border-gray-200 bg-gray-50 p-3">
               <h4 className="text-charcoal text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
               <div className="max-h-32 overflow-y-auto">
                 {selectedAgencies.map(agencyId => {
@@ -800,14 +800,14 @@ const ExportRota = () => {
               value={emailMessage}
               onChange={(e) => setEmailMessage(e.target.value)}
               rows={5}
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-charcoal resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full resize-y rounded border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
               placeholder="Enter custom message to send with the schedule..."
             />
           </div>
           <button
             onClick={confirmSend}
             disabled={loading || selectedAgencies.length === 0}
-            className="w-full px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
           </button>
@@ -819,7 +819,7 @@ const ExportRota = () => {
         {step > 1 ? (
           <button
             onClick={() => setStep(step - 1)}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
           >
             Back
           </button>
@@ -829,7 +829,7 @@ const ExportRota = () => {
           <button
             onClick={() => setStep(step + 1)}
             disabled={isNextDisabled()}
-            className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             Next
           </button>
@@ -838,28 +838,28 @@ const ExportRota = () => {
 
       {/* Error/Success Messages */}
       {error && (
-        <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in backdrop-blur-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center space-x-3 rounded-lg border border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700 transition-all duration-300">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="flex-1">
             {error}
           </div>
-          <button className="text-slate-600 hover:text-slate-800 font-bold" onClick={() => setError(null)}>
+          <button className="text-red-500 hover:text-red-700" onClick={() => setError(null)}>
             &times;
           </button>
         </div>
       )}
       
       {success && (
-        <div className="bg-white/90 text-slate-800 px-6 py-3 rounded-lg shadow-lg border border-slate-300/30 flex items-center space-x-3 transform transition-all duration-300 animate-fade-in backdrop-blur-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center space-x-3 rounded-lg border border-green-200 bg-green-50 px-6 py-3 text-sm text-green-700 transition-all duration-300">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="flex-1">
             {success}
           </div>
-          <button className="text-slate-600 hover:text-slate-800 font-bold" onClick={() => setSuccess(null)}>
+          <button className="text-green-600 hover:text-green-800" onClick={() => setSuccess(null)}>
             &times;
           </button>
         </div>
@@ -867,10 +867,10 @@ const ExportRota = () => {
       
       {/* Confirmation Dialog */}
       {showConfirmation && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
-            <h3 className="text-xl font-bold text-charcoal mb-4">Confirm Send</h3>
-            <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-xl font-semibold text-charcoal">Confirm Send</h3>
+            <div className="mb-6 max-h-[60vh] space-y-3 overflow-y-auto text-sm text-gray-600">
               {currentUser && (
                 <p><span className="font-medium">From:</span> {currentUser.email}</p>
               )}
@@ -883,18 +883,18 @@ const ExportRota = () => {
                   );
                 })}
               </ul>
-              <p className="text-sm text-slate-400">Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
+              <p className="text-xs text-gray-500">Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button 
                 onClick={cancelSend} 
-                className="px-4 py-2 bg-slate-800/80 text-charcoal rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+                className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button 
                 onClick={sendToAgencies} 
-                className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+                className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800"
               >
                 Yes, I&apos;m 100% Sure - Send Now
               </button>
@@ -904,20 +904,19 @@ const ExportRota = () => {
 
       {/* Download File Modal */}
       {showDownloadModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
-            <h3 className="text-xl font-bold text-charcoal mb-4">Download File</h3>
-            <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
-              <p>
-                <span className="font-medium">File ready: </span>
-                <span className="text-blue-400">{downloadInfo.fileName}</span>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+            <h3 className="mb-4 text-xl font-semibold text-charcoal">Download File</h3>
+            <div className="mb-6 max-h-[60vh] space-y-3 overflow-y-auto text-sm text-gray-600">
+              <p className="font-medium text-charcoal">
+                File ready: <span className="font-semibold text-black underline decoration-gray-300">{downloadInfo.fileName}</span>
               </p>
-              <p className="text-sm text-slate-400">Week: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
+              <p className="text-xs text-gray-500">Week: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button 
                 onClick={() => setShowDownloadModal(false)} 
-                className="px-4 py-2 bg-slate-800/80 text-charcoal rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+                className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -925,7 +924,7 @@ const ExportRota = () => {
                 href={downloadInfo.url}
                 download={downloadInfo.fileName}
                 onClick={() => setShowDownloadModal(false)}
-                className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all text-center"
+                className="rounded-md bg-black px-4 py-2 text-center text-white transition hover:bg-gray-800"
               >
                 Download {downloadInfo.type}
               </a>
