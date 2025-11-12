@@ -153,10 +153,10 @@ function NoShiftWithBreaksView() {
       {breakInfo === 'error' && (
         <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
           <div className="flex items-center mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-red-300">Error loading team breaks.</p>
+            <p className="text-red-600 dark:text-red-500">Error loading team breaks.</p>
           </div>
         </div>
       )}
@@ -177,7 +177,7 @@ function NoShiftWithBreaksView() {
               const shiftConfig = {
                 day: { name: 'Day Shift', color: 'text-yellow-300', bgColor: 'bg-yellow-900/20' },
                 afternoon: { name: 'Afternoon Shift', color: 'text-orange-300', bgColor: 'bg-orange-900/20' },
-                night: { name: 'Night Shift', color: 'text-blue-300', bgColor: 'bg-blue-900/20' }
+                night: { name: 'Night Shift', color: 'text-blue-500', bgColor: 'bg-blue-900/20' }
               };
               
               const config = shiftConfig[shiftType];
@@ -207,13 +207,13 @@ function NoShiftWithBreaksView() {
       )}
 
       <div className="flex flex-col sm:flex-row gap-2 mt-4">
-        <Link to="/my-rota" className="text-blue-400 text-sm inline-flex items-center hover:text-blue-300 transition-colors">
+        <Link to="/my-rota" className="text-blue-500 text-sm inline-flex items-center hover:text-blue-500 transition-colors">
           View your full schedule
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </Link>
-        <Link to="/breaks" className="text-green-400 text-sm inline-flex items-center hover:text-green-300 transition-colors">
+        <Link to="/breaks" className="text-green-500 text-sm inline-flex items-center hover:text-green-300 transition-colors">
           View Breaks
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -468,11 +468,11 @@ export default function TodaysShiftInfo() {
 
   if (loading) {
     return (
-      <div className="w-full mb-4 bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 animate-pulse shadow-lg">
-        <div className="h-5 bg-slate-700/50 rounded w-2/5 mb-4"></div>
+      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/5 mb-4 animate-pulse"></div>
         <div className="space-y-3">
-          <div className="h-4 bg-slate-700/50 rounded w-3/4"></div>
-          <div className="h-4 bg-slate-700/50 rounded w-1/2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
         </div>
       </div>
     );
@@ -480,8 +480,8 @@ export default function TodaysShiftInfo() {
 
   if (error) {
     return (
-      <div className="w-full mb-4 bg-red-900/20 backdrop-blur-sm rounded-lg border border-red-500/30 p-4">
-        <p className="text-red-200 text-sm">{error}</p>
+      <div className="w-full mb-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
+        <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
       </div>
     );
   }
@@ -566,14 +566,14 @@ export default function TodaysShiftInfo() {
                 <span className="text-gray-600 dark:text-gray-400 text-sm font-medium flex items-center">
                   {nextBreak.isActive ? (
                     <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       Current Break
                     </>
                   ) : (
                     <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Next Break
@@ -603,7 +603,7 @@ export default function TodaysShiftInfo() {
                   <span>Break time</span>
                   <span>{nextBreak.progress}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-black/30 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${nextBreak.progress}%` }}
@@ -615,9 +615,9 @@ export default function TodaysShiftInfo() {
         )}
       </div>
       
-      <div className="border-t border-white/20 px-4 py-2 bg-black/40 flex justify-between items-center">
+      <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-2 bg-gray-100 dark:bg-gray-750 flex justify-between items-center">
         <span className="text-gray-600 dark:text-gray-400 text-sm">{format(new Date(), 'EEEE, MMMM d')}</span>
-        <Link to="/my-rota" className="text-blue-300 text-sm hover:text-blue-200 inline-flex items-center transition-colors">
+        <Link to="/my-rota" className="text-blue-500 text-sm hover:text-blue-600 inline-flex items-center transition-colors">
           Full Schedule
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />

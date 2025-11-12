@@ -45,11 +45,11 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
 
     switch (dayInfo.status) {
       case 'available':
-        return 'bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 border border-green-300 dark:border-green-700';
+        return 'bg-green-100 dark:bg-green-600 hover:bg-green-200 dark:hover:bg-green-500 border-2 border-green-400 dark:border-green-400 text-green-900 dark:text-white font-semibold';
       case 'unavailable':
-        return 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 border border-red-300 dark:border-red-700';
+        return 'bg-red-100 dark:bg-red-600 hover:bg-red-200 dark:hover:bg-red-500 border-2 border-red-400 dark:border-red-400 text-red-900 dark:text-white font-semibold';
       case 'holiday':
-        return 'bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 border border-blue-300 dark:border-blue-700';
+        return 'bg-blue-100 dark:bg-blue-600 hover:bg-blue-200 dark:hover:bg-blue-500 border-2 border-blue-400 dark:border-blue-400 text-blue-900 dark:text-white font-semibold';
       default:
         return '';
     }
@@ -101,10 +101,10 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
                   title={isPastDate ? "Cannot set availability for past dates" : (hasComment ? dayInfo.comment : "")}
                   className={`
                     aspect-square sm:aspect-auto sm:h-10 md:h-10 flex flex-col items-center justify-center transition-all text-center rounded-lg relative
-                    ${isCurrentMonth ? 'text-charcoal dark:text-white font-medium' : 'text-gray-400 dark:text-gray-600'} 
-                    ${isCurrentDay ? 'ring-2 ring-black dark:ring-white shadow-md scale-105 z-10' : ''}
-                    ${isPastDate && !colorClass ? 'bg-gray-100 dark:bg-gray-750 cursor-not-allowed' : ''}
-                    ${isPastDate && colorClass ? `${colorClass} opacity-60 cursor-not-allowed` : ''}
+                    ${isCurrentMonth ? 'text-charcoal dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-500'} 
+                    ${isCurrentDay ? 'ring-2 ring-black dark:ring-yellow-400 shadow-md scale-105 z-10' : ''}
+                    ${isPastDate && !colorClass ? 'bg-gray-100 dark:bg-gray-750 cursor-not-allowed text-gray-400 dark:text-gray-600' : ''}
+                    ${isPastDate && colorClass ? `${colorClass} opacity-50 cursor-not-allowed` : ''}
                     ${!isPastDate && (colorClass || 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700')}
                   `}
                 >

@@ -58,8 +58,8 @@ export default function WaitingForApprovalPage() {
   // If the user has been rejected, show a message
   if (accountStatus === 'rejected') {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500 p-4">
-        <div className="max-w-md w-full bg-black/40 backdrop-blur-xl p-6 rounded-lg border border-red-500/30 text-white">
+      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 rounded-lg border border-red-200 dark:border-red-800 shadow-lg">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

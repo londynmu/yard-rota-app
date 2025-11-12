@@ -220,7 +220,7 @@ export default function MyBreakInfo() {
                               <div
                                 key={userData.profile?.id ? `user-${userData.profile.id}` : `user-index-${shiftIndex}-${userIndex}`}
                                 className={`py-1.5 px-2.5 rounded-md flex justify-between items-center flex-wrap ${
-                                  userData.isCurrentUser ? 'bg-blue-900/40 border border-blue-400/30 font-bold' : 'bg-black/20'
+                                  userData.isCurrentUser ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 font-bold' : 'bg-gray-100 dark:bg-gray-700'
                                 }`}
                               >
                                 <span className="mr-3 font-medium">

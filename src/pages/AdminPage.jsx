@@ -157,8 +157,8 @@ export default function AdminPage() {
   // Użyj pageLoading do głównego wskaźnika ładowania
   if (pageLoading) {
     return (
-        <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-white/90"></div>
+        <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
+            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black dark:border-white"></div>
         </div>
     );
   }

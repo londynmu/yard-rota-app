@@ -472,11 +472,11 @@ export default function ShiftDashboard() {
 
   if (loading) {
     return (
-      <div className="w-full mb-4 bg-slate-800 rounded-lg border border-slate-700 p-4 shadow-lg">
-        <div className="h-5 bg-slate-700 rounded w-2/5 mb-4"></div>
+      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/5 mb-4 animate-pulse"></div>
         <div className="space-y-3">
-          <div className="h-4 bg-slate-700 rounded w-3/4"></div>
-          <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
         </div>
       </div>
     );
@@ -484,8 +484,8 @@ export default function ShiftDashboard() {
 
   if (error) {
     return (
-      <div className="w-full mb-4 bg-red-900 rounded-lg border border-red-500/30 p-4">
-        <p className="text-red-200 text-sm">{error}</p>
+      <div className="w-full mb-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
+        <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
       </div>
     );
   }
@@ -571,7 +571,7 @@ export default function ShiftDashboard() {
                         const shiftColors = {
                           day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
                           afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
-                          night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                          night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-500 border-blue-300 dark:border-blue-800'
                         };
 
                         return (
@@ -611,7 +611,7 @@ export default function ShiftDashboard() {
                   const shiftColors = {
                     day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
                     afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
-                    night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                    night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-500 border-blue-300 dark:border-blue-800'
                   };
 
                   return (
@@ -723,15 +723,15 @@ export default function ShiftDashboard() {
                   </svg>
                   {shift.location || 'Unknown location'}
                 </p>
-                <p className="text-white/80 text-xs mt-0.5">
+                <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
                   {getShiftLabel(shift.shift_type || 'standard')}
                 </p>
               </div>
             </div>
             
             {shiftActive && (
-              <div className="bg-black/30 backdrop-blur-sm px-2.5 py-1.5 rounded-md border border-white/20 shadow-inner">
-                <span className="text-white/80 text-xs block">Status</span>
+              <div className="bg-gray-100 dark:bg-gray-750 px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 shadow-inner">
+                <span className="text-gray-600 dark:text-gray-400 text-xs block">Status</span>
                 <span className="text-white font-medium text-sm block">{getTimeRemaining()}</span>
               </div>
             )}
@@ -744,7 +744,7 @@ export default function ShiftDashboard() {
                 <span>Progress</span>
                 <span>{shiftProgress}%</span>
               </div>
-              <div className="h-1.5 w-full bg-black/30 rounded-full overflow-hidden">
+              <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div 
                   className={`h-full ${getShiftAccentColor(shift.shift_type)} rounded-full transition-all duration-1000 ease-out`}
                   style={{ width: `${shiftProgress}%` }}
@@ -801,7 +801,7 @@ export default function ShiftDashboard() {
                     <span>Break time</span>
                     <span>{nextBreak.progress}%</span>
                   </div>
-                  <div className="h-1 w-full bg-black/30 rounded-full overflow-hidden">
+                  <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out"
                       style={{ width: `${nextBreak.progress}%` }}
@@ -823,7 +823,7 @@ export default function ShiftDashboard() {
         >
           {!breakInfo || breakInfo === 'loading' ? (
             <div className="text-center py-3">
-              <span className="italic text-white/80">Loading break info...</span>
+              <span className="italic text-gray-600 dark:text-gray-400">Loading break info...</span>
             </div>
           ) : breakInfo === 'none' ? (
             <div className="text-center py-3">
@@ -848,7 +848,7 @@ export default function ShiftDashboard() {
                         <span className="font-medium text-white">
                           {formatBreakTime(breakItem)}
                         </span>
-                        <span className="text-white/80">
+                        <span className="text-gray-600 dark:text-gray-400">
                           {breakItem.break_duration_minutes} min
                         </span>
                       </div>
@@ -911,9 +911,9 @@ export default function ShiftDashboard() {
       </div>
       
       {/* Footer */}
-      <div className="border-t border-white/20 px-3 py-1.5 bg-black/40 flex justify-between items-center">
-        <span className="text-white/80 text-xs">{format(new Date(), 'EEEE, MMMM d')}</span>
-        <Link to="/my-rota" className="text-blue-300 text-xs hover:text-blue-200 inline-flex items-center transition-colors">
+      <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-100 dark:bg-gray-750 flex justify-between items-center">
+        <span className="text-gray-600 dark:text-gray-400 text-xs">{format(new Date(), 'EEEE, MMMM d')}</span>
+        <Link to="/my-rota" className="text-blue-500 text-xs hover:text-blue-600 inline-flex items-center transition-colors">
           Full Schedule
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
