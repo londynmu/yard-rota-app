@@ -113,16 +113,16 @@ const UserApprovalPage = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 text-center">
-        <h3 className="text-lg font-semibold mb-2 text-charcoal dark:text-white">Error</h3>
-        <p className="text-gray-600 dark:text-gray-400">{error}</p>
+      <div className="p-4 bg-red-50 rounded-xl border border-red-200 text-center">
+        <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
+        <p className="text-gray-600">{error}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
@@ -135,10 +135,10 @@ const UserApprovalPage = () => {
 
   // When embedded in AdminPage, don't use the full screen container
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-bold text-charcoal dark:text-white">Pending User Approvals</h2>
-        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+    <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
+      <div className="p-4 sm:p-6 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-charcoal">Pending User Approvals</h2>
+        <p className="text-gray-600 text-sm mt-1">
           Review and approve new user registrations
         </p>
       </div>
@@ -147,7 +147,7 @@ const UserApprovalPage = () => {
         <div className="p-6 text-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600"
+            className="h-12 w-12 mx-auto text-gray-300"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -159,33 +159,33 @@ const UserApprovalPage = () => {
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">No pending approvals</p>
+          <p className="mt-4 text-gray-600">No pending approvals</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-750">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                   Registered
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {pendingUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
                         {user.avatar_url ? (
                           <img
                             className="h-10 w-10 rounded-full object-cover"
@@ -193,26 +193,26 @@ const UserApprovalPage = () => {
                             alt={`${user.first_name || ''} ${user.last_name || ''}`}
                           />
                         ) : (
-                          <span className="text-charcoal dark:text-white text-sm font-semibold">
+                          <span className="text-charcoal text-sm font-semibold">
                             {user.first_name?.[0] || ''}
                             {user.last_name?.[0] || ''}
                           </span>
                         )}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-charcoal dark:text-white">
+                        <div className="text-sm font-medium text-charcoal">
                           {user.first_name || ''} {user.last_name || ''}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="text-sm text-gray-600">
                           {user.phone || 'No phone'}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {user.email || 'No email'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">

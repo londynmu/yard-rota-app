@@ -1061,8 +1061,8 @@ const BrakesManager = () => {
       {/* Break Slots Display */}
       {isLoading ? (
         <div className="text-center py-10">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
-          <p className="mt-2">Loading breaks...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
+          <p className="mt-2 text-charcoal">Loading breaks...</p>
         </div>
       ) : (
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
@@ -1203,7 +1203,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   
   // Use createPortal to render the modal in the document body
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
       <div 
         ref={modalRef}
         className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col"
@@ -1445,7 +1445,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
   if (!isOpen || !slot) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
       <div className="bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-hidden">
         <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-base md:text-lg font-semibold">

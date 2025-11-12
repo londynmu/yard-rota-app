@@ -105,24 +105,24 @@ export default function RedirectHandler() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream dark:bg-gray-900">
-      <div className="max-w-md w-full p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-cream">
+      <div className="max-w-md w-full p-6 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 text-center">
         {errorDetails ? (
           <>
             <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold text-charcoal dark:text-white mb-2">{message}</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{errorDetails}</p>
+              <h2 className="text-xl font-semibold text-charcoal mb-2">{message}</h2>
+              <p className="text-gray-600 mb-4">{errorDetails}</p>
               
               <button
                 onClick={handleGoToLogin}
-                className="mt-4 inline-block bg-black dark:bg-white text-white dark:text-black py-2 px-4 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 font-medium transition-colors"
+                className="mt-4 inline-block bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 font-medium transition-colors"
               >
                 Go to Login
               </button>
             </div>
             
             {/* Debug information */}
-            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-750 rounded-lg text-left text-xs text-charcoal dark:text-gray-300 font-mono overflow-auto max-h-40">
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
               <div className="font-bold mb-1">Debug Info:</div>
               <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
             </div>
@@ -132,11 +132,11 @@ export default function RedirectHandler() {
             <div className="mb-4">
               <div className="animate-spin w-12 h-12 border-t-2 border-b-2 border-blue-500 rounded-full mx-auto"></div>
             </div>
-            <h2 className="text-xl font-medium text-charcoal dark:text-white mb-2">{message}</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">You will be redirected automatically.</p>
+            <h2 className="text-xl font-medium text-charcoal mb-2">{message}</h2>
+            <p className="text-gray-600 mb-4">You will be redirected automatically.</p>
             
             {/* Debug information */}
-            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-750 rounded-lg text-left text-xs text-charcoal dark:text-gray-300 font-mono overflow-auto max-h-40">
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
               <div className="font-bold mb-1">Debug Info:</div>
               <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
             </div>
@@ -144,7 +144,7 @@ export default function RedirectHandler() {
             <div className="mt-4">
               <button
                 onClick={handleGoToLogin}
-                className="inline-block bg-black dark:bg-white text-white dark:text-black py-2 px-4 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 font-medium transition-colors"
+                className="inline-block bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 font-medium transition-colors"
               >
                 Go to Login
               </button>

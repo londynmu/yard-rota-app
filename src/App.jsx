@@ -156,8 +156,8 @@ function AppContent() {
     }
     
     return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+      <div className="min-h-screen flex justify-center items-center bg-offwhite">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
@@ -167,8 +167,8 @@ function AppContent() {
   if (error) {
     console.log('[AppContent Decision] Rendering Error State...');
     return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg max-w-md border border-red-200 dark:border-red-800">
+      <div className="min-h-screen flex justify-center items-center bg-offwhite">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg max-w-md border border-red-200">
           <h3 className="font-bold mb-2">Error checking your profile</h3>
           <p>{error}</p>
           <button 
@@ -195,8 +195,8 @@ function AppContent() {
     if (isCheckingProfile) {
       console.log('[AppContent Decision] Rendering Profile Checking Loader...');
       return (
-        <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+        <div className="min-h-screen flex justify-center items-center bg-offwhite">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
         </div>
       );
     } else {

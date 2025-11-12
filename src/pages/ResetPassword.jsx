@@ -96,14 +96,14 @@ export default function ResetPassword() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-cream dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 p-6">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-cream py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-charcoal dark:text-white mb-4">Preparing password reset...</h2>
+            <h2 className="text-xl font-semibold text-charcoal mb-4">Preparing password reset...</h2>
             <div className="animate-pulse flex justify-center">
-              <div className="h-6 w-6 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+              <div className="h-6 w-6 bg-gray-300 rounded-full"></div>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">Validating your reset token</p>
+            <p className="text-sm text-gray-600 mt-3">Validating your reset token</p>
           </div>
         </div>
       </div>
@@ -111,22 +111,22 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-cream dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-cream py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
         {errorMessage ? (
           <div>
             <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold text-charcoal dark:text-white">Password Reset Error</h2>
+              <h2 className="text-xl font-semibold text-charcoal">Password Reset Error</h2>
             </div>
             
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg mb-4 border border-red-200 dark:border-red-800 flex items-start">
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 border border-red-200 flex items-start">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <span>{errorMessage}</span>
             </div>
             
-            <div className="bg-gray-100 dark:bg-gray-750 p-3 rounded-lg mb-4 text-xs font-mono text-charcoal dark:text-gray-300 overflow-auto max-h-40">
+            <div className="bg-gray-100 p-3 rounded-lg mb-4 text-xs font-mono text-charcoal overflow-auto max-h-40">
               <h3 className="font-bold mb-1">Debug Information:</h3>
               <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
             </div>
@@ -134,7 +134,7 @@ export default function ResetPassword() {
             <div className="text-center mt-4">
               <button
                 onClick={() => navigate('/login')}
-                className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black py-2 px-4 rounded-lg font-medium transition-colors"
+                className="bg-black hover:bg-gray-800 text-white py-2 px-4 rounded-lg font-medium transition-colors"
               >
                 Back to Login
               </button>

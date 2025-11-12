@@ -45,11 +45,11 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
 
     switch (dayInfo.status) {
       case 'available':
-        return 'bg-green-100 dark:bg-green-600 hover:bg-green-200 dark:hover:bg-green-500 border-2 border-green-400 dark:border-green-400 text-green-900 dark:text-white font-semibold';
+        return 'bg-green-100 hover:bg-green-200 border-2 border-green-400 text-green-900 font-semibold';
       case 'unavailable':
-        return 'bg-red-100 dark:bg-red-600 hover:bg-red-200 dark:hover:bg-red-500 border-2 border-red-400 dark:border-red-400 text-red-900 dark:text-white font-semibold';
+        return 'bg-red-100 hover:bg-red-200 border-2 border-red-400 text-red-900 font-semibold';
       case 'holiday':
-        return 'bg-blue-100 dark:bg-blue-600 hover:bg-blue-200 dark:hover:bg-blue-500 border-2 border-blue-400 dark:border-blue-400 text-blue-900 dark:text-white font-semibold';
+        return 'bg-blue-100 hover:bg-blue-200 border-2 border-blue-400 text-blue-900 font-semibold';
       default:
         return '';
     }
@@ -60,8 +60,8 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
 
   if (isLoading) {
     return (
-      <div className="w-full h-80 sm:h-48 flex items-center justify-center bg-gray-50 dark:bg-gray-750">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+      <div className="w-full h-80 sm:h-48 flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
@@ -69,18 +69,18 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
   return (
     <div className="w-full rounded-b-xl overflow-hidden">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-1 bg-gray-100 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-7 gap-1 bg-gray-100 border-b border-gray-200">
         {weekdays.map((day) => (
-          <div key={day} className="p-1 sm:p-1 text-center font-bold text-xs sm:text-sm text-charcoal dark:text-white">
+          <div key={day} className="p-1 sm:p-1 text-center font-bold text-xs sm:text-sm text-charcoal">
             {day}
           </div>
         ))}
       </div>
 
       {/* Calendar grid */}
-      <div className="bg-white dark:bg-gray-800">
+      <div className="bg-white">
         {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 gap-1 py-0.5 px-1 sm:py-0.5 border-t border-gray-200 dark:border-gray-700">
+          <div key={weekIndex} className="grid grid-cols-7 gap-1 py-0.5 px-1 sm:py-0.5 border-t border-gray-200">
             {week.map((day) => {
               const dateString = format(day, 'yyyy-MM-dd');
               const isCurrentMonth = isSameMonth(day, currentDate);
@@ -101,11 +101,11 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
                   title={isPastDate ? "Cannot set availability for past dates" : (hasComment ? dayInfo.comment : "")}
                   className={`
                     aspect-square sm:aspect-auto sm:h-10 md:h-10 flex flex-col items-center justify-center transition-all text-center rounded-lg relative
-                    ${isCurrentMonth ? 'text-charcoal dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-500'} 
-                    ${isCurrentDay ? 'ring-2 ring-black dark:ring-yellow-400 shadow-md scale-105 z-10' : ''}
-                    ${isPastDate && !colorClass ? 'bg-gray-100 dark:bg-gray-750 cursor-not-allowed text-gray-400 dark:text-gray-600' : ''}
+                    ${isCurrentMonth ? 'text-charcoal font-semibold' : 'text-gray-500'} 
+                    ${isCurrentDay ? 'ring-2 ring-black shadow-md scale-105 z-10' : ''}
+                    ${isPastDate && !colorClass ? 'bg-gray-100 cursor-not-allowed text-gray-400' : ''}
                     ${isPastDate && colorClass ? `${colorClass} opacity-50 cursor-not-allowed` : ''}
-                    ${!isPastDate && (colorClass || 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700')}
+                    ${!isPastDate && (colorClass || 'hover:bg-gray-100 border border-gray-200')}
                   `}
                 >
                   <span className={`text-sm font-medium ${isCurrentDay ? 'font-bold' : ''}`}>{format(day, 'd')}</span>

@@ -60,10 +60,10 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
       <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden w-full max-w-xl mx-auto">
         <div className="p-6 flex flex-col gap-5">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-charcoal dark:text-white">Add New Slot</h2>
+            <h2 className="text-xl font-bold text-charcoal">Add New Slot</h2>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-charcoal dark:text-white transition-colors"
+              className="text-slate-400 hover:text-charcoal transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -89,18 +89,18 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
           )}
           
           <div>
-            <label className="block text-charcoal dark:text-white mb-1">Date</label>
+            <label className="block text-charcoal mb-1">Date</label>
             <div className="relative bg-white/10 border border-slate-700/50 rounded overflow-hidden flex items-center">
-              <div className="py-2 px-3 text-charcoal dark:text-white bg-slate-800/50 flex-grow">{selectedDate.substring(0, 10)}</div>
+              <div className="py-2 px-3 text-charcoal bg-slate-800/50 flex-grow">{selectedDate.substring(0, 10)}</div>
             </div>
           </div>
           
           <div>
-            <label className="block text-charcoal dark:text-white mb-1">Location</label>
+            <label className="block text-charcoal mb-1">Location</label>
             <select
               value={formData.location}
               onChange={(e) => setFormData({...formData, location: e.target.value})}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Select a location</option>
               {locations.map(location => (
@@ -111,18 +111,18 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-charcoal dark:text-white mb-1">Start Time</label>
+              <label className="block text-charcoal mb-1">Start Time</label>
               <div className="relative">
                 <input 
                   type="text" 
                   value={formData.start_time} 
                   readOnly 
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white cursor-pointer pr-10 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal cursor-pointer pr-10 focus:outline-none"
                   onClick={() => onOpenTimePicker('start_time', formData.start_time, time => handleTimeChange('start_time', time))}
                 />
                 <button 
                   onClick={() => onOpenTimePicker('start_time', formData.start_time, time => handleTimeChange('start_time', time))}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal/70 hover:text-charcoal"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -132,18 +132,18 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
             </div>
             
             <div>
-              <label className="block text-charcoal dark:text-white mb-1">End Time</label>
+              <label className="block text-charcoal mb-1">End Time</label>
               <div className="relative">
                 <input 
                   type="text" 
                   value={formData.end_time} 
                   readOnly 
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white cursor-pointer pr-10 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal cursor-pointer pr-10 focus:outline-none"
                   onClick={() => onOpenTimePicker('end_time', formData.end_time, time => handleTimeChange('end_time', time))}
                 />
                 <button 
                   onClick={() => onOpenTimePicker('end_time', formData.end_time, time => handleTimeChange('end_time', time))}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal/70 hover:text-charcoal"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -154,11 +154,11 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
           </div>
           
           <div>
-            <label className="block text-charcoal dark:text-white mb-1">Shift Type</label>
+            <label className="block text-charcoal mb-1">Shift Type</label>
             <select
               value={formData.shift_type}
               onChange={(e) => setFormData({...formData, shift_type: e.target.value})}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="day">Day</option>
               <option value="afternoon">Afternoon</option>
@@ -167,7 +167,7 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
           </div>
           
           <div>
-            <label className="block text-charcoal dark:text-white mb-1">Capacity (Staff needed)</label>
+            <label className="block text-charcoal mb-1">Capacity (Staff needed)</label>
             <div className="flex items-center bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden w-full">
               <button
                 type="button"
@@ -176,19 +176,19 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
                     setFormData({...formData, capacity: formData.capacity - 1});
                   }
                 }}
-                className="flex-1 h-10 bg-slate-900/50 text-charcoal dark:text-white flex items-center justify-center hover:bg-slate-700/70"
+                className="flex-1 h-10 bg-slate-900/50 text-charcoal flex items-center justify-center hover:bg-slate-700/70"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                 </svg>
               </button>
-              <div className="flex-1 h-10 flex items-center justify-center text-charcoal dark:text-white font-bold">
+              <div className="flex-1 h-10 flex items-center justify-center text-charcoal font-bold">
                 {formData.capacity}
               </div>
               <button
                 type="button"
                 onClick={() => setFormData({...formData, capacity: formData.capacity + 1})}
-                className="flex-1 h-10 bg-slate-900/50 text-charcoal dark:text-white flex items-center justify-center hover:bg-slate-700/70"
+                className="flex-1 h-10 bg-slate-900/50 text-charcoal flex items-center justify-center hover:bg-slate-700/70"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -198,12 +198,12 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
           </div>
           
           <div>
-            <label className="block text-charcoal dark:text-white mb-1">Task/Notes (Optional)</label>
+            <label className="block text-charcoal mb-1">Task/Notes (Optional)</label>
             <textarea
               value={formData.task}
               onChange={(e) => setFormData({...formData, task: e.target.value})}
               rows="2"
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="Enter any task details or notes..."
             />
           </div>
@@ -212,19 +212,19 @@ const AddSlotModal = ({ isOpen, onClose, onAdd, onOpenTimePicker, locations, sel
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800/80 text-charcoal dark:text-white rounded border border-slate-700/50 hover:bg-slate-700"
+              className="px-4 py-2 bg-slate-800/80 text-charcoal rounded border border-slate-700/50 hover:bg-slate-700"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAdd}
-              className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+              className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-charcoal dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-charcoal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

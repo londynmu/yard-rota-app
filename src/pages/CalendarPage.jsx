@@ -166,28 +166,28 @@ export default function CalendarPage() {
   };
   
   return (
-    <div className="min-h-screen bg-offwhite dark:bg-gray-900 py-6 px-4 sm:px-8 overflow-hidden relative flex justify-center">
+    <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-8 overflow-hidden relative flex justify-center">
       {/* Centered Popup Message */}
       {popup.show && (
         <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-4 rounded-lg shadow-lg text-center text-base font-medium border
-                     ${popup.type === 'error' ? 'bg-red-50 dark:bg-red-900/90 text-red-700 dark:text-red-300 border-red-500' : 'bg-green-50 dark:bg-green-900/90 text-green-700 dark:text-green-300 border-green-500'}`}>
+                     ${popup.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
            {popup.message}
         </div>
       )}
       
       <div className="w-full max-w-6xl relative">
       {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg shadow-sm">
+        <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
           {errorMessage}
         </div>
       )}
       
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 mb-4">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mb-4">
         {/* Calendar Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
           <button
             onClick={handlePreviousMonth}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-charcoal dark:text-white"
+            className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
             aria-label="Previous month"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -195,13 +195,13 @@ export default function CalendarPage() {
             </svg>
           </button>
           
-          <h2 className="text-2xl font-bold text-charcoal dark:text-white">
+          <h2 className="text-2xl font-bold text-charcoal">
             {format(currentDate, 'MMMM yyyy')}
           </h2>
           
           <button
             onClick={handleNextMonth}
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-charcoal dark:text-white"
+            className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
             aria-label="Next month"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,18 +211,18 @@ export default function CalendarPage() {
         </div>
         
         {/* Legend */}
-        <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-          <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-charcoal dark:text-white">
+        <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-charcoal">
             <div className="flex items-center">
-              <span className="w-4 h-4 rounded-full bg-green-500 mr-2 border border-gray-300 dark:border-gray-600"></span>
+              <span className="w-4 h-4 rounded-full bg-green-500 mr-2 border border-gray-300"></span>
               <span>Available</span>
             </div>
             <div className="flex items-center">
-              <span className="w-4 h-4 rounded-full bg-red-500 mr-2 border border-gray-300 dark:border-gray-600"></span>
+              <span className="w-4 h-4 rounded-full bg-red-500 mr-2 border border-gray-300"></span>
               <span>Unavailable</span>
             </div>
             <div className="flex items-center">
-              <span className="w-4 h-4 rounded-full bg-blue-500 mr-2 border border-gray-300 dark:border-gray-600"></span>
+              <span className="w-4 h-4 rounded-full bg-blue-500 mr-2 border border-gray-300"></span>
               <span>Holiday</span>
             </div>
           </div>

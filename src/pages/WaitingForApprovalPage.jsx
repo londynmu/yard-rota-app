@@ -58,8 +58,8 @@ export default function WaitingForApprovalPage() {
   // If the user has been rejected, show a message
   if (accountStatus === 'rejected') {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900 p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 rounded-lg border border-red-200 dark:border-red-800 shadow-lg">
+      <div className="min-h-screen flex justify-center items-center bg-offwhite p-4">
+        <div className="max-w-md w-full bg-white p-6 rounded-lg border border-red-200 shadow-lg">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,39 +83,39 @@ export default function WaitingForApprovalPage() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-cream dark:bg-gray-900 p-4">
+    <div className="min-h-screen flex justify-center items-center bg-cream p-4">
       {loading ? (
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       ) : error ? (
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 rounded-lg border border-red-200 dark:border-red-800 shadow-lg">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+        <div className="max-w-md w-full bg-white p-6 rounded-lg border border-red-200 shadow-lg">
+          <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black py-2 px-4 rounded-lg transition-colors font-medium"
+            className="w-full bg-black hover:bg-gray-800 text-white py-2 px-4 rounded-lg transition-colors font-medium"
           >
             Retry
           </button>
         </div>
       ) : (
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="max-w-md w-full bg-white p-6 rounded-lg border border-gray-200 shadow-lg">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
-          <h2 className="text-xl font-bold text-center mb-4 text-charcoal dark:text-white">Profile Awaiting Approval</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+          <h2 className="text-xl font-bold text-center mb-4 text-charcoal">Profile Awaiting Approval</h2>
+          <p className="text-gray-600 text-center mb-6">
             Thank you for completing your profile! Your account is now awaiting administrator approval.
             You'll gain full access to the system once approved.
           </p>
-          <p className="text-gray-500 dark:text-gray-500 text-sm text-center mb-6">
+          <p className="text-gray-500 text-sm text-center mb-6">
             This page will automatically update when your status changes.
           </p>
           <button
             onClick={handleSignOut}
-            className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black py-2 px-4 rounded-lg transition-colors font-medium"
+            className="w-full bg-black hover:bg-gray-800 text-white py-2 px-4 rounded-lg transition-colors font-medium"
           >
             Sign Out
           </button>

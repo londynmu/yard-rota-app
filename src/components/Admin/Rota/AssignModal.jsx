@@ -584,12 +584,12 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     <div className="fixed inset-0 bg-black/70 shadow-sm flex items-center justify-center z-[9999]" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="bg-black/80 border border-white/30 rounded-lg overflow-hidden max-h-[95vh] max-w-2xl w-full m-4 flex flex-col">
         <div className="p-2 border-b border-white/20 flex justify-between items-center sticky top-0 bg-black/90 z-10">
-          <h3 className="text-base font-medium text-charcoal dark:text-white">
+          <h3 className="text-base font-medium text-charcoal">
             {slot.location}: {getFormattedDate(slot.date)}, {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
           </h3>
           <button 
             onClick={onClose} 
-            className="text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white ml-2 flex-shrink-0"
+            className="text-charcoal/70 hover:text-charcoal ml-2 flex-shrink-0"
           >
             <span className="sr-only">Close</span>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -601,7 +601,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         {/* Task Assignment Input */}
         <div className="mx-3 mt-2">
           <div className="relative">
-            <label htmlFor="task-input" className="block text-sm font-medium text-charcoal dark:text-white mb-1">
+            <label htmlFor="task-input" className="block text-sm font-medium text-charcoal mb-1">
               Assign Task <span className="text-gray-400 text-xs">(optional)</span>
             </label>
             <div className="relative">
@@ -611,11 +611,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                 value={task}
                 onChange={handleTaskChange}
                 placeholder="e.g. VMU cover"
-                className="w-full bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full bg-white/10 border border-white/20 rounded-md text-charcoal px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
               {task && (
                 <button 
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal/70 hover:text-charcoal"
                   onClick={() => setTask('')}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -632,7 +632,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     .map((suggestion, index) => (
                       <li 
                         key={index} 
-                        className="px-3 py-2 cursor-pointer hover:bg-white/10 text-charcoal dark:text-white"
+                        className="px-3 py-2 cursor-pointer hover:bg-white/10 text-charcoal"
                         onClick={() => handleTaskSuggestionClick(suggestion)}
                       >
                         {suggestion}
@@ -673,7 +673,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             <select
               value={selectedTab}
               onChange={(e) => setSelectedTab(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full bg-white/10 border border-white/20 rounded-md text-charcoal px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="available">Available ({slot.shift_type} Shift)</option>
               <option value="other_shifts">Other Shifts</option>
@@ -690,8 +690,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('available')}
               className={`px-3 py-1.5 flex-1 sm:rounded-tl-md ${
                 selectedTab === 'available' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-l border-t border-b`}
             >
               Available ({slot.shift_type})
@@ -700,8 +700,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('other_shifts')}
               className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'other_shifts' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-t border-b`}
             >
               Other Shifts
@@ -710,8 +710,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('assigned')}
               className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'assigned' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-t border-b`}
             >
               Assigned
@@ -720,8 +720,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('conflicts')}
               className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'conflicts' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-t border-b`}
             >
               Conflicts
@@ -730,8 +730,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('unavailable')}
               className={`px-3 py-1.5 flex-1 ${
                 selectedTab === 'unavailable' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-t border-b`}
             >
               Unavailable
@@ -740,8 +740,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               onClick={() => setSelectedTab('other_locations')}
               className={`px-3 py-1.5 flex-1 sm:rounded-tr-md ${
                 selectedTab === 'other_locations' 
-                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal dark:text-white' 
-                  : 'bg-white/10 border-white/20 text-charcoal dark:text-white/70'
+                  ? 'bg-blue-600/30 border-blue-400/30 text-charcoal' 
+                  : 'bg-white/10 border-white/20 text-charcoal/70'
               } border-r border-t border-b`}
             >
               Other Locations
@@ -750,9 +750,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           
           {/* Enhanced Capacity Indicator */}
           <div className="mt-2">
-            <div className="flex justify-between items-center mb-1 text-charcoal dark:text-white">
+            <div className="flex justify-between items-center mb-1 text-charcoal">
               <span className="font-medium text-xs">Staff Capacity</span>
-              <span className={localAssignedCount >= slot.capacity ? "text-red-300 font-bold text-xs" : "text-charcoal dark:text-white/80 text-xs"}>
+              <span className={localAssignedCount >= slot.capacity ? "text-red-300 font-bold text-xs" : "text-charcoal/80 text-xs"}>
                 {localAssignedCount}/{slot.capacity}
                 {localAssignedCount >= slot.capacity && (
                   <span className="ml-1">
@@ -776,11 +776,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           {loading ? (
             <div className="flex flex-col items-center py-2 gap-2">
               <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
-              <div className="text-charcoal dark:text-white/70 text-sm">Loading employees...</div>
+              <div className="text-charcoal/70 text-sm">Loading employees...</div>
             </div>
           ) : availableEmployees.length === 0 ? (
             <div className="flex justify-center py-2">
-              <p className="text-charcoal dark:text-white/70 text-sm">No employees found. Please check database connection.</p>
+              <p className="text-charcoal/70 text-sm">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
             <ul className="space-y-2">
@@ -798,14 +798,14 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-base font-medium text-charcoal dark:text-white">
+                        <span className="text-base font-medium text-charcoal">
                           {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
                         </span>
                       )}
                     </div>
                     
                     <div>
-                      <div className="font-medium text-charcoal dark:text-white flex items-center gap-1">
+                      <div className="font-medium text-charcoal flex items-center gap-1">
                         {employee.first_name} {employee.last_name}
                         {typeof employee.weeklyShifts === 'number' && (
                           <span className="bg-white text-black font-bold text-xs px-1 py-0.5 rounded-md shadow-sm border border-white/10">
@@ -830,14 +830,14 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                         {/* Star rating system for preferences */}
                         <div className="flex space-x-1 items-center">
                           {/* Preferred shift star */}
-                          <span className={`${employee.shift_preference === slot.shift_type ? 'text-blue-500' : 'text-charcoal dark:text-white/20'}`} title="Preferred shift">
+                          <span className={`${employee.shift_preference === slot.shift_type ? 'text-blue-500' : 'text-charcoal/20'}`} title="Preferred shift">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                             </svg>
                           </span>
                           
                           {/* Preferred location star */}
-                          <span className={`${(employee.preferred_location === slot.location || employee.preferred_location === 'Both') ? 'text-purple-500' : 'text-charcoal dark:text-white/20'}`} title="Preferred location">
+                          <span className={`${(employee.preferred_location === slot.location || employee.preferred_location === 'Both') ? 'text-purple-500' : 'text-charcoal/20'}`} title="Preferred location">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                             </svg>
@@ -894,7 +894,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               ))}
             </ul>
           ) : (
-            <div className="text-center py-4 text-charcoal dark:text-white/70">
+            <div className="text-center py-4 text-charcoal/70">
               {selectedTab === 'available' ? (
                 <div>
                   <p className="text-sm">No employees who prefer {slot.shift_type} shifts are available</p>
@@ -920,7 +920,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         <div className="p-2 border-t border-white/20 flex justify-end sticky bottom-0 bg-black/90 z-10">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 bg-white/10 shadow-sm border border-white/20 rounded-md text-charcoal dark:text-white hover:bg-white/20 transition-colors text-sm"
+            className="px-3 py-1.5 bg-white/10 shadow-sm border border-white/20 rounded-md text-charcoal hover:bg-white/20 transition-colors text-sm"
           >
             Done
           </button>

@@ -608,7 +608,7 @@ const ExportRota = () => {
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/40 rounded-xl p-4 md:p-6 shadow-xl space-y-6 max-w-2xl mx-auto min-h-[520px]">
       {/* Heading */}
-      <h2 className="text-xl font-semibold text-charcoal dark:text-white mb-4">Export & Send Weekly Schedule</h2>
+      <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send Weekly Schedule</h2>
 
       {/* Progress bar */}
       <div className="flex items-center space-x-3">
@@ -703,13 +703,13 @@ const ExportRota = () => {
               onChange={(date) => setStartDate(date)}
               dateFormat="dd/MM/yyyy"
               filterDate={isSaturday}
-              className="bg-slate-800/50 border border-slate-700/50 rounded-md p-2 text-charcoal dark:text-white w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="bg-slate-800/50 border border-slate-700/50 rounded-md p-2 text-charcoal w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               wrapperClassName="w-full"
               showIcon
-              calendarIconClassname="text-charcoal dark:text-white cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
+              calendarIconClassname="text-charcoal cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
               toggleCalendarOnIconClick
               popperClassName="react-datepicker-popper"
-              calendarClassName="bg-slate-800 border border-slate-600 shadow-lg text-charcoal dark:text-white"
+              calendarClassName="bg-slate-800 border border-slate-600 shadow-lg text-charcoal"
             />
             {startDate && (
               <p className="text-xs text-slate-400 mt-1">
@@ -722,7 +722,7 @@ const ExportRota = () => {
             <button
               onClick={fetchRotaForWeek}
               disabled={fetchingData}
-              className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {fetchingData ? <span className="animate-pulse">Loading data...</span> : 'Fetch Schedule Data'}
             </button>
@@ -738,13 +738,13 @@ const ExportRota = () => {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={generateCSV}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal dark:text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
           >
             Download CSV
           </button>
           <button
             onClick={generatePDF}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal dark:text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
           >
             Download PDF
           </button>
@@ -754,7 +754,7 @@ const ExportRota = () => {
       {/* STEP 3 – Agency selection */}
       {step === 3 && agencies.length > 0 && (
         <>
-          <h3 className="text-lg font-medium text-charcoal dark:text-white mb-3">Send to Agency Managers</h3>
+          <h3 className="text-lg font-medium text-charcoal mb-3">Send to Agency Managers</h3>
           <div className="mb-4 max-h-60 overflow-y-auto bg-slate-800/50 rounded border border-slate-700/50 p-3">
             {agencies.map(agency => (
               <div key={agency.id} className="flex items-center mb-2">
@@ -765,7 +765,7 @@ const ExportRota = () => {
                   onChange={() => handleAgencySelection(agency.id)}
                   className="mr-2 accent-blue-500 w-4 h-4"
                 />
-                <label htmlFor={`agency-${agency.id}`} className="text-charcoal dark:text-white cursor-pointer">
+                <label htmlFor={`agency-${agency.id}`} className="text-charcoal cursor-pointer">
                   {agency.name} ({agency.email})
                 </label>
               </div>
@@ -773,12 +773,12 @@ const ExportRota = () => {
           </div>
           {selectedAgencies.length > 0 && (
             <div className="mb-4 p-3 bg-slate-800/50 rounded border border-slate-700/50">
-              <h4 className="text-charcoal dark:text-white text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
+              <h4 className="text-charcoal text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
               <div className="max-h-32 overflow-y-auto">
                 {selectedAgencies.map(agencyId => {
                   const agency = agencies.find(a => a.id === agencyId);
                   return (
-                    <div key={agencyId} className="text-charcoal dark:text-white mb-1 flex items-center">
+                    <div key={agencyId} className="text-charcoal mb-1 flex items-center">
                       <div className="bg-blue-600/30 px-2 py-1 rounded-full text-xs mr-2">To</div>
                       {agency?.name}: {agency?.email}
                     </div>
@@ -794,20 +794,20 @@ const ExportRota = () => {
       {step === 4 && (
         <>
           <div className="mb-4">
-            <label htmlFor="email-message" className="block text-charcoal dark:text-white mb-1">Email Message</label>
+            <label htmlFor="email-message" className="block text-charcoal mb-1">Email Message</label>
             <textarea
               id="email-message"
               value={emailMessage}
               onChange={(e) => setEmailMessage(e.target.value)}
               rows={5}
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-charcoal dark:text-white resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-slate-800/50 border border-slate-700/50 rounded px-3 py-2 text-charcoal resize-y focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="Enter custom message to send with the schedule..."
             />
           </div>
           <button
             onClick={confirmSend}
             disabled={loading || selectedAgencies.length === 0}
-            className="w-full px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
           </button>
@@ -819,7 +819,7 @@ const ExportRota = () => {
         {step > 1 ? (
           <button
             onClick={() => setStep(step - 1)}
-            className="px-4 py-2 bg-slate-700/80 text-charcoal dark:text-white rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
+            className="px-4 py-2 bg-slate-700/80 text-charcoal rounded border border-slate-600/30 hover:bg-slate-600/90 shadow-md backdrop-blur-sm transition-all"
           >
             Back
           </button>
@@ -829,7 +829,7 @@ const ExportRota = () => {
           <button
             onClick={() => setStep(step + 1)}
             disabled={isNextDisabled()}
-            className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -869,7 +869,7 @@ const ExportRota = () => {
       {showConfirmation && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
-            <h3 className="text-xl font-bold text-charcoal dark:text-white mb-4">Confirm Send</h3>
+            <h3 className="text-xl font-bold text-charcoal mb-4">Confirm Send</h3>
             <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
               {currentUser && (
                 <p><span className="font-medium">From:</span> {currentUser.email}</p>
@@ -888,13 +888,13 @@ const ExportRota = () => {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button 
                 onClick={cancelSend} 
-                className="px-4 py-2 bg-slate-800/80 text-charcoal dark:text-white rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+                className="px-4 py-2 bg-slate-800/80 text-charcoal rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
               >
                 Cancel
               </button>
               <button 
                 onClick={sendToAgencies} 
-                className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+                className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
               >
                 Yes, I&apos;m 100% Sure - Send Now
               </button>
@@ -906,7 +906,7 @@ const ExportRota = () => {
       {showDownloadModal && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
-            <h3 className="text-xl font-bold text-charcoal dark:text-white mb-4">Download File</h3>
+            <h3 className="text-xl font-bold text-charcoal mb-4">Download File</h3>
             <div className="text-slate-300 mb-6 space-y-3 max-h-[60vh] overflow-y-auto">
               <p>
                 <span className="font-medium">File ready: </span>
@@ -917,7 +917,7 @@ const ExportRota = () => {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button 
                 onClick={() => setShowDownloadModal(false)} 
-                className="px-4 py-2 bg-slate-800/80 text-charcoal dark:text-white rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
+                className="px-4 py-2 bg-slate-800/80 text-charcoal rounded border border-slate-700/50 hover:bg-slate-700 transition-all"
               >
                 Cancel
               </button>
@@ -925,7 +925,7 @@ const ExportRota = () => {
                 href={downloadInfo.url}
                 download={downloadInfo.fileName}
                 onClick={() => setShowDownloadModal(false)}
-                className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all text-center"
+                className="px-4 py-2 bg-blue-600/80 text-charcoal rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all text-center"
               >
                 Download {downloadInfo.type}
               </a>

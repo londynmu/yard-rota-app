@@ -157,8 +157,8 @@ export default function AdminPage() {
   // Użyj pageLoading do głównego wskaźnika ładowania
   if (pageLoading) {
     return (
-        <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
-            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black dark:border-white"></div>
+        <div className="min-h-screen flex justify-center items-center bg-offwhite">
+            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>
         </div>
     );
   }
@@ -166,10 +166,10 @@ export default function AdminPage() {
   // Pokaż błąd, jeśli wystąpił (np. brak uprawnień)
   if (error) {
     return (
-      <div className="min-h-screen p-4">
-        <div className="max-w-4xl mx-auto bg-black/60 backdrop-blur-xl rounded-xl shadow-2xl p-6 border-2 border-white/30">
-          <div className="text-red-300 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-white drop-shadow-md">Access Denied</h2>
+      <div className="min-h-screen p-4 bg-offwhite">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6 border border-gray-200">
+          <div className="text-red-600 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
             <p>{error}</p>
           </div>
         </div>
@@ -180,27 +180,27 @@ export default function AdminPage() {
   // Jeśli zakończono ładowanie, nie ma błędu, ale nie jest adminem (nie powinno się zdarzyć)
   if (!isAdmin) {
     return (
-      <div className="min-h-screen p-4">
-        <p>Access Denied. Administrative privileges required.</p> 
+      <div className="min-h-screen p-4 bg-offwhite">
+        <p className="text-charcoal">Access Denied. Administrative privileges required.</p> 
       </div>
     );
   }
 
   // Główna zawartość strony admina (tylko jeśli isAdmin === true)
   return (
-    <div className="min-h-screen bg-offwhite dark:bg-gray-900 py-6 px-4 sm:px-8 overflow-hidden relative">
-      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
+    <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-8 overflow-hidden relative">
+      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+        <div className="border-b border-gray-200 bg-white px-6 py-4">
           <div className="overflow-x-auto pb-1">
-            <div className="flex flex-nowrap whitespace-nowrap border-b border-gray-200 dark:border-gray-700 mb-[-1px] min-w-full">
+            <div className="flex flex-nowrap whitespace-nowrap border-b border-gray-200 mb-[-1px] min-w-full">
               {['users', 'approvals', 'availability', 'settings', 'breaks config', 'locations', 'agencies', 'stats'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 font-medium capitalize transition-colors ${
                     activeTab === tab
-                      ? 'border-b-2 border-black dark:border-white text-black dark:text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white'
+                      ? 'border-b-2 border-black text-black'
+                      : 'text-gray-600 hover:text-black'
                   }`}
                 >
                   {tab}

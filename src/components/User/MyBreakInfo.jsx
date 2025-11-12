@@ -220,7 +220,7 @@ export default function MyBreakInfo() {
                               <div
                                 key={userData.profile?.id ? `user-${userData.profile.id}` : `user-index-${shiftIndex}-${userIndex}`}
                                 className={`py-1.5 px-2.5 rounded-md flex justify-between items-center flex-wrap ${
-                                  userData.isCurrentUser ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 font-bold' : 'bg-gray-100 dark:bg-gray-700'
+                                  userData.isCurrentUser ? 'bg-blue-100 border border-blue-300 font-bold' : 'bg-gray-100'
                                 }`}
                               >
                                 <span className="mr-3 font-medium">
@@ -260,7 +260,7 @@ export default function MyBreakInfo() {
   }
 
   return (
-    <div className="w-full mb-4 px-4 py-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md transition-all overflow-auto max-h-[40vh]">
+    <div className="w-full mb-4 px-4 py-4 bg-white border border-gray-200 rounded-lg shadow-md transition-all overflow-auto max-h-[40vh]">
       <div className="flex items-center justify-center mb-3">
         {/* Break time icon */}
         <div className="flex-shrink-0 mr-3">
@@ -270,7 +270,7 @@ export default function MyBreakInfo() {
         </div>
         
         {/* Break title */}
-        <div className="font-bold text-lg text-charcoal dark:text-white">
+        <div className="font-bold text-lg text-charcoal">
           Breaks Schedule - {new Date().toLocaleDateString()}
         </div>
       </div>

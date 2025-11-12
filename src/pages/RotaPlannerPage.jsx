@@ -67,18 +67,18 @@ export default function RotaPlannerPage() {
   // Main rendering logic
   if (pageLoading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black dark:border-white"></div>
+      <div className="min-h-screen flex justify-center items-center bg-offwhite">
+        <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen p-4">
-        <div className="max-w-4xl mx-auto bg-black/60 backdrop-blur-xl rounded-xl shadow-2xl p-6 border-2 border-white/30">
-          <div className="text-red-300 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-white drop-shadow-md">Access Denied</h2>
+      <div className="min-h-screen p-4 bg-offwhite">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6 border border-gray-200">
+          <div className="text-red-600 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
             <p>{error}</p>
           </div>
         </div>
@@ -88,10 +88,10 @@ export default function RotaPlannerPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-offwhite dark:bg-gray-900 p-4">
-        <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="text-red-600 dark:text-red-400 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-charcoal dark:text-white">Access Denied</h2>
+      <div className="min-h-screen bg-offwhite p-4">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+          <div className="text-red-600 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
             <p>Administrative privileges required to access Rota Planner.</p>
           </div>
         </div>
@@ -100,8 +100,8 @@ export default function RotaPlannerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite dark:bg-gray-900 py-6 px-4 sm:px-8 overflow-hidden relative">
-      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-8 overflow-hidden relative">
+      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
         <div className="p-6">
           <RotaManager />
         </div>

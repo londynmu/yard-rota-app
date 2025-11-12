@@ -180,7 +180,20 @@ export default function ShiftDashboard() {
           
           console.log('[Team Schedule] Final shifts with profiles:', shiftsWithProfiles.slice(0, 3));
           
-          setAllShifts(shiftsWithProfiles);
+          // DEDUPLICATE: Remove duplicate entries - same user can have multiple shifts, show only once
+          const uniqueShifts = [];
+          const seenUserIds = new Set();
+          
+          shiftsWithProfiles.forEach(shift => {
+            if (!seenUserIds.has(shift.user_id)) {
+              seenUserIds.add(shift.user_id);
+              uniqueShifts.push(shift);
+            }
+          });
+          
+          console.log('[Team Schedule] Shifts after deduplication:', uniqueShifts.length);
+          
+          setAllShifts(uniqueShifts);
         } else {
           setAllShifts([]);
         }
@@ -221,7 +234,19 @@ export default function ShiftDashboard() {
               profiles: profilesMap[b.user_id]
             }));
           
-          setAllBreaks(breaksWithProfiles);
+          // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
+          const uniqueBreaks = [];
+          const seenUserIds = new Set();
+          
+          breaksWithProfiles.forEach(breakItem => {
+            const key = `${breakItem.user_id}-${breakItem.break_start_time}`;
+            if (!seenUserIds.has(key)) {
+              seenUserIds.add(key);
+              uniqueBreaks.push(breakItem);
+            }
+          });
+          
+          setAllBreaks(uniqueBreaks);
         } else {
           setAllBreaks([]);
         }
@@ -472,11 +497,11 @@ export default function ShiftDashboard() {
 
   if (loading) {
     return (
-      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/5 mb-4 animate-pulse"></div>
+      <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+        <div className="h-5 bg-gray-200 rounded w-2/5 mb-4 animate-pulse"></div>
         <div className="space-y-3">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
         </div>
       </div>
     );
@@ -484,8 +509,8 @@ export default function ShiftDashboard() {
 
   if (error) {
     return (
-      <div className="w-full mb-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
-        <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+      <div className="w-full mb-4 bg-red-50 rounded-lg border border-red-200 p-4">
+        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -507,29 +532,29 @@ export default function ShiftDashboard() {
     };
 
     return (
-      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md overflow-hidden">
+      <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <div>
-              <h2 className="text-lg font-bold text-charcoal dark:text-white">Today&apos;s Team Schedule</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">No personal shift - viewing team</p>
+              <h2 className="text-lg font-bold text-charcoal">Today&apos;s Team Schedule</h2>
+              <p className="text-sm text-gray-600">No personal shift - viewing team</p>
             </div>
           </div>
         </div>
 
         {/* Toggle between Shifts and Breaks */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200">
           <div className="flex">
             <button 
               onClick={() => setTeamView('shifts')}
               className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                 teamView === 'shifts' 
-                  ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
-                  : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
               }`}
             >
               Team Shifts ({allShifts.length})
@@ -538,8 +563,8 @@ export default function ShiftDashboard() {
               onClick={() => setTeamView('breaks')}
               className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                 teamView === 'breaks' 
-                  ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
-                  : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
               }`}
             >
               Team Breaks ({allBreaks.length})
@@ -551,7 +576,7 @@ export default function ShiftDashboard() {
         <div className="p-4 max-h-96 overflow-y-auto">
           {teamView === 'shifts' ? (
             allShifts.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No shifts scheduled for today</p>
+              <p className="text-gray-600 text-center py-4">No shifts scheduled for today</p>
             ) : (
               <div className="space-y-6">
                 {/* Group by location first, then by shift type */}
@@ -560,7 +585,7 @@ export default function ShiftDashboard() {
                   
                   return (
                     <div key={location} className="space-y-3">
-                      <h2 className="text-md font-bold text-charcoal dark:text-white border-b-2 border-gray-300 dark:border-gray-600 pb-1">
+                      <h2 className="text-md font-bold text-charcoal border-b-2 border-gray-300 pb-1">
                         📍 {location} ({locationShifts.length})
                       </h2>
                       
@@ -569,9 +594,9 @@ export default function ShiftDashboard() {
                         if (shifts.length === 0) return null;
                         
                         const shiftColors = {
-                          day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
-                          afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
-                          night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-500 border-blue-300 dark:border-blue-800'
+                          day: 'bg-amber-100 text-amber-800 border-amber-300',
+                          afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
+                          night: 'bg-blue-100 text-blue-800 border-blue-300'
                         };
 
                         return (
@@ -581,11 +606,11 @@ export default function ShiftDashboard() {
                             </h3>
                             <ul className="space-y-1 mt-2">
                               {shifts.map(s => (
-                                <li key={s.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-750 rounded border border-gray-200 dark:border-gray-700">
-                                  <span className="font-medium text-charcoal dark:text-white">
+                                <li key={s.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200">
+                                  <span className="font-medium text-charcoal">
                                     {s.profiles?.first_name || 'Unknown'} {s.profiles?.last_name || 'User'}
                                   </span>
-                                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  <span className="text-sm text-gray-600">
                                     {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
                                   </span>
                                 </li>
@@ -601,7 +626,7 @@ export default function ShiftDashboard() {
             )
           ) : (
             allBreaks.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No breaks scheduled for today</p>
+              <p className="text-gray-600 text-center py-4">No breaks scheduled for today</p>
             ) : (
               <div className="space-y-4">
                 {['day', 'afternoon', 'night'].map(shiftType => {
@@ -609,9 +634,9 @@ export default function ShiftDashboard() {
                   if (breaks.length === 0) return null;
                   
                   const shiftColors = {
-                    day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
-                    afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
-                    night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-500 border-blue-300 dark:border-blue-800'
+                    day: 'bg-amber-100 text-amber-800 border-amber-300',
+                    afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
+                    night: 'bg-blue-100 text-blue-800 border-blue-300'
                   };
 
                   return (
@@ -623,11 +648,11 @@ export default function ShiftDashboard() {
                         {breaks.map(b => {
                           const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
                           return (
-                            <li key={b.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-750 rounded border border-gray-200 dark:border-gray-700">
-                              <span className="font-medium text-charcoal dark:text-white">
+                            <li key={b.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200">
+                              <span className="font-medium text-charcoal">
                                 {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
                               </span>
-                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                              <span className="text-sm text-gray-600">
                                 {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
                               </span>
                             </li>
@@ -651,19 +676,19 @@ export default function ShiftDashboard() {
 
   // Render the main widget
   return (
-    <div className={`w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border-gray-200 dark:border-gray-700`}>
+    <div className={`w-full mb-4 bg-white rounded-lg border overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border-gray-200`}>
       {/* Top accent bar */}
       <div className={`h-1 ${getShiftAccentColor(shift.shift_type)}`}></div>
       
       {/* Header with tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-gray-200">
         <div className="flex">
           <button 
             onClick={() => setActiveView('shift')}
             className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
               activeView === 'shift' 
-                ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+                ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center">
@@ -678,8 +703,8 @@ export default function ShiftDashboard() {
             onClick={() => setActiveView('breaks')}
             className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
               activeView === 'breaks' 
-                ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+                ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center">
@@ -705,7 +730,7 @@ export default function ShiftDashboard() {
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center mb-1">
-                <h2 className="text-lg font-bold text-charcoal dark:text-white">
+                <h2 className="text-lg font-bold text-charcoal">
                   {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                 </h2>
                 {shiftActive && (
@@ -723,15 +748,15 @@ export default function ShiftDashboard() {
                   </svg>
                   {shift.location || 'Unknown location'}
                 </p>
-                <p className="text-gray-600 dark:text-gray-400 text-xs mt-0.5">
+                <p className="text-gray-600 text-xs mt-0.5">
                   {getShiftLabel(shift.shift_type || 'standard')}
                 </p>
               </div>
             </div>
             
             {shiftActive && (
-              <div className="bg-gray-100 dark:bg-gray-750 px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 shadow-inner">
-                <span className="text-gray-600 dark:text-gray-400 text-xs block">Status</span>
+              <div className="bg-gray-100 px-2.5 py-1.5 rounded-md border border-gray-200 shadow-inner">
+                <span className="text-gray-600 text-xs block">Status</span>
                 <span className="text-white font-medium text-sm block">{getTimeRemaining()}</span>
               </div>
             )}
@@ -744,7 +769,7 @@ export default function ShiftDashboard() {
                 <span>Progress</span>
                 <span>{shiftProgress}%</span>
               </div>
-              <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className={`h-full ${getShiftAccentColor(shift.shift_type)} rounded-full transition-all duration-1000 ease-out`}
                   style={{ width: `${shiftProgress}%` }}
@@ -801,7 +826,7 @@ export default function ShiftDashboard() {
                     <span>Break time</span>
                     <span>{nextBreak.progress}%</span>
                   </div>
-                  <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out"
                       style={{ width: `${nextBreak.progress}%` }}
@@ -823,7 +848,7 @@ export default function ShiftDashboard() {
         >
           {!breakInfo || breakInfo === 'loading' ? (
             <div className="text-center py-3">
-              <span className="italic text-gray-600 dark:text-gray-400">Loading break info...</span>
+              <span className="italic text-gray-600">Loading break info...</span>
             </div>
           ) : breakInfo === 'none' ? (
             <div className="text-center py-3">
@@ -848,7 +873,7 @@ export default function ShiftDashboard() {
                         <span className="font-medium text-white">
                           {formatBreakTime(breakItem)}
                         </span>
-                        <span className="text-gray-600 dark:text-gray-400">
+                        <span className="text-gray-600">
                           {breakItem.break_duration_minutes} min
                         </span>
                       </div>
@@ -911,8 +936,8 @@ export default function ShiftDashboard() {
       </div>
       
       {/* Footer */}
-      <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-100 dark:bg-gray-750 flex justify-between items-center">
-        <span className="text-gray-600 dark:text-gray-400 text-xs">{format(new Date(), 'EEEE, MMMM d')}</span>
+      <div className="border-t border-gray-200 px-3 py-1.5 bg-gray-100 flex justify-between items-center">
+        <span className="text-gray-600 text-xs">{format(new Date(), 'EEEE, MMMM d')}</span>
         <Link to="/my-rota" className="text-blue-500 text-xs hover:text-blue-600 inline-flex items-center transition-colors">
           Full Schedule
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" viewBox="0 0 20 20" fill="currentColor">

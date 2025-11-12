@@ -35,18 +35,18 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
   const dayOfWeek = format(date, 'EEEE'); // Full day name (Monday, Tuesday, etc.)
   
   return (
-    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-sm mx-auto my-auto border border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-auto my-auto border border-gray-200">
         <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 className="text-xl font-bold leading-tight text-charcoal dark:text-white">
+            <h2 className="text-xl font-bold leading-tight text-charcoal">
               Set Availability for {format(date, 'MMM d, yyyy')}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">{dayOfWeek}</p>
+            <p className="text-gray-600 text-sm font-medium">{dayOfWeek}</p>
           </div>
           <button
             type="button"
-            className="text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 rounded-lg"
+            className="text-gray-400 hover:text-charcoal hover:bg-gray-100 p-1.5 rounded-lg"
             onClick={onClose}
             aria-label="Close"
           >
@@ -58,7 +58,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
         
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label className="block text-charcoal dark:text-white font-medium mb-3">
+            <label className="block text-charcoal font-medium mb-3">
               Availability Status
             </label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -68,7 +68,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
                 className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
                   status === 'available' 
                     ? 'bg-green-500 text-white shadow-md border-2 border-green-600 scale-105' 
-                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 border border-green-300 dark:border-green-700'
+                    : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
                 }`}
               >
                 Available
@@ -80,7 +80,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
                 className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
                   status === 'unavailable' 
                     ? 'bg-red-500 text-white shadow-md border-2 border-red-600 scale-105' 
-                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 border border-red-300 dark:border-red-700'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
                 }`}
               >
                 Unavailable
@@ -92,7 +92,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
                 className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
                   status === 'holiday' 
                     ? 'bg-blue-500 text-white shadow-md border-2 border-blue-600 scale-105' 
-                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 border border-blue-300 dark:border-blue-700'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
                 }`}
               >
                 Holiday
@@ -101,14 +101,14 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
           </div>
           
           <div className="mb-6">
-            <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="comment">
+            <label className="block text-charcoal font-medium mb-2" htmlFor="comment">
               Comments (optional)
             </label>
             <textarea
               id="comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-charcoal dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20 text-charcoal placeholder-gray-400"
               rows="3"
               placeholder="Add any notes about this day..."
             ></textarea>
@@ -118,13 +118,13 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border-2 border-black dark:border-white rounded-lg text-charcoal dark:text-white bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 border-2 border-black rounded-lg text-charcoal bg-transparent hover:bg-gray-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black rounded-lg transition-colors font-medium"
+              className="px-5 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors font-medium"
             >
               Save
             </button>

@@ -101,10 +101,10 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
       <div className="bg-gray-900 rounded-lg shadow-xl overflow-hidden w-full max-w-xl mx-auto">
         <div className="p-5">
           <div className="flex justify-between items-center mb-5">
-            <h3 className="text-xl font-medium text-charcoal dark:text-white">Templates</h3>
+            <h3 className="text-xl font-medium text-charcoal">Templates</h3>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-charcoal dark:text-white"
+              className="text-gray-400 hover:text-charcoal"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -118,8 +118,8 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               onClick={() => setTab('apply')}
               className={`px-4 py-2 font-medium ${
                 tab === 'apply'
-                  ? 'border-b-2 border-blue-500 text-charcoal dark:text-white'
-                  : 'text-gray-400 hover:text-charcoal dark:text-white'
+                  ? 'border-b-2 border-blue-500 text-charcoal'
+                  : 'text-gray-400 hover:text-charcoal'
               }`}
             >
               Apply Template
@@ -128,8 +128,8 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               onClick={() => setTab('save')}
               className={`px-4 py-2 font-medium ${
                 tab === 'save'
-                  ? 'border-b-2 border-blue-500 text-charcoal dark:text-white'
-                  : 'text-gray-400 hover:text-charcoal dark:text-white'
+                  ? 'border-b-2 border-blue-500 text-charcoal'
+                  : 'text-gray-400 hover:text-charcoal'
               }`}
             >
               Save Current Layout
@@ -137,7 +137,7 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
           </div>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-900/30 border border-red-800 text-charcoal dark:text-white rounded-md">
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-800 text-charcoal rounded-md">
               {error}
             </div>
           )}
@@ -178,7 +178,7 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="font-medium text-charcoal dark:text-white">{template.name}</div>
+                            <div className="font-medium text-charcoal">{template.name}</div>
                             <div className="text-xs text-gray-400">
                               Created: {new Date(template.created_at).toLocaleDateString()}
                             </div>
@@ -207,13 +207,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 bg-gray-800 text-charcoal dark:text-white rounded-md hover:bg-gray-700"
+                      className="px-4 py-2 bg-gray-800 text-charcoal rounded-md hover:bg-gray-700"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-charcoal dark:text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-blue-600 text-charcoal rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!selectedTemplateId}
                     >
                       Apply Template
@@ -233,13 +233,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               
               <form onSubmit={handleSaveSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-charcoal dark:text-white mb-1">Template Name</label>
+                  <label className="block text-charcoal mb-1">Template Name</label>
                   <input
                     type="text"
                     value={newTemplateName}
                     onChange={(e) => setNewTemplateName(e.target.value)}
                     placeholder="e.g., Standard NRC Day Shift"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
                     required
                   />
                 </div>
@@ -248,13 +248,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-800 text-charcoal dark:text-white rounded-md hover:bg-gray-700"
+                    className="px-4 py-2 bg-gray-800 text-charcoal rounded-md hover:bg-gray-700"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-charcoal dark:text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-600 text-charcoal rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!newTemplateName.trim()}
                   >
                     Save Template

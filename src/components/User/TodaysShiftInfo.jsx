@@ -119,50 +119,50 @@ function NoShiftWithBreaksView() {
   };
 
   return (
-    <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-md transition-all duration-300">
+    <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 p-4 shadow-md transition-all duration-300">
       <div className="flex items-center mb-4">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p className="text-gray-600 dark:text-gray-400">No shift scheduled for today.</p>
+        <p className="text-gray-600">No shift scheduled for today.</p>
       </div>
 
       {/* Show team breaks */}
       {breakInfo === null && (
-        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="flex items-center mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <p className="text-gray-600 dark:text-gray-400">Loading team breaks...</p>
+            <p className="text-gray-600">Loading team breaks...</p>
           </div>
         </div>
       )}
 
       {breakInfo === 'none' && (
-        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="flex items-center mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-gray-600 dark:text-gray-400">No team breaks scheduled for today.</p>
+            <p className="text-gray-600">No team breaks scheduled for today.</p>
           </div>
         </div>
       )}
 
       {breakInfo === 'error' && (
-        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="flex items-center mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-red-600 dark:text-red-500">Error loading team breaks.</p>
+            <p className="text-red-600">Error loading team breaks.</p>
           </div>
         </div>
       )}
 
       {breakInfo && breakInfo !== 'none' && breakInfo !== 'error' && (
-        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="flex items-center mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -193,7 +193,7 @@ function NoShiftWithBreaksView() {
                             `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
                             'Unknown User'}
                         </span>
-                        <span className="text-gray-600 dark:text-gray-400">
+                        <span className="text-gray-600">
                           {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
                         </span>
                       </div>
@@ -468,11 +468,11 @@ export default function TodaysShiftInfo() {
 
   if (loading) {
     return (
-      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/5 mb-4 animate-pulse"></div>
+      <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+        <div className="h-5 bg-gray-200 rounded w-2/5 mb-4 animate-pulse"></div>
         <div className="space-y-3">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
         </div>
       </div>
     );
@@ -480,8 +480,8 @@ export default function TodaysShiftInfo() {
 
   if (error) {
     return (
-      <div className="w-full mb-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 p-4">
-        <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+      <div className="w-full mb-4 bg-red-50 rounded-lg border border-red-200 p-4">
+        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -495,7 +495,7 @@ export default function TodaysShiftInfo() {
   const nextBreak = getNextBreak();
 
   return (
-    <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-md">
+    <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 overflow-hidden shadow-md">
       {/* Top accent bar */}
       <div className={`h-1 ${getShiftAccentColor(shift.shift_type)}`}></div>
       
@@ -503,10 +503,10 @@ export default function TodaysShiftInfo() {
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-charcoal dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-charcoal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h2 className="text-lg font-bold text-charcoal dark:text-white">Today&apos;s Shift</h2>
+              <h2 className="text-lg font-bold text-charcoal">Today&apos;s Shift</h2>
               {shiftActive && (
                 <span className="ml-2 bg-green-500 text-xs font-semibold text-white px-2 py-0.5 rounded-full shadow-sm">
                   ACTIVE
@@ -515,26 +515,26 @@ export default function TodaysShiftInfo() {
             </div>
             
             <div className="mt-3">
-              <p className="text-charcoal dark:text-white text-xl font-semibold">
+              <p className="text-charcoal text-xl font-semibold">
                 {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
               </p>
-              <p className="text-gray-600 dark:text-gray-400 flex items-center mt-1">
+              <p className="text-gray-600 flex items-center mt-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 {shift.location || 'Unknown location'}
               </p>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+              <p className="text-gray-600 text-sm mt-1">
                 {getShiftLabel(shift.shift_type || 'standard')}
               </p>
             </div>
           </div>
           
           {shiftActive && (
-            <div className="bg-gray-100 dark:bg-gray-750 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
-              <span className="text-gray-600 dark:text-gray-400 text-xs block">Status</span>
-              <span className="text-charcoal dark:text-white font-medium block">{getTimeRemaining()}</span>
+            <div className="bg-gray-100 px-3 py-2 rounded-lg border border-gray-200">
+              <span className="text-gray-600 text-xs block">Status</span>
+              <span className="text-charcoal font-medium block">{getTimeRemaining()}</span>
             </div>
           )}
         </div>
@@ -542,11 +542,11 @@ export default function TodaysShiftInfo() {
         {/* Progress bar for active shift */}
         {shiftActive && (
           <div className="mt-4 mb-2">
-            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+            <div className="flex justify-between text-xs text-gray-600 mb-1">
               <span>Progress</span>
               <span>{shiftProgress}%</span>
             </div>
-            <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
               <div 
                 className={`h-full ${getShiftAccentColor(shift.shift_type)} rounded-full transition-all duration-1000 ease-out`}
                 style={{ width: `${shiftProgress}%` }}
@@ -558,12 +558,12 @@ export default function TodaysShiftInfo() {
         {shiftActive && nextBreak && (
           <div className={`mt-4 p-3 rounded-lg ${
             nextBreak.isActive 
-              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
-              : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-blue-50 border border-blue-200'
           } transition-all duration-300`}>
             <div className="flex justify-between items-center">
               <div>
-                <span className="text-gray-600 dark:text-gray-400 text-sm font-medium flex items-center">
+                <span className="text-gray-600 text-sm font-medium flex items-center">
                   {nextBreak.isActive ? (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -586,7 +586,7 @@ export default function TodaysShiftInfo() {
               </div>
               {!nextBreak.isActive && (
                 <div className="text-right">
-                  <span className="text-gray-600 dark:text-gray-400 text-xs block">Starting in</span>
+                  <span className="text-gray-600 text-xs block">Starting in</span>
                   <span className="text-white font-medium">
                     {nextBreak.timeToStart > 60 
                       ? `${Math.floor(nextBreak.timeToStart / 60)}h ${nextBreak.timeToStart % 60}m` 
@@ -599,11 +599,11 @@ export default function TodaysShiftInfo() {
             {/* Break progress bar for active breaks */}
             {nextBreak.isActive && (
               <div className="mt-2">
-                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
                   <span>Break time</span>
                   <span>{nextBreak.progress}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${nextBreak.progress}%` }}
@@ -615,8 +615,8 @@ export default function TodaysShiftInfo() {
         )}
       </div>
       
-      <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-2 bg-gray-100 dark:bg-gray-750 flex justify-between items-center">
-        <span className="text-gray-600 dark:text-gray-400 text-sm">{format(new Date(), 'EEEE, MMMM d')}</span>
+      <div className="border-t border-gray-200 px-4 py-2 bg-gray-100 flex justify-between items-center">
+        <span className="text-gray-600 text-sm">{format(new Date(), 'EEEE, MMMM d')}</span>
         <Link to="/my-rota" className="text-blue-500 text-sm hover:text-blue-600 inline-flex items-center transition-colors">
           Full Schedule
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">

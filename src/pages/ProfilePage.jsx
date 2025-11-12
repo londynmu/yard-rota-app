@@ -476,8 +476,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Handle loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-offwhite dark:bg-gray-900">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+      <div className="min-h-screen flex items-center justify-center bg-offwhite">
+        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
@@ -485,8 +485,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // If the profile hasn't loaded yet and this is required, show loading state
   if (isRequired && !profileLoaded) {
     return (
-      <div className="min-h-screen bg-offwhite dark:bg-gray-900 flex justify-center items-center">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
+      <div className="min-h-screen bg-offwhite flex justify-center items-center">
+        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
@@ -494,13 +494,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Simplified view - full screen form focused on required fields
   if (simplifiedView) {
     return (
-      <div className="min-h-screen bg-cream dark:bg-gray-900 flex justify-center items-center">
+      <div className="min-h-screen bg-cream flex justify-center items-center">
         <div className="w-full max-w-full p-4">
           {message.text && (
             <div className={`mb-4 p-3 rounded-lg ${
               message.type === 'error' 
-                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800' 
-                : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                ? 'bg-red-50 text-red-600 border border-red-200' 
+                : 'bg-green-50 text-green-600 border border-green-200'
             }`}>
               {message.text}
               {message.type === 'error' && (
@@ -514,10 +514,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             {/* First Name */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="firstName">
+              <label className="block text-charcoal font-medium mb-2" htmlFor="firstName">
                 First Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -525,8 +525,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="firstName"
                 value={firstName}
                 onChange={handleFirstNameChange}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                  formErrors.firstName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  formErrors.firstName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your first name"
               />
@@ -537,7 +537,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Last Name */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="lastName">
+              <label className="block text-charcoal font-medium mb-2" htmlFor="lastName">
                 Last Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -545,8 +545,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="lastName"
                 value={lastName}
                 onChange={handleLastNameChange}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                  formErrors.lastName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  formErrors.lastName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your last name"
               />
@@ -557,14 +557,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Shift Preference */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" id="shift-preference-label">
+              <label className="block text-charcoal font-medium mb-2" id="shift-preference-label">
                 Shift Preference {isRequired && <span className="text-red-500">*</span>}
               </label>
               <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="shift-preference-label">
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'day' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-day">
                   <input
                     type="radio"
@@ -581,8 +581,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'afternoon' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-afternoon">
                   <input
                     type="radio"
@@ -599,8 +599,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'night' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-night">
                   <input
                     type="radio"
@@ -621,12 +621,12 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
             
             {/* Rota Planner Section */}
-            <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h3 className="text-lg font-medium text-charcoal dark:text-white mb-4">Rota Planner Preferences</h3>
+            <div className="mt-8 border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-charcoal mb-4">Rota Planner Preferences</h3>
               
               {/* Custom Start Time */}
               <div className="mb-4">
-                <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="customStartTime">
+                <label className="block text-charcoal font-medium mb-2" htmlFor="customStartTime">
                   Preferred Start Time {isRequired && <span className="text-red-500">*</span>}
                   <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
@@ -635,8 +635,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customStartTime"
                   value={customStartTime}
                   onChange={handleCustomStartTimeChange}
-                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                    formErrors.customStartTime ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                    formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {formErrors.customStartTime && (
@@ -646,7 +646,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               
               {/* Preferred Location */}
               <div className="mb-4">
-                <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="preferredLocation">
+                <label className="block text-charcoal font-medium mb-2" htmlFor="preferredLocation">
                   Preferred Location {isRequired && <span className="text-red-500">*</span>}
                   <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
@@ -654,8 +654,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="preferredLocation"
                   value={preferredLocation}
                   onChange={handlePreferredLocationChange}
-                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                    formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                    formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
                   <option value="" disabled className="text-gray-800">Select location...</option>
@@ -680,21 +680,21 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Agency Selection */}
             <div className="mb-4">
-              <label htmlFor="agency" className="block text-charcoal dark:text-white font-medium mb-2">
-                Agency <span className="text-xs text-gray-600 dark:text-gray-400">(Optional)</span>
+              <label htmlFor="agency" className="block text-charcoal font-medium mb-2">
+                Agency <span className="text-xs text-gray-600">(Optional)</span>
               </label>
               <select
                 id="agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border border-gray-300 dark:border-gray-600 text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                className="w-full px-3 py-2 bg-white rounded-lg focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/20"
               >
                 <option value="">None (Direct Employment)</option>
                 {agencies.map(agency => (
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-600">
                 If you work through a recruitment agency, please select it here
               </p>
             </div>
@@ -706,7 +706,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="submit-profile"
                 name="submit-profile"
                 disabled={loading}
-                className={`w-full py-2 px-4 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black rounded-lg font-medium transition-colors duration-200 ${
+                className={`w-full py-2 px-4 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200 ${
                   loading ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
@@ -721,14 +721,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
 
   // Standard view with more details and styling
   return (
-    <div className="min-h-screen bg-offwhite dark:bg-gray-900 py-8 px-8 sm:px-12 overflow-hidden relative flex justify-center">
+    <div className="min-h-screen bg-offwhite py-8 px-8 sm:px-12 overflow-hidden relative flex justify-center">
       <div className="w-full max-w-6xl relative">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
           {isOffline && (
-            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-400 rounded-lg">
+            <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700 rounded-lg">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -746,7 +746,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           )}
           
           {isRequired && (
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="mb-6 p-4 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
               <p className="font-medium">Welcome to Shunters.net!</p>
               <p className="mt-2">Please complete your profile information before continuing. Fields marked with * are required.</p>
             </div>
@@ -755,8 +755,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           {message.text && (
             <div className={`mb-4 p-3 rounded-lg ${
               message.type === 'error' 
-                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800' 
-                : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                ? 'bg-red-50 text-red-600 border border-red-200' 
+                : 'bg-green-50 text-green-600 border border-green-200'
             }`}>
               {message.text}
               {message.type === 'error' && (
@@ -775,15 +775,15 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Avatar Upload */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="avatar">
-                Profile Picture <span className="text-xs text-gray-600 dark:text-gray-400">(Optional)</span>
+              <label className="block text-charcoal font-medium mb-2" htmlFor="avatar">
+                Profile Picture <span className="text-xs text-gray-600">(Optional)</span>
               </label>
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-300">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
                     </svg>
                   )}
@@ -798,13 +798,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   />
                   <label 
                     htmlFor="avatar"
-                    className="px-3 py-1.5 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-charcoal dark:text-white rounded-lg cursor-pointer border-2 border-black dark:border-white"
+                    className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-charcoal rounded-lg cursor-pointer border-2 border-black"
                   >
                     Choose Image
                   </label>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Maximum file size: 7MB</p>
+                  <p className="text-xs text-gray-600 mt-1">Maximum file size: 7MB</p>
                   {avatar && (
-                    <p className="text-sm text-charcoal dark:text-white mt-1">Selected: {avatar.name}</p>
+                    <p className="text-sm text-charcoal mt-1">Selected: {avatar.name}</p>
                   )}
                 </div>
               </div>
@@ -812,7 +812,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* First Name */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="firstName">
+              <label className="block text-charcoal font-medium mb-2" htmlFor="firstName">
                 First Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -820,8 +820,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="firstName"
                 value={firstName}
                 onChange={handleFirstNameChange}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                  formErrors.firstName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  formErrors.firstName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your first name"
               />
@@ -832,7 +832,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Last Name */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="lastName">
+              <label className="block text-charcoal font-medium mb-2" htmlFor="lastName">
                 Last Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -840,8 +840,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="lastName"
                 value={lastName}
                 onChange={handleLastNameChange}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                  formErrors.lastName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  formErrors.lastName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your last name"
               />
@@ -852,14 +852,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Shift Preference */}
             <div>
-              <label className="block text-charcoal dark:text-white font-medium mb-2" id="shift-preference-label">
+              <label className="block text-charcoal font-medium mb-2" id="shift-preference-label">
                 Shift Preference {isRequired && <span className="text-red-500">*</span>}
               </label>
               <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="shift-preference-label">
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'day' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-day">
                   <input
                     type="radio"
@@ -876,8 +876,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'afternoon' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-afternoon">
                   <input
                     type="radio"
@@ -894,8 +894,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 
                 <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
                   shiftPreference === 'night' 
-                    ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' 
-                    : 'border-gray-300 dark:border-gray-600 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white border-black' 
+                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
                 }`} htmlFor="shift-night">
                   <input
                     type="radio"
@@ -916,12 +916,12 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
 
             {/* Rota Planner Section */}
-            <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-              <h3 className="text-lg font-medium text-charcoal dark:text-white mb-4">Rota Planner Preferences</h3>
+            <div className="mt-8 border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-charcoal mb-4">Rota Planner Preferences</h3>
               
               {/* Custom Start Time */}
               <div className="mb-4">
-                <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="customStartTime">
+                <label className="block text-charcoal font-medium mb-2" htmlFor="customStartTime">
                   Preferred Start Time {isRequired && <span className="text-red-500">*</span>}
                   <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
@@ -930,8 +930,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customStartTime"
                   value={customStartTime}
                   onChange={handleCustomStartTimeChange}
-                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                    formErrors.customStartTime ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                    formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {formErrors.customStartTime && (
@@ -941,7 +941,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               
               {/* Preferred Location */}
               <div className="mb-4">
-                <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="preferredLocation">
+                <label className="block text-charcoal font-medium mb-2" htmlFor="preferredLocation">
                   Preferred Location {isRequired && <span className="text-red-500">*</span>}
                   <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
@@ -949,8 +949,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="preferredLocation"
                   value={preferredLocation}
                   onChange={handlePreferredLocationChange}
-                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 ${
-                    formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                    formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
                   <option value="" disabled className="text-gray-800">Select location...</option>
@@ -975,21 +975,21 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             
             {/* Agency Selection */}
             <div className="mb-4">
-              <label htmlFor="agency" className="block text-charcoal dark:text-white font-medium mb-2">
-                Agency <span className="text-xs text-gray-600 dark:text-gray-400">(Optional)</span>
+              <label htmlFor="agency" className="block text-charcoal font-medium mb-2">
+                Agency <span className="text-xs text-gray-600">(Optional)</span>
               </label>
               <select
                 id="agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg focus:outline-none border border-gray-300 dark:border-gray-600 text-charcoal dark:text-white focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20"
+                className="w-full px-3 py-2 bg-white rounded-lg focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/20"
               >
                 <option value="">None (Direct Employment)</option>
                 {agencies.map(agency => (
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-600">
                 If you work through a recruitment agency, please select it here
               </p>
             </div>
@@ -1001,7 +1001,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="submit-profile"
                 name="submit-profile"
                 disabled={loading}
-                className={`w-full py-2 px-4 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black rounded-lg font-medium transition-colors duration-200 ${
+                className={`w-full py-2 px-4 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200 ${
                   loading ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >

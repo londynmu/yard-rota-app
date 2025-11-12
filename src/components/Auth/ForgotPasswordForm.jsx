@@ -37,25 +37,25 @@ export default function ForgotPasswordForm({ onLogin }) {
   return (
     <div>
       <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-charcoal dark:text-white">Reset Password</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">We'll send you instructions to reset your password</p>
+        <h2 className="text-xl font-semibold text-charcoal">Reset Password</h2>
+        <p className="text-sm text-gray-600 mt-1">We'll send you instructions to reset your password</p>
       </div>
       
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg mb-4 border border-red-200 dark:border-red-800">
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 border border-red-200">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 p-3 rounded-lg mb-4 border border-green-200 dark:border-green-800">
+        <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 border border-green-200">
           {success}
         </div>
       )}
       
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
-          <label htmlFor="email" className="block text-charcoal dark:text-white text-sm font-medium mb-2">
+          <label htmlFor="email" className="block text-charcoal text-sm font-medium mb-2">
             Email Address
           </label>
           <input
@@ -63,7 +63,7 @@ export default function ForgotPasswordForm({ onLogin }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-charcoal dark:text-white"
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20 text-charcoal"
             placeholder="your@email.com"
             required
           />
@@ -72,18 +72,18 @@ export default function ForgotPasswordForm({ onLogin }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black py-2 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
+          className="w-full bg-black hover:bg-gray-800 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
         >
           {loading ? 'Sending...' : 'Send Reset Instructions'}
         </button>
         
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="text-gray-600 text-sm">
             Remember your password?{' '}
             <button
               type="button"
               onClick={onLogin}
-              className="text-charcoal dark:text-white hover:underline focus:outline-none transition-colors"
+              className="text-charcoal hover:underline focus:outline-none transition-colors"
             >
               Back to login
             </button>

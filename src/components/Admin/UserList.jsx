@@ -21,7 +21,7 @@ const Modal = ({ isOpen, onClose, children }) => {
   // Create a portal to render the modal outside the normal DOM hierarchy
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center"
       style={{ 
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -34,7 +34,7 @@ const Modal = ({ isOpen, onClose, children }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
+        className="bg-white rounded-xl shadow-lg w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-200"
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -84,7 +84,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
   
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="bg-gray-50 dark:bg-gray-750 px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -119,7 +119,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'all' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -135,7 +135,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'day' 
               ? 'bg-yellow-500/40 border-yellow-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -151,7 +151,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'afternoon' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -167,7 +167,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'night' 
               ? 'bg-indigo-500/40 border-indigo-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -189,7 +189,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortBy === 'name' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -205,7 +205,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortBy === 'score' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -227,7 +227,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortOrder === 'asc' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -243,7 +243,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortOrder === 'desc' 
               ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 dark:border-gray-700 hover:bg-white/5 text-white/80'
+              : 'border-gray-200 hover:bg-white/5 text-white/80'
             }`}>
               <input
                 type="radio"
@@ -259,7 +259,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
       </div>
       
-      <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200 dark:border-gray-700">
+      <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200">
         <button
           type="button"
           onClick={handleReset}
@@ -558,7 +558,7 @@ export default function UserList({ users, onRefresh }) {
   // Delete Modal Content
   const deleteModalContent = (
     <>
-            <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+            <div className="bg-red-50 px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -617,7 +617,7 @@ export default function UserList({ users, onRefresh }) {
                 </div>
               )}
             </div>
-            <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200 dark:border-gray-700">
+            <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200">
               <button
           type="button"
           onClick={closeDeleteModal}
@@ -641,7 +641,7 @@ export default function UserList({ users, onRefresh }) {
                   className={`px-4 py-2 border rounded-lg font-medium text-white focus:outline-none transition-colors ${
                     confirmationInput.toLowerCase() === 'delete'
                       ? 'bg-red-500/50 hover:bg-red-500/70 border-red-400/50'
-                      : 'bg-gray-500/30 border-gray-200 dark:border-gray-700 cursor-not-allowed'
+                      : 'bg-gray-500/30 border-gray-200 cursor-not-allowed'
                   }`}
                 >
                   Delete User
@@ -658,7 +658,7 @@ export default function UserList({ users, onRefresh }) {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={openFilterModal}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-md text-white hover:bg-white/20 transition-colors flex items-center shadow-lg"
+            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-md text-white hover:bg-white/20 transition-colors flex items-center shadow-lg"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
@@ -667,7 +667,7 @@ export default function UserList({ users, onRefresh }) {
           </button>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-md text-white hover:bg-white/20 transition-colors shadow-lg flex items-center"
+            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-md text-white hover:bg-white/20 transition-colors shadow-lg flex items-center"
             aria-label="Refresh"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -686,8 +686,8 @@ export default function UserList({ users, onRefresh }) {
       {/* Mobile card view (visible on small screens) */}
       <div className="md:hidden space-y-3">
         {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-black/40 backdrop-blur-xl border border-gray-200 dark:border-gray-700 rounded-lg shadow-md overflow-hidden">
-            <div className="p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+          <div key={user.id} className="bg-black/40 backdrop-blur-xl border border-gray-200 rounded-lg shadow-md overflow-hidden">
+            <div className="p-3 flex items-center justify-between border-b border-gray-200">
               <div className="flex items-center">
                 <div className="flex-shrink-0 h-10 w-10 mr-3">
                   {user.avatar_url ? (
@@ -722,17 +722,17 @@ export default function UserList({ users, onRefresh }) {
             <div className="p-3 flex flex-wrap gap-2 justify-between items-center">
               <div className="flex gap-2 flex-wrap">
                 <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                  ${user.shift_preference === 'day' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800' : 
-                  user.shift_preference === 'afternoon' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800' : 
-                  user.shift_preference === 'night' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800' : 
-                  'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'}`}>
+                  ${user.shift_preference === 'day' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 
+                  user.shift_preference === 'afternoon' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 
+                  user.shift_preference === 'night' ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 
+                  'bg-gray-100 text-gray-600 border border-gray-300'}`}>
                   {user.shift_preference || 'Not set'}
                 </span>
                 
                 <span 
                   className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                    ${user.is_active === false ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800' : 
-                    'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800'}`}
+                    ${user.is_active === false ? 'bg-red-100 text-red-700 border border-red-300' : 
+                    'bg-green-100 text-green-700 border border-green-300'}`}
                 >
                   {user.is_active === false ? 'Inactive' : 'Active'}
                 </span>
@@ -781,34 +781,34 @@ export default function UserList({ users, onRefresh }) {
 
       {/* Desktop table view (hidden on small screens) */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-white/10 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50 dark:bg-gray-750 sticky top-0 z-10 shadow-md">
+        <table className="min-w-full divide-y divide-white/10 border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50 sticky top-0 z-10 shadow-md">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider">Team Member</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider">Shift</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider">Score</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider">Actions</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Team Member</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Shift</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider">Status</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider">Score</th>
+              <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-charcoal uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+          <tbody className="divide-y divide-gray-200 bg-white">
             {filteredUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+              <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-3 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
                       {user.avatar_url ? (
-                        <img className="h-10 w-10 rounded-full border-2 border-gray-300 dark:border-gray-600 shadow-sm" src={user.avatar_url} alt="" />
+                        <img className="h-10 w-10 rounded-full border-2 border-gray-300 shadow-sm" src={user.avatar_url} alt="" />
                       ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600 shadow-sm">
-                          <span className="text-charcoal dark:text-white font-medium">
+                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300 shadow-sm">
+                          <span className="text-charcoal font-medium">
                             {user.first_name?.charAt(0) || '?'}
                           </span>
                         </div>
                       )}
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-medium text-charcoal dark:text-white">
+                      <div className="text-sm font-medium text-charcoal">
                         {user.first_name || ''} {user.last_name || ''}
                       </div>
                     </div>
@@ -816,10 +816,10 @@ export default function UserList({ users, onRefresh }) {
                 </td>
                 <td className="px-6 py-3 whitespace-nowrap">
                   <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                    ${user.shift_preference === 'day' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-800' : 
-                    user.shift_preference === 'afternoon' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800' : 
-                    user.shift_preference === 'night' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800' : 
-                    'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600'}`}>
+                    ${user.shift_preference === 'day' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 
+                    user.shift_preference === 'afternoon' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 
+                    user.shift_preference === 'night' ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 
+                    'bg-gray-100 text-gray-600 border border-gray-300'}`}>
                     {user.shift_preference || 'Not set'}
                   </span>
                 </td>

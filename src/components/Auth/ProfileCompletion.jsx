@@ -84,30 +84,30 @@ export default function ProfileCompletion({ onComplete }) {
 
   if (!user) {
     console.error("ProfileCompletion rendered without a user!");
-    return <div className="min-h-screen flex items-center justify-center bg-offwhite dark:bg-gray-900 text-charcoal dark:text-white">Error: User not available.</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-offwhite text-charcoal">Error: User not available.</div>;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream dark:bg-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-cream p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-lg border border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-charcoal dark:text-white mb-6 text-center">Complete Your Profile</h2>
+        <div className="bg-white rounded-lg p-8 shadow-lg border border-gray-200">
+          <h2 className="text-2xl font-bold text-charcoal mb-6 text-center">Complete Your Profile</h2>
           
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
             </div>
           )}
           
           {success && (
-            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 text-center">
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-center">
               Profile saved successfully! Redirecting...
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="firstName" className="block text-charcoal dark:text-white mb-1">
+              <label htmlFor="firstName" className="block text-charcoal mb-1">
                 First Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -115,13 +115,13 @@ export default function ProfileCompletion({ onComplete }) {
                 id="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-charcoal dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                className="w-full p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20 text-charcoal placeholder-gray-400"
                 placeholder="Enter your first name"
               />
             </div>
             
             <div>
-              <label htmlFor="lastName" className="block text-charcoal dark:text-white mb-1">
+              <label htmlFor="lastName" className="block text-charcoal mb-1">
                 Last Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -129,17 +129,17 @@ export default function ProfileCompletion({ onComplete }) {
                 id="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-black dark:focus:border-white focus:ring-2 focus:ring-black/20 dark:focus:ring-white/20 text-charcoal dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                className="w-full p-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20 text-charcoal placeholder-gray-400"
                 placeholder="Enter your last name"
               />
             </div>
             
             <div>
-              <span className="block text-charcoal dark:text-white mb-1">
+              <span className="block text-charcoal mb-1">
                 Preferred Shift <span className="text-red-500">*</span>
               </span>
               <div className="grid grid-cols-3 gap-2">
-                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'day' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'}`}>
+                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'day' ? 'bg-black text-white border-black' : 'bg-white border-gray-300 hover:bg-gray-100'}`}>
                   <input
                     type="radio"
                     name="shiftPreference"
@@ -148,10 +148,10 @@ export default function ProfileCompletion({ onComplete }) {
                     onChange={() => setShiftPreference("day")}
                     className="sr-only"
                   />
-                  <span className={`text-sm ${shiftPreference === 'day' ? 'text-white dark:text-black' : 'text-charcoal dark:text-white'}`}>Day</span>
+                  <span className={`text-sm ${shiftPreference === 'day' ? 'text-white' : 'text-charcoal'}`}>Day</span>
                 </label>
                 
-                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'afternoon' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'}`}>
+                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'afternoon' ? 'bg-black text-white border-black' : 'bg-white border-gray-300 hover:bg-gray-100'}`}>
                   <input
                     type="radio"
                     name="shiftPreference"
@@ -160,10 +160,10 @@ export default function ProfileCompletion({ onComplete }) {
                     onChange={() => setShiftPreference("afternoon")}
                     className="sr-only"
                   />
-                  <span className={`text-sm ${shiftPreference === 'afternoon' ? 'text-white dark:text-black' : 'text-charcoal dark:text-white'}`}>Afternoon</span>
+                  <span className={`text-sm ${shiftPreference === 'afternoon' ? 'text-white' : 'text-charcoal'}`}>Afternoon</span>
                 </label>
                 
-                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'night' ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'}`}>
+                <label className={`cursor-pointer flex items-center justify-center p-2 rounded-lg border ${shiftPreference === 'night' ? 'bg-black text-white border-black' : 'bg-white border-gray-300 hover:bg-gray-100'}`}>
                   <input
                     type="radio"
                     name="shiftPreference"
@@ -172,7 +172,7 @@ export default function ProfileCompletion({ onComplete }) {
                     onChange={() => setShiftPreference("night")}
                     className="sr-only"
                   />
-                  <span className={`text-sm ${shiftPreference === 'night' ? 'text-white dark:text-black' : 'text-charcoal dark:text-white'}`}>Night</span>
+                  <span className={`text-sm ${shiftPreference === 'night' ? 'text-white' : 'text-charcoal'}`}>Night</span>
                 </label>
               </div>
             </div>
@@ -181,11 +181,11 @@ export default function ProfileCompletion({ onComplete }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100 text-white dark:text-black p-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-black hover:bg-gray-800 text-white p-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">
-                    <div className="rounded-full h-5 w-5 border-t-2 border-b-2 border-white dark:border-black mr-2"></div>
+                    <div className="rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
                     Saving...
                   </span>
                 ) : (
