@@ -4,6 +4,9 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
 import { useToast } from '../../../components/ui/ToastContext';
 import { useAuth } from '../../../lib/AuthContext';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format as formatDate } from 'date-fns';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -235,6 +238,24 @@ const BrakesManager = () => {
     try {
       // First, generate standard slots based on shift type
       const baseStandardSlots = standardSlotsConfig[selectedShift] || [];
+      // Clone to allow conditional injections (e.g., Saturday special slot)
+      let workingStandardSlots = [...baseStandardSlots];
+
+      // If selected date is Saturday, add an extra Night slot 20:00-21:00
+      try {
+        const dateObj = new Date(`${selectedDate}T00:00:00`);
+        const isSaturday = dateObj.getDay() === 6; // 6 = Saturday
+        if (isSaturday && selectedShift.toLowerCase() === 'night') {
+          // Inject special Saturday slot at 20:00 (60 min)
+          workingStandardSlots.unshift({
+            start_time: '20:00',
+            duration_minutes: 60,
+            break_type: 'Night Break (60 min)'
+          });
+        }
+      } catch (e) {
+        // Safe-guard: if date parsing fails, skip special injection
+      }
   
       // Fetch modified standard slot definitions for this date/shift (where user_id is null but std_slot_id is present)
       let modifiedCapacities = {};
@@ -268,7 +289,7 @@ const BrakesManager = () => {
       }
   
       // Apply modified capacities to standard slots
-      const standardSlotsWithIds = baseStandardSlots.map((slot, index) => {
+      const standardSlotsWithIds = workingStandardSlots.map((slot, index) => {
         const slotId = `std-${selectedShift}-${index}`;
         const modifiedCapacity = modifiedCapacities[slotId];
         return {
@@ -1120,14 +1141,20 @@ const BrakesManager = () => {
       <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-4 md:mb-6 px-1 md:px-0">
         <div>
           <label htmlFor="break-date" className="block text-sm font-medium text-charcoal mb-1">Date</label>
-          <input
-            type="date"
-            id="break-date"
-            lang="en-US"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
-          />
+          <div className="w-[220px]">
+            <DatePicker
+              selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : null}
+              onChange={(date) => {
+                if (date) {
+                  setSelectedDate(formatDate(date, 'yyyy-MM-dd'));
+                }
+              }}
+              dateFormat="dd/MM/yyyy"
+              calendarStartDay={1}
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
+              placeholderText="Select date"
+            />
+          </div>
         </div>
         <div>
           <label htmlFor="shift-type" className="block text-sm font-medium text-charcoal mb-1">Shift</label>
