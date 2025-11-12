@@ -10,8 +10,11 @@ import { useAuth } from '../../../lib/AuthContext';
 // import EditSlotModal from './EditSlotModal';
 // import AddCustomSlotForm from './AddCustomSlotForm';
 
+const ALL_LOCATIONS_VALUE = 'all';
+
 const BrakesManager = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -23,6 +26,11 @@ const BrakesManager = () => {
   const [selectedShift, setSelectedShift] = useState(() => {
     const savedShift = localStorage.getItem('brakes_selected_shift');
     return savedShift || 'Day';
+  });
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    const savedLocation = localStorage.getItem('brakes_selected_location');
+    return savedLocation || ALL_LOCATIONS_VALUE;
   });
 
   // Check user role and profile
@@ -69,6 +77,49 @@ const BrakesManager = () => {
     }
   }, []); // Run only once when component mounts
 
+  // Fetch active locations for filtering
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) throw error;
+
+        const fetchedLocations = (data || []).slice();
+        // Custom order: Rugby, NRC, Nuneaton, then others alphabetically
+        const preferredOrder = ['Rugby', 'NRC', 'Nuneaton'];
+        fetchedLocations.sort((a, b) => {
+          const ia = preferredOrder.indexOf(a.name);
+          const ib = preferredOrder.indexOf(b.name);
+          if (ia !== -1 && ib !== -1) return ia - ib;
+          if (ia !== -1) return -1;
+          if (ib !== -1) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setLocations(fetchedLocations);
+
+        // Ensure selectedLocation is a valid active location; default to Rugby or first
+        const hasSelected = fetchedLocations.some(loc => loc.name === selectedLocation);
+        if (!hasSelected || selectedLocation === ALL_LOCATIONS_VALUE) {
+          const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
+          if (defaultLoc) {
+            setSelectedLocation(defaultLoc);
+            localStorage.setItem('brakes_selected_location', defaultLoc);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        toast.error('Failed to load locations');
+      }
+    };
+
+    loadLocations();
+  }, [selectedLocation, toast]);
+
   // Helper function to adjust time for night shift sorting
   const adjustTimeForNightShift = (timeStr, shiftType) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -97,7 +148,6 @@ const BrakesManager = () => {
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
   const [isLoading, setIsLoading] = useState(false);
-  const toast = useToast();
   
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
@@ -106,8 +156,9 @@ const BrakesManager = () => {
 
   // Key for sessionStorage
   const getSessionStorageKey = useCallback(() => {
-    return `brakes_temp_assignments_${selectedDate}_${selectedShift}`;
-  }, [selectedDate, selectedShift]);
+    const locationKey = selectedLocation || ALL_LOCATIONS_VALUE;
+    return `brakes_temp_assignments_${selectedDate}_${selectedShift}_${locationKey}`;
+  }, [selectedDate, selectedShift, selectedLocation]);
 
   // TODO: Define standard slots structure based on requirements
   const standardSlotsConfig = {
@@ -179,6 +230,7 @@ const BrakesManager = () => {
 
     const sessionStorageKey = getSessionStorageKey();
     let savedAssignments = sessionStorage.getItem(sessionStorageKey);
+    const locationFilter = selectedLocation === ALL_LOCATIONS_VALUE ? null : selectedLocation;
 
     try {
       // First, generate standard slots based on shift type
@@ -187,13 +239,19 @@ const BrakesManager = () => {
       // Fetch modified standard slot definitions for this date/shift (where user_id is null but std_slot_id is present)
       let modifiedCapacities = {};
       try {
-        const { data: modifiedSlotsData, error: modifiedSlotsError } = await supabase
+        const modifiedQuery = supabase
           .from('scheduled_breaks')
-          .select('std_slot_id, capacity') // Select std_slot_id and capacity
+          .select('std_slot_id, capacity')
           .eq('date', selectedDate)
           .eq('shift_type', selectedShift.toLowerCase())
           .is('user_id', null)
           .not('std_slot_id', 'is', null);
+
+        if (locationFilter) {
+          modifiedQuery.eq('location', locationFilter);
+        }
+
+        const { data: modifiedSlotsData, error: modifiedSlotsError } = await modifiedQuery;
         
         if (modifiedSlotsError) throw modifiedSlotsError;
   
@@ -227,11 +285,15 @@ const BrakesManager = () => {
       try {
         const query = supabase
           .from('scheduled_breaks')
-          .select('id, break_start_time, break_duration_minutes, break_type, capacity') // Fetch capacity
+          .select('id, break_start_time, break_duration_minutes, break_type, capacity, location')
           .eq('date', selectedDate)
           .eq('shift_type', selectedShift.toLowerCase())
           .is('user_id', null)
           .is('std_slot_id', null); // Only pure custom slots
+
+        if (locationFilter) {
+          query.eq('location', locationFilter);
+        }
           
         const { data, error } = await query;
         if (error) throw error;
@@ -243,7 +305,8 @@ const BrakesManager = () => {
             duration_minutes: slot.break_duration_minutes,
             capacity: slot.capacity || 2, // Use fetched capacity or default 2 if null
             break_type: slot.break_type,
-            is_custom: true
+            is_custom: true,
+            location: slot.location || null
           }));
         }
       } catch (customSlotError) {
@@ -263,7 +326,13 @@ const BrakesManager = () => {
       let processedScheduled = [];
       if (savedAssignments) {
         try {
-          processedScheduled = JSON.parse(savedAssignments);
+          processedScheduled = JSON.parse(savedAssignments).map(assignment => ({
+            ...assignment,
+            location: assignment.location || locationFilter || null
+          }));
+          if (locationFilter) {
+            processedScheduled = processedScheduled.filter(assignment => assignment.location === locationFilter);
+          }
           console.log('[fetchBreakData] Loaded assignments from sessionStorage:', processedScheduled);
           setScheduledBreaks(processedScheduled);
         } catch (parseError) {
@@ -277,15 +346,19 @@ const BrakesManager = () => {
       if (!savedAssignments) {
         // Fetch from database if no valid session data
         try {
-          const { data: scheduledData, error: scheduledError } = await supabase
+          const scheduledQuery = supabase
             .from('scheduled_breaks')
             .select(`
-              id, user_id, break_start_time, break_duration_minutes, break_type,
+              id, user_id, break_start_time, break_duration_minutes, break_type, location,
               profiles:user_id (first_name, last_name, shift_preference)
             `)
             .eq('date', selectedDate)
             .eq('shift_type', selectedShift.toLowerCase())
             .not('user_id', 'is', null); // Only actual assignments
+
+          // Do NOT filter by location here; assignments don't carry location in DB
+
+          const { data: scheduledData, error: scheduledError } = await scheduledQuery;
           
           if (scheduledError) throw scheduledError;
           
@@ -313,7 +386,7 @@ const BrakesManager = () => {
               console.warn(`[fetchBreakData] Could not find matching frontend slot for assignment:`, record);
             }
 
-            return {
+            const mappedAssignment = {
               id: record.id,
               slot_id: matchingSlot?.id || null, // Link to our slot ID
               user_id: record.user_id,
@@ -321,12 +394,16 @@ const BrakesManager = () => {
               user_name: `${record.profiles.first_name} ${record.profiles.last_name}`,
               preferred_shift: record.profiles.shift_preference,
               break_type: record.break_type,
+              location: record.location || null,
               slot_data: { // Store the raw slot data from the record
                 start_time: record.break_start_time,
                 duration_minutes: record.break_duration_minutes,
                 break_type: record.break_type
               }
             };
+
+            // Don't filter by location at DB level; we'll filter using scheduled_rota-derived locations client-side
+            return mappedAssignment;
           }).filter(Boolean) || []; // Filter out nulls
           
           console.log('[fetchBreakData] Processed existing assignments with slot_id:', processedScheduled);
@@ -347,7 +424,7 @@ const BrakesManager = () => {
         // Fetch all scheduled shifts for this date
         const { data: scheduledShifts, error: scheduledError } = await supabase
           .from('scheduled_rota')
-          .select('user_id, shift_type')
+          .select('user_id, shift_type, location')
           .eq('date', selectedDate)
           .not('user_id', 'is', null);
           
@@ -363,17 +440,30 @@ const BrakesManager = () => {
           record.shift_type?.toLowerCase() === selectedShift.toLowerCase()
         ) || [];
 
+        const locationMap = new Map();
+        filteredShifts.forEach(record => {
+          if (record.user_id) {
+            locationMap.set(record.user_id, record.location || null);
+          }
+        });
+
         console.log(`[fetchBreakData] Filtered shifts (shift_type='${selectedShift}'):`, filteredShifts);
 
-        if (!filteredShifts || filteredShifts.length === 0) {
+        const filteredUserIds = filteredShifts
+          .filter(record => {
+            if (!record.user_id) return false;
+            if (!locationFilter) return true;
+            return record.location === locationFilter;
+          })
+          .map(record => record.user_id);
+
+        if (!filteredUserIds || filteredUserIds.length === 0) {
           console.log(`[fetchBreakData] No staff found scheduled for shift '${selectedShift}' on ${selectedDate}. Setting availableStaff to empty.`);
           setAvailableStaff([]);
           // We stop here if no one is scheduled for this shift on this date
         } else {
           // Step 2: Get profile details for the scheduled user IDs
-          const userIds = filteredShifts.map(record => record.user_id);
-          // Remove duplicates (if a user has multiple shifts)
-          const uniqueUserIds = [...new Set(userIds)];
+          const uniqueUserIds = [...new Set(filteredUserIds)];
           console.log('[fetchBreakData] Unique User IDs found in scheduled_rota:', uniqueUserIds);
           
           const { data: profilesData, error: profilesError } = await supabase
@@ -396,6 +486,7 @@ const BrakesManager = () => {
               last_name: profile.last_name,
               preferred_shift: profile.shift_preference || 'Unknown',
               is_available: true, // They are scheduled, so they are "available" for breaks
+              location: locationMap.get(profile.id) || null
             };
           });
 
@@ -413,7 +504,7 @@ const BrakesManager = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate, selectedShift, getSessionStorageKey, toast]); // Added getSessionStorageKey
+  }, [selectedDate, selectedShift, selectedLocation, getSessionStorageKey, toast]);
 
   // NEW useEffect to calculate break times reactively based on scheduledBreaks and allSlots
   useEffect(() => {
@@ -476,13 +567,18 @@ const BrakesManager = () => {
 
   useEffect(() => {
     fetchBreakData();
-  }, [selectedDate, selectedShift]); // Ensure fetch runs only when date/shift changes
+  }, [selectedDate, selectedShift, selectedLocation, fetchBreakData]);
 
   // --- Actions ---
   const handleSaveAllBreaks = async () => {
     setIsLoading(true);
     
     const sessionStorageKey = getSessionStorageKey();
+    if (selectedLocation === ALL_LOCATIONS_VALUE) {
+      toast.error('Select a specific location before saving breaks.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // Prepare assignments (records with user_id) - use current state
@@ -528,7 +624,8 @@ const BrakesManager = () => {
                 break_duration_minutes: slot.duration_minutes,
                 break_type: mapToDbBreakType(slot.break_type),
                 shift_type: selectedShift.toLowerCase(),
-                capacity: slot.capacity // Include capacity for custom slots
+                capacity: slot.capacity, // Include capacity for custom slots
+                location: selectedLocation
             };
             // Only include ID if it's an existing custom slot for upsert
             if (!isNewCustomSlot) {
@@ -635,6 +732,11 @@ const BrakesManager = () => {
   };
 
   const handleAddCustomSlot = async (newSlotData) => {
+    if (selectedLocation === ALL_LOCATIONS_VALUE) {
+      toast.error('Select a specific location before adding custom slots.');
+      return false;
+    }
+
     // Check for duplicates
     const duplicateSlot = breakSlots.find(slot => 
       slot.start_time === newSlotData.start_time && 
@@ -651,7 +753,8 @@ const BrakesManager = () => {
       ...newSlotData,
       id: `new-${Date.now()}`, // Temporary ID until saved
       is_custom: true,
-      break_type: newSlotData.break_type || 'Custom Slot'
+      break_type: newSlotData.break_type || 'Custom Slot',
+      location: selectedLocation
     };
     
     setBreakSlots(prevSlots => sortBreakSlots([...prevSlots, newSlot], selectedShift));
@@ -826,6 +929,11 @@ const BrakesManager = () => {
       return;
     }
 
+    if (selectedLocation === ALL_LOCATIONS_VALUE) {
+      toast.error('Select a specific location before assigning staff to breaks.');
+      return;
+    }
+
     // Check if slot is full using the CURRENT capacity from state
     const assignedToSlot = scheduledBreaks.filter(b => b.slot_id === slot.id);
     if (assignedToSlot.length >= slot.capacity) { // Use slot.capacity directly from the state
@@ -874,6 +982,7 @@ const BrakesManager = () => {
       preferred_shift: staff.preferred_shift,
       break_date: selectedDate,
       break_type: slot.break_type, // Use break_type from the slot in state
+      location: selectedLocation,
       slot_data: { // Store slot data for potential fallback
         start_time: slot.start_time,
         duration_minutes: slot.duration_minutes,
@@ -881,37 +990,11 @@ const BrakesManager = () => {
       }
     };
     
-    // AUTO-SAVE: Immediately save to database
-    const assignmentToSave = {
-      user_id: staff.id,
-      date: selectedDate,
-      shift_type: selectedShift.toLowerCase(),
-      break_start_time: slot.start_time,
-      break_duration_minutes: slot.duration_minutes,
-      break_type: selectedShift.toLowerCase() // Use shift type as break_type (must match DB constraint)
-    };
-
-    try {
-      const { error: insertError } = await supabase
-        .from('scheduled_breaks')
-        .insert([assignmentToSave]);
-      
-      if (insertError) {
-        console.error('[Auto-save] Error saving break assignment:', insertError);
-        toast.error('Failed to save break assignment');
-        return;
-      }
-
-      toast.success(`${staff.first_name} ${staff.last_name} assigned to break!`);
-    } catch (error) {
-      console.error('[Auto-save] Error:', error);
-      toast.error('Failed to save break assignment');
-      return;
-    }
-
     // Add to scheduled breaks state
     const updatedAssignments = [...scheduledBreaks, newAssignment];
     setScheduledBreaks(updatedAssignments);
+    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+    toast.success(`${staff.first_name} ${staff.last_name} added (pending). Click "Save Breaks" to persist.`);
     
     // Update staff break status
     setAvailableStaff(prev => 
@@ -1002,7 +1085,14 @@ const BrakesManager = () => {
   
   // Helper to get assigned staff for a slot
   const getAssignedStaffForSlot = (slotId) => {
-    return scheduledBreaks.filter(assignment => assignment.slot_id === slotId);
+    return scheduledBreaks.filter(assignment => {
+      if (assignment.slot_id !== slotId) return false;
+      // If viewing all locations, show all
+      if (selectedLocation === ALL_LOCATIONS_VALUE) return true;
+      // Otherwise, include only those whose scheduled_rota location matches the selected location
+      const staff = availableStaff.find(s => s.id === assignment.user_id);
+      return staff?.location === selectedLocation;
+    });
   };
 
   // Add this useEffect to refetch data when selectedDate or selectedShift changes
@@ -1020,6 +1110,10 @@ const BrakesManager = () => {
   useEffect(() => {
     localStorage.setItem('brakes_selected_shift', selectedShift);
   }, [selectedShift]);
+  
+  useEffect(() => {
+    localStorage.setItem('brakes_selected_location', selectedLocation);
+  }, [selectedLocation]);
 
   // --- Rendering ---
   return (
@@ -1027,7 +1121,7 @@ const BrakesManager = () => {
       <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-blue-600">Break Planner</h1>
 
       {/* Controls */}
-      <div className="flex flex-wrap gap-2 md:gap-4 mb-4 md:mb-6 items-center px-1 md:px-0">
+      <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-4 md:mb-6 px-1 md:px-0">
         <div>
           <label htmlFor="break-date" className="block text-sm font-medium text-charcoal mb-1">Date</label>
           <input
@@ -1052,7 +1146,38 @@ const BrakesManager = () => {
             <option value="Night" className="bg-white text-charcoal">Night (17:45 - 06:15)</option>
           </select>
         </div>
+        {isAdmin && (
+          <button
+            onClick={handleSaveAllBreaks}
+            className="ml-auto inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black/20 disabled:cursor-not-allowed disabled:bg-gray-400"
+            disabled={isLoading}
+          >
+            Save Breaks
+          </button>
+        )}
       </div>
+
+      {locations.length > 0 && (
+        <div className="mb-4 md:mb-6 px-1 md:px-0">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+            {locations.map(location => (
+              <button
+                key={location.id}
+                onClick={() => setSelectedLocation(location.name)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  selectedLocation === location.name
+                    ? 'bg-black text-white shadow-sm'
+                    : 'text-charcoal hover:bg-gray-100'
+                }`}
+              >
+                {location.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Current Location Indicator (optional): removed "All locations" state */}
+      <div className="px-1 md:px-0 mb-3 text-sm text-gray-500">Location: {selectedLocation}</div>
 
         {/* Messages */}
         {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
@@ -1128,6 +1253,8 @@ const BrakesManager = () => {
           assignedStaff={getAssignedStaffForSlot(selectedSlot.id)}
           onAssignStaff={handleAssignStaff}
           onRemoveStaff={handleRemoveStaff}
+          currentLocation={selectedLocation}
+          isAllLocation={selectedLocation === ALL_LOCATIONS_VALUE}
         />
       )}
       
@@ -1145,7 +1272,7 @@ const BrakesManager = () => {
 };
 
 // Staff Selection Modal Component - Enhance the staff removal functionality
-const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff }) => {
+const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation }) => {
   const modalRef = useRef(null);
   const [showAllStaff, setShowAllStaff] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1210,9 +1337,16 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
       >
         {/* Header */}
         <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-base md:text-lg font-semibold">
-            Assign Staff to Break Slot
-          </h3>
+          <div>
+            <h3 className="text-base md:text-lg font-semibold">
+              Assign Staff to Break Slot
+            </h3>
+            {typeof currentLocation === 'string' && (
+              <p className="text-xs text-gray-500">
+                Location: {isAllLocation ? 'All Locations' : currentLocation}
+              </p>
+            )}
+          </div>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-charcoal transition-colors"
@@ -1223,6 +1357,12 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
           </button>
         </div>
         
+        {isAllLocation && (
+          <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
+            Select a specific location tab to assign staff to this break.
+          </div>
+        )}
+
         {/* Slot Info */}
         <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50/50 border-b border-gray-200">
           <div className="flex justify-between">
@@ -1325,14 +1465,15 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               {eligibleStaff.map(staff => (
                 <button 
                   key={staff.id}
-                  disabled={isProcessing || assignedStaff.length >= slot.capacity}
+                  disabled={isProcessing || assignedStaff.length >= slot.capacity || isAllLocation}
                   onClick={async () => {
+                    if (isAllLocation) return;
                     setIsProcessing(true);
                     await onAssignStaff(staff, slot);
                     setIsProcessing(false);
                   }}
                   className={`w-full text-left flex items-center justify-between px-2 py-1 md:px-3 md:py-2 rounded transition-colors ${
-                    assignedStaff.length >= slot.capacity || isProcessing
+                    assignedStaff.length >= slot.capacity || isProcessing || isAllLocation
                       ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
                       : 'bg-gray-100 border border-gray-200 hover:bg-gray-200 focus:bg-gray-200'
                   }`}
@@ -1896,7 +2037,8 @@ StaffSelectionModal.propTypes = {
       preferred_shift: PropTypes.string.isRequired,
       has_break_15: PropTypes.bool,
       has_break_45: PropTypes.bool,
-      total_break_minutes: PropTypes.number.isRequired
+      total_break_minutes: PropTypes.number.isRequired,
+      location: PropTypes.string
     })
   ).isRequired,
   assignedStaff: PropTypes.arrayOf(
@@ -1907,7 +2049,9 @@ StaffSelectionModal.propTypes = {
     })
   ).isRequired,
   onAssignStaff: PropTypes.func.isRequired,
-  onRemoveStaff: PropTypes.func.isRequired
+  onRemoveStaff: PropTypes.func.isRequired,
+  currentLocation: PropTypes.string,
+  isAllLocation: PropTypes.bool
 };
 
 EditSlotModal.propTypes = {
