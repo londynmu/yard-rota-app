@@ -23,15 +23,58 @@ const WeeklyRotaPage = () => {
   const [expandedDayMobile, setExpandedDayMobile] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('Rugby');
   const [selectedShiftType, setSelectedShiftType] = useState('all');
+  const [locations, setLocations] = useState([]);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadedFile, setDownloadedFile] = useState({ fileName: '', dateRange: '' });
   const [showShareOptionsModal, setShowShareOptionsModal] = useState(false);
 
-  // Load last selected location and shift type from localStorage or set defaults
+  // Fetch available locations from database
   useEffect(() => {
-    const savedLocation = localStorage.getItem('weekly_rota_location') || 'Rugby';
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setLocations(data);
+          
+          // Set saved location or first location as default
+          const savedLocation = localStorage.getItem('weekly_rota_location');
+          if (savedLocation && data.some(loc => loc.name === savedLocation)) {
+            setSelectedLocation(savedLocation);
+          } else if (!selectedLocation || selectedLocation === 'Rugby') {
+            setSelectedLocation(data[0].name);
+          }
+        } else {
+          // Fallback to Rugby, NRC if no locations in database
+          setLocations([
+            { id: '1', name: 'Rugby' },
+            { id: '2', name: 'NRC' },
+            { id: '3', name: 'Nuneaton' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        // Fallback locations
+        setLocations([
+          { id: '1', name: 'Rugby' },
+          { id: '2', name: 'NRC' },
+          { id: '3', name: 'Nuneaton' }
+        ]);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Load last selected shift type from localStorage
+  useEffect(() => {
     const savedShiftType = localStorage.getItem('weekly_rota_shift_type') || 'all';
-    setSelectedLocation(savedLocation);
     setSelectedShiftType(savedShiftType);
   }, []);
 
@@ -102,23 +145,35 @@ const WeeklyRotaPage = () => {
           profiles: profilesMap[slot.user_id] || null,
         }));
 
-        // Debug: Check for Dave Glover entries
-        const daveEntries = rotaWithProfiles.filter(slot => 
-          slot.profiles?.first_name === 'Dave' && slot.profiles?.last_name === 'Glover'
-        );
-        if (daveEntries.length > 0) {
-          console.log('[WeeklyRotaPage] Dave Glover entries found:', daveEntries.map(entry => ({
-            id: entry.id,
-            date: entry.date,
-            start_time: entry.start_time,
-            end_time: entry.end_time,
-            user_id: entry.user_id
-          })));
-        }
+        // Debug: Check for duplicates
+        console.log('[WeeklyRotaPage] Total slots fetched:', rotaWithProfiles.length);
+        
+        // DEDUPLICATE: Remove duplicate entries (same user_id, date, start_time, end_time)
+        const uniqueSlots = [];
+        const seenKeys = new Set();
+        
+        rotaWithProfiles.forEach(slot => {
+          // Create unique key from user_id, date, start_time, end_time
+          const key = `${slot.user_id}-${slot.date}-${slot.start_time}-${slot.end_time}`;
+          
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            uniqueSlots.push(slot);
+          } else {
+            console.warn('[WeeklyRotaPage] Duplicate slot removed:', {
+              name: slot.profiles ? `${slot.profiles.first_name} ${slot.profiles.last_name}` : 'Unknown',
+              date: slot.date,
+              time: `${slot.start_time} - ${slot.end_time}`,
+              id: slot.id
+            });
+          }
+        });
+
+        console.log('[WeeklyRotaPage] Slots after deduplication:', uniqueSlots.length);
 
         // 4) Group all fetched slots by date
         const grouped = {};
-        rotaWithProfiles.forEach((slot) => {
+        uniqueSlots.forEach((slot) => {
           if (!grouped[slot.date]) grouped[slot.date] = [];
           grouped[slot.date].push(slot);
         });
@@ -709,7 +764,7 @@ const WeeklyRotaPage = () => {
               </button>
               
               {/* Week indicator */}
-              <div className="bg-black dark:bg-white px-4 py-1.5 rounded-full text-white dark:text-black font-semibold text-base">
+              <div className="bg-blue-500 px-4 py-1.5 rounded-full text-white font-semibold text-base">
                 Week {getWeek(weekStart)}
               </div>
               
@@ -729,28 +784,21 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               
-              {/* Location Tabs - widoczne zarówno na mobilce jak i desktop */}
+              {/* Location Tabs - dynamically loaded from database */}
               <div className="flex bg-gray-100 dark:bg-gray-700 rounded-full p-1 border border-gray-300 dark:border-gray-600">
-                <button
-                  onClick={() => setSelectedLocation('Rugby')}
-                  className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
-                    selectedLocation === 'Rugby'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-charcoal dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  Rugby
-                </button>
-                <button
-                  onClick={() => setSelectedLocation('NRC')}
-                  className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
-                    selectedLocation === 'NRC'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-charcoal dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  NRC
-                </button>
+                {locations.map(location => (
+                  <button
+                    key={location.id}
+                    onClick={() => setSelectedLocation(location.name)}
+                    className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
+                      selectedLocation === location.name
+                        ? 'bg-blue-500 text-white'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-charcoal dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {location.name}
+                  </button>
+                ))}
               </div>
               
               {/* Shift Type Filter Tabs - DESKTOP ONLY */}
@@ -806,49 +854,6 @@ const WeeklyRotaPage = () => {
                 </button>
               </div>
               
-              {/* Share Buttons - DESKTOP ONLY */}
-              <div className="hidden md:flex items-center ml-4 space-x-2">
-                {/* WhatsApp Text Share Button */}
-                <button
-                  onClick={shareToWhatsApp}
-                  className="flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-charcoal dark:text-white rounded-full transition"
-                  aria-label="Share to WhatsApp as Text"
-                  title="Share as Text"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375a9.869 9.869 0 01-1.516-5.26c0-5.445 4.455-9.885 9.942-9.885a9.865 9.865 0 017.021 2.91 9.788 9.788 0 012.909 6.99c-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652a12.062 12.062 0 005.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411" />
-                  </svg>
-                  <span className="text-sm font-medium">Text</span>
-                </button>
-                
-                {/* PDF Download Button - Completely remade */}
-                <button
-                  onClick={generateAndSharePDF}
-                  className="flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-charcoal dark:text-white rounded-full transition"
-                  aria-label="Download PDF"
-                  title="Download PDF"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 2a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13h8.906C14.502 13 16 11.57 16 9.773c0-1.636-1.242-2.969-2.834-3.194C12.923 3.999 10.69 2 8 2zm2.354 6.854-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 1 1 .708-.708L7.5 9.293V5.5a.5.5 0 0 1 1 0v3.793l1.146-1.147a.5.5 0 0 1 .708.708z"/>
-                  </svg>
-                  <span className="text-sm font-medium">Download PDF</span>
-                </button>
-              </div>
-              
-              {/* Mobile Share Button - Only shows on mobile */}
-              <div className="md:hidden ml-2">
-                <button
-                  onClick={() => {
-                    setShowShareOptionsModal(true);
-                  }}
-                  className="flex items-center justify-center w-9 h-9 bg-green-600 text-charcoal dark:text-white rounded-full"
-                  aria-label="Share"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                </button>
-              </div>
             </div>
           </div>
         </div>
