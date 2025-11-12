@@ -672,16 +672,8 @@ export default function ShiftDashboard() {
     return (
       <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <div>
-              <h2 className="text-lg font-bold text-charcoal">Today&apos;s Team Schedule</h2>
-              <p className="text-sm text-gray-600">Viewing team</p>
-            </div>
-          </div>
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-charcoal">Team Schedule</h2>
         </div>
 
         {/* Toggle between Shifts and Breaks */}
@@ -740,10 +732,6 @@ export default function ShiftDashboard() {
                   const locationShifts = allShifts.filter(s => s.location === location);
                   return (
                     <div className="space-y-3">
-                      <h2 className="text-md font-bold text-charcoal border-b-2 border-gray-300 pb-1">
-                        📍 {location} ({locationShifts.length})
-                      </h2>
-                      
                       {['day', 'afternoon', 'night'].map(shiftType => {
                         const shifts = locationShifts.filter(s => s.shift_type === shiftType);
                         if (shifts.length === 0) return null;
