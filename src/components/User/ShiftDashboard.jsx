@@ -563,19 +563,50 @@ export default function ShiftDashboard() {
       return now.getHours() * 60 + now.getMinutes();
     };
     const getShiftProgressFor = (start, end) => {
-      const startM = toMinutes(start);
-      const endM = toMinutes(end);
-      const nowM = getNowMinutes();
-      if (startM == null || endM == null || endM <= startM) return 0;
+      let startM = toMinutes(start);
+      let endM = toMinutes(end);
+      let nowM = getNowMinutes();
+      if (startM == null || endM == null) return 0;
+      // Handle overnight shifts (end next day)
+      if (endM <= startM) {
+        endM += 24 * 60;
+        if (nowM < startM) nowM += 24 * 60; // after midnight, still in same shift window
+      }
       if (nowM <= startM) return 0;
       if (nowM >= endM) return 100;
       return Math.floor(((nowM - startM) / (endM - startM)) * 100);
     };
-    const getMinutesLeft = (end) => {
-      const endM = toMinutes(end);
-      const nowM = getNowMinutes();
+    const getMinutesLeft = (end, start) => {
+      let endM = toMinutes(end);
+      let startM = toMinutes(start);
+      let nowM = getNowMinutes();
       if (endM == null) return null;
+      if (startM != null && endM <= startM) {
+        endM += 24 * 60;
+        if (nowM < startM) nowM += 24 * 60;
+      }
       return Math.max(0, endM - nowM);
+    };
+    const getMinutesElapsed = (start, end) => {
+      let startM = toMinutes(start);
+      let endM = toMinutes(end);
+      let nowM = getNowMinutes();
+      if (startM == null || endM == null) return 0;
+      if (endM <= startM) {
+        endM += 24 * 60;
+        if (nowM < startM) nowM += 24 * 60;
+      }
+      if (nowM <= startM) return 0;
+      if (nowM >= endM) return endM - startM;
+      return nowM - startM;
+    };
+    const formatDuration = (mins) => {
+      if (mins == null) return '';
+      const h = Math.floor(mins / 60);
+      const m = Math.floor(mins % 60);
+      if (h <= 0) return `${m}m`;
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
     };
     const getBreakProgressFor = (start, duration) => {
       const startM = toMinutes(start);
@@ -587,6 +618,35 @@ export default function ShiftDashboard() {
       const pct = Math.floor(((nowM - startM) / (endM - startM)) * 100);
       const left = Math.max(0, endM - nowM);
       return { active: true, pct, left };
+    };
+    // Compute next/active break info for current user
+    const getNextBreakForUser = () => {
+      if (!breakInfo || !breakInfo.myBreaks || breakInfo.myBreaks.length === 0) return null;
+      const nowM = getNowMinutes();
+      const sorted = [...breakInfo.myBreaks].sort((a, b) => toMinutes(a.break_start_time) - toMinutes(b.break_start_time));
+      // Check if currently on any break
+      for (const b of sorted) {
+        const start = toMinutes(b.break_start_time);
+        const end = start + (b.break_duration_minutes || 0);
+        if (nowM >= start && nowM < end) {
+          return {
+            type: 'active',
+            minutesLeft: end - nowM,
+            start,
+            end
+          };
+        }
+      }
+      // Find next upcoming break
+      const upcoming = sorted.find(b => toMinutes(b.break_start_time) > nowM);
+      if (!upcoming) return null;
+      const start = toMinutes(upcoming.break_start_time);
+      return {
+        type: 'upcoming',
+        minutesToStart: start - nowM,
+        start,
+        duration: upcoming.break_duration_minutes || 0
+      };
     };
 
     // Locations list (prefer Rugby, NRC, Nuneaton order)
@@ -703,7 +763,8 @@ export default function ShiftDashboard() {
                               {shifts.map(s => {
                                 const isMe = s.user_id === user?.id;
                                 const progress = getShiftProgressFor(s.start_time, s.end_time);
-                                const minutesLeft = getMinutesLeft(s.end_time);
+                                const minutesLeft = getMinutesLeft(s.end_time, s.start_time);
+                                const minutesElapsed = getMinutesElapsed(s.start_time, s.end_time);
                                 return (
                                   <li 
                                     key={s.id} 
@@ -717,15 +778,75 @@ export default function ShiftDashboard() {
                                         {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
                                       </span>
                                     </div>
-                                    {isMe && progress > 0 && progress < 100 && (
+                                    {isMe && (
                                       <div className="mt-0.5">
                                         <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
                                           <span>Shift progress</span>
-                                          <span>{progress}%{minutesLeft != null ? ` • ${minutesLeft}m left` : ''}</span>
+                                          <span>{Math.max(0, Math.min(100, progress))}%{minutesLeft != null ? ` • ${formatDuration(minutesLeft)} left` : ''}</span>
                                         </div>
-                                        <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                                          <div className="h-full bg-black rounded-full transition-all" style={{ width: `${progress}%` }}></div>
+                                        <div className="h-2 w-full bg-gray-200 border border-gray-300 rounded-full overflow-hidden">
+                                          <div className="h-full bg-black rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}></div>
                                         </div>
+                                        <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+                                          <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                                            Elapsed: {formatDuration(minutesElapsed)}
+                                          </span>
+                                          {minutesLeft != null && (
+                                            <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                                              Left: {formatDuration(minutesLeft)} (ends {formatTime(s.end_time)})
+                                            </span>
+                                          )}
+                                        </div>
+                                        {/* Until next break */}
+                                        {(() => {
+                                          const nb = getNextBreakForUser();
+                                          if (!nb) return null;
+                                          if (nb.type === 'active') {
+                                            return (
+                                              <div className="mt-1">
+                                                <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
+                                                  <span>On break</span>
+                                                  <span>{formatDuration(nb.minutesLeft)} left</span>
+                                                </div>
+                                                <div className="h-2 w-full bg-gray-200 border border-gray-300 rounded-full overflow-hidden">
+                                                  {(() => {
+                                                    const total = nb.end - nb.start;
+                                                    const elapsed = Math.max(0, Math.min(total, getNowMinutes() - nb.start));
+                                                    const pctActive = total > 0 ? Math.floor((elapsed / total) * 100) : 0;
+                                                    return (
+                                                      <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${pctActive}%` }}></div>
+                                                    );
+                                                  })()}
+                                                </div>
+                                                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+                                                  <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                                                    Remaining: {formatDuration(nb.minutesLeft)}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          // Upcoming break
+                                          const totalWindow = nb.start - toMinutes(s.start_time);
+                                          const elapsedToBreak = getNowMinutes() - toMinutes(s.start_time);
+                                          const pctToBreak = totalWindow > 0 ? Math.max(0, Math.min(100, Math.floor((elapsedToBreak / totalWindow) * 100))) : 0;
+                                          return (
+                                            <div className="mt-1">
+                                              <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
+                                                <span>Until break</span>
+                                                <span>{formatDuration(nb.minutesToStart)}</span>
+                                              </div>
+                                              <div className="h-2 w-full bg-gray-200 border border-gray-300 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${pctToBreak}%` }}></div>
+                                              </div>
+                                              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+                                                <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                                                  Starts in: {formatDuration(nb.minutesToStart)}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     )}
                                   </li>
