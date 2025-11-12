@@ -47,6 +47,7 @@ export default function ShiftDashboard() {
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
   const [teamView, setTeamView] = useState('shifts'); // 'shifts' or 'breaks' - for team schedule
+  const [teamLocation, setTeamLocation] = useState('Rugby'); // location tab (Rugby default)
   
   // Fetch user profile to get shift preference
   useEffect(() => {
@@ -588,6 +589,26 @@ export default function ShiftDashboard() {
       return { active: true, pct, left };
     };
 
+    // Locations list (prefer Rugby, NRC, Nuneaton order)
+    const allLocations = [...new Set(allShifts.map(s => s.location))];
+    const preferredOrder = ['Rugby', 'NRC', 'Nuneaton'];
+    const sortedLocations = allLocations.sort((a, b) => {
+      const ia = preferredOrder.indexOf(a);
+      const ib = preferredOrder.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return (a || '').localeCompare(b || '');
+    });
+    // Ensure current tab is valid
+    if (sortedLocations.length > 0 && !sortedLocations.includes(teamLocation)) {
+      // Default to Rugby if present, else first available
+      setTeamLocation(sortedLocations.includes('Rugby') ? 'Rugby' : sortedLocations[0]);
+    }
+
+    // Map user -> location for breaks filtering
+    const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
+
     return (
       <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
         {/* Header */}
@@ -629,6 +650,23 @@ export default function ShiftDashboard() {
           </div>
         </div>
 
+        {/* Location Tabs */}
+        <div className="border-b border-gray-200 px-4 py-2">
+          <div className="flex flex-wrap gap-2">
+            {sortedLocations.map(loc => (
+              <button
+                key={loc}
+                onClick={() => setTeamLocation(loc)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  teamLocation === loc ? 'bg-black text-white' : 'text-charcoal hover:bg-gray-100'
+                }`}
+              >
+                {loc}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Content */}
         <div className="p-4 max-h-96 overflow-y-auto">
           {teamView === 'shifts' ? (
@@ -636,12 +674,12 @@ export default function ShiftDashboard() {
               <p className="text-gray-600 text-center py-4">No shifts scheduled for today</p>
             ) : (
               <div className="space-y-6">
-                {/* Group by location first, then by shift type */}
-                {[...new Set(allShifts.map(s => s.location))].sort().map(location => {
+                {/* Single location selected via tabs */}
+                {(() => {
+                  const location = teamLocation;
                   const locationShifts = allShifts.filter(s => s.location === location);
-                  
                   return (
-                    <div key={location} className="space-y-3">
+                    <div className="space-y-3">
                       <h2 className="text-md font-bold text-charcoal border-b-2 border-gray-300 pb-1">
                         📍 {location} ({locationShifts.length})
                       </h2>
@@ -699,7 +737,7 @@ export default function ShiftDashboard() {
                       })}
                     </div>
                   );
-                })}
+                })()}
               </div>
             )
           ) : (
@@ -708,7 +746,7 @@ export default function ShiftDashboard() {
             ) : (
               <div className="space-y-4">
                 {['day', 'afternoon', 'night'].map(shiftType => {
-                  const breaks = breaksByType[shiftType];
+                  const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
                   if (breaks.length === 0) return null;
                   
                   const shiftColors = {
