@@ -95,12 +95,12 @@ const LoginStats = () => {
   
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 backdrop-blur-sm rounded-xl border border-red-500/30 text-center">
-        <h3 className="text-lg font-semibold mb-2 text-white">Error</h3>
-        <p className="text-white/80">{error}</p>
+      <div className="p-4 bg-red-900/20 shadow-sm rounded-xl border border-red-500/30 text-center">
+        <h3 className="text-lg font-semibold mb-2 text-charcoal dark:text-white">Error</h3>
+        <p className="text-charcoal dark:text-white/80">{error}</p>
         <button
           onClick={() => fetchAllData()}
-          className="mt-4 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+          className="mt-4 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-charcoal dark:text-white"
         >
           Retry
         </button>
@@ -116,16 +116,16 @@ const LoginStats = () => {
   };
   
   return (
-    <div className="bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden p-4">
-      <h2 className="text-xl font-bold text-white mb-4">User Login Statistics</h2>
+    <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl overflow-hidden p-4">
+      <h2 className="text-xl font-bold text-charcoal dark:text-white mb-4">User Login Statistics</h2>
       
       {/* Tab navigation */}
       <div className="flex mb-4 space-x-2 overflow-x-auto pb-2">
         <button
           className={`px-4 py-2 rounded-lg font-medium ${
             activeTab === 'overview' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-blue-600/60 text-charcoal dark:text-white' 
+              : 'bg-white/10 text-charcoal dark:text-white/80 hover:bg-white/20 hover:text-charcoal dark:text-white'
           }`}
           onClick={() => setActiveTab('overview')}
         >
@@ -134,8 +134,8 @@ const LoginStats = () => {
         <button
           className={`px-4 py-2 rounded-lg font-medium ${
             activeTab === 'users' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-blue-600/60 text-charcoal dark:text-white' 
+              : 'bg-white/10 text-charcoal dark:text-white/80 hover:bg-white/20 hover:text-charcoal dark:text-white'
           }`}
           onClick={() => setActiveTab('users')}
         >
@@ -144,8 +144,8 @@ const LoginStats = () => {
         <button
           className={`px-4 py-2 rounded-lg font-medium ${
             activeTab === 'activity' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-blue-600/60 text-charcoal dark:text-white' 
+              : 'bg-white/10 text-charcoal dark:text-white/80 hover:bg-white/20 hover:text-charcoal dark:text-white'
           }`}
           onClick={() => setActiveTab('activity')}
         >
@@ -154,8 +154,8 @@ const LoginStats = () => {
         <button
           className={`px-4 py-2 rounded-lg font-medium ${
             activeTab === 'retention' 
-              ? 'bg-blue-600/60 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-blue-600/60 text-charcoal dark:text-white' 
+              : 'bg-white/10 text-charcoal dark:text-white/80 hover:bg-white/20 hover:text-charcoal dark:text-white'
           }`}
           onClick={() => setActiveTab('retention')}
         >
@@ -168,24 +168,24 @@ const LoginStats = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white/70 text-sm font-medium">Total Users</h3>
-              <p className="text-white text-2xl font-bold">{allUsers.length}</p>
+              <h3 className="text-charcoal dark:text-white/70 text-sm font-medium">Total Users</h3>
+              <p className="text-charcoal dark:text-white text-2xl font-bold">{allUsers.length}</p>
             </div>
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white/70 text-sm font-medium">Active Users (7 days)</h3>
-              <p className="text-white text-2xl font-bold">
+              <h3 className="text-charcoal dark:text-white/70 text-sm font-medium">Active Users (7 days)</h3>
+              <p className="text-charcoal dark:text-white text-2xl font-bold">
                 {inactiveStats.find(s => s.inactive_range === 'Active (last 7 days)')?.count || 0}
               </p>
             </div>
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white/70 text-sm font-medium">Never Logged In</h3>
-              <p className="text-white text-2xl font-bold">
+              <h3 className="text-charcoal dark:text-white/70 text-sm font-medium">Never Logged In</h3>
+              <p className="text-charcoal dark:text-white text-2xl font-bold">
                 {inactiveStats.find(s => s.inactive_range === 'Never logged in')?.count || 0}
               </p>
             </div>
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white/70 text-sm font-medium">Inactive &gt;30 days</h3>
-              <p className="text-white text-2xl font-bold">
+              <h3 className="text-charcoal dark:text-white/70 text-sm font-medium">Inactive &gt;30 days</h3>
+              <p className="text-charcoal dark:text-white text-2xl font-bold">
                 {(inactiveStats.find(s => s.inactive_range === 'Inactive >90 days')?.count || 0) + 
                  (inactiveStats.find(s => s.inactive_range === 'Inactive 30-90 days')?.count || 0)}
               </p>
@@ -193,7 +193,7 @@ const LoginStats = () => {
           </div>
           
           <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-white font-medium mb-3">User Activity Distribution</h3>
+            <h3 className="text-charcoal dark:text-white font-medium mb-3">User Activity Distribution</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -224,7 +224,7 @@ const LoginStats = () => {
           </div>
           
           <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-white font-medium mb-3">Monthly Registration Trends</h3>
+            <h3 className="text-charcoal dark:text-white font-medium mb-3">Monthly Registration Trends</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -250,12 +250,12 @@ const LoginStats = () => {
       {/* Users List Tab */}
       {activeTab === 'users' && (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10 border border-white/20 rounded-lg overflow-hidden">
-            <thead className="bg-gradient-to-r from-blue-900/90 to-purple-900/90 backdrop-blur-xl sticky top-0 z-10 shadow-md">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-white/20 rounded-lg overflow-hidden">
+            <thead className="bg-gray-50 dark:bg-gray-750 shadow-xl sticky top-0 z-10 shadow-md">
               <tr>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('email')}
                 >
                   User
@@ -265,7 +265,7 @@ const LoginStats = () => {
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('created_at')}
                 >
                   Registered
@@ -275,7 +275,7 @@ const LoginStats = () => {
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('last_sign_in_at')}
                 >
                   Last Login
@@ -285,7 +285,7 @@ const LoginStats = () => {
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-center text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('days_since_last_login')}
                 >
                   Days Inactive
@@ -295,7 +295,7 @@ const LoginStats = () => {
                 </th>
                 <th 
                   scope="col" 
-                  className="px-6 py-3 text-center text-xs font-bold text-white uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-center text-xs font-bold text-charcoal dark:text-white uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('login_count')}
                 >
                   Login Count
@@ -305,21 +305,21 @@ const LoginStats = () => {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10 bg-black/40 backdrop-blur-md">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 shadow-md">
               {getSortedUsers().map((user) => (
                 <tr key={user.user_id} className="hover:bg-white/10 transition-colors">
                   <td className="px-6 py-3 whitespace-nowrap">
-                    <div className="text-sm font-medium text-white">
+                    <div className="text-sm font-medium text-charcoal dark:text-white">
                       {user.first_name} {user.last_name}
                     </div>
-                    <div className="text-xs text-white/70">
+                    <div className="text-xs text-charcoal dark:text-white/70">
                       {user.email}
                     </div>
                   </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-white/80">
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-charcoal dark:text-white/80">
                     {formatDateForDisplay(user.created_at)}
                   </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-white/80">
+                  <td className="px-6 py-3 whitespace-nowrap text-sm text-charcoal dark:text-white/80">
                     {formatDateForDisplay(user.last_sign_in_at)}
                   </td>
                   <td className="px-6 py-3 whitespace-nowrap text-center">
@@ -333,7 +333,7 @@ const LoginStats = () => {
                       <span className="bg-green-500/40 text-green-100 px-2 py-1 rounded-md text-xs">{user.days_since_last_login}</span>
                     )}
                   </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-center text-sm text-white/80">
+                  <td className="px-6 py-3 whitespace-nowrap text-center text-sm text-charcoal dark:text-white/80">
                     {user.login_count || 0}
                   </td>
                 </tr>
@@ -347,7 +347,7 @@ const LoginStats = () => {
       {activeTab === 'activity' && (
         <div className="space-y-6">
           <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-white font-medium mb-3">Login Activity by Hour of Day</h3>
+            <h3 className="text-charcoal dark:text-white font-medium mb-3">Login Activity by Hour of Day</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -376,7 +376,7 @@ const LoginStats = () => {
           </div>
           
           <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-white font-medium mb-3">Login Activity by Day of Week</h3>
+            <h3 className="text-charcoal dark:text-white font-medium mb-3">Login Activity by Day of Week</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -411,7 +411,7 @@ const LoginStats = () => {
       {activeTab === 'retention' && (
         <div className="space-y-6">
           <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-white font-medium mb-3">Monthly Retention Rate</h3>
+            <h3 className="text-charcoal dark:text-white font-medium mb-3">Monthly Retention Rate</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -432,21 +432,21 @@ const LoginStats = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white font-medium mb-3">Inactive Users Breakdown</h3>
-              <table className="min-w-full divide-y divide-white/10">
+              <h3 className="text-charcoal dark:text-white font-medium mb-3">Inactive Users Breakdown</h3>
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-white/70 uppercase">Status</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-white/70 uppercase">Count</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-white/70 uppercase">Percentage</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-charcoal dark:text-white/70 uppercase">Status</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-charcoal dark:text-white/70 uppercase">Count</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-charcoal dark:text-white/70 uppercase">Percentage</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {inactiveStats.map((stat) => (
                     <tr key={stat.inactive_range}>
-                      <td className="px-4 py-2 text-sm text-white">{stat.inactive_range}</td>
-                      <td className="px-4 py-2 text-sm text-white text-right">{stat.count}</td>
-                      <td className="px-4 py-2 text-sm text-white text-right">{stat.percentage}%</td>
+                      <td className="px-4 py-2 text-sm text-charcoal dark:text-white">{stat.inactive_range}</td>
+                      <td className="px-4 py-2 text-sm text-charcoal dark:text-white text-right">{stat.count}</td>
+                      <td className="px-4 py-2 text-sm text-charcoal dark:text-white text-right">{stat.percentage}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -454,30 +454,30 @@ const LoginStats = () => {
             </div>
             
             <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-white font-medium mb-3">User Engagement Summary</h3>
+              <h3 className="text-charcoal dark:text-white font-medium mb-3">User Engagement Summary</h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-white/70 text-sm">Average logins per user</p>
-                  <p className="text-white text-lg font-medium">
+                  <p className="text-charcoal dark:text-white/70 text-sm">Average logins per user</p>
+                  <p className="text-charcoal dark:text-white text-lg font-medium">
                     {(allUsers.reduce((sum, user) => sum + (user.login_count || 0), 0) / allUsers.length).toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-white/70 text-sm">Average days since last login</p>
-                  <p className="text-white text-lg font-medium">
+                  <p className="text-charcoal dark:text-white/70 text-sm">Average days since last login</p>
+                  <p className="text-charcoal dark:text-white text-lg font-medium">
                     {(allUsers.filter(u => u.days_since_last_login !== null).reduce((sum, user) => sum + user.days_since_last_login, 0) / 
                       allUsers.filter(u => u.days_since_last_login !== null).length).toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-white/70 text-sm">Users with multiple logins</p>
-                  <p className="text-white text-lg font-medium">
+                  <p className="text-charcoal dark:text-white/70 text-sm">Users with multiple logins</p>
+                  <p className="text-charcoal dark:text-white text-lg font-medium">
                     {allUsers.filter(u => u.login_count > 1).length} ({Math.round(allUsers.filter(u => u.login_count > 1).length / allUsers.length * 100)}%)
                   </p>
                 </div>
                 <div>
-                  <p className="text-white/70 text-sm">Users never logged in</p>
-                  <p className="text-white text-lg font-medium">
+                  <p className="text-charcoal dark:text-white/70 text-sm">Users never logged in</p>
+                  <p className="text-charcoal dark:text-white text-lg font-medium">
                     {allUsers.filter(u => u.login_count === 0 || u.login_count === null).length} ({Math.round(allUsers.filter(u => u.login_count === 0 || u.login_count === null).length / allUsers.length * 100)}%)
                   </p>
                 </div>

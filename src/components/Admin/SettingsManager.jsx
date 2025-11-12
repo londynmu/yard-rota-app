@@ -147,20 +147,20 @@ export default function SettingsManager() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
       </div>
     );
   }
   
   return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm w-full max-w-full overflow-hidden">
       {/* Settings Sections Navigation */}
       <div className="flex mb-6 overflow-x-auto pb-2 -mx-4 px-4">
         <button
           className={`px-4 py-2 rounded-lg font-medium mr-2 ${
             activeSection === 'notifications' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-black dark:bg-white text-white dark:text-black' 
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
           onClick={() => setActiveSection('notifications')}
         >
@@ -169,8 +169,8 @@ export default function SettingsManager() {
         <button
           className={`px-4 py-2 rounded-lg font-medium mr-2 ${
             activeSection === 'team' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+              ? 'bg-black dark:bg-white text-white dark:text-black' 
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
           onClick={() => setActiveSection('team')}
         >
@@ -180,8 +180,8 @@ export default function SettingsManager() {
       
       {/* Notification Settings */}
       {activeSection === 'notifications' && (
-        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Notification Settings</h3>
+        <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-charcoal dark:text-white mb-4">Notification Settings</h3>
           
           <div className="space-y-4">
             <ToggleSwitch

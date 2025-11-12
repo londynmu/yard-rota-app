@@ -113,19 +113,19 @@ const UserApprovalPage = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white shadow-lg" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 backdrop-blur-sm rounded-xl border border-red-500/30 text-center">
-        <h3 className="text-lg font-semibold mb-2 text-white">Error</h3>
-        <p className="text-white/80">{error}</p>
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 text-center">
+        <h3 className="text-lg font-semibold mb-2 text-charcoal dark:text-white">Error</h3>
+        <p className="text-gray-600 dark:text-gray-400">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+          className="mt-4 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
         >
           Retry
         </button>
@@ -135,10 +135,10 @@ const UserApprovalPage = () => {
 
   // When embedded in AdminPage, don't use the full screen container
   return (
-    <div className="bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-white/10">
-        <h2 className="text-xl font-bold text-white">Pending User Approvals</h2>
-        <p className="text-white/70 text-sm mt-1">
+    <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-bold text-charcoal dark:text-white">Pending User Approvals</h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
           Review and approve new user registrations
         </p>
       </div>
@@ -147,7 +147,7 @@ const UserApprovalPage = () => {
         <div className="p-6 text-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-12 w-12 mx-auto text-white/30"
+            className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -159,33 +159,33 @@ const UserApprovalPage = () => {
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="mt-4 text-white/70">No pending approvals</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">No pending approvals</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/5">
-            <thead>
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-750">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                   Registered
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-white/70 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
               {pendingUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-white/5">
+                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500/30 to-purple-500/30 flex items-center justify-center border border-white/20">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-300 dark:border-gray-600">
                         {user.avatar_url ? (
                           <img
                             className="h-10 w-10 rounded-full object-cover"
@@ -193,38 +193,38 @@ const UserApprovalPage = () => {
                             alt={`${user.first_name || ''} ${user.last_name || ''}`}
                           />
                         ) : (
-                          <span className="text-white text-sm font-semibold">
+                          <span className="text-charcoal dark:text-white text-sm font-semibold">
                             {user.first_name?.[0] || ''}
                             {user.last_name?.[0] || ''}
                           </span>
                         )}
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-charcoal dark:text-white">
                           {user.first_name || ''} {user.last_name || ''}
                         </div>
-                        <div className="text-sm text-white/70">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
                           {user.phone || 'No phone'}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/90">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                     {user.email || 'No email'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                     {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button
                       onClick={() => handleApprove(user.id)}
-                      className="text-blue-400 hover:text-blue-300 mr-4 px-3 py-1 rounded-lg hover:bg-blue-500/20 transition-colors"
+                      className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded-lg text-white transition-colors"
                     >
                       Approve
                     </button>
                     <button
                       onClick={() => handleReject(user.id)}
-                      className="text-red-400 hover:text-red-300 px-3 py-1 rounded-lg hover:bg-red-500/20 transition-colors"
+                      className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-white transition-colors"
                     >
                       Reject
                     </button>

@@ -998,28 +998,28 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="p-0 md:p-6 bg-gray-900 text-gray-100 min-h-screen">
-      <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-cyan-400">Break Planner</h1>
+    <div className="p-0 md:p-6 bg-white dark:bg-gray-800 text-charcoal dark:text-gray-100 min-h-screen">
+      <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-blue-600 dark:text-blue-400">Break Planner</h1>
 
       {/* Controls */}
       <div className="flex flex-wrap gap-2 md:gap-4 mb-4 md:mb-6 items-center px-1 md:px-0">
         <div>
-          <label htmlFor="break-date" className="block text-sm font-medium text-gray-400 mb-1">Date</label>
+          <label htmlFor="break-date" className="block text-sm font-medium text-gray-600 dark:text-gray-600 dark:text-gray-400 mb-1">Date</label>
           <input
             type="date"
             id="break-date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
           />
         </div>
         <div>
-          <label htmlFor="shift-type" className="block text-sm font-medium text-gray-400 mb-1">Shift</label>
+          <label htmlFor="shift-type" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Shift</label>
           <select
             id="shift-type"
             value={selectedShift}
             onChange={(e) => setSelectedShift(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
           >
             <option value="Day">Day (05:45 - 18:15)</option>
             <option value="Afternoon">Afternoon (14:00 - 02:30)</option>
@@ -1059,7 +1059,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <h2 className="text-xl font-semibold mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2 text-cyan-500">{groupName}</h2>
+              <h2 className="text-xl font-semibold mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2 text-blue-500">{groupName}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
@@ -1081,7 +1081,7 @@ const BrakesManager = () => {
           {isAdmin && (
             <div>
               <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2">
-                <h2 className="text-xl font-semibold text-cyan-500 mt-4 md:mt-8">Create Custom Slot</h2>
+                <h2 className="text-xl font-semibold text-blue-500 mt-4 md:mt-8">Create Custom Slot</h2>
                 <button 
                   onClick={() => setShowCustomSlotForm(!showCustomSlotForm)}
                   className="flex items-center text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-white"
@@ -1234,7 +1234,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               }</span>
             </div>
             <div>
-              <span className="text-[10px] md:text-xs bg-cyan-700 text-cyan-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
+              <span className="text-[10px] md:text-xs bg-black dark:bg-white text-blue-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
                 {slot.duration_minutes} min
               </span>
             </div>
@@ -1444,7 +1444,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
           <div className="space-y-2 md:space-y-4">
             {/* Start Time - disabled for standard slots */}
             <div>
-              <label htmlFor="start_time" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="start_time" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                 Start Time
               </label>
               <select
@@ -1453,7 +1453,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.start_time}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm ${
+                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               >
@@ -1468,7 +1468,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Duration - disabled for standard slots */}
             <div>
-              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                 Duration (minutes)
               </label>
               <select
@@ -1477,7 +1477,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.duration_minutes}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm ${
+                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               >
@@ -1490,7 +1490,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Capacity - always enabled for both standard and custom slots */}
             <div>
-              <label htmlFor="capacity" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="capacity" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                 Capacity
               </label>
               <input
@@ -1501,13 +1501,13 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 max={10}
                 value={formData.capacity}
                 onChange={handleChange}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
+                className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm"
               />
             </div>
             
             {/* Break Type - disabled for standard slots */}
             <div>
-              <label htmlFor="break_type" className="block text-xs md:text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="break_type" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                 Break Type
               </label>
               <input
@@ -1517,7 +1517,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.break_type}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm ${
+                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               />
@@ -1525,7 +1525,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Notice for standard slots */}
             {!slot.is_custom && (
-              <div className="text-cyan-500 text-xs md:text-sm mt-1 md:mt-2 bg-cyan-900/20 p-1 md:p-2 rounded">
+              <div className="text-blue-500 text-xs md:text-sm mt-1 md:mt-2 bg-blue-900/20 p-1 md:p-2 rounded">
                 Note: For standard slots, only capacity can be edited.
               </div>
             )}
@@ -1557,7 +1557,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
               </button>
               <button
                 type="submit"
-                className="px-2 py-1 md:px-4 md:py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600 transition-colors text-xs md:text-sm"
+                className="px-2 py-1 md:px-4 md:py-2 bg-black dark:bg-white text-white rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-xs md:text-sm"
               >
                 Save Changes
               </button>
@@ -1645,7 +1645,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
           {/* Start Time */}
           <div>
-            <label htmlFor="cs_start_time" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="cs_start_time" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               Start Time
             </label>
             <select
@@ -1653,7 +1653,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="start_time"
               value={formData.start_time}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
             >
               <option value="">Select time</option>
               {generateTimeOptions().map(time => (
@@ -1666,7 +1666,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
           
           {/* Duration */}
           <div>
-            <label htmlFor="cs_duration_minutes" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="cs_duration_minutes" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               Duration (minutes)
             </label>
             <select
@@ -1674,7 +1674,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="duration_minutes"
               value={formData.duration_minutes}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
             >
               <option value={15}>15 minutes</option>
               <option value={30}>30 minutes</option>
@@ -1685,7 +1685,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
           
           {/* Capacity */}
           <div>
-            <label htmlFor="cs_capacity" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="cs_capacity" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               Capacity
             </label>
             <input
@@ -1696,13 +1696,13 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               max={10}
               value={formData.capacity}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
             />
           </div>
           
           {/* Break Type */}
           <div>
-            <label htmlFor="cs_break_type" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="cs_break_type" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
               Break Type
             </label>
             <input
@@ -1711,7 +1711,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="break_type"
               value={formData.break_type}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
               placeholder="Custom Slot"
             />
           </div>
@@ -1720,7 +1720,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div>
           <button
             type="submit"
-            className="px-3 py-1 md:px-4 md:py-2 bg-cyan-700 text-white rounded hover:bg-cyan-600 transition-colors"
+            className="px-3 py-1 md:px-4 md:py-2 bg-black dark:bg-white text-white rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
           >
             Add Custom Slot
           </button>
@@ -1756,8 +1756,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
   
   const isFull = assignedStaff.length >= slot.capacity;
   const cardClasses = `
-    bg-gray-800 p-2 md:p-4 rounded-lg shadow border 
-    ${isFull ? 'border-green-700' : 'border-gray-700 hover:border-gray-500 cursor-pointer'}
+    bg-white dark:bg-gray-800 p-2 md:p-4 rounded-lg shadow-sm border 
+    ${isFull ? 'border-green-500' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer'}
     min-h-[120px] md:min-h-[150px] flex flex-col justify-between relative
   `;
   
@@ -1779,11 +1779,11 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
           <span className="font-semibold text-sm md:text-base">
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className="text-xs bg-cyan-700 text-cyan-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
+          <span className="text-xs bg-black dark:bg-white text-blue-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
             {slot.duration_minutes} min
           </span>
         </div>
-        <div className="text-xs md:text-sm text-gray-400 mb-1 md:mb-2">
+        <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1 md:mb-2">
           Capacity: {slot.capacity}
         </div>
         <div className="text-xs md:text-sm text-gray-300">

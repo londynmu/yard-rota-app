@@ -28,6 +28,9 @@ export default function ShiftDashboard() {
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeView, setActiveView] = useState('shift'); // 'shift' or 'breaks'
+  const [allShifts, setAllShifts] = useState([]);
+  const [allBreaks, setAllBreaks] = useState([]);
+  const [teamView, setTeamView] = useState('shifts'); // 'shifts' or 'breaks' - for team schedule
   
   // Fetch user profile to get shift preference
   useEffect(() => {
@@ -126,6 +129,90 @@ export default function ShiftDashboard() {
       clearInterval(timeIntervalId);
       clearInterval(dataIntervalId);
     };
+  }, [user]);
+
+  // Fetch ALL today's shifts and breaks for team view
+  useEffect(() => {
+    const fetchTeamSchedule = async () => {
+      if (!user) return;
+
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Fetch ALL shifts for today (without profiles join)
+        const { data: shiftsData, error: shiftsError } = await supabase
+          .from('scheduled_rota')
+          .select('id, user_id, date, start_time, end_time, location, shift_type')
+          .eq('date', today)
+          .order('start_time');
+          
+        if (shiftsError) throw shiftsError;
+
+        // Fetch profiles for all unique user_ids
+        if (shiftsData && shiftsData.length > 0) {
+          const userIds = [...new Set(shiftsData.map(s => s.user_id))];
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+          
+          // Map profiles to shifts
+          const profilesMap = {};
+          profilesData?.forEach(p => {
+            profilesMap[p.id] = p;
+          });
+          
+          const shiftsWithProfiles = shiftsData.map(s => ({
+            ...s,
+            profiles: profilesMap[s.user_id]
+          }));
+          
+          setAllShifts(shiftsWithProfiles);
+        } else {
+          setAllShifts([]);
+        }
+
+        // Fetch ALL breaks for today (without profiles join)
+        const { data: breaksData, error: breaksError } = await supabase
+          .from('scheduled_breaks')
+          .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
+          .eq('date', today)
+          .order('break_start_time');
+          
+        if (breaksError) throw breaksError;
+
+        // Fetch profiles for breaks
+        if (breaksData && breaksData.length > 0) {
+          const userIds = [...new Set(breaksData.map(b => b.user_id))];
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+          
+          const profilesMap = {};
+          profilesData?.forEach(p => {
+            profilesMap[p.id] = p;
+          });
+          
+          const breaksWithProfiles = breaksData.map(b => ({
+            ...b,
+            profiles: profilesMap[b.user_id]
+          }));
+          
+          setAllBreaks(breaksWithProfiles);
+        } else {
+          setAllBreaks([]);
+        }
+      } catch (err) {
+        console.error('Error fetching team schedule:', err);
+      }
+    };
+
+    fetchTeamSchedule();
+    
+    // Refresh team data every 15 minutes
+    const teamDataInterval = setInterval(fetchTeamSchedule, 15 * 60 * 1000);
+    return () => clearInterval(teamDataInterval);
   }, [user]);
 
   // Fetch team break info
@@ -381,27 +468,156 @@ export default function ShiftDashboard() {
     );
   }
 
-  // No shift today
+  // No personal shift today - show team schedule
   if (!shift) {
+    // Group shifts by type
+    const shiftsByType = {
+      day: allShifts.filter(s => s.shift_type === 'day'),
+      afternoon: allShifts.filter(s => s.shift_type === 'afternoon'),
+      night: allShifts.filter(s => s.shift_type === 'night')
+    };
+
+    // Group breaks by type
+    const breaksByType = {
+      day: allBreaks.filter(b => b.shift_type === 'day'),
+      afternoon: allBreaks.filter(b => b.shift_type === 'afternoon'),
+      night: allBreaks.filter(b => b.shift_type === 'night')
+    };
+
     return (
-      <div className="w-full mb-4 bg-slate-800 rounded-lg border border-slate-700 p-4 shadow-lg">
-        <div className="flex justify-between items-center">
+      <div className="w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-md overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <div>
-              <h2 className="text-lg font-bold text-white">Today&apos;s Schedule</h2>
-              <p className="text-white/80">No shift scheduled for today.</p>
+              <h2 className="text-lg font-bold text-charcoal dark:text-white">Today&apos;s Team Schedule</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">No personal shift - viewing team</p>
             </div>
           </div>
-          
-          <button 
-            onClick={toggleView}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium"
-          >
-            {activeView === 'shift' ? 'View Breaks' : 'View Shift'}
-          </button>
+        </div>
+
+        {/* Toggle between Shifts and Breaks */}
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="flex">
+            <button 
+              onClick={() => setTeamView('shifts')}
+              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                teamView === 'shifts' 
+                  ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Team Shifts ({allShifts.length})
+            </button>
+            <button 
+              onClick={() => setTeamView('breaks')}
+              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                teamView === 'breaks' 
+                  ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Team Breaks ({allBreaks.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 max-h-96 overflow-y-auto">
+          {teamView === 'shifts' ? (
+            allShifts.length === 0 ? (
+              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No shifts scheduled for today</p>
+            ) : (
+              <div className="space-y-6">
+                {/* Group by location first, then by shift type */}
+                {[...new Set(allShifts.map(s => s.location))].sort().map(location => {
+                  const locationShifts = allShifts.filter(s => s.location === location);
+                  
+                  return (
+                    <div key={location} className="space-y-3">
+                      <h2 className="text-md font-bold text-charcoal dark:text-white border-b-2 border-gray-300 dark:border-gray-600 pb-1">
+                        📍 {location} ({locationShifts.length})
+                      </h2>
+                      
+                      {['day', 'afternoon', 'night'].map(shiftType => {
+                        const shifts = locationShifts.filter(s => s.shift_type === shiftType);
+                        if (shifts.length === 0) return null;
+                        
+                        const shiftColors = {
+                          day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+                          afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
+                          night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                        };
+
+                        return (
+                          <div key={shiftType} className="ml-2">
+                            <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
+                              {shiftType} Shift ({shifts.length})
+                            </h3>
+                            <ul className="space-y-1 mt-2">
+                              {shifts.map(s => (
+                                <li key={s.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-750 rounded border border-gray-200 dark:border-gray-700">
+                                  <span className="font-medium text-charcoal dark:text-white">
+                                    {s.profiles?.first_name || 'Unknown'} {s.profiles?.last_name || 'User'}
+                                  </span>
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                                    {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            allBreaks.length === 0 ? (
+              <p className="text-gray-600 dark:text-gray-400 text-center py-4">No breaks scheduled for today</p>
+            ) : (
+              <div className="space-y-4">
+                {['day', 'afternoon', 'night'].map(shiftType => {
+                  const breaks = breaksByType[shiftType];
+                  if (breaks.length === 0) return null;
+                  
+                  const shiftColors = {
+                    day: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+                    afternoon: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
+                    night: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                  };
+
+                  return (
+                    <div key={shiftType}>
+                      <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
+                        {shiftType} Shift ({breaks.length})
+                      </h3>
+                      <ul className="space-y-1 mt-2">
+                        {breaks.map(b => {
+                          const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
+                          return (
+                            <li key={b.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-750 rounded border border-gray-200 dark:border-gray-700">
+                              <span className="font-medium text-charcoal dark:text-white">
+                                {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
+                              </span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
         </div>
       </div>
     );
@@ -413,19 +629,19 @@ export default function ShiftDashboard() {
 
   // Render the main widget
   return (
-    <div className={`w-full mb-4 bg-gradient-to-r ${getShiftColor(shift.shift_type)} rounded-lg border overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300`}>
+    <div className={`w-full mb-4 bg-white dark:bg-gray-800 rounded-lg border overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border-gray-200 dark:border-gray-700`}>
       {/* Top accent bar */}
       <div className={`h-1 ${getShiftAccentColor(shift.shift_type)}`}></div>
       
       {/* Header with tabs */}
-      <div className="border-b border-white/20 bg-black/30">
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <div className="flex">
           <button 
             onClick={() => setActiveView('shift')}
             className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
               activeView === 'shift' 
-                ? 'text-white bg-black/20 border-b-2 border-white' 
-                : 'text-white/70 hover:text-white hover:bg-black/10'
+                ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             <div className="flex items-center justify-center">
@@ -440,8 +656,8 @@ export default function ShiftDashboard() {
             onClick={() => setActiveView('breaks')}
             className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
               activeView === 'breaks' 
-                ? 'text-white bg-black/20 border-b-2 border-white' 
-                : 'text-white/70 hover:text-white hover:bg-black/10'
+                ? 'text-charcoal dark:text-white bg-gray-100 dark:bg-gray-750 border-b-2 border-black dark:border-white' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             <div className="flex items-center justify-center">
@@ -467,7 +683,7 @@ export default function ShiftDashboard() {
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center mb-1">
-                <h2 className="text-lg font-bold text-white">
+                <h2 className="text-lg font-bold text-charcoal dark:text-white">
                   {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                 </h2>
                 {shiftActive && (

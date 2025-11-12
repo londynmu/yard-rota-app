@@ -12,13 +12,13 @@ export default function Tooltip({ message }) {
         onMouseLeave={() => setVisible(false)}
         onFocus={() => setVisible(true)}
         onBlur={() => setVisible(false)}
-        className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2"
+        className="text-gray-400 dark:text-gray-500 hover:text-charcoal dark:hover:text-white focus:outline-none ml-2"
         aria-label="More information"
       >
         ℹ️
       </button>
       {visible && (
-        <div className="absolute z-10 w-64 p-2 text-sm text-white bg-gray-800/90 backdrop-blur-sm rounded-md shadow-lg left-6 top-1/2 transform -translate-y-1/2">
+        <div className="absolute z-10 w-64 p-2 text-sm text-white dark:text-black bg-black dark:bg-white rounded-lg shadow-lg left-6 top-1/2 transform -translate-y-1/2">
           {message}
         </div>
       )}

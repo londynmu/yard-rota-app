@@ -4,8 +4,21 @@ export default {
     "./index.html",
     "./src/**/*.{js,jsx}",
   ],
+  darkMode: 'class',
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        cream: '#F5F5F0',
+        offwhite: '#FAFAFA',
+        charcoal: '#2D2D2D',
+        softgray: '#E0E0E0',
+        mediumgray: '#9E9E9E',
+      },
+      borderRadius: {
+        'xl': '1rem',
+        '2xl': '1.5rem',
+      },
+    },
   },
   plugins: [],
 } 

@@ -40,7 +40,7 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-white focus:outline-none"
+        className="relative p-2 text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg focus:outline-none"
         aria-label="Notifications"
       >
         <svg
@@ -66,13 +66,13 @@ const NotificationBell = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed md:absolute right-0 left-0 md:left-auto top-16 md:top-auto md:mt-1 w-full md:w-80 bg-gradient-to-b from-gray-800 to-gray-900 rounded-none md:rounded-lg shadow-xl z-50 border-t md:border border-white/20 overflow-hidden md:max-w-xs mx-auto md:mx-0">
-          <div className="p-3 border-b border-white/20 flex justify-between items-center">
-            <h3 className="text-white font-bold">Notifications</h3>
+        <div className="fixed md:absolute right-0 left-0 md:left-auto top-16 md:top-auto md:mt-1 w-full md:w-80 bg-white dark:bg-gray-800 rounded-none md:rounded-lg shadow-lg z-50 border-t md:border border-gray-200 dark:border-gray-700 overflow-hidden md:max-w-xs mx-auto md:mx-0">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h3 className="text-charcoal dark:text-white font-bold">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs text-blue-400 hover:text-blue-300"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
               >
                 Mark all as read
               </button>
@@ -82,7 +82,7 @@ const NotificationBell = () => {
           {/* Pending approvals section */}
           {pendingApprovals > 0 && (
             <div 
-              className="p-3 border-b border-white/10 bg-blue-900/30 cursor-pointer hover:bg-blue-900/50 transition-colors"
+              className="p-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
               onClick={handleApprovalClick}
             >
               <div className="flex items-center">
@@ -92,10 +92,10 @@ const NotificationBell = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-white font-semibold">
+                  <p className="text-sm text-charcoal dark:text-white font-semibold">
                     {pendingApprovals} user{pendingApprovals !== 1 ? 's' : ''} pending approval
                   </p>
-                  <p className="text-xs text-white/60">Click to review</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Click to review</p>
                 </div>
               </div>
             </div>
@@ -103,16 +103,16 @@ const NotificationBell = () => {
 
           {/* Notification navigation arrows */}
           {pendingApprovals === 0 && (
-            <div className="flex items-center justify-between py-3 px-4 border-b border-white/10">
-              <button className="text-white/70 hover:text-white">
+            <div className="flex items-center justify-between py-3 px-4 border-b border-gray-200 dark:border-gray-700">
+              <button className="text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </button>
-              <div className="text-center text-white/70 text-sm font-medium">
+              <div className="text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                 May 2024
               </div>
-              <button className="text-white/70 hover:text-white">
+              <button className="text-gray-600 dark:text-gray-400 hover:text-charcoal dark:hover:text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
@@ -123,7 +123,7 @@ const NotificationBell = () => {
           {/* Empty state */}
           {pendingApprovals === 0 && (
             <div className="p-6 text-center">
-              <p className="text-white/80 text-sm font-medium">No notifications to display</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">No notifications to display</p>
             </div>
           )}
         </div>

@@ -9,10 +9,10 @@ export default function CalendarHeader({ currentDate, onPrevMonth, onNextMonth }
   const year = currentDate.getFullYear();
   
   return (
-    <div className="flex justify-between items-center mb-4 p-3 bg-black/40 backdrop-blur-md rounded-xl border border-white/30 shadow-lg">
+    <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 dark:bg-gray-750 shadow-md rounded-xl border border-gray-30 shadow-lg">
       <button 
         onClick={onPrevMonth}
-        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
         aria-label="Previous month"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,13 +20,13 @@ export default function CalendarHeader({ currentDate, onPrevMonth, onNextMonth }
         </svg>
       </button>
       
-      <h2 className="text-xl font-bold text-white drop-shadow-sm px-4 py-2 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm rounded-lg border border-white/20">
+      <h2 className="text-xl font-bold text-charcoal dark:text-white drop-shadow-sm px-4 py-2 bg-gray-100 dark:bg-gray-700 shadow-sm rounded-lg border border-gray-20">
         {month} {year}
       </h2>
       
       <button 
         onClick={onNextMonth}
-        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
         aria-label="Next month"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

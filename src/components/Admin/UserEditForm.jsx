@@ -252,7 +252,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     >
       <div 
         ref={modalRef}
-        className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-white/20" 
+        className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-300 dark:border-gray-600" 
         onClick={e => e.stopPropagation()}
       >
         <div className="bg-blue-500/30 px-6 py-4 border-b border-white/10 sticky top-0 z-10">
@@ -289,7 +289,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
           <div className="px-6 py-4">
             {/* Avatar Upload */}
             <div className="mb-4">
-              <label className="block text-white font-medium mb-2" htmlFor="admin-edit-avatar">
+              <label className="block text-charcoal dark:text-white font-medium mb-2" htmlFor="admin-edit-avatar">
                 Profile Picture
               </label>
               <div className="flex items-center space-x-4">
@@ -302,7 +302,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     </svg>
                   )}
                 </div>
-                <label className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-md border border-white/20 text-white transition-colors">
+                <label className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-md border border-gray-300 dark:border-gray-600 text-white transition-colors">
                   <span>Upload new</span>
                   <input
                     id="admin-edit-avatar"
@@ -318,7 +318,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
             {/* Basic Info */}
             <div className="space-y-4">
               <div>
-                <label htmlFor="admin-edit-firstName" className="block text-white font-medium mb-2">
+                <label htmlFor="admin-edit-firstName" className="block text-charcoal dark:text-white font-medium mb-2">
                   First Name
                 </label>
                 <input
@@ -326,19 +326,19 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                    formErrors.firstName ? 'border-red-400/70' : 'border-white/20'
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.firstName ? 'border-red-400/70' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="First name"
                   disabled={loading}
                 />
                 {formErrors.firstName && (
-                  <p className="mt-1 text-sm text-red-400">{formErrors.firstName}</p>
+                  <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
                 )}
               </div>
               
               <div>
-                <label htmlFor="admin-edit-lastName" className="block text-white font-medium mb-2">
+                <label htmlFor="admin-edit-lastName" className="block text-charcoal dark:text-white font-medium mb-2">
                   Last Name
                 </label>
                 <input
@@ -346,27 +346,27 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                    formErrors.lastName ? 'border-red-400/70' : 'border-white/20'
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.lastName ? 'border-red-400/70' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   placeholder="Last name"
                   disabled={loading}
                 />
                 {formErrors.lastName && (
-                  <p className="mt-1 text-sm text-red-400">{formErrors.lastName}</p>
+                  <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
                 )}
               </div>
               
               <div>
-                <label htmlFor="admin-edit-shiftPreference" className="block text-white font-medium mb-2">
+                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal dark:text-white font-medium mb-2">
                   Shift Preference
                 </label>
                 <select
                   id="admin-edit-shiftPreference"
                   value={shiftPreference}
                   onChange={(e) => setShiftPreference(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-white/20'
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   disabled={loading}
                 >
@@ -376,20 +376,20 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   <option value="afternoon">Afternoon</option>
                 </select>
                 {formErrors.shiftPreference && (
-                  <p className="mt-1 text-sm text-red-400">{formErrors.shiftPreference}</p>
+                  <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
                 )}
               </div>
               
               {/* Agency Selection */}
               <div>
-                <label htmlFor="admin-edit-agency" className="block text-white font-medium mb-2">
+                <label htmlFor="admin-edit-agency" className="block text-charcoal dark:text-white font-medium mb-2">
                   Agency
                 </label>
                 <select
                   id="admin-edit-agency"
                   value={agencyId || ''}
                   onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
                   disabled={loading}
                 >
                   <option value="">None (Direct Employment)</option>
@@ -403,7 +403,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               </div>
               
               <div>
-                <label htmlFor="admin-edit-performanceScore" className="block text-white font-medium mb-2">
+                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal dark:text-white font-medium mb-2">
                   Performance Score (1-99)
                 </label>
                 <input
@@ -413,13 +413,13 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   max="99"
                   value={performanceScore}
                   onChange={(e) => setPerformanceScore(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white/10 border rounded-md text-white focus:outline-none focus:border-blue-500 ${
-                    formErrors.performanceScore ? 'border-red-400/70' : 'border-white/20'
+                  className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500 ${
+                    formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300 dark:border-gray-600'
                   }`}
                   disabled={loading}
                 />
                 {formErrors.performanceScore && (
-                  <p className="mt-1 text-sm text-red-400">{formErrors.performanceScore}</p>
+                  <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
                 )}
               </div>
               
@@ -444,7 +444,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="admin-edit-startTime" className="block text-white font-medium mb-2">
+                  <label htmlFor="admin-edit-startTime" className="block text-charcoal dark:text-white font-medium mb-2">
                     Preferred Start Time
                   </label>
                   <input
@@ -452,7 +452,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     type="time"
                     value={customStartTime}
                     onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
                     disabled={loading}
                   />
                   <p className="mt-1 text-xs text-white/60">
@@ -461,14 +461,14 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                 </div>
                 
                 <div>
-                  <label htmlFor="admin-edit-location" className="block text-white font-medium mb-2">
+                  <label htmlFor="admin-edit-location" className="block text-charcoal dark:text-white font-medium mb-2">
                     Preferred Location
                   </label>
                   <select
                     id="admin-edit-location"
                     value={preferredLocation || ''}
                     onChange={(e) => setPreferredLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
                     disabled={loading}
                   >
                     <option value="">No preference</option>

@@ -288,7 +288,7 @@ export default function AvailabilityManager() {
       case 'night':
         return 'text-blue-400';
       default:
-        return 'text-white';
+        return 'text-charcoal dark:text-white';
     }
   };
 
@@ -306,11 +306,11 @@ export default function AvailabilityManager() {
   const weekDisplayRange = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-xl w-full max-w-full overflow-hidden">
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
         <div className="flex items-center">
           <button
-            className="text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
+            className="text-charcoal dark:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
             onClick={goToPreviousWeek}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -318,12 +318,12 @@ export default function AvailabilityManager() {
             </svg>
           </button>
           
-          <h2 className="text-xl font-semibold text-white mx-4">
+          <h2 className="text-xl font-semibold text-charcoal dark:text-white mx-4">
             {weekDisplayRange}
           </h2>
           
           <button
-            className="text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
+            className="text-charcoal dark:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
             onClick={goToNextWeek}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -334,12 +334,12 @@ export default function AvailabilityManager() {
         
         <div className="w-full sm:w-auto">
           <div className="flex items-center bg-white/10 rounded-lg p-2">
-            <label htmlFor="shift-filter" className="text-white mr-2 whitespace-nowrap">
+            <label htmlFor="shift-filter" className="text-charcoal dark:text-white mr-2 whitespace-nowrap">
               Filter Shift:
             </label>
             <select
               id="shift-filter"
-              className="bg-white/10 text-white rounded-md px-3 py-1 border border-white/20 w-full sm:w-auto"
+              className="bg-white/10 text-charcoal dark:text-white rounded-md px-3 py-1 border border-gray-200 dark:border-gray-700 w-full sm:w-auto"
               value={sortBy}
               onChange={handleSortChange}
             >
@@ -357,18 +357,18 @@ export default function AvailabilityManager() {
           <table className="min-w-full table-fixed">
             <thead>
               <tr>
-                <th className="px-3 py-3 bg-white/10 text-left text-xs font-medium text-white uppercase tracking-wider rounded-tl-lg border-b border-white/10 w-[20%] sm:w-[16%]">
+                <th className="px-3 py-3 bg-white/10 text-left text-xs font-medium text-charcoal dark:text-white uppercase tracking-wider rounded-tl-lg border-b border-white/10 w-[20%] sm:w-[16%]">
                   User
                 </th>
                 {daysInWeek.map((day, i) => (
                   <th 
                     key={i} 
-                    className={`px-1 py-3 bg-white/10 text-center text-xs font-medium text-white uppercase tracking-wider ${
+                    className={`px-1 py-3 bg-white/10 text-center text-xs font-medium text-charcoal dark:text-white uppercase tracking-wider ${
                       i === daysInWeek.length - 1 ? 'rounded-tr-lg' : ''
                     } ${isToday(day) ? 'bg-white/20' : ''} border-b border-white/10 w-[11.42%]`}
                   >
                     <div>{format(day, 'd')}</div>
-                    <div className="text-white/80">{weekdays[i]}</div>
+                    <div className="text-charcoal dark:text-white/80">{weekdays[i]}</div>
                   </th>
                 ))}
               </tr>
@@ -376,7 +376,7 @@ export default function AvailabilityManager() {
             <tbody className="divide-y divide-white/10">
               {sortedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-white/5">
-                  <td className="px-3 py-3 text-sm font-medium text-white border-b border-white/10 w-[20%] sm:w-[16%] truncate">
+                  <td className="px-3 py-3 text-sm font-medium text-charcoal dark:text-white border-b border-white/10 w-[20%] sm:w-[16%] truncate">
                     <div>
                       {user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email}
                     </div>
@@ -397,7 +397,7 @@ export default function AvailabilityManager() {
                         key={i} 
                         className={`px-1 py-3 text-center text-sm border-b border-white/10 ${
                           isToday(day) ? 'bg-white/10' : ''
-                        } ${!isSameMonth(day, currentDate) ? 'text-white/40' : ''} w-[11.42%]`}
+                        } ${!isSameMonth(day, currentDate) ? 'text-charcoal dark:text-white/40' : ''} w-[11.42%]`}
                       >
                         <div className="flex justify-center">
                           <button
@@ -410,7 +410,7 @@ export default function AvailabilityManager() {
                             {userAvailability?.status ? (
                               <span className="sr-only">{userAvailability.status}</span>
                             ) : (
-                              <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <svg className="w-4 h-4 text-charcoal dark:text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                               </svg>
                             )}
@@ -426,7 +426,7 @@ export default function AvailabilityManager() {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap justify-start gap-4 text-sm text-white">
+      <div className="mt-5 flex flex-wrap justify-start gap-4 text-sm text-charcoal dark:text-white">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-green-500/70"></div>
           <span>Available</span>

@@ -156,8 +156,8 @@ function AppContent() {
     }
     
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
       </div>
     );
   }
@@ -167,13 +167,13 @@ function AppContent() {
   if (error) {
     console.log('[AppContent Decision] Rendering Error State...');
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-        <div className="bg-red-500/20 backdrop-blur-sm text-red-100 p-4 rounded-md max-w-md border border-red-400/30">
+      <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
+        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg max-w-md border border-red-200 dark:border-red-800">
           <h3 className="font-bold mb-2">Error checking your profile</h3>
           <p>{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="mt-4 bg-white/20 backdrop-blur-sm text-white py-2 px-4 rounded-md border border-white/30 hover:bg-white/30"
+            className="mt-4 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
           >
             Retry
           </button>
@@ -195,9 +195,8 @@ function AppContent() {
     if (isCheckingProfile) {
       console.log('[AppContent Decision] Rendering Profile Checking Loader...');
       return (
-        <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-black via-blue-900 to-green-500">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-          {/* Optional text: <p className="text-white ml-4">Checking profile...</p> */}
+        <div className="min-h-screen flex justify-center items-center bg-offwhite dark:bg-gray-900">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black dark:border-white"></div>
         </div>
       );
     } else {

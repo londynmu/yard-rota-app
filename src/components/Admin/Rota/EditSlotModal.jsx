@@ -65,10 +65,10 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
       <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg shadow-xl border border-slate-700/40 overflow-hidden w-full max-w-xl mx-auto">
         <div className="p-6 flex flex-col gap-5">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">Edit Slot</h2>
+            <h2 className="text-xl font-bold text-charcoal dark:text-white">Edit Slot</h2>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-400 hover:text-charcoal dark:text-white transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -91,12 +91,12 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
           )}
           
           <div>
-            <label className="block text-white mb-1">Location</label>
+            <label className="block text-charcoal dark:text-white mb-1">Location</label>
             <select
               name="location"
               value={editedSlot.location}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Select a location</option>
               {locations.map(loc => (
@@ -107,18 +107,18 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-white mb-1">Start Time</label>
+              <label className="block text-charcoal dark:text-white mb-1">Start Time</label>
               <div className="relative">
                 <input 
                   type="text" 
                   value={editedSlot.start_time.substring(0, 5)}
                   readOnly 
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-white cursor-pointer pr-10 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white cursor-pointer pr-10 focus:outline-none"
                   onClick={() => onShowTimePicker('start_time', editedSlot.start_time, (time) => setEditedSlot({...editedSlot, start_time: time}))}
                 />
                 <button 
                   onClick={() => onShowTimePicker('start_time', editedSlot.start_time, (time) => setEditedSlot({...editedSlot, start_time: time}))}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -128,18 +128,18 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
             </div>
             
             <div>
-              <label className="block text-white mb-1">End Time</label>
+              <label className="block text-charcoal dark:text-white mb-1">End Time</label>
               <div className="relative">
                 <input 
                   type="text" 
                   value={editedSlot.end_time.substring(0, 5)}
                   readOnly 
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-white cursor-pointer pr-10 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white cursor-pointer pr-10 focus:outline-none"
                   onClick={() => onShowTimePicker('end_time', editedSlot.end_time, (time) => setEditedSlot({...editedSlot, end_time: time}))}
                 />
                 <button 
                   onClick={() => onShowTimePicker('end_time', editedSlot.end_time, (time) => setEditedSlot({...editedSlot, end_time: time}))}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-charcoal dark:text-white/70 hover:text-charcoal dark:text-white"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -150,12 +150,12 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
           </div>
           
           <div>
-            <label className="block text-white mb-1">Shift Type</label>
+            <label className="block text-charcoal dark:text-white mb-1">Shift Type</label>
             <select
               name="shift_type"
               value={editedSlot.shift_type}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded text-charcoal dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="day">Day</option>
               <option value="afternoon">Afternoon</option>
@@ -164,7 +164,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
           </div>
           
           <div>
-            <label className="block text-white mb-1">Capacity (Staff needed)</label>
+            <label className="block text-charcoal dark:text-white mb-1">Capacity (Staff needed)</label>
             <div className="flex items-center bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden w-full">
               <button
                 type="button"
@@ -173,19 +173,19 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
                     setEditedSlot({...editedSlot, capacity: editedSlot.capacity - 1});
                   }
                 }}
-                className="flex-1 h-10 bg-slate-900/50 text-white flex items-center justify-center hover:bg-slate-700/70"
+                className="flex-1 h-10 bg-slate-900/50 text-charcoal dark:text-white flex items-center justify-center hover:bg-slate-700/70"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                 </svg>
               </button>
-              <div className="flex-1 h-10 flex items-center justify-center text-white font-bold">
+              <div className="flex-1 h-10 flex items-center justify-center text-charcoal dark:text-white font-bold">
                 {editedSlot.capacity}
               </div>
               <button
                 type="button"
                 onClick={() => setEditedSlot({...editedSlot, capacity: editedSlot.capacity + 1})}
-                className="flex-1 h-10 bg-slate-900/50 text-white flex items-center justify-center hover:bg-slate-700/70"
+                className="flex-1 h-10 bg-slate-900/50 text-charcoal dark:text-white flex items-center justify-center hover:bg-slate-700/70"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -198,14 +198,14 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800/80 text-white rounded border border-slate-700/50 hover:bg-slate-700"
+              className="px-4 py-2 bg-slate-800/80 text-charcoal dark:text-white rounded border border-slate-700/50 hover:bg-slate-700"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600/80 text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
+              className="px-4 py-2 bg-blue-600/80 text-charcoal dark:text-white rounded border border-blue-500/30 hover:bg-blue-700/90 shadow-md backdrop-blur-sm transition-all"
               disabled={isSaving}
             >
               {isSaving ? (

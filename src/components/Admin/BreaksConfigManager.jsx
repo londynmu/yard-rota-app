@@ -110,10 +110,10 @@ export default function BreaksConfigManager() {
   return (
     <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
       <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-        <h3 className="text-lg font-semibold text-white mb-4">Breaks Configuration</h3>
+        <h3 className="text-lg font-semibold text-charcoal dark:text-white mb-4">Breaks Configuration</h3>
         
         <div className="mb-4">
-          <label className="block text-white text-sm font-medium mb-2">
+          <label className="block text-charcoal dark:text-white text-sm font-medium mb-2">
             Working Hours
           </label>
           <div className="flex items-center space-x-2">
@@ -121,26 +121,26 @@ export default function BreaksConfigManager() {
               type="time"
               value={workHoursStart}
               onChange={(e) => setWorkHoursStart(e.target.value)}
-              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
             />
-            <span className="text-white">to</span>
+            <span className="text-charcoal dark:text-white">to</span>
             <input
               type="time"
               value={workHoursEnd}
               onChange={(e) => setWorkHoursEnd(e.target.value)}
-              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
         
         <div className="mb-4">
-          <label className="block text-white text-sm font-medium mb-2">
+          <label className="block text-charcoal dark:text-white text-sm font-medium mb-2">
             Week Start Day
           </label>
           <select
             value={weekStartDay}
             onChange={(e) => setWeekStartDay(e.target.value)}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
           >
             <option value="monday">Monday</option>
             <option value="saturday">Saturday</option>
@@ -149,7 +149,7 @@ export default function BreaksConfigManager() {
         </div>
         
         <div className="mb-4">
-          <label className="block text-white text-sm font-medium mb-2">
+          <label className="block text-charcoal dark:text-white text-sm font-medium mb-2">
             Default Shift Length (hours)
           </label>
           <input
@@ -158,12 +158,12 @@ export default function BreaksConfigManager() {
             max="24"
             value={defaultShiftLength}
             onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
           />
         </div>
         
         <div className="mb-4">
-          <label className="block text-white text-sm font-medium mb-2">
+          <label className="block text-charcoal dark:text-white text-sm font-medium mb-2">
             Minimum Break Between Shifts (hours)
           </label>
           <input
@@ -178,9 +178,9 @@ export default function BreaksConfigManager() {
               // Convert hours to minutes for DB storage
               setMinBreakBetweenSlots(Math.round(hours * 60));
             }}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
           />
-          <p className="text-white/60 text-xs mt-1">
+          <p className="text-charcoal dark:text-white/60 text-xs mt-1">
             Minimum time required between consecutive shifts for an employee
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function BreaksConfigManager() {
           type="button"
           onClick={saveSettings}
           disabled={isSaving}
-          className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+          className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal dark:text-white transition-colors ${
             isSaving ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >

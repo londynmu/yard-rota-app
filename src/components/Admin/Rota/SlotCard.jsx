@@ -106,8 +106,8 @@ const SlotCard = ({
     const modalContent = (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
         <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-5 w-full max-w-md animate-fade-scale">
-          <h3 className="text-xl font-bold text-white mb-3">Confirm Delete</h3>
-          <p className="text-white/90 mb-5">
+          <h3 className="text-xl font-bold text-charcoal dark:text-white mb-3">Confirm Delete</h3>
+          <p className="text-charcoal dark:text-white/90 mb-5">
             Are you sure you want to delete this slot?
             {assignedCount > 0 && (
               <span className="block mt-2 text-red-300 font-medium">
@@ -118,7 +118,7 @@ const SlotCard = ({
           <div className="flex space-x-3 justify-end">
             <button
               onClick={() => setShowDeleteConfirm(false)}
-              className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-600 transition-colors"
+              className="px-4 py-2 bg-slate-700 text-charcoal dark:text-white rounded-md hover:bg-slate-600 transition-colors"
             >
               Cancel
             </button>
@@ -127,7 +127,7 @@ const SlotCard = ({
                 handleDeleteSlot(slot.id);
                 setShowDeleteConfirm(false);
               }}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-charcoal dark:text-white rounded-md hover:bg-red-700 transition-colors"
             >
               Delete
             </button>
@@ -159,9 +159,9 @@ const SlotCard = ({
       
       <div className="flex justify-between items-start mb-3 pl-2">
         <div>
-          <h3 className="text-white font-bold">{slot.location}</h3>
+          <h3 className="text-charcoal dark:text-white font-bold">{slot.location}</h3>
           <div className="flex items-center mt-1">
-            <div className="bg-slate-800/70 border border-slate-600/30 text-white px-3 py-1.5 rounded-md text-sm font-medium">
+            <div className="bg-slate-800/70 border border-slate-600/30 text-charcoal dark:text-white px-3 py-1.5 rounded-md text-sm font-medium">
               {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
             </div>
           </div>
@@ -175,7 +175,7 @@ const SlotCard = ({
             {slot.shift_type.charAt(0).toUpperCase() + slot.shift_type.slice(1)}
           </span>
           
-          <div className={`text-xs ${isSlotFull ? 'bg-green-900/50 border-green-600/50' : fillPercentage === 0 ? 'bg-red-900/50 border-red-600/50' : 'bg-yellow-900/50 border-yellow-600/50'} text-white border px-2 py-0.5 rounded-full`}>
+          <div className={`text-xs ${isSlotFull ? 'bg-green-900/50 border-green-600/50' : fillPercentage === 0 ? 'bg-red-900/50 border-red-600/50' : 'bg-yellow-900/50 border-yellow-600/50'} text-charcoal dark:text-white border px-2 py-0.5 rounded-full`}>
             <span className="font-medium">{assignedCount}</span>
             <span className="mx-1">/</span>
             <span>{slot.capacity}</span>
@@ -235,11 +235,11 @@ const SlotCard = ({
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={`${user.first_name} ${user.last_name}`} className="h-6 w-6 rounded-full" />
                 ) : (
-                  <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-white text-xs">
+                  <div className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-charcoal dark:text-white text-xs">
                     {user.first_name?.[0]}{user.last_name?.[0]}
                   </div>
                 )}
-                <span className="text-sm text-white">{user.first_name} {user.last_name}</span>
+                <span className="text-sm text-charcoal dark:text-white">{user.first_name} {user.last_name}</span>
               </div>
             ))
           ) : (

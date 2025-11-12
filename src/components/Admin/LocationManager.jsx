@@ -217,12 +217,12 @@ export default function LocationManager() {
 
   return (
     <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-      <h3 className="text-lg font-semibold text-white mb-4">Location Management</h3>
+      <h3 className="text-lg font-semibold text-charcoal dark:text-white mb-4">Location Management</h3>
       
       {/* Add new location */}
       <div className="mb-6 flex items-end space-x-2">
         <div className="flex-grow">
-          <label className="block text-white text-sm font-medium mb-2" htmlFor="new-location">
+          <label className="block text-charcoal dark:text-white text-sm font-medium mb-2" htmlFor="new-location">
             Add New Location
           </label>
           <input
@@ -237,7 +237,7 @@ export default function LocationManager() {
               }
             }}
             placeholder="Enter location name"
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
             disabled={loading}
             ref={newLocationInputRef}
           />
@@ -246,7 +246,7 @@ export default function LocationManager() {
           type="button"
           onClick={handleAddLocation}
           disabled={loading || !newLocation.trim()}
-          className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+          className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal dark:text-white transition-colors ${
             loading || !newLocation.trim() ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -256,12 +256,12 @@ export default function LocationManager() {
       
       {/* Locations list */}
       <div className="mb-4">
-        <h4 className="text-md font-medium text-white mb-2">Existing Locations</h4>
+        <h4 className="text-md font-medium text-charcoal dark:text-white mb-2">Existing Locations</h4>
         
         {loading && locations.length === 0 ? (
-          <div className="text-white text-center py-4">Loading locations...</div>
+          <div className="text-charcoal dark:text-white text-center py-4">Loading locations...</div>
         ) : locations.length === 0 ? (
-          <div className="text-white/70 text-center py-4">No locations found</div>
+          <div className="text-charcoal dark:text-white/70 text-center py-4">No locations found</div>
         ) : (
           <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
             {locations.map(location => (
@@ -269,8 +269,8 @@ export default function LocationManager() {
                 key={location.id} 
                 className={`flex items-center justify-between p-3 rounded-md border ${
                   location.is_active 
-                    ? 'bg-white/10 border-white/20' 
-                    : 'bg-white/5 border-white/10 text-white/60'
+                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
+                    : 'bg-gray-50 dark:bg-gray-750 border-gray-200 dark:border-gray-700 text-charcoal dark:text-white/60'
                 }`}
               >
                 {editLocationId === location.id ? (
@@ -279,7 +279,7 @@ export default function LocationManager() {
                       type="text"
                       value={editLocationName}
                       onChange={(e) => setEditLocationName(e.target.value)}
-                      className="w-full px-2 py-1 bg-white/20 border border-white/30 rounded text-white focus:outline-none focus:border-blue-500"
+                      className="w-full px-2 py-1 bg-white/20 border border-white/30 rounded text-charcoal dark:text-white focus:outline-none focus:border-blue-500"
                       disabled={loading}
                     />
                   </div>

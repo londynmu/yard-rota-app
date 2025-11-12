@@ -6,13 +6,16 @@ import './index.css'
 import 'react-datepicker/dist/react-datepicker.css'
 import App from './App.jsx'
 import { ToastProvider } from './components/ui/ToastContext'
+import { ThemeProvider } from './lib/ThemeContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-      <App />
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 )

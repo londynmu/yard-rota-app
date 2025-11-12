@@ -188,19 +188,19 @@ export default function AdminPage() {
 
   // Główna zawartość strony admina (tylko jeśli isAdmin === true)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-blue-900 to-green-500 py-6 px-4 sm:px-8 overflow-hidden relative text-white">
-      <div className="max-w-7xl mx-auto backdrop-blur-xl bg-black/60 rounded-xl shadow-2xl overflow-hidden border-2 border-white/30">
-        <div className="border-b border-white/20 bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-md px-6 py-4">
+    <div className="min-h-screen bg-offwhite dark:bg-gray-900 py-6 px-4 sm:px-8 overflow-hidden relative">
+      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
           <div className="overflow-x-auto pb-1">
-            <div className="flex flex-nowrap whitespace-nowrap border-b border-white/10 mb-[-1px] min-w-full">
+            <div className="flex flex-nowrap whitespace-nowrap border-b border-gray-200 dark:border-gray-700 mb-[-1px] min-w-full">
               {['users', 'approvals', 'availability', 'settings', 'breaks config', 'locations', 'agencies', 'stats'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 font-medium capitalize transition-colors ${
                     activeTab === tab
-                      ? 'border-b-2 border-white text-white'
-                      : 'text-white/70 hover:text-white'
+                      ? 'border-b-2 border-black dark:border-white text-black dark:text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white'
                   }`}
                 >
                   {tab}
