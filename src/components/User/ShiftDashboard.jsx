@@ -150,11 +150,17 @@ export default function ShiftDashboard() {
 
         // Fetch profiles for all unique user_ids
         if (shiftsData && shiftsData.length > 0) {
-          const userIds = [...new Set(shiftsData.map(s => s.user_id))];
-          const { data: profilesData } = await supabase
+          // Filter out null user_ids before fetching
+          const userIds = [...new Set(shiftsData.map(s => s.user_id).filter(id => id !== null))];
+          console.log('[Team Schedule] User IDs to fetch:', userIds);
+          
+          const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', userIds);
+          
+          console.log('[Team Schedule] Profiles fetched:', profilesData);
+          console.log('[Team Schedule] Profiles error:', profilesError);
           
           // Map profiles to shifts
           const profilesMap = {};
@@ -162,10 +168,17 @@ export default function ShiftDashboard() {
             profilesMap[p.id] = p;
           });
           
-          const shiftsWithProfiles = shiftsData.map(s => ({
-            ...s,
-            profiles: profilesMap[s.user_id]
-          }));
+          console.log('[Team Schedule] Profiles map:', profilesMap);
+          
+          // Only include shifts where we found a profile
+          const shiftsWithProfiles = shiftsData
+            .filter(s => s.user_id && profilesMap[s.user_id])
+            .map(s => ({
+              ...s,
+              profiles: profilesMap[s.user_id]
+            }));
+          
+          console.log('[Team Schedule] Final shifts with profiles:', shiftsWithProfiles.slice(0, 3));
           
           setAllShifts(shiftsWithProfiles);
         } else {
@@ -183,21 +196,30 @@ export default function ShiftDashboard() {
 
         // Fetch profiles for breaks
         if (breaksData && breaksData.length > 0) {
-          const userIds = [...new Set(breaksData.map(b => b.user_id))];
-          const { data: profilesData } = await supabase
+          // Filter out null user_ids before fetching
+          const userIds = [...new Set(breaksData.map(b => b.user_id).filter(id => id !== null))];
+          console.log('[Team Breaks] User IDs to fetch:', userIds);
+          
+          const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', userIds);
+          
+          console.log('[Team Breaks] Profiles fetched:', profilesData);
+          console.log('[Team Breaks] Profiles error:', profilesError);
           
           const profilesMap = {};
           profilesData?.forEach(p => {
             profilesMap[p.id] = p;
           });
           
-          const breaksWithProfiles = breaksData.map(b => ({
-            ...b,
-            profiles: profilesMap[b.user_id]
-          }));
+          // Only include breaks where we found a profile
+          const breaksWithProfiles = breaksData
+            .filter(b => b.user_id && profilesMap[b.user_id])
+            .map(b => ({
+              ...b,
+              profiles: profilesMap[b.user_id]
+            }));
           
           setAllBreaks(breaksWithProfiles);
         } else {
