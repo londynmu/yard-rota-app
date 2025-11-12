@@ -535,8 +535,8 @@ export default function ShiftDashboard() {
     );
   }
 
-  // No personal shift today - show team schedule
-  if (!shift) {
+  // Show team schedule for everyone (unified view)
+  if (true) {
     // Group shifts by type
     const shiftsByType = {
       day: allShifts.filter(s => s.shift_type === 'day'),
@@ -551,6 +551,43 @@ export default function ShiftDashboard() {
       night: allBreaks.filter(b => b.shift_type === 'night')
     };
 
+    // Helpers for highlighting and progress for the current user
+    const toMinutes = (hhmm) => {
+      if (!hhmm) return null;
+      const [h, m] = hhmm.substring(0, 5).split(':').map(Number);
+      return h * 60 + m;
+    };
+    const getNowMinutes = () => {
+      const now = new Date();
+      return now.getHours() * 60 + now.getMinutes();
+    };
+    const getShiftProgressFor = (start, end) => {
+      const startM = toMinutes(start);
+      const endM = toMinutes(end);
+      const nowM = getNowMinutes();
+      if (startM == null || endM == null || endM <= startM) return 0;
+      if (nowM <= startM) return 0;
+      if (nowM >= endM) return 100;
+      return Math.floor(((nowM - startM) / (endM - startM)) * 100);
+    };
+    const getMinutesLeft = (end) => {
+      const endM = toMinutes(end);
+      const nowM = getNowMinutes();
+      if (endM == null) return null;
+      return Math.max(0, endM - nowM);
+    };
+    const getBreakProgressFor = (start, duration) => {
+      const startM = toMinutes(start);
+      const endM = startM != null ? startM + (duration || 0) : null;
+      const nowM = getNowMinutes();
+      if (startM == null || endM == null || endM <= startM) return { active: false, pct: 0, left: 0 };
+      if (nowM < startM) return { active: false, pct: 0, left: startM - nowM };
+      if (nowM >= endM) return { active: false, pct: 100, left: 0 };
+      const pct = Math.floor(((nowM - startM) / (endM - startM)) * 100);
+      const left = Math.max(0, endM - nowM);
+      return { active: true, pct, left };
+    };
+
     return (
       <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
         {/* Header */}
@@ -561,7 +598,7 @@ export default function ShiftDashboard() {
             </svg>
             <div>
               <h2 className="text-lg font-bold text-charcoal">Today&apos;s Team Schedule</h2>
-              <p className="text-sm text-gray-600">No personal shift - viewing team</p>
+              <p className="text-sm text-gray-600">Viewing team</p>
             </div>
           </div>
         </div>
@@ -625,16 +662,37 @@ export default function ShiftDashboard() {
                               {shiftType} Shift ({shifts.length})
                             </h3>
                             <ul className="space-y-1 mt-2">
-                              {shifts.map(s => (
-                                <li key={s.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200">
-                                  <span className="font-medium text-charcoal">
-                                    {s.profiles?.first_name || 'Unknown'} {s.profiles?.last_name || 'User'}
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
-                                  </span>
-                                </li>
-                              ))}
+                              {shifts.map(s => {
+                                const isMe = s.user_id === user?.id;
+                                const progress = getShiftProgressFor(s.start_time, s.end_time);
+                                const minutesLeft = getMinutesLeft(s.end_time);
+                                return (
+                                  <li 
+                                    key={s.id} 
+                                    className={`p-2 rounded border flex flex-col gap-1 ${isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <span className={`font-medium ${isMe ? 'text-black' : 'text-charcoal'}`}>
+                                        {s.profiles?.first_name || 'Unknown'} {s.profiles?.last_name || 'User'}{isMe ? ' (You)' : ''}
+                                      </span>
+                                      <span className="text-sm text-gray-600">
+                                        {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
+                                      </span>
+                                    </div>
+                                    {isMe && progress > 0 && progress < 100 && (
+                                      <div className="mt-0.5">
+                                        <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
+                                          <span>Shift progress</span>
+                                          <span>{progress}%{minutesLeft != null ? ` • ${minutesLeft}m left` : ''}</span>
+                                        </div>
+                                        <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                                          <div className="h-full bg-black rounded-full transition-all" style={{ width: `${progress}%` }}></div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         );
@@ -667,14 +725,29 @@ export default function ShiftDashboard() {
                       <ul className="space-y-1 mt-2">
                         {breaks.map(b => {
                           const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
+                          const isMe = b.user_id === user?.id;
+                          const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
                           return (
-                            <li key={b.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-200">
-                              <span className="font-medium text-charcoal">
-                                {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                              </span>
+                            <li key={b.id} className={`p-2 rounded border flex flex-col gap-1 ${isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
+                              <div className="flex justify-between items-center">
+                                <span className={`font-medium ${isMe ? 'text-black' : 'text-charcoal'}`}>
+                                  {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}{isMe ? ' (You)' : ''}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                </span>
+                              </div>
+                              {isMe && br.active && (
+                                <div className="mt-0.5">
+                                  <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
+                                    <span>Break progress</span>
+                                    <span>{br.pct}% • {br.left}m left</span>
+                                  </div>
+                                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${br.pct}%` }}></div>
+                                  </div>
+                                </div>
+                              )}
                             </li>
                           );
                         })}
