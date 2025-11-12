@@ -128,13 +128,13 @@ const BrakesManager = () => {
       { start_time: '15:45', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
     ],
     Night: [
-      // 6 slots starting 21:00, 60 min, 2 people
-      { start_time: '21:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
-      { start_time: '22:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
-      { start_time: '23:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
-      { start_time: '00:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
-      { start_time: '01:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
-      { start_time: '02:00', duration_minutes: 60, capacity: 2, break_type: 'Night Break (60 min)' },
+      // 6 slots starting 21:00, 60 min, 3 people
+      { start_time: '21:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
+      { start_time: '22:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
+      { start_time: '23:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
+      { start_time: '00:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
+      { start_time: '01:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
+      { start_time: '02:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
     ],
     Afternoon: [
       // 3 slots starting 18:00, 60 min, 2 people
@@ -819,7 +819,7 @@ const BrakesManager = () => {
     return true;
   };
 
-  const handleAssignStaff = (staff, slot) => {
+  const handleAssignStaff = async (staff, slot) => {
     // Check if user has permission to assign this staff member
     if (!isAdmin && staff.id !== currentUser?.id) {
       toast.error('You can only assign yourself to breaks');
@@ -881,12 +881,37 @@ const BrakesManager = () => {
       }
     };
     
+    // AUTO-SAVE: Immediately save to database
+    const assignmentToSave = {
+      user_id: staff.id,
+      date: selectedDate,
+      shift_type: selectedShift.toLowerCase(),
+      break_start_time: slot.start_time,
+      break_duration_minutes: slot.duration_minutes,
+      break_type: selectedShift.toLowerCase() // Use shift type as break_type (must match DB constraint)
+    };
+
+    try {
+      const { error: insertError } = await supabase
+        .from('scheduled_breaks')
+        .insert([assignmentToSave]);
+      
+      if (insertError) {
+        console.error('[Auto-save] Error saving break assignment:', insertError);
+        toast.error('Failed to save break assignment');
+        return;
+      }
+
+      toast.success(`${staff.first_name} ${staff.last_name} assigned to break!`);
+    } catch (error) {
+      console.error('[Auto-save] Error:', error);
+      toast.error('Failed to save break assignment');
+      return;
+    }
+
     // Add to scheduled breaks state
     const updatedAssignments = [...scheduledBreaks, newAssignment];
     setScheduledBreaks(updatedAssignments);
-
-    // Save updated assignments to session storage
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
     
     // Update staff break status
     setAvailableStaff(prev => 
@@ -998,51 +1023,35 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="p-0 md:p-6 bg-white dark:bg-gray-800 text-charcoal dark:text-gray-100 min-h-screen">
-      <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-blue-600 dark:text-blue-400">Break Planner</h1>
+    <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen">
+      <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-blue-600">Break Planner</h1>
 
       {/* Controls */}
       <div className="flex flex-wrap gap-2 md:gap-4 mb-4 md:mb-6 items-center px-1 md:px-0">
         <div>
-          <label htmlFor="break-date" className="block text-sm font-medium text-gray-600 dark:text-gray-600 dark:text-gray-400 mb-1">Date</label>
+          <label htmlFor="break-date" className="block text-sm font-medium text-charcoal mb-1">Date</label>
           <input
             type="date"
             id="break-date"
+            lang="en-US"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
           />
         </div>
         <div>
-          <label htmlFor="shift-type" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Shift</label>
+          <label htmlFor="shift-type" className="block text-sm font-medium text-charcoal mb-1">Shift</label>
           <select
             id="shift-type"
             value={selectedShift}
             onChange={(e) => setSelectedShift(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 md:px-3 md:py-2 text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
           >
-            <option value="Day">Day (05:45 - 18:15)</option>
-            <option value="Afternoon">Afternoon (14:00 - 02:30)</option>
-            <option value="Night">Night (17:45 - 06:15)</option>
+            <option value="Day" className="bg-white text-charcoal">Day (05:45 - 18:15)</option>
+            <option value="Afternoon" className="bg-white text-charcoal">Afternoon (14:00 - 02:30)</option>
+            <option value="Night" className="bg-white text-charcoal">Night (17:45 - 06:15)</option>
           </select>
         </div>
-         {/* Save button only for admins */}
-         {isAdmin && (
-           <div className="mt-auto">
-               <button
-                  onClick={handleSaveAllBreaks}
-                  disabled={isLoading}
-                  className={`
-                    font-bold py-1 px-3 md:py-2 md:px-4 rounded transition duration-150 ease-in-out
-                    ${isLoading 
-                      ? 'bg-gray-500 cursor-not-allowed' 
-                      : 'bg-green-600 hover:bg-green-700 text-white'}
-                  `}
-               >
-                  {isLoading ? 'Saving...' : 'Save All Breaks'}
-              </button>
-          </div>
-         )}
       </div>
 
         {/* Messages */}
@@ -1059,7 +1068,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <h2 className="text-xl font-semibold mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2 text-blue-500">{groupName}</h2>
+              <h2 className="text-xl font-semibold mb-2 md:mb-3 border-b border-gray-200 pb-1 md:pb-2 text-blue-500">{groupName}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
@@ -1080,11 +1089,11 @@ const BrakesManager = () => {
           {/* Add Custom Slot Form - Only for admins */}
           {isAdmin && (
             <div>
-              <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-700 pb-1 md:pb-2">
+              <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-200 pb-1 md:pb-2">
                 <h2 className="text-xl font-semibold text-blue-500 mt-4 md:mt-8">Create Custom Slot</h2>
                 <button 
                   onClick={() => setShowCustomSlotForm(!showCustomSlotForm)}
-                  className="flex items-center text-sm px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-white"
+                  className="flex items-center text-sm px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-charcoal border border-gray-300"
                 >
                   {showCustomSlotForm ? 'Hide Form' : 'Show Form'}
                   <svg 
@@ -1139,6 +1148,7 @@ const BrakesManager = () => {
 const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff }) => {
   const modalRef = useRef(null);
   const [showAllStaff, setShowAllStaff] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Prevent body scrolling when modal is open
   useEffect(() => {
@@ -1196,16 +1206,16 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50 backdrop-blur-sm">
       <div 
         ref={modalRef}
-        className="relative bg-gray-800 text-white rounded-lg shadow-xl border border-gray-700 w-full max-w-md max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col"
+        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gray-900 px-2 py-2 md:px-4 md:py-3 border-b border-gray-700 flex justify-between items-center">
+        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-base md:text-lg font-semibold">
             Assign Staff to Break Slot
           </h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-charcoal transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1214,7 +1224,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         </div>
         
         {/* Slot Info */}
-        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-900/50 border-b border-gray-700">
+        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50/50 border-b border-gray-200">
           <div className="flex justify-between">
             <div>
               <span className="text-gray-400 text-xs md:text-sm">Time:</span>{' '}
@@ -1234,7 +1244,14 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               }</span>
             </div>
             <div>
-              <span className="text-[10px] md:text-xs bg-black dark:bg-white text-blue-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] md:text-xs font-medium ${
+                slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
+                'bg-purple-100 text-purple-800 border-purple-300'
+              }`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 {slot.duration_minutes} min
               </span>
             </div>
@@ -1250,14 +1267,14 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         </div>
         
         {/* Currently Assigned Staff */}
-        <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-700">
-          <h4 className="text-xs md:text-sm font-semibold text-gray-300 mb-1 md:mb-2">Currently Assigned</h4>
+        <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
+          <h4 className="text-xs md:text-sm font-semibold text-charcoal mb-1 md:mb-2">Currently Assigned</h4>
           {assignedStaff.length > 0 ? (
             <div className="space-y-1 md:space-y-2">
               {assignedStaff.map(staff => (
                 <div 
                   key={staff.id} 
-                  className="flex justify-between items-center bg-gray-700/50 px-2 py-1 md:px-3 md:py-2 rounded"
+                  className="flex justify-between items-center bg-gray-100 border border-gray-200 px-2 py-1 md:px-3 md:py-2 rounded"
                 >
                   <div className="text-xs md:text-sm">
                     {staff.user_name}
@@ -1308,12 +1325,16 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               {eligibleStaff.map(staff => (
                 <button 
                   key={staff.id}
-                  disabled={assignedStaff.length >= slot.capacity}
-                  onClick={() => onAssignStaff(staff, slot)}
+                  disabled={isProcessing || assignedStaff.length >= slot.capacity}
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    await onAssignStaff(staff, slot);
+                    setIsProcessing(false);
+                  }}
                   className={`w-full text-left flex items-center justify-between px-2 py-1 md:px-3 md:py-2 rounded transition-colors ${
-                    assignedStaff.length >= slot.capacity
-                      ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-700/50 hover:bg-gray-600/70 focus:bg-gray-600/70'
+                    assignedStaff.length >= slot.capacity || isProcessing
+                      ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-100 border border-gray-200 hover:bg-gray-200 focus:bg-gray-200'
                   }`}
                 >
                   <div>
@@ -1323,8 +1344,8 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                       {/* For Day shift, show which breaks are already assigned */}
                       {staff.preferred_shift?.toLowerCase() === 'day' && (
                         <span className="ml-1 md:ml-2">
-                          {staff.has_break_15 && <span className="inline-block px-1 py-0.5 bg-blue-900/50 text-blue-200 rounded text-[8px] md:text-[10px] mr-1">15m</span>}
-                          {staff.has_break_45 && <span className="inline-block px-1 py-0.5 bg-green-900/50 text-green-200 rounded text-[8px] md:text-[10px]">45m</span>}
+                          {staff.has_break_15 && <span className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded text-[8px] md:text-[10px] mr-1 font-medium">15m</span>}
+                          {staff.has_break_45 && <span className="inline-block px-1 py-0.5 bg-green-100 text-green-800 border border-green-300 rounded text-[8px] md:text-[10px] font-medium">45m</span>}
                         </span>
                       )}
                       {/* For others, show remaining break time */}
@@ -1345,7 +1366,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         </div>
         
         {/* Footer */}
-        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-900 border-t border-gray-700 flex justify-end">
+        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
           <button
             onClick={onClose}
             className="px-3 py-1 md:px-4 md:py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-xs md:text-sm"
@@ -1425,14 +1446,14 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
   
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/50">
-      <div className="bg-gray-800 text-white rounded-lg shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-        <div className="bg-gray-900 px-2 py-2 md:px-4 md:py-3 border-b border-gray-700 flex justify-between items-center">
+      <div className="bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-hidden">
+        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-base md:text-lg font-semibold">
             {slot.is_custom ? 'Edit Custom Slot' : 'Edit Standard Slot'}
           </h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-charcoal"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1444,7 +1465,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
           <div className="space-y-2 md:space-y-4">
             {/* Start Time - disabled for standard slots */}
             <div>
-              <label htmlFor="start_time" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="start_time" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
                 Start Time
               </label>
               <select
@@ -1453,7 +1474,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.start_time}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
+                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               >
@@ -1468,7 +1489,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Duration - disabled for standard slots */}
             <div>
-              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
                 Duration (minutes)
               </label>
               <select
@@ -1477,7 +1498,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.duration_minutes}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
+                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               >
@@ -1490,7 +1511,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Capacity - always enabled for both standard and custom slots */}
             <div>
-              <label htmlFor="capacity" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="capacity" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
                 Capacity
               </label>
               <input
@@ -1501,13 +1522,13 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 max={10}
                 value={formData.capacity}
                 onChange={handleChange}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm"
+                className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm"
               />
             </div>
             
             {/* Break Type - disabled for standard slots */}
             <div>
-              <label htmlFor="break_type" className="block text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label htmlFor="break_type" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
                 Break Type
               </label>
               <input
@@ -1517,7 +1538,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
                 value={formData.break_type}
                 onChange={handleChange}
                 disabled={!slot.is_custom}
-                className={`w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white text-sm ${
+                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
                   !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               />
@@ -1525,7 +1546,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
             
             {/* Notice for standard slots */}
             {!slot.is_custom && (
-              <div className="text-blue-500 text-xs md:text-sm mt-1 md:mt-2 bg-blue-900/20 p-1 md:p-2 rounded">
+              <div className="text-blue-600 text-xs md:text-sm mt-1 md:mt-2 bg-blue-50 p-2 rounded-lg border border-blue-200">
                 Note: For standard slots, only capacity can be edited.
               </div>
             )}
@@ -1557,7 +1578,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
               </button>
               <button
                 type="submit"
-                className="px-2 py-1 md:px-4 md:py-2 bg-black dark:bg-white text-white rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-xs md:text-sm"
+                className="px-2 py-1 md:px-4 md:py-2 bg-black bg-white text-white rounded hover:bg-gray-800 transition-colors text-xs md:text-sm"
               >
                 Save Changes
               </button>
@@ -1638,14 +1659,14 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
   };
   
   return (
-    <div className="bg-gray-800 p-2 md:p-4 rounded-lg shadow border border-gray-700">
-      <h3 className="text-lg font-semibold mb-2 md:mb-4">Create Custom Slot</h3>
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-200">
+      <h3 className="text-lg font-semibold mb-4 text-charcoal">Create Custom Slot</h3>
       
       <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
           {/* Start Time */}
           <div>
-            <label htmlFor="cs_start_time" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label htmlFor="cs_start_time" className="block text-sm font-medium text-charcoal mb-1">
               Start Time
             </label>
             <select
@@ -1653,7 +1674,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="start_time"
               value={formData.start_time}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
             >
               <option value="">Select time</option>
               {generateTimeOptions().map(time => (
@@ -1666,7 +1687,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
           
           {/* Duration */}
           <div>
-            <label htmlFor="cs_duration_minutes" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label htmlFor="cs_duration_minutes" className="block text-sm font-medium text-charcoal mb-1">
               Duration (minutes)
             </label>
             <select
@@ -1674,7 +1695,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="duration_minutes"
               value={formData.duration_minutes}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
             >
               <option value={15}>15 minutes</option>
               <option value={30}>30 minutes</option>
@@ -1685,7 +1706,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
           
           {/* Capacity */}
           <div>
-            <label htmlFor="cs_capacity" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label htmlFor="cs_capacity" className="block text-sm font-medium text-charcoal mb-1">
               Capacity
             </label>
             <input
@@ -1696,13 +1717,13 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               max={10}
               value={formData.capacity}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
             />
           </div>
           
           {/* Break Type */}
           <div>
-            <label htmlFor="cs_break_type" className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <label htmlFor="cs_break_type" className="block text-sm font-medium text-charcoal mb-1">
               Break Type
             </label>
             <input
@@ -1711,7 +1732,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="break_type"
               value={formData.break_type}
               onChange={handleChange}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
               placeholder="Custom Slot"
             />
           </div>
@@ -1720,7 +1741,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div>
           <button
             type="submit"
-            className="px-3 py-1 md:px-4 md:py-2 bg-black dark:bg-white text-white rounded hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+            className="px-3 py-1 md:px-4 md:py-2 bg-black bg-white text-white rounded hover:bg-gray-800 transition-colors"
           >
             Add Custom Slot
           </button>
@@ -1756,8 +1777,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
   
   const isFull = assignedStaff.length >= slot.capacity;
   const cardClasses = `
-    bg-white dark:bg-gray-800 p-2 md:p-4 rounded-lg shadow-sm border 
-    ${isFull ? 'border-green-500' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer'}
+    bg-white p-2 md:p-4 rounded-lg shadow-sm border 
+    ${isFull ? 'border-green-500' : 'border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer'}
     min-h-[120px] md:min-h-[150px] flex flex-col justify-between relative
   `;
   
@@ -1779,16 +1800,23 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
           <span className="font-semibold text-sm md:text-base">
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className="text-xs bg-black dark:bg-white text-blue-100 px-1 py-0.5 md:px-2 md:py-0.5 rounded">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${
+            slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
+            slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
+            'bg-purple-100 text-purple-800 border-purple-300'
+          }`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {slot.duration_minutes} min
           </span>
         </div>
-        <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1 md:mb-2">
+        <div className="text-xs md:text-sm text-charcoal mb-1 md:mb-2">
           Capacity: {slot.capacity}
         </div>
-        <div className="text-xs md:text-sm text-gray-300">
+        <div className="text-xs md:text-sm text-gray-600">
           Assigned: {assignedStaff.length}/{slot.capacity}
-          <span className={`ml-1 md:ml-2 ${assignedStaff.length >= slot.capacity ? 'text-green-400' : 'text-yellow-400'}`}>
+          <span className={`ml-1 md:ml-2 font-medium ${assignedStaff.length >= slot.capacity ? 'text-green-600' : 'text-amber-600'}`}>
             {assignedStaff.length >= slot.capacity ? 'Full' : 'Available'}
           </span>
         </div>
@@ -1799,7 +1827,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
             {assignedStaff.map(staff => (
               <div 
                 key={staff.id} 
-                className="text-xs md:text-sm bg-gray-700/50 px-1 py-0.5 md:px-2 md:py-1 rounded flex justify-between items-center"
+                className="text-xs md:text-sm bg-gray-100 border border-gray-200 px-1 py-0.5 md:px-2 md:py-1 rounded flex justify-between items-center"
               >
                 <span className="truncate">{staff.user_name}</span>
                 {/* Show remove button only if user is admin or it's their own break */}
