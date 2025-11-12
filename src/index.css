@@ -64,6 +64,9 @@
   body {
     background-color: #FAFAFA;
     color: #2D2D2D;
+    /* Respect safe area at the top (iOS/Android with cutouts when using standalone modes) */
+    padding-top: constant(safe-area-inset-top);
+    padding-top: env(safe-area-inset-top);
   }
   
   .dark body {

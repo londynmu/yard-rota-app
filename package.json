@@ -12,11 +12,14 @@
     "logout-all": "node scripts/logout-all-users.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/status-bar": "^7.0.3",
     "@supabase/supabase-js": "^2.49.4",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
-    "jspdf": "^2.5.2",
-    "jspdf-autotable": "^3.8.4",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-big-calendar": "^1.18.0",
@@ -28,6 +31,8 @@
     "recharts": "^2.15.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.4.4",
     "@eslint/js": "^9.25.1",
     "@tailwindcss/postcss": "^4.1.4",
     "@types/react": "^19.0.10",
@@ -40,8 +45,9 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "postcss": "^8.4.31",
-    "react-devtools": "^6.1.1",
+    "react-devtools": "^1.0.5",
     "tailwindcss": "^3.3.3",
+    "typescript": "^5.9.3",
     "vite": "^6.3.1"
   }
 }
