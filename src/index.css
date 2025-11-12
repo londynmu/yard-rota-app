@@ -67,6 +67,9 @@
     /* Respect safe area at the top (iOS/Android with cutouts when using standalone modes) */
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top);
+    /* Respect bottom safe area when gesture nav overlaps */
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
   }
   
   .dark body {
