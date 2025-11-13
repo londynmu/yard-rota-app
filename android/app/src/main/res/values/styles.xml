@@ -6,10 +6,10 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">#FFFFFFFF</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#FFFFFFFF</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#FF000000</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#FF000000</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">never</item>
         <item name="android:windowFullscreen">false</item>
     </style>
@@ -20,10 +20,10 @@
         <item name="android:background">@null</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <!-- Ensure status bar is visible and not overlapped -->
-        <item name="android:statusBarColor">#FFFFFFFF</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#FFFFFFFF</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#FF000000</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#FF000000</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">never</item>
         <item name="android:windowFullscreen">false</item>
     </style>

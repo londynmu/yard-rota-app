@@ -23,14 +23,18 @@ public class MainActivity extends BridgeActivity {
     final Window window = getWindow();
     window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
     window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-    window.setStatusBarColor(Color.WHITE);
+    window.setStatusBarColor(Color.BLACK);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      window.setNavigationBarColor(Color.BLACK);
+    }
     // Remove layout fullscreen flags and enable light status bar icons (API 23+)
     final View decor = window.getDecorView();
     int sysUi = decor.getSystemUiVisibility();
     sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
     sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+    // Ensure light icons (no LIGHT_STATUS_BAR flag -> light icons on dark bg)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+      sysUi &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
     }
     decor.setSystemUiVisibility(sysUi);
     // Make system bars consume insets so WebView does not draw under status bar
@@ -47,23 +51,23 @@ public class MainActivity extends BridgeActivity {
     // Explicitly show system bars (in case device/gesture settings hid them)
     WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
     if (controller != null) {
-      controller.setAppearanceLightStatusBars(true);
-      controller.setAppearanceLightNavigationBars(true);
+      controller.setAppearanceLightStatusBars(false);
+      controller.setAppearanceLightNavigationBars(false);
       controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
   }
 
   @Override
-  protected void onResume() {
+  public void onResume() {
     super.onResume();
     // Re-assert system bar visibility on resume (some OEMs toggle immersive)
     final Window window = getWindow();
     final View decor = window.getDecorView();
     WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
     if (controller != null) {
-      controller.setAppearanceLightStatusBars(true);
-      controller.setAppearanceLightNavigationBars(true);
+      controller.setAppearanceLightStatusBars(false);
+      controller.setAppearanceLightNavigationBars(false);
       controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
