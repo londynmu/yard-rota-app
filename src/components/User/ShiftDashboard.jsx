@@ -154,7 +154,16 @@ export default function ShiftDashboard() {
       if (!user) return;
 
       try {
-        const today = new Date().toISOString().split('T')[0];
+        // Dates: keep shifts on calendar 'today', but for breaks, anchor to previous day until 06:00
+        const toLocalYmd = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+        const now = new Date();
+        const today = toLocalYmd(now);
+        const effectiveForBreaks = toLocalYmd(now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now);
         
         // Fetch ALL shifts for today (without profiles join)
         const { data: shiftsData, error: shiftsError } = await supabase
@@ -219,7 +228,7 @@ export default function ShiftDashboard() {
         const { data: breaksData, error: breaksError } = await supabase
           .from('scheduled_breaks')
           .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
-          .eq('date', today)
+          .eq('date', effectiveForBreaks)
           .order('break_start_time');
           
         if (breaksError) throw breaksError;
@@ -291,7 +300,16 @@ export default function ShiftDashboard() {
     }
 
     const fetchBreakInfo = async () => {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      // Use local-date logic with a 06:00 boundary for night shift continuity
+      const toLocalYmd = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const now = new Date();
+      const effectiveDateObj = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
+      const today = toLocalYmd(effectiveDateObj); // YYYY-MM-DD format anchored to shift start day
 
       try {
         // Determine which shifts to show based on user's shift preference
@@ -874,17 +892,25 @@ export default function ShiftDashboard() {
                           const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
                           const isMe = b.user_id === user?.id;
                           const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
+                          const itemClass = br.active
+                            ? 'bg-green-50 border-gray-200'
+                            : (isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200');
                           return (
-                            <li key={b.id} className={`p-2 rounded border flex flex-col gap-1 ${isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}`}>
+                            <li key={b.id} className={`p-2 rounded border flex flex-col gap-1 ${itemClass}`}>
                               <div className="flex justify-between items-center">
                                 <span className={`font-medium ${isMe ? 'text-black' : 'text-charcoal'}`}>
                                   {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}{isMe ? ' (You)' : ''}
                                 </span>
-                                <span className="text-sm text-gray-600">
+                                <span className="text-sm text-gray-600 flex items-center">
                                   {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                  {br.active && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-600 text-white">
+                                      ON BREAK
+                                    </span>
+                                  )}
                                 </span>
                               </div>
-                              {isMe && br.active && (
+                              {(br.active || isMe) && br.active && (
                                 <div className="mt-0.5">
                                   <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
                                     <span>Break progress</span>

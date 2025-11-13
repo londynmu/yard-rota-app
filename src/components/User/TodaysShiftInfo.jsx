@@ -40,7 +40,16 @@ function NoShiftWithBreaksView() {
     }
 
     const fetchBreakInfo = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      // Anchor to previous local day until 06:00 for night shift continuity
+      const toLocalYmd = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const now = new Date();
+      const effectiveDate = toLocalYmd(now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now);
+      const today = effectiveDate;
       console.log('[NoShiftWithBreaksView] Fetching breaks for date:', today);
 
       try {
@@ -181,23 +190,41 @@ function NoShiftWithBreaksView() {
               };
               
               const config = shiftConfig[shiftType];
+              const isActiveNow = (startHHMM, durationMins) => {
+                if (!startHHMM) return false;
+                const [h, m] = startHHMM.substring(0,5).split(':').map(Number);
+                if (Number.isNaN(h) || Number.isNaN(m)) return false;
+                const now = new Date();
+                const nowM = now.getHours() * 60 + now.getMinutes();
+                const startM = h * 60 + m;
+                const endM = startM + (durationMins || 0);
+                return nowM >= startM && nowM < endM;
+              };
               
               return (
                 <div key={shiftType} className={`${config.bgColor} rounded-lg p-3`}>
                   <h4 className={`${config.color} font-medium mb-2`}>{config.name}</h4>
                   <div className="space-y-1">
-                    {breaks.map((breakItem, index) => (
-                      <div key={`${shiftType}-${index}`} className="flex justify-between items-center text-sm">
-                        <span className="text-white">
-                          {breakItem.profiles ? 
-                            `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
-                            'Unknown User'}
-                        </span>
-                        <span className="text-gray-600">
-                          {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
-                        </span>
-                      </div>
-                    ))}
+                    {breaks.map((breakItem, index) => {
+                      const active = isActiveNow(breakItem.break_start_time, breakItem.break_duration_minutes);
+                      return (
+                        <div key={`${shiftType}-${index}`} className={`flex justify-between items-center text-sm ${active ? 'bg-green-50 rounded border border-gray-200 px-2 py-1' : ''}`}>
+                          <span className={`text-white ${active ? 'text-charcoal font-medium' : ''}`}>
+                            {breakItem.profiles ? 
+                              `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
+                              'Unknown User'}
+                          </span>
+                          <span className="text-gray-600 flex items-center">
+                            {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
+                            {active && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-600 text-white">
+                                ON BREAK
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

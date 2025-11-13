@@ -54,7 +54,16 @@ export default function MyBreakInfo() {
 
     const fetchBreakInfo = async () => {
       setBreakInfo('loading');
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      // Determine effective local date: stick to previous day until 06:00
+      const toLocalYmd = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const now = new Date();
+      const effectiveDateObj = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
+      const today = toLocalYmd(effectiveDateObj); // YYYY-MM-DD format
 
       try {
         // Determine which shifts to show based on user's shift preference
@@ -271,7 +280,11 @@ export default function MyBreakInfo() {
         
         {/* Break title */}
         <div className="font-bold text-lg text-charcoal">
-          Breaks Schedule - {new Date().toLocaleDateString()}
+          {(() => {
+            const now = new Date();
+            const effective = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
+            return `Breaks Schedule - ${effective.toLocaleDateString()}`;
+          })()}
         </div>
       </div>
       
