@@ -689,11 +689,6 @@ export default function ShiftDashboard() {
 
     return (
       <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-charcoal">Team Schedule</h2>
-        </div>
-
         {/* Toggle between Shifts and Breaks */}
         <div className="border-b border-gray-200">
           <div className="flex">
@@ -701,21 +696,21 @@ export default function ShiftDashboard() {
               onClick={() => setTeamView('shifts')}
               className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                 teamView === 'shifts' 
-                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
-                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
+                  ? 'text-emerald-800 bg-emerald-50 border-b-2 border-black rounded-t-md' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
               }`}
             >
-              Team Shifts ({allShifts.length})
+              Today's Shifts
             </button>
             <button 
               onClick={() => setTeamView('breaks')}
               className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                 teamView === 'breaks' 
-                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
-                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
+                  ? 'text-sky-800 bg-sky-50 border-b-2 border-black rounded-t-md' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
               }`}
             >
-              Team Breaks ({allBreaks.length})
+              Today's Breaks
             </button>
           </div>
         </div>
