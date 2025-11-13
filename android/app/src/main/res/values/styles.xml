@@ -10,6 +10,9 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">#FF000000</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">never</item>
         <item name="android:windowFullscreen">false</item>
     </style>
@@ -24,6 +27,9 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">#FF000000</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode">never</item>
         <item name="android:windowFullscreen">false</item>
     </style>

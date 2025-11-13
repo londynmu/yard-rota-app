@@ -72,4 +72,20 @@ public class MainActivity extends BridgeActivity {
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
   }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (!hasFocus) return;
+    // Re-apply when window regains focus (addresses One UI dark mode edge cases)
+    final Window window = getWindow();
+    final View decor = window.getDecorView();
+    WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
+    if (controller != null) {
+      controller.setAppearanceLightStatusBars(false);
+      controller.setAppearanceLightNavigationBars(false);
+      controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
+      controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
+    }
+  }
 }
