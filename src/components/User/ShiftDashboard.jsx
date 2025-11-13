@@ -163,21 +163,33 @@ export default function ShiftDashboard() {
         };
         const now = new Date();
         const today = toLocalYmd(now);
-        const effectiveForBreaks = toLocalYmd(now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now);
+        const yesterday = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+        const beforeSix = now.getHours() < 6;
+        const effectiveForBreaks = toLocalYmd(beforeSix ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now);
         
-        // Fetch ALL shifts for today (without profiles join)
+        // Fetch shifts for today and yesterday (to correctly handle night shift window before 06:00)
         const { data: shiftsData, error: shiftsError } = await supabase
           .from('scheduled_rota')
           .select('id, user_id, date, start_time, end_time, location, shift_type')
-          .eq('date', today)
+          .in('date', [today, yesterday])
           .order('start_time');
           
         if (shiftsError) throw shiftsError;
 
         // Fetch profiles for all unique user_ids
         if (shiftsData && shiftsData.length > 0) {
+          // Apply date selection rules:
+          // - Day/Afternoon: always today (00:00-23:59 of 'today')
+          // - Night: before 06:00 show yesterday's night (18:00-06:00), after 06:00 show today's night
+          const selectedShiftsRaw = shiftsData.filter(s => {
+            if (s.shift_type === 'night') {
+              return beforeSix ? s.date === yesterday : s.date === today;
+            }
+            return s.date === today; // day and afternoon
+          });
+          
           // Filter out null user_ids before fetching
-          const userIds = [...new Set(shiftsData.map(s => s.user_id).filter(id => id !== null))];
+          const userIds = [...new Set(selectedShiftsRaw.map(s => s.user_id).filter(id => id !== null))];
           console.log('[Team Schedule] User IDs to fetch:', userIds);
           
           const { data: profilesData, error: profilesError } = await supabase
@@ -197,7 +209,13 @@ export default function ShiftDashboard() {
           console.log('[Team Schedule] Profiles map:', profilesMap);
           
           // Only include shifts where we found a profile
-          const shiftsWithProfiles = shiftsData
+          // Sort to prefer night shifts before day/afternoon before 06:00, else day/afternoon first
+          const preferenceWeight = (s) => {
+            if (beforeSix) return s.shift_type === 'night' ? 0 : 1;
+            return s.shift_type === 'night' ? 1 : 0;
+          };
+          const shiftsWithProfiles = selectedShiftsRaw
+            .sort((a, b) => preferenceWeight(a) - preferenceWeight(b) || (a.start_time || '').localeCompare(b.start_time || ''))
             .filter(s => s.user_id && profilesMap[s.user_id])
             .map(s => ({
               ...s,
