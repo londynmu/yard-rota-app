@@ -897,17 +897,19 @@ export default function ShiftDashboard() {
                             : (isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200');
                           return (
                             <li key={b.id} className={`p-2 rounded border flex flex-col gap-1 ${itemClass}`}>
+                              {br.active && (
+                                <div className="mb-0.5">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-600 text-white leading-tight tracking-wide whitespace-nowrap">
+                                    ON BREAK
+                                  </span>
+                                </div>
+                              )}
                               <div className="flex justify-between items-center">
                                 <span className={`font-medium ${isMe ? 'text-black' : 'text-charcoal'}`}>
                                   {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}{isMe ? ' (You)' : ''}
                                 </span>
-                                <span className="text-sm text-gray-600 flex items-center">
+                                <span className="text-sm text-gray-600">
                                   {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                  {br.active && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-600 text-white">
-                                      ON BREAK
-                                    </span>
-                                  )}
                                 </span>
                               </div>
                               {(br.active || isMe) && br.active && (

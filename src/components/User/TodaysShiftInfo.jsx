@@ -208,20 +208,24 @@ function NoShiftWithBreaksView() {
                     {breaks.map((breakItem, index) => {
                       const active = isActiveNow(breakItem.break_start_time, breakItem.break_duration_minutes);
                       return (
-                        <div key={`${shiftType}-${index}`} className={`flex justify-between items-center text-sm ${active ? 'bg-green-50 rounded border border-gray-200 px-2 py-1' : ''}`}>
-                          <span className={`text-white ${active ? 'text-charcoal font-medium' : ''}`}>
-                            {breakItem.profiles ? 
-                              `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
-                              'Unknown User'}
-                          </span>
-                          <span className="text-gray-600 flex items-center">
-                            {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
-                            {active && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-600 text-white">
+                        <div key={`${shiftType}-${index}`} className={`text-sm ${active ? 'bg-green-50 rounded border border-gray-200 px-2 py-1' : ''}`}>
+                          {active && (
+                            <div className="mb-0.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-600 text-white leading-tight tracking-wide whitespace-nowrap">
                                 ON BREAK
                               </span>
-                            )}
-                          </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center">
+                            <span className={`text-white ${active ? 'text-charcoal font-medium' : ''}`}>
+                              {breakItem.profiles ? 
+                                `${breakItem.profiles.first_name} ${breakItem.profiles.last_name}` : 
+                                'Unknown User'}
+                            </span>
+                            <span className="text-gray-600">
+                              {formatBreakTime(breakItem)} ({breakItem.break_duration_minutes}m)
+                            </span>
+                          </div>
                         </div>
                       );
                     })}
