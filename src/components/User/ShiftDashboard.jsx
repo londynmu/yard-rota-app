@@ -618,6 +618,24 @@ export default function ShiftDashboard() {
       if (nowM >= endM) return endM - startM;
       return nowM - startM;
     };
+    const isNowWithinShift = (start, end) => {
+      let startM = toMinutes(start);
+      let endM = toMinutes(end);
+      let nowM = getNowMinutes();
+      if (startM == null || endM == null) return false;
+      if (endM <= startM) {
+        endM += 24 * 60;
+        if (nowM < startM) nowM += 24 * 60;
+      }
+      return nowM >= startM && nowM < endM;
+    };
+    const getMinutesUntilStart = (start) => {
+      const startM = toMinutes(start);
+      const nowM = getNowMinutes();
+      if (startM == null) return null;
+      if (nowM < startM) return startM - nowM;
+      return null;
+    };
     const formatDuration = (mins) => {
       if (mins == null) return '';
       const h = Math.floor(mins / 60);
@@ -779,7 +797,7 @@ export default function ShiftDashboard() {
                                         {s.start_time?.substring(0,5) || '??:??'} - {s.end_time?.substring(0,5) || '??:??'}
                                       </span>
                                     </div>
-                                    {isMe && (
+                                    {isMe && isNowWithinShift(s.start_time, s.end_time) && (
                                       <div className="mt-0.5">
                                         <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
                                           <span>Shift progress</span>
@@ -848,6 +866,13 @@ export default function ShiftDashboard() {
                                             </div>
                                           );
                                         })()}
+                                      </div>
+                                    )}
+                                    {isMe && !isNowWithinShift(s.start_time, s.end_time) && getMinutesUntilStart(s.start_time) != null && (
+                                      <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+                                        <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                                          Starts in: {formatDuration(getMinutesUntilStart(s.start_time))}
+                                        </span>
                                       </div>
                                     )}
                                   </li>

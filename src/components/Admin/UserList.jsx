@@ -84,16 +84,16 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
   
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-white px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-6 w-6 text-charcoal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-lg font-bold text-white drop-shadow-md">
+              <h3 className="text-lg font-bold text-charcoal">
                 Filter & Sort Users
               </h3>
             </div>
@@ -101,7 +101,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
           <button
             type="button"
             onClick={onClose}
-            className="text-white hover:text-white/70 transition-colors"
+            className="text-charcoal hover:bg-gray-100 rounded-md p-1 transition-colors"
             aria-label="Close"
           >
             <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,12 +114,12 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
       <div className="px-6 py-4">
         {/* Shift Filter */}
         <div className="mb-6">
-          <h4 className="text-white font-semibold mb-3">Filter by Shift</h4>
+          <h4 className="text-charcoal font-semibold mb-3">Filter by Shift</h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'all' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -134,8 +134,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'day' 
-              ? 'bg-yellow-500/40 border-yellow-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -150,8 +150,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'afternoon' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -166,8 +166,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               shiftFilter === 'night' 
-              ? 'bg-indigo-500/40 border-indigo-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -184,12 +184,12 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         
         {/* Sort Options */}
         <div className="mb-6">
-          <h4 className="text-white font-semibold mb-3">Sort By</h4>
+          <h4 className="text-charcoal font-semibold mb-3">Sort By</h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortBy === 'name' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -204,8 +204,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortBy === 'score' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -222,12 +222,12 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         
         {/* Sort Order */}
         <div className="mb-6">
-          <h4 className="text-white font-semibold mb-3">Sort Order</h4>
+          <h4 className="text-charcoal font-semibold mb-3">Sort Order</h4>
           <div className="grid grid-cols-2 gap-2">
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortOrder === 'asc' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -242,8 +242,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
             
             <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
               sortOrder === 'desc' 
-              ? 'bg-blue-500/40 border-blue-400/50 text-white' 
-              : 'border-gray-200 hover:bg-white/5 text-white/80'
+              ? 'bg-black text-white border-black' 
+              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
             }`}>
               <input
                 type="radio"
@@ -259,18 +259,18 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
       </div>
       
-      <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200">
+      <div className="bg-white px-6 py-4 flex justify-between border-t border-gray-200">
         <button
           type="button"
           onClick={handleReset}
-          className="px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/30 rounded-lg font-medium text-white hover:bg-white/20 focus:outline-none transition-colors"
+          className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors"
         >
           Reset
         </button>
         <button
           type="button"
           onClick={handleApplyFilters}
-          className="px-4 py-2 bg-blue-500/40 backdrop-blur-xl border border-blue-400/40 rounded-lg font-medium text-white hover:bg-blue-500/60 focus:outline-none transition-colors"
+          className="px-4 py-2 rounded-md bg-black text-white hover:opacity-90 transition-colors"
         >
           Apply Filters
         </button>
@@ -562,12 +562,12 @@ export default function UserList({ users, onRefresh }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-lg font-bold text-white drop-shadow-md">
+                    <h3 className="text-lg font-bold text-charcoal">
                       Delete Confirmation
                     </h3>
                   </div>
@@ -578,7 +578,7 @@ export default function UserList({ users, onRefresh }) {
               e.stopPropagation();
               closeDeleteModal();
             }}
-                  className="text-white hover:text-white/70 transition-colors"
+                  className="text-charcoal hover:bg-gray-100 rounded-md p-1 transition-colors"
                   aria-label="Close"
                 >
                   <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -590,38 +590,38 @@ export default function UserList({ users, onRefresh }) {
             <div className="px-6 py-4">
               {confirmationStep === 1 ? (
                 <div>
-                  <p className="text-white mb-4">
+                  <p className="text-charcoal mb-4">
                     Are you sure you want to delete this user?
                   </p>
-                  <p className="text-white font-medium text-lg">
+                  <p className="text-charcoal font-medium text-lg">
                     {userToDelete?.first_name} {userToDelete?.last_name}
                   </p>
-                  <div className="bg-red-500/30 backdrop-blur-xl border-l-4 border-red-400/70 text-red-100 p-4 mb-4 rounded-r-md shadow-md">
+                  <div className="bg-red-50 border-l-4 border-red-300 text-red-700 p-4 mb-4 rounded-r-md">
                     <p className="font-medium">Warning</p>
                     <p className="text-sm">This action cannot be undone. All user data will be permanently removed.</p>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <p className="text-white mb-4">
-                    <span className="font-medium">Final confirmation required.</span> Please type <span className="font-bold text-red-300">delete</span> to confirm:
+                  <p className="text-charcoal mb-4">
+                    <span className="font-medium">Final confirmation required.</span> Please type <span className="font-bold text-red-700">delete</span> to confirm:
                   </p>
                   <input
                     ref={confirmInputRef}
                     type="text"
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-xl border border-white/30 rounded-lg focus:outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 mb-4 text-white"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 mb-4 text-charcoal"
                     placeholder="Type 'delete' to confirm"
                   />
                 </div>
               )}
             </div>
-            <div className="bg-black/40 px-6 py-4 flex justify-between border-t border-gray-200">
+            <div className="bg-white px-6 py-4 flex justify-between border-t border-gray-200">
               <button
           type="button"
           onClick={closeDeleteModal}
-                className="px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/30 rounded-lg font-medium text-white hover:bg-white/20 focus:outline-none transition-colors"
+                className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
@@ -629,7 +629,7 @@ export default function UserList({ users, onRefresh }) {
                 <button
             type="button"
                   onClick={handleFirstConfirmation}
-                  className="px-4 py-2 bg-red-500/40 backdrop-blur-xl border border-red-400/40 rounded-lg font-medium text-white hover:bg-red-500/60 focus:outline-none transition-colors"
+                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
                 >
                   Continue
                 </button>
@@ -638,10 +638,10 @@ export default function UserList({ users, onRefresh }) {
             type="button"
                   onClick={handleDeleteUser}
                   disabled={confirmationInput.toLowerCase() !== 'delete'}
-                  className={`px-4 py-2 border rounded-lg font-medium text-white focus:outline-none transition-colors ${
+                  className={`px-4 py-2 rounded-md font-medium focus:outline-none transition-colors ${
                     confirmationInput.toLowerCase() === 'delete'
-                      ? 'bg-red-500/50 hover:bg-red-500/70 border-red-400/50'
-                      : 'bg-gray-500/30 border-gray-200 cursor-not-allowed'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   }`}
                 >
                   Delete User
@@ -654,11 +654,11 @@ export default function UserList({ users, onRefresh }) {
   return (
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-white drop-shadow-md">User Management</h1>
+        <h1 className="text-2xl font-bold text-charcoal">User Management</h1>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={openFilterModal}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-md text-white hover:bg-white/20 transition-colors flex items-center shadow-lg"
+            className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
@@ -667,7 +667,7 @@ export default function UserList({ users, onRefresh }) {
           </button>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-200 rounded-md text-white hover:bg-white/20 transition-colors shadow-lg flex items-center"
+            className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center"
             aria-label="Refresh"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -678,7 +678,7 @@ export default function UserList({ users, onRefresh }) {
         </div>
       </div>
       <div className="mb-4 flex justify-between items-center">
-        <div className="text-white/80 text-sm">
+        <div className="text-gray-600 text-sm">
           {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift} shift)` : ''}
         </div>
       </div>
@@ -686,22 +686,22 @@ export default function UserList({ users, onRefresh }) {
       {/* Mobile card view (visible on small screens) */}
       <div className="md:hidden space-y-3">
         {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-black/40 backdrop-blur-xl border border-gray-200 rounded-lg shadow-md overflow-hidden">
+          <div key={user.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
             <div className="p-3 flex items-center justify-between border-b border-gray-200">
               <div className="flex items-center">
                 <div className="flex-shrink-0 h-10 w-10 mr-3">
                   {user.avatar_url ? (
-                    <img className="h-10 w-10 rounded-full border-2 border-white/30 shadow-md" src={user.avatar_url} alt="" />
+                    <img className="h-10 w-10 rounded-full border-2 border-gray-300 shadow-sm" src={user.avatar_url} alt="" />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-xl flex items-center justify-center border-2 border-white/30 shadow-md">
-                      <span className="text-white font-medium">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300 shadow-sm">
+                      <span className="text-charcoal font-medium">
                         {user.first_name?.charAt(0) || '?'}
                       </span>
                     </div>
                   )}
                 </div>
                 <div>
-                  <div className="text-white font-medium">
+                  <div className="text-charcoal font-medium">
                     {user.first_name || ''} {user.last_name || ''}
                   </div>
                 </div>
@@ -712,7 +712,7 @@ export default function UserList({ users, onRefresh }) {
                 style={{
                   backgroundColor: getScoreBackgroundColor(user.performance_score),
                   color: getScoreTextColor(user.performance_score),
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 {user.performance_score || '–'}
@@ -741,7 +741,7 @@ export default function UserList({ users, onRefresh }) {
               <div className="flex gap-2 mt-2 sm:mt-0">
                 <button 
                   type="button"
-                  className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center"
+                  className="w-16 h-8 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center justify-center"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -752,7 +752,7 @@ export default function UserList({ users, onRefresh }) {
                 </button>
                 <button 
                   type="button"
-                  className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center"
+                  className="w-16 h-8 rounded-md bg-black text-white hover:opacity-90 transition-colors flex items-center justify-center"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -763,7 +763,7 @@ export default function UserList({ users, onRefresh }) {
                 </button>
                 <button 
                   type="button"
-                  className="w-16 h-8 bg-red-600/60 backdrop-blur-md rounded-md text-white hover:bg-red-600/80 transition-colors flex items-center justify-center"
+                  className="w-16 h-8 rounded-md border border-red-300 text-red-700 hover:bg-red-50 transition-colors flex items-center justify-center"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -781,8 +781,8 @@ export default function UserList({ users, onRefresh }) {
 
       {/* Desktop table view (hidden on small screens) */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-white/10 border border-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50 sticky top-0 z-10 shadow-md">
+        <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Team Member</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Shift</th>
@@ -825,9 +825,9 @@ export default function UserList({ users, onRefresh }) {
                 </td>
                 <td className="px-6 py-3 whitespace-nowrap text-center">
                   <span 
-                    className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                      ${user.is_active === false ? 'bg-red-500/40 text-red-100' : 
-                      'bg-green-500/40 text-green-100'}`}
+                    className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md border
+                      ${user.is_active === false ? 'bg-red-100 text-red-700 border-red-300' : 
+                      'bg-green-100 text-green-700 border-green-300'}`}
                   >
                     {user.is_active === false ? 'Inactive' : 'Active'}
                   </span>
@@ -838,7 +838,7 @@ export default function UserList({ users, onRefresh }) {
                     style={{
                       backgroundColor: getScoreBackgroundColor(user.performance_score),
                       color: getScoreTextColor(user.performance_score),
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)'
                     }}
                   >
                     {user.performance_score || '–'}
@@ -847,7 +847,7 @@ export default function UserList({ users, onRefresh }) {
                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-right">
                   <button 
                     type="button"
-                    className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center mr-2 inline-flex"
+                    className="w-16 h-8 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center justify-center mr-2 inline-flex"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -858,7 +858,7 @@ export default function UserList({ users, onRefresh }) {
                   </button>
                   <button 
                     type="button"
-                    className="w-16 h-8 bg-blue-600/60 backdrop-blur-md rounded-md text-white hover:bg-blue-600/80 transition-colors flex items-center justify-center mr-2 inline-flex"
+                    className="w-16 h-8 rounded-md bg-black text-white hover:opacity-90 transition-colors flex items-center justify-center mr-2 inline-flex"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -869,7 +869,7 @@ export default function UserList({ users, onRefresh }) {
                   </button>
                   <button 
                     type="button"
-                    className="w-16 h-8 bg-red-600/60 backdrop-blur-md rounded-md text-white hover:bg-red-600/80 transition-colors flex items-center justify-center inline-flex"
+                    className="w-16 h-8 rounded-md border border-red-300 text-red-700 hover:bg-red-50 transition-colors flex items-center justify-center inline-flex"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -924,20 +924,20 @@ export default function UserList({ users, onRefresh }) {
       {infoModalOpen && (
         <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
             <div className="px-6 py-4">
-              <h3 className="text-xl font-bold text-white mb-4">User Information</h3>
+              <h3 className="text-xl font-bold text-charcoal mb-4">User Information</h3>
               {infoUser && (
                 <>
-                  <p className="text-white/80 mb-2"><span className="font-semibold text-white">Name:</span> {infoUser.first_name} {infoUser.last_name}</p>
-                  <p className="text-white/80 mb-2"><span className="font-semibold text-white">Email:</span> {infoUser.email}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Name:</span> {infoUser.first_name} {infoUser.last_name}</p>
+                  <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Email:</span> {infoUser.email}</p>
                   {lastLogin ? (
-                    <p className="text-white/80 mb-2"><span className="font-semibold text-white">Last login:</span> {new Date(lastLogin).toLocaleString()} ({formatDistanceToNow(new Date(lastLogin), { addSuffix: true })})</p>
+                    <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Last login:</span> {new Date(lastLogin).toLocaleString()} ({formatDistanceToNow(new Date(lastLogin), { addSuffix: true })})</p>
                   ) : (
-                    <p className="text-white/60 mb-2">Last login information not available</p>
+                    <p className="text-gray-600 mb-2">Last login information not available</p>
                   )}
                 </>
               )}
               <div className="text-right mt-4">
-                <button onClick={closeInfoModal} className="px-4 py-2 bg-blue-500/40 backdrop-blur-sm rounded-lg text-white">Close</button>
+                <button onClick={closeInfoModal} className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100">Close</button>
               </div>
             </div>
         </Modal>
