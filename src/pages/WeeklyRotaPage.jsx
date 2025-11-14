@@ -41,7 +41,8 @@ const WeeklyRotaPage = () => {
     const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
     const scrollToTarget = () => {
       const rect = el.getBoundingClientRect();
-      const targetY = Math.max(0, window.scrollY + rect.top - headerHeight);
+      const extraGap = 8; // additional space between page header and day header
+      const targetY = Math.max(0, window.scrollY + rect.top - headerHeight - extraGap);
       try {
         window.scrollTo({ top: targetY, behavior: 'smooth' });
       } catch {
