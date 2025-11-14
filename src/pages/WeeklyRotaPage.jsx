@@ -314,8 +314,8 @@ const WeeklyRotaPage = () => {
           const config = shiftConfig[shiftType];
           
           return (
-            <div key={shiftType} className="rounded-lg overflow-hidden bg-white border border-gray-200">
-              <div className={`${config.bgColor} ${config.textColor} px-3 py-2 md:py-1.5 flex items-center justify-between`}>
+            <div key={shiftType} className="mt-3 first:mt-0">
+              <div className={`${config.bgColor} ${config.textColor} px-3 py-1.5 flex items-center justify-between rounded-md`}>
                 <div className="flex items-center space-x-2">
                   {config.icon}
                   <h4 className="text-sm md:text-xs font-bold uppercase">{config.title}</h4>
@@ -323,13 +323,13 @@ const WeeklyRotaPage = () => {
                 <span className="bg-white text-charcoal text-xs px-2 py-0.5 rounded-full border border-gray-300">{slots.length}</span>
               </div>
               
-              <ul className="divide-y divide-gray-200">
+              <ul className="divide-y divide-gray-200 bg-white rounded-md">
                 {slots.map((slot) => {
                   const isCurrentUser = slot.user_id === user?.id;
                   return (
                     <li 
-                      key={slot.id} 
-                      className={`p-3 md:p-2 ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
+                      key={slot.id}
+                      className={`p-2 md:p-2 ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex flex-col">
                         <div className="flex flex-wrap items-center justify-between gap-2 w-full">
