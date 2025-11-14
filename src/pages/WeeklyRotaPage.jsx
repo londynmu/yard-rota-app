@@ -29,6 +29,23 @@ const WeeklyRotaPage = () => {
   const [showShareOptionsModal, setShowShareOptionsModal] = useState(false);
   const dayRefs = useRef({});
 
+  // After changing expanded day on mobile, align the selected day just below the sticky header
+  useEffect(() => {
+    if (!expandedDayMobile) return;
+    if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+    const el = dayRefs.current[expandedDayMobile];
+    if (!el) return;
+    // Measure current sticky header height precisely
+    const nav = document.getElementById('weekly-top-nav');
+    const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
+    // Wait for layout to settle (collapse previous/open current), then scroll
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const targetY = window.scrollY + rect.top - headerHeight;
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
+    });
+  }, [expandedDayMobile]);
+
   // Fetch available locations from database
   useEffect(() => {
     const fetchLocations = async () => {
@@ -898,16 +915,10 @@ const WeeklyRotaPage = () => {
             const isExpanded = expandedDayMobile === dateStr;
             
             const handleHeaderClick = () => {
-              // Toggle expanded state on mobile; align day card to just below sticky header using CSS scroll-margin
+              // Toggle expanded state on mobile; scrolling handled in useEffect after state update
               if (expandedDayMobile === dateStr) {
                 setExpandedDayMobile(null);
               } else {
-                if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                  const el = dayRefs.current[dateStr];
-                  if (el && el.scrollIntoView) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }
                 setExpandedDayMobile(dateStr);
               }
             };
