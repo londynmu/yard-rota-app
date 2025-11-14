@@ -35,12 +35,21 @@ const WeeklyRotaPage = () => {
     if (typeof window === 'undefined' || window.innerWidth >= 768) return;
     const el = dayRefs.current[expandedDayMobile];
     if (!el) return;
-    // Wait a frame (and a bit) so DOM/layout settles after expand/collapse, then smooth scroll.
-    setTimeout(() => {
-      if (el && el.scrollIntoView) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Wait for expand/collapse transition (~300ms) to finish, then perform precise scroll using window.scrollTo.
+    // This is more reliable across Android WebView/PWA than element.scrollIntoView in some cases.
+    const nav = document.getElementById('weekly-top-nav');
+    const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
+    const scrollToTarget = () => {
+      const rect = el.getBoundingClientRect();
+      const targetY = Math.max(0, window.scrollY + rect.top - headerHeight);
+      try {
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      } catch {
+        window.scrollTo(0, targetY);
       }
-    }, 120);
+    };
+    const timer = setTimeout(scrollToTarget, 360);
+    return () => clearTimeout(timer);
   }, [expandedDayMobile]);
 
   // Fetch available locations from database
