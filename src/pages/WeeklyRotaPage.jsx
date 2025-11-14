@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
@@ -27,6 +27,7 @@ const WeeklyRotaPage = () => {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadedFile, setDownloadedFile] = useState({ fileName: '', dateRange: '' });
   const [showShareOptionsModal, setShowShareOptionsModal] = useState(false);
+  const dayRefs = useRef({});
 
   // Fetch available locations from database
   useEffect(() => {
@@ -767,7 +768,7 @@ const WeeklyRotaPage = () => {
   return (
     <div className="min-h-screen bg-offwhite">
       {/* Week Navigation */}
-      <div className="bg-white sticky top-0 z-20 border-b border-gray-200 shadow-sm">
+      <div id="weekly-top-nav" className="bg-white sticky top-0 z-20 border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-3 md:py-4">
           {/* Week Navigation z zintegrowanym przełącznikiem lokalizacji */}
           <div className="flex items-center justify-center">
@@ -897,10 +898,16 @@ const WeeklyRotaPage = () => {
             const isExpanded = expandedDayMobile === dateStr;
             
             const handleHeaderClick = () => {
-              // Toggle expanded state on mobile
+              // Toggle expanded state on mobile; align day card to just below sticky header using CSS scroll-margin
               if (expandedDayMobile === dateStr) {
                 setExpandedDayMobile(null);
               } else {
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                  const el = dayRefs.current[dateStr];
+                  if (el && el.scrollIntoView) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }
                 setExpandedDayMobile(dateStr);
               }
             };
@@ -918,7 +925,9 @@ const WeeklyRotaPage = () => {
                   ${isWeekend ? 'bg-gray-50' : ''}
                   ${userHasShift ? 'border-l-4 border-l-amber-500' : ''}
                   relative
+                  scroll-mt-20 md:scroll-mt-24
                 `}
+                ref={(el) => { dayRefs.current[dateStr] = el; }}
               >
                 {/* Day Header - Sticky on mobile */}
                 <div 
