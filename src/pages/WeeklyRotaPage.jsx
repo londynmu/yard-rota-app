@@ -35,15 +35,12 @@ const WeeklyRotaPage = () => {
     if (typeof window === 'undefined' || window.innerWidth >= 768) return;
     const el = dayRefs.current[expandedDayMobile];
     if (!el) return;
-    // Measure current sticky header height precisely
-    const nav = document.getElementById('weekly-top-nav');
-    const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
-    // Wait for layout to settle (collapse previous/open current), then scroll
-    requestAnimationFrame(() => {
-      const rect = el.getBoundingClientRect();
-      const targetY = window.scrollY + rect.top - headerHeight;
-      window.scrollTo({ top: targetY, behavior: 'smooth' });
-    });
+    // Wait a frame (and a bit) so DOM/layout settles after expand/collapse, then smooth scroll.
+    setTimeout(() => {
+      if (el && el.scrollIntoView) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
   }, [expandedDayMobile]);
 
   // Fetch available locations from database
@@ -936,7 +933,7 @@ const WeeklyRotaPage = () => {
                   ${isWeekend ? 'bg-gray-50' : ''}
                   ${userHasShift ? 'border-l-4 border-l-amber-500' : ''}
                   relative
-                  scroll-mt-20 md:scroll-mt-24
+                  scroll-mt-28 md:scroll-mt-32
                 `}
                 ref={(el) => { dayRefs.current[dateStr] = el; }}
               >
