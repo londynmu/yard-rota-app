@@ -28,6 +28,9 @@ const WeeklyRotaPage = () => {
   const [downloadedFile, setDownloadedFile] = useState({ fileName: '', dateRange: '' });
   const [showShareOptionsModal, setShowShareOptionsModal] = useState(false);
   const dayRefs = useRef({});
+  const [isWeekMenuOpen, setIsWeekMenuOpen] = useState(false);
+  const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
+  const [isShiftMenuOpen, setIsShiftMenuOpen] = useState(false);
 
   // After changing expanded day on mobile, align the selected day just below the sticky header
   useEffect(() => {
@@ -236,13 +239,7 @@ const WeeklyRotaPage = () => {
     fetchFullRota();
   }, [weekStart, user, selectedLocation, selectedShiftType]);
 
-  const goPrevWeek = () => {
-    setWeekStart((d) => subDays(d, 7));
-  };
-  
-  const goNextWeek = () => {
-    setWeekStart((d) => addDays(d, 7));
-  };
+  // Week navigation handled via dropdown menu actions
 
   // Format time from HH:MM:SS to HH:MM
   const fmtTime = (t) => (t ? t.slice(0, 5) : '');
@@ -257,6 +254,19 @@ const WeeklyRotaPage = () => {
         return { container: 'bg-blue-50 border-blue-300 text-blue-800', icon: 'text-blue-600' };
       default:
         return { container: 'bg-white border-gray-300 text-charcoal', icon: 'text-gray-600' };
+    }
+  };
+  // Trigger badge classes for shift filter dropdown
+  const getShiftTriggerClasses = (type) => {
+    switch (type) {
+      case 'day':
+        return 'bg-amber-100 border-amber-300 text-amber-800';
+      case 'afternoon':
+        return 'bg-orange-100 border-orange-300 text-orange-800';
+      case 'night':
+        return 'bg-blue-100 border-blue-300 text-blue-800';
+      default:
+        return 'bg-gray-100 border-gray-300 text-charcoal';
     }
   };
 
@@ -794,115 +804,115 @@ const WeeklyRotaPage = () => {
       {/* Week Navigation */}
       <div id="weekly-top-nav" className="bg-white sticky top-0 z-20 border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-3 md:py-4">
-          {/* Week Navigation z zintegrowanym przełącznikiem lokalizacji */}
-          <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-2 md:space-x-6">
-              {/* Previous week button */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Week Dropdown */}
+            <div className="relative">
               <button
-                onClick={goPrevWeek}
-                className="h-9 w-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors rounded-full focus:outline-none"
-                aria-label="Previous week"
+                onClick={() => {
+                  setIsWeekMenuOpen((o) => !o);
+                  setIsLocationMenuOpen(false);
+                  setIsShiftMenuOpen(false);
+                }}
+                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-600 bg-blue-500 text-white text-sm shadow-sm"
+                aria-haspopup="menu"
+                aria-expanded={isWeekMenuOpen}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              {/* Week indicator */}
-              <div className="bg-blue-500 px-4 py-1.5 rounded-full text-white font-semibold text-base">
                 Week {getWeek(weekStart)}
-              </div>
-              
-              {/* Date range - hidden on small screens */}
-              <span className="text-gray-600 text-sm hidden sm:inline">
-                {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'MMMM d, yyyy')}
-              </span>
-              
-              {/* Next week button */}
-              <button
-                onClick={goNextWeek}
-                className="h-9 w-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors rounded-full focus:outline-none"
-                aria-label="Next week"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-white/90" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
                 </svg>
               </button>
-              
-              {/* Location Tabs - dynamically loaded from database */}
-              <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
-                {locations.map(location => (
-                  <button
-                    key={location.id}
-                    onClick={() => setSelectedLocation(location.name)}
-                    className={`px-3 md:px-4 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition ${
-                      selectedLocation === location.name
-                        ? 'bg-blue-500 text-white'
-                        : 'text-gray-600 hover:text-charcoal hover:bg-gray-200'
-                    }`}
-                  >
-                    {location.name}
+              {isWeekMenuOpen && (
+                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
+                    onClick={() => { setWeekStart(addDays(weekStart, -7)); setIsWeekMenuOpen(false); }}>
+                    Previous week
                   </button>
-                ))}
-              </div>
-              
-              {/* Shift Type Filter Tabs - DESKTOP ONLY */}
-              <div className="hidden md:flex bg-gray-100 rounded-full p-1 border border-gray-300 ml-6">
-                <button
-                  onClick={() => setSelectedShiftType('all')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                    selectedShiftType === 'all'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:text-charcoal hover:bg-gray-200'
-                  }`}
-                >
-                  All Shifts
-                </button>
-                <button
-                  onClick={() => setSelectedShiftType('day')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center ${
-                    selectedShiftType === 'day'
-                      ? 'bg-amber-500 text-white'
-                      : 'text-gray-600 hover:text-charcoal hover:bg-gray-200'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                  </svg>
-                  Day
-                </button>
-                <button
-                  onClick={() => setSelectedShiftType('afternoon')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center ${
-                    selectedShiftType === 'afternoon'
-                      ? 'bg-orange-500 text-white'
-                      : 'text-gray-600 hover:text-charcoal hover:bg-gray-200'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zM10 15a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 15zM10 7a3 3 0 100 6 3 3 0 000-6zM15.657 5.404a.75.75 0 10-1.06-1.06l-1.061 1.06a.75.75 0 001.06 1.06l1.06-1.06zM6.464 14.596a.75.75 0 10-1.06-1.06l-1.06 1.06a.75.75 0 001.06 1.06l1.06-1.06zM18 10a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0118 10zM5 10a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 015 10zM14.596 15.657a.75.75 0 001.06-1.06l-1.06-1.061a.75.75 0 10-1.06 1.06l1.06 1.06zM5.404 6.464a.75.75 0 001.06-1.06l-1.06-1.06a.75.75 0 10-1.061 1.06l1.06 1.06z" />
-                  </svg>
-                  Afternoon
-                </button>
-                <button
-                  onClick={() => setSelectedShiftType('night')}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition flex items-center ${
-                    selectedShiftType === 'night'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:text-charcoal hover:bg-gray-200'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
-                  Night
-                </button>
-              </div>
-              
+                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
+                    onClick={() => { setWeekStart(getWeekStart(new Date())); setIsWeekMenuOpen(false); }}>
+                    Current week
+                  </button>
+                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
+                    onClick={() => { setWeekStart(addDays(weekStart, 7)); setIsWeekMenuOpen(false); }}>
+                    Next week
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Location Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsLocationMenuOpen((o) => !o);
+                  setIsWeekMenuOpen(false);
+                  setIsShiftMenuOpen(false);
+                }}
+                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm"
+                aria-haspopup="menu"
+                aria-expanded={isLocationMenuOpen}
+              >
+                {selectedLocation || 'Hub'}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isLocationMenuOpen && (
+                <div className="absolute z-40 mt-1 w-44 max-h-64 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                  {locations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      className={`w-full text-left px-3 py-2 rounded hover:bg-gray-50 ${selectedLocation === loc.name ? 'bg-blue-50' : ''}`}
+                      onClick={() => { setSelectedLocation(loc.name); setIsLocationMenuOpen(false); }}
+                    >
+                      {loc.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Shift filter Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsShiftMenuOpen((o) => !o);
+                  setIsWeekMenuOpen(false);
+                  setIsLocationMenuOpen(false);
+                }}
+                className={`inline-flex items-center px-4 py-1.5 rounded-full border text-sm shadow-sm ${getShiftTriggerClasses(selectedShiftType)}`}
+                aria-haspopup="menu"
+                aria-expanded={isShiftMenuOpen}
+              >
+                {selectedShiftType === 'all' ? 'All shifts'
+                  : selectedShiftType === 'day' ? 'Day'
+                  : selectedShiftType === 'afternoon' ? 'Afternoon'
+                  : 'Night'}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 opacity-80" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isShiftMenuOpen && (
+                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                  {['all','day','afternoon','night'].map(opt => (
+                    <button
+                      key={opt}
+                      className={`w-full text-left px-3 py-2 rounded hover:bg-gray-50 ${selectedShiftType === opt ? 'bg-blue-50' : ''}`}
+                      onClick={() => { setSelectedShiftType(opt); setIsShiftMenuOpen(false); }}
+                    >
+                      {opt === 'all' ? 'All shifts' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Overlay to close dropdowns when clicking outside */}
+      {(isWeekMenuOpen || isLocationMenuOpen || isShiftMenuOpen) && createPortal(
+        <div className="fixed inset-0 z-10" onClick={() => { setIsWeekMenuOpen(false); setIsLocationMenuOpen(false); setIsShiftMenuOpen(false); }}></div>,
+        document.body
+      )}
 
       <div className="container mx-auto p-4">
         {/* Week Grid - zmniejszenie odstępów na większych ekranach */}
