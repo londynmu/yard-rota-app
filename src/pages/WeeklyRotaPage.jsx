@@ -221,6 +221,19 @@ const WeeklyRotaPage = () => {
 
   // Format time from HH:MM:SS to HH:MM
   const fmtTime = (t) => (t ? t.slice(0, 5) : '');
+  // Start time badge styling per shift type (mobile-first)
+  const getStartBadgeStyle = (shiftType) => {
+    switch (shiftType) {
+      case 'day':
+        return { container: 'bg-amber-50 border-amber-300 text-amber-800', icon: 'text-amber-600' };
+      case 'afternoon':
+        return { container: 'bg-orange-50 border-orange-300 text-orange-800', icon: 'text-orange-600' };
+      case 'night':
+        return { container: 'bg-blue-50 border-blue-300 text-blue-800', icon: 'text-blue-600' };
+      default:
+        return { container: 'bg-white border-gray-300 text-charcoal', icon: 'text-gray-600' };
+    }
+  };
 
   // Component to render the details for an expanded day
   const DayDetails = ({ dateStr }) => {
@@ -319,29 +332,37 @@ const WeeklyRotaPage = () => {
                       className={`p-3 md:p-2 ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex flex-col">
-                        <div className="flex flex-wrap items-start justify-between">
-                          <div className="flex flex-wrap items-center space-x-2 break-words w-full">
-                            <div className="text-wrap break-words max-w-full">
-                              <span className={`font-medium ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
-                                {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+                          <div className="text-wrap break-words max-w-full">
+                            <span className={`text-[15px] md:text-base font-bold ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
+                              {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                            </span>
+                            {isCurrentUser && (
+                              <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
+                                You
                               </span>
-                              {isCurrentUser && (
-                                <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
-                                  You
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
+                          
+                          {(() => {
+                            const style = getStartBadgeStyle(slot.shift_type);
+                            return (
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold border ${style.container}`}>
+                                {slot.shift_type === 'day' ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1.5 ${style.icon}`} viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1.5 ${style.icon}`} viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                  </svg>
+                                )}
+                                <span className="leading-none">{fmtTime(slot.start_time)}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                         
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          <span className="inline-flex items-center text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {fmtTime(slot.start_time)} - {fmtTime(slot.end_time)}
-                          </span>
-                          
                           {/* Task Indicator */}
                           {slot.task && (
                             <span className="inline-flex items-center text-xs text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full">
@@ -350,7 +371,6 @@ const WeeklyRotaPage = () => {
                             </span>
                           )}
                         </div>
-                      </div>
                     </li>
                   );
                 })}
@@ -923,9 +943,9 @@ const WeeklyRotaPage = () => {
                       flex flex-col items-center justify-center
                       bg-gray-100
                       border border-gray-300
-                      ${isToday ? 'bg-blue-500 border-blue-600 text-white' : 'text-charcoal'}
+                      ${isToday ? 'bg-white text-blue-600 border-2 border-blue-500 shadow-sm' : 'text-charcoal'}
                     `}>
-                      <span className="text-base md:text-sm font-bold leading-none">{format(dateObj, 'dd')}</span>
+                      <span className="text-base md:text-sm font-extrabold leading-none">{format(dateObj, 'dd')}</span>
                       <span className="text-[8px] opacity-70">{format(dateObj, 'MMM')}</span>
                     </div>
                     
