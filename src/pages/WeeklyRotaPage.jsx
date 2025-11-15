@@ -260,13 +260,13 @@ const WeeklyRotaPage = () => {
   const getShiftTriggerClasses = (type) => {
     switch (type) {
       case 'day':
-        return 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-800';
+        return 'bg-amber-100 border-amber-300 text-amber-800';
       case 'afternoon':
-        return 'bg-orange-100 hover:bg-orange-200 border-orange-300 text-orange-800';
+        return 'bg-orange-100 border-orange-300 text-orange-800';
       case 'night':
-        return 'bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800';
+        return 'bg-blue-100 border-blue-300 text-blue-800';
       default:
-        return 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-charcoal';
+        return 'bg-gray-100 border-gray-300 text-charcoal';
     }
   };
 
@@ -808,13 +808,12 @@ const WeeklyRotaPage = () => {
             {/* Week Dropdown */}
             <div className="relative">
               <button
-                type="button"
                 onClick={() => {
                   setIsWeekMenuOpen((o) => !o);
                   setIsLocationMenuOpen(false);
                   setIsShiftMenuOpen(false);
                 }}
-                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-600 bg-blue-500 hover:bg-blue-600 text-white text-sm shadow-sm transition-colors cursor-pointer"
+                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-600 bg-blue-500 text-white text-sm shadow-sm"
                 aria-haspopup="menu"
                 aria-expanded={isWeekMenuOpen}
               >
@@ -824,7 +823,7 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               {isWeekMenuOpen && (
-                <div className="absolute z-[60] mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
                   <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
                     onClick={() => { setWeekStart(addDays(weekStart, -7)); setIsWeekMenuOpen(false); }}>
                     Previous week
@@ -843,13 +842,12 @@ const WeeklyRotaPage = () => {
             {/* Location Dropdown */}
             <div className="relative">
               <button
-                type="button"
                 onClick={() => {
                   setIsLocationMenuOpen((o) => !o);
                   setIsWeekMenuOpen(false);
                   setIsShiftMenuOpen(false);
                 }}
-                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm shadow-sm transition-colors cursor-pointer"
+                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm"
                 aria-haspopup="menu"
                 aria-expanded={isLocationMenuOpen}
               >
@@ -859,7 +857,7 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               {isLocationMenuOpen && (
-                <div className="absolute z-[60] mt-1 w-44 max-h-64 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                <div className="absolute z-40 mt-1 w-44 max-h-64 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1">
                   {locations.map((loc) => (
                     <button
                       key={loc.id}
@@ -875,13 +873,12 @@ const WeeklyRotaPage = () => {
             {/* Shift filter Dropdown */}
             <div className="relative">
               <button
-                type="button"
                 onClick={() => {
                   setIsShiftMenuOpen((o) => !o);
                   setIsWeekMenuOpen(false);
                   setIsLocationMenuOpen(false);
                 }}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full border text-sm shadow-sm cursor-pointer ${getShiftTriggerClasses(selectedShiftType)}`}
+                className={`inline-flex items-center px-4 py-1.5 rounded-full border text-sm shadow-sm ${getShiftTriggerClasses(selectedShiftType)}`}
                 aria-haspopup="menu"
                 aria-expanded={isShiftMenuOpen}
               >
@@ -894,7 +891,7 @@ const WeeklyRotaPage = () => {
                 </svg>
               </button>
               {isShiftMenuOpen && (
-                <div className="absolute z-[60] mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
                   {['all','day','afternoon','night'].map(opt => (
                     <button
                       key={opt}
@@ -911,7 +908,11 @@ const WeeklyRotaPage = () => {
         </div>
       </div>
 
-      {/* Outside click overlay removed to avoid blocking header taps on some WebViews */}
+      {/* Overlay to close dropdowns when clicking outside */}
+      {(isWeekMenuOpen || isLocationMenuOpen || isShiftMenuOpen) && createPortal(
+        <div className="fixed inset-0 z-10" onClick={() => { setIsWeekMenuOpen(false); setIsLocationMenuOpen(false); setIsShiftMenuOpen(false); }}></div>,
+        document.body
+      )}
 
       <div className="container mx-auto p-4">
         {/* Week Grid - zmniejszenie odstępów na większych ekranach */}
