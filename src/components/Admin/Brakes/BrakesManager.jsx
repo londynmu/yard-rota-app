@@ -161,6 +161,7 @@ const BrakesManager = () => {
   const [showDateModal, setShowDateModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(null); // Track currently displayed month in calendar
 
   // Key for sessionStorage
   const getSessionStorageKey = useCallback(() => {
@@ -1137,6 +1138,17 @@ const BrakesManager = () => {
     localStorage.setItem('brakes_selected_location', selectedLocation);
   }, [selectedLocation]);
 
+  // Initialize calendar month when date modal opens
+  useEffect(() => {
+    if (showDateModal) {
+      if (selectedDate) {
+        setCalendarMonth(new Date(`${selectedDate}T00:00:00`));
+      } else {
+        setCalendarMonth(new Date());
+      }
+    }
+  }, [showDateModal, selectedDate]);
+
   // --- Rendering ---
   return (
     <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen pb-20">
@@ -1146,13 +1158,14 @@ const BrakesManager = () => {
           <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
             {/* Date badge */}
             <button
-              onClick={() => { setShowDateModal(true); setShowLocationModal(false); setShowShiftModal(false); }}
+              onClick={() => { 
+                setShowDateModal(true); 
+                setShowLocationModal(false); 
+                setShowShiftModal(false);
+              }}
               className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
             >
-              {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yyyy') : 'Select date'}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-              </svg>
+              {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
             </button>
             {/* Location badge */}
             <button
@@ -1160,9 +1173,6 @@ const BrakesManager = () => {
               className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
             >
               {selectedLocation || 'Hub'}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-              </svg>
             </button>
             {/* Shift badge */}
             <button
@@ -1170,9 +1180,6 @@ const BrakesManager = () => {
               className="inline-flex items-center px-4 py-1.5 rounded-full border border-gray-300 bg-gray-100 text-charcoal text-sm shadow-sm whitespace-nowrap shrink-0"
             >
               {selectedShift}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-              </svg>
             </button>
           </div>
         </div>
@@ -1186,14 +1193,222 @@ const BrakesManager = () => {
               <h3 className="text-lg font-semibold text-charcoal">Select date</h3>
               <button onClick={() => setShowDateModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
             </div>
+            <style>
+              {`
+                /* Kalendarz - responsywny mobile-first */
+                .react-datepicker {
+                  font-family: inherit !important;
+                  border: 1px solid #e5e7eb !important;
+                  border-radius: 8px !important;
+                  background-color: white !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
+                
+                .react-datepicker__month-container {
+                  width: 100% !important;
+                }
+                
+                /* Header miesiąca */
+                .react-datepicker__header {
+                  background-color: #f9fafb !important;
+                  border-bottom: 1px solid #e5e7eb !important;
+                  padding: 8px 0 !important;
+                  border-radius: 8px 8px 0 0 !important;
+                }
+                
+                .react-datepicker__current-month {
+                  color: #1f2937 !important;
+                  font-weight: 600 !important;
+                  font-size: 0.9rem !important;
+                  margin-bottom: 6px !important;
+                }
+                
+                /* Nagłówki dni tygodnia */
+                .react-datepicker__day-names {
+                  display: flex !important;
+                  justify-content: space-between !important;
+                  padding: 0 4px !important;
+                  margin-top: 6px !important;
+                  gap: 2px !important;
+                }
+                
+                .react-datepicker__day-name {
+                  color: #6b7280 !important;
+                  font-weight: 600 !important;
+                  font-size: 0.7rem !important;
+                  flex: 1 !important;
+                  min-width: 0 !important;
+                  max-width: 2.25rem !important;
+                  height: 2rem !important;
+                  line-height: 2rem !important;
+                  margin: 0 !important;
+                  text-align: center !important;
+                }
+                
+                /* Tydzień - równomierne rozłożenie */
+                .react-datepicker__week {
+                  display: flex !important;
+                  justify-content: space-between !important;
+                  padding: 0 4px !important;
+                  gap: 2px !important;
+                }
+                
+                /* Dni - kompaktowe kwadratowe pudełka dla mobile */
+                .react-datepicker__day {
+                  flex: 1 !important;
+                  min-width: 0 !important;
+                  max-width: 2.25rem !important;
+                  height: 2.25rem !important;
+                  line-height: 2.25rem !important;
+                  margin: 1px !important;
+                  border-radius: 6px !important;
+                  color: #1f2937 !important;
+                  font-size: 0.8rem !important;
+                  text-align: center !important;
+                  transition: all 0.15s ease !important;
+                  cursor: pointer !important;
+                  padding: 0 !important;
+                }
+                
+                /* Hover dla zwykłych dni */
+                .react-datepicker__day:hover:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected) {
+                  background-color: #f3f4f6 !important;
+                  color: #1f2937 !important;
+                }
+                
+                /* Wybrany dzień */
+                .react-datepicker__day--selected,
+                .react-datepicker__day--keyboard-selected {
+                  background-color: #3b82f6 !important;
+                  color: white !important;
+                  font-weight: 600 !important;
+                }
+                
+                /* Niedziela - czerwone tło */
+                .react-datepicker__day--sunday:not(.react-datepicker__day--disabled) {
+                  background-color: #ef4444 !important;
+                  color: white !important;
+                  font-weight: 600 !important;
+                }
+                
+                /* Hover dla niedzieli */
+                .react-datepicker__day--sunday:not(.react-datepicker__day--disabled):hover {
+                  background-color: #dc2626 !important;
+                  color: white !important;
+                }
+                
+                /* Wybrany dzień w niedzielę - ciemniejszy niebieski */
+                .react-datepicker__day--sunday.react-datepicker__day--selected,
+                .react-datepicker__day--sunday.react-datepicker__day--keyboard-selected {
+                  background-color: #2563eb !important;
+                  color: white !important;
+                }
+                
+                /* Dni poza miesiącem */
+                .react-datepicker__day--outside-month {
+                  color: #d1d5db !important;
+                  background-color: transparent !important;
+                }
+                
+                /* Niedziela poza miesiącem */
+                .react-datepicker__day--outside-month.react-datepicker__day--sunday {
+                  background-color: #fecaca !important;
+                  color: #b91c1c !important;
+                }
+                
+                /* Wyłączone dni */
+                .react-datepicker__day--disabled {
+                  color: #d1d5db !important;
+                  cursor: not-allowed !important;
+                  background-color: transparent !important;
+                }
+                
+                /* Przyciski nawigacji */
+                .react-datepicker__navigation {
+                  top: 10px !important;
+                  width: 28px !important;
+                  height: 28px !important;
+                  border-radius: 6px !important;
+                  transition: background-color 0.15s ease !important;
+                }
+                
+                .react-datepicker__navigation:hover {
+                  background-color: #f3f4f6 !important;
+                }
+                
+                .react-datepicker__navigation-icon::before {
+                  border-color: #6b7280 !important;
+                  border-width: 2px 2px 0 0 !important;
+                  width: 7px !important;
+                  height: 7px !important;
+                }
+                
+                /* Kontener miesiąca - kompaktowy dla mobile */
+                .react-datepicker__month {
+                  margin: 8px !important;
+                  padding: 0 !important;
+                }
+                
+                /* Dzisiejszy dzień - obramowanie */
+                .react-datepicker__day--today:not(.react-datepicker__day--selected) {
+                  border: 2px solid #3b82f6 !important;
+                  font-weight: 600 !important;
+                }
+                
+                /* Media query dla większych ekranów */
+                @media (min-width: 640px) {
+                  .react-datepicker__day {
+                    max-width: 2.5rem !important;
+                    height: 2.5rem !important;
+                    line-height: 2.5rem !important;
+                    font-size: 0.875rem !important;
+                  }
+                  
+                  .react-datepicker__day-name {
+                    max-width: 2.5rem !important;
+                    height: 2.25rem !important;
+                    line-height: 2.25rem !important;
+                    font-size: 0.875rem !important;
+                  }
+                  
+                  .react-datepicker__current-month {
+                    font-size: 1rem !important;
+                  }
+                  
+                  .react-datepicker__month {
+                    margin: 12px !important;
+                  }
+                }
+              `}
+            </style>
             <DatePicker
               inline
-              selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()}
+              selected={(() => {
+                if (!selectedDate || !calendarMonth) return null;
+                const selectedDateObj = new Date(`${selectedDate}T00:00:00`);
+                // Only highlight if the selected date is in the currently displayed month
+                const selectedMonth = selectedDateObj.getMonth();
+                const selectedYear = selectedDateObj.getFullYear();
+                const displayedMonth = calendarMonth.getMonth();
+                const displayedYear = calendarMonth.getFullYear();
+                if (selectedMonth === displayedMonth && selectedYear === displayedYear) {
+                  return selectedDateObj;
+                }
+                return null;
+              })()}
+              openToDate={selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()}
               onChange={(date) => {
                 if (date) {
                   setSelectedDate(formatDate(date, 'yyyy-MM-dd'));
                   setShowDateModal(false);
                 }
+              }}
+              onMonthChange={(date) => {
+                setCalendarMonth(date);
+              }}
+              onYearChange={(date) => {
+                setCalendarMonth(date);
               }}
               calendarStartDay={1}
             />
