@@ -1102,6 +1102,8 @@ const BrakesManager = () => {
   };
   
   const handleEditSlot = (slot) => {
+    // Only allow editing custom slots
+    if (!slot.is_custom) return;
     setSelectedSlot(slot);
     setEditModalOpen(true);
   };
@@ -1154,8 +1156,8 @@ const BrakesManager = () => {
     <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen pb-20">
       {/* Sticky Controls in one line (badges) */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm mb-4 md:mb-6">
-        <div className="container mx-auto px-2 md:px-0 py-2">
-          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+        <div className="w-full px-2 md:px-0 py-2">
+          <div className="grid grid-cols-3 gap-2 w-full">
             {/* Date badge */}
             <button
               onClick={() => { 
@@ -1163,21 +1165,21 @@ const BrakesManager = () => {
                 setShowLocationModal(false); 
                 setShowShiftModal(false);
               }}
-              className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap w-full"
             >
               {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
             </button>
             {/* Location badge */}
             <button
               onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap w-full"
             >
               {selectedLocation || 'Hub'}
             </button>
             {/* Shift badge */}
             <button
               onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className="inline-flex items-center px-4 py-1.5 rounded-full border border-gray-300 bg-gray-100 text-charcoal text-sm shadow-sm whitespace-nowrap shrink-0"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-gray-300 bg-gray-100 text-charcoal text-sm shadow-sm whitespace-nowrap w-full"
             >
               {selectedShift}
             </button>
@@ -1477,8 +1479,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <h2 className="text-xl font-semibold mb-2 md:mb-3 border-b border-gray-200 pb-1 md:pb-2 text-blue-500">{groupName}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
+              <div className="grid grid-cols-1 gap-4 md:gap-5">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
                     key={slot.id} 
@@ -1707,32 +1708,38 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {/* Currently Assigned Staff */}
         <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
-          <h4 className="text-xs md:text-sm font-semibold text-charcoal mb-1 md:mb-2">Currently Assigned</h4>
+          <h4 className="text-base md:text-lg font-semibold text-charcoal mb-2 md:mb-3">Currently Assigned</h4>
           {assignedStaff.length > 0 ? (
-            <div className="space-y-1 md:space-y-2">
+            <div className="space-y-2.5">
               {assignedStaff.map(staff => (
                 <div 
                   key={staff.id} 
-                  className="flex justify-between items-center bg-gray-100 border border-gray-200 px-2 py-1 md:px-3 md:py-2 rounded"
+                  className="flex justify-between items-center bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg shadow-sm group"
                 >
-                  <div className="text-xs md:text-sm">
-                    {staff.user_name}
-                    <span className="ml-1 md:ml-2 text-[10px] md:text-xs text-gray-400">{staff.preferred_shift}</span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Avatar circle with initial */}
+                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                      {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-base md:text-lg font-semibold text-blue-900">{staff.user_name}</div>
+                      <div className="text-sm md:text-base text-blue-700 opacity-80">{staff.preferred_shift}</div>
+                    </div>
                   </div>
                   <button 
                     onClick={() => onRemoveStaff(staff)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
+                    className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-100 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
                     aria-label="Remove staff member"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-1 md:py-2 text-gray-400 italic text-xs md:text-sm">
+            <div className="text-center py-2 md:py-3 text-gray-500 italic text-base md:text-lg">
               No staff assigned to this slot yet
             </div>
           )}
@@ -1740,27 +1747,27 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {/* Available Staff List */}
         <div className="flex-1 overflow-y-auto p-2 md:p-4">
-          <div className="flex justify-between items-center mb-1 md:mb-2">
-            <h4 className="text-xs md:text-sm font-semibold text-gray-300">Available Staff</h4>
+          <div className="flex justify-between items-center mb-2 md:mb-3">
+            <h4 className="text-base md:text-lg font-semibold text-charcoal">Available Staff</h4>
             <button
               onClick={() => setShowAllStaff(prev => !prev)}
-              className="text-[10px] md:text-xs bg-blue-800 hover:bg-blue-700 text-white px-1 py-0.5 md:px-2 md:py-1 rounded"
+              className="text-sm md:text-base bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors"
             >
               {showAllStaff ? "Show Eligible Only" : "Show All Staff"}
             </button>
           </div>
           
           {availableStaff.length === 0 ? (
-            <div className="text-center py-2 md:py-4 text-gray-400 text-xs md:text-sm">
+            <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
               No staff available for this shift/date
             </div>
           ) : eligibleStaff.length === 0 ? (
-            <div className="text-center py-2 md:py-4 text-gray-400 text-xs md:text-sm">
+            <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
               No eligible staff available for this slot
               {showAllStaff ? "" : " (try 'Show All Staff' button)"}
             </div>
           ) : (
-            <div className="space-y-1 md:space-y-2">
+            <div className="space-y-2.5">
               {eligibleStaff.map(staff => (
                 <button 
                   key={staff.id}
@@ -1771,33 +1778,39 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                     await onAssignStaff(staff, slot);
                     setIsProcessing(false);
                   }}
-                  className={`w-full text-left flex items-center justify-between px-2 py-1 md:px-3 md:py-2 rounded transition-colors ${
+                  className={`w-full text-left flex items-center justify-between px-3 py-2 md:px-4 md:py-2.5 rounded-lg transition-all duration-200 ${
                      isProcessing || isAllLocation
-                      ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-100 border border-gray-200 hover:bg-gray-200 focus:bg-gray-200'
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
+                      : 'bg-blue-100 border-2 border-blue-300 hover:bg-blue-200 hover:shadow-md focus:bg-blue-200'
                   }`}
                 >
-                  <div>
-                    <div className="text-xs md:text-sm">{staff.first_name} {staff.last_name}</div>
-                    <div className="text-[10px] md:text-xs text-gray-400">
-                      {staff.preferred_shift} 
-                      {/* For Day shift, show which breaks are already assigned */}
-                      {staff.preferred_shift?.toLowerCase() === 'day' && (
-                        <span className="ml-1 md:ml-2">
-                          {staff.has_break_15 && <span className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded text-[8px] md:text-[10px] mr-1 font-medium">15m</span>}
-                          {staff.has_break_45 && <span className="inline-block px-1 py-0.5 bg-green-100 text-green-800 border border-green-300 rounded text-[8px] md:text-[10px] font-medium">45m</span>}
-                        </span>
-                      )}
-                      {/* For others, show remaining break time */}
-                      {staff.preferred_shift?.toLowerCase() !== 'day' && (
-                        <span className="ml-1 md:ml-2">
-                          {staff.total_break_minutes || 0}/60 min used
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Avatar circle with initial */}
+                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                      {`${staff.first_name[0]}${staff.last_name[0]}`.toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-base md:text-lg font-semibold text-blue-900">{staff.first_name} {staff.last_name}</div>
+                      <div className="text-sm md:text-base text-blue-700 opacity-80">
+                        {staff.preferred_shift} 
+                        {/* For Day shift, show which breaks are already assigned */}
+                        {staff.preferred_shift?.toLowerCase() === 'day' && (
+                          <span className="ml-2">
+                            {staff.has_break_15 && <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-900 border border-blue-400 rounded text-xs md:text-sm mr-1 font-medium">15m</span>}
+                            {staff.has_break_45 && <span className="inline-block px-2 py-0.5 bg-green-200 text-green-900 border border-green-400 rounded text-xs md:text-sm font-medium">45m</span>}
+                          </span>
+                        )}
+                        {/* For others, show remaining break time */}
+                        {staff.preferred_shift?.toLowerCase() !== 'day' && (
+                          <span className="ml-2">
+                            {staff.total_break_minutes || 0}/60 min used
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-blue-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
               ))}
@@ -2215,12 +2228,91 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
     }
   };
   
-  const cardClasses = `
-    bg-white p-2 md:p-4 rounded-lg shadow-sm border 
-     border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer
-    min-h-[120px] md:min-h-[150px] flex flex-col justify-between relative
-  `;
+  // WARIANTY POWIĘKSZENIA SLOTÓW - wybierz jeden z poniższych:
+  // 
+  // WARIANT 1: Umiarkowane powiększenie (+25%)
+  // - Karta: min-h-[150px] md:min-h-[180px], padding: p-3 md:p-5
+  // - Czas: text-base md:text-lg (16px/18px)
+  // - Assigned: text-sm md:text-base (14px/16px)
+  // - Nazwy: text-sm md:text-base (14px/16px)
+  // - "Click to assign": text-sm (14px)
+  // - Badge czas: text-sm, ikona h-4 w-4
+  // - Grid: grid-cols-1 (1 kolumna na mobile)
+  //
+  // WARIANT 2: Średnie powiększenie (+50%) ⭐ RECOMMENDED
+  // - Karta: min-h-[180px] md:min-h-[220px], padding: p-4 md:p-6
+  // - Czas: text-lg md:text-xl (18px/20px)
+  // - Assigned: text-base md:text-lg (16px/18px)
+  // - Nazwy: text-base md:text-lg (16px/18px)
+  // - "Click to assign": text-base (16px)
+  // - Badge czas: text-base, ikona h-5 w-5
+  // - Grid: grid-cols-1 (1 kolumna na mobile)
+  //
+  // WARIANT 3: Duże powiększenie (+75%)
+  // - Karta: min-h-[220px] md:min-h-[260px], padding: p-5 md:p-7
+  // - Czas: text-xl md:text-2xl (20px/24px)
+  // - Assigned: text-lg md:text-xl (18px/20px)
+  // - Nazwy: text-lg md:text-xl (18px/20px)
+  // - "Click to assign": text-lg (18px)
+  // - Badge czas: text-lg, ikona h-6 w-6
+  // - Grid: grid-cols-1 (1 kolumna na mobile)
+  //
+  // WARIANT 4: Bardzo duże powiększenie (+100%)
+  // - Karta: min-h-[260px] md:min-h-[300px], padding: p-6 md:p-8
+  // - Czas: text-2xl md:text-3xl (24px/30px)
+  // - Assigned: text-xl md:text-2xl (20px/24px)
+  // - Nazwy: text-xl md:text-2xl (20px/24px)
+  // - "Click to assign": text-xl (20px)
+  // - Badge czas: text-xl, ikona h-7 w-7
+  // - Grid: grid-cols-1 (1 kolumna na mobile)
+
+  // ===== WYBIERZ WARIANT (odkomentuj jeden z poniższych) =====
   
+  // WARIANT 1 - Umiarkowane powiększenie
+  // const cardClasses = `bg-white p-3 md:p-5 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[150px] md:min-h-[180px] flex flex-col justify-between relative`;
+  // const timeClasses = "font-semibold text-base md:text-lg";
+  // const assignedClasses = "text-sm md:text-base text-gray-600";
+  // const staffNameClasses = "text-sm md:text-base bg-gray-100 border border-gray-200 px-2 py-1 md:px-3 md:py-1.5 rounded flex justify-between items-center";
+  // const clickToAssignClasses = "mt-3 md:mt-4 text-center text-gray-500 text-sm italic";
+  // const badgeClasses = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium";
+  // const badgeIconClasses = "h-4 w-4";
+  // const removeIconClasses = "h-4 w-4 md:h-5 md:w-5";
+  // const gridClasses = "grid grid-cols-1 gap-3 md:gap-4";
+
+  // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
+  // Szare karty slotów z wyraźnymi paskami dla osób
+  const cardClasses = `bg-gray-100 p-4 md:p-6 rounded-xl border-2 border-gray-300 hover:border-gray-400 cursor-pointer min-h-[180px] md:min-h-[220px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-xl`;
+  const timeClasses = "font-bold text-lg md:text-xl text-charcoal";
+  const assignedClasses = "text-base md:text-lg font-medium text-gray-700";
+  const staffNameClasses = "text-base md:text-lg bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg flex justify-between items-center shadow-sm font-semibold text-blue-900 hover:bg-blue-200 hover:shadow-md transition-all";
+  const clickToAssignClasses = "mt-4 md:mt-5 text-center text-gray-600 text-base italic font-medium";
+  const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 text-base font-semibold shadow-sm";
+  const badgeIconClasses = "h-5 w-5";
+  const removeIconClasses = "h-5 w-5 md:h-6 md:w-6";
+  const gridClasses = "grid grid-cols-1 gap-4 md:gap-5";
+
+  // WARIANT 3 - Duże powiększenie
+  // const cardClasses = `bg-white p-5 md:p-7 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[220px] md:min-h-[260px] flex flex-col justify-between relative`;
+  // const timeClasses = "font-semibold text-xl md:text-2xl";
+  // const assignedClasses = "text-lg md:text-xl text-gray-600";
+  // const staffNameClasses = "text-lg md:text-xl bg-gray-100 border border-gray-200 px-4 py-2 md:px-5 md:py-2.5 rounded flex justify-between items-center";
+  // const clickToAssignClasses = "mt-5 md:mt-6 text-center text-gray-500 text-lg italic";
+  // const badgeClasses = "inline-flex items-center gap-2 px-4 py-2 rounded-full border text-lg font-medium";
+  // const badgeIconClasses = "h-6 w-6";
+  // const removeIconClasses = "h-6 w-6 md:h-7 md:w-7";
+  // const gridClasses = "grid grid-cols-1 gap-5 md:gap-6";
+
+  // WARIANT 4 - Bardzo duże powiększenie
+  // const cardClasses = `bg-white p-6 md:p-8 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[260px] md:min-h-[300px] flex flex-col justify-between relative`;
+  // const timeClasses = "font-semibold text-2xl md:text-3xl";
+  // const assignedClasses = "text-xl md:text-2xl text-gray-600";
+  // const staffNameClasses = "text-xl md:text-2xl bg-gray-100 border border-gray-200 px-5 py-2.5 md:px-6 md:py-3 rounded flex justify-between items-center";
+  // const clickToAssignClasses = "mt-6 md:mt-7 text-center text-gray-500 text-xl italic";
+  // const badgeClasses = "inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full border text-xl font-medium";
+  // const badgeIconClasses = "h-7 w-7";
+  // const removeIconClasses = "h-7 w-7 md:h-8 md:w-8";
+  // const gridClasses = "grid grid-cols-1 gap-6 md:gap-7";
+
   const handleCardClick = (e) => {
     // Prevent opening the modal if the click was on a remove button or edit button
     if (e.target.closest('.remove-staff-button') || e.target.closest('.edit-slot-button')) {
@@ -2235,34 +2327,40 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
       onClick={handleCardClick}
     >
       <div>
-        <div className="flex justify-between items-center mb-1 md:mb-2">
-          <span className="font-semibold text-sm md:text-base">
+        <div className="flex justify-between items-center mb-2 md:mb-3">
+          <span className={timeClasses}>
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${
+          <span className={`${badgeClasses} ${
             slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
             slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
             'bg-purple-100 text-purple-800 border-purple-300'
           }`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             {slot.duration_minutes} min
           </span>
         </div>
-         <div className="text-xs md:text-sm text-gray-600">
+         <div className={assignedClasses}>
            Assigned: {assignedStaff.length}
          </div>
         
         {/* List assigned staff with remove buttons */}
         {assignedStaff.length > 0 && (
-          <div className="mt-1 md:mt-2 space-y-1">
-            {assignedStaff.map(staff => (
+          <div className="mt-3 md:mt-4 space-y-2.5">
+            {assignedStaff.map((staff, index) => (
               <div 
                 key={staff.id} 
-                className="text-xs md:text-sm bg-gray-100 border border-gray-200 px-1 py-0.5 md:px-2 md:py-1 rounded flex justify-between items-center"
+                className={`${staffNameClasses} group`}
               >
-                <span className="truncate">{staff.user_name}</span>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {/* Avatar circle with initial */}
+                  <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                    {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                  <span className="truncate font-semibold text-blue-900">{staff.user_name}</span>
+                </div>
                 {/* Show remove button only if user is admin or it's their own break */}
                 {(isAdmin || staff.user_id === currentUser?.id) && (
                   <button 
@@ -2270,12 +2368,12 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
                       e.stopPropagation(); // Prevent triggering the card's onClick
                       onRemoveStaffClick(staff);
                     }} 
-                    className="remove-staff-button text-red-400 hover:text-red-300 ml-1 md:ml-2 p-0.5 rounded-full hover:bg-gray-600 transition-colors"
+                    className="remove-staff-button flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-100 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
                     aria-label={`Remove ${staff.user_name}`}
                     title={`Remove ${staff.user_name}`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className={removeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 )}
@@ -2285,13 +2383,13 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
         )}
       </div>
       
-       <div className="mt-2 md:mt-3 text-center text-gray-500 text-xs italic">Click to assign staff</div>
+       <div className={clickToAssignClasses}>Click to assign staff</div>
       
-      {/* Edit button only for admins */}
-      {isAdmin && (
-        <div className="flex justify-end gap-1 md:gap-2 mt-1 md:mt-2">
+      {/* Edit button only for admins and custom slots */}
+      {isAdmin && slot.is_custom && (
+        <div className="flex justify-end gap-2 md:gap-3 mt-2 md:mt-3">
           <button 
-            className="edit-slot-button text-xs text-yellow-400 hover:text-yellow-300"
+            className="edit-slot-button text-sm md:text-base text-yellow-400 hover:text-yellow-300 font-medium"
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering the card's onClick
               onEditClick(slot);
