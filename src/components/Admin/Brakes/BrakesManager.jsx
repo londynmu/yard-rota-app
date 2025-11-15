@@ -1479,7 +1479,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <div className="grid grid-cols-1 gap-4 md:gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-3">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
                     key={slot.id} 
@@ -2281,14 +2281,15 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
 
   // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
   // Szare karty slotów z wyraźnymi paskami dla osób
-  const cardClasses = `bg-gray-100 p-4 md:p-6 rounded-xl border-2 border-gray-300 hover:border-gray-400 cursor-pointer min-h-[180px] md:min-h-[220px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-xl`;
-  const timeClasses = "font-bold text-lg md:text-xl text-charcoal";
-  const assignedClasses = "text-base md:text-lg font-medium text-gray-700";
-  const staffNameClasses = "text-base md:text-lg bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg flex justify-between items-center shadow-sm font-semibold text-blue-900 hover:bg-blue-200 hover:shadow-md transition-all";
-  const clickToAssignClasses = "mt-4 md:mt-5 text-center text-gray-600 text-base italic font-medium";
-  const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 text-base font-semibold shadow-sm";
-  const badgeIconClasses = "h-5 w-5";
-  const removeIconClasses = "h-5 w-5 md:h-6 md:w-6";
+  // Na desktop: mniejsze i bardziej kompaktowe dla lepszego screenshotu
+  const cardClasses = `bg-gray-100 p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-400 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-xl`;
+  const timeClasses = "font-bold text-lg md:text-base text-charcoal";
+  const assignedClasses = "text-base md:text-sm font-medium text-gray-700";
+  const staffNameClasses = "text-base md:text-sm bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-sm font-semibold text-blue-900 hover:bg-blue-200 hover:shadow-md transition-all";
+  const clickToAssignClasses = "mt-4 md:mt-3 text-center text-gray-600 text-base md:text-sm italic font-medium";
+  const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 md:px-2 md:py-1 rounded-full border-2 text-base md:text-sm font-semibold shadow-sm";
+  const badgeIconClasses = "h-5 w-5 md:h-4 md:w-4";
+  const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
   const gridClasses = "grid grid-cols-1 gap-4 md:gap-5";
 
   // WARIANT 3 - Duże powiększenie
@@ -2327,7 +2328,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
       onClick={handleCardClick}
     >
       <div>
-        <div className="flex justify-between items-center mb-2 md:mb-3">
+        <div className="flex justify-between items-center mb-2 md:mb-1.5">
           <span className={timeClasses}>
             {formatStartTime()} - {calculateEndTime()}
           </span>
@@ -2348,15 +2349,15 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
         
         {/* List assigned staff with remove buttons */}
         {assignedStaff.length > 0 && (
-          <div className="mt-3 md:mt-4 space-y-2.5">
+          <div className="mt-3 md:mt-2 space-y-2.5 md:space-y-1.5">
             {assignedStaff.map((staff, index) => (
               <div 
                 key={staff.id} 
                 className={`${staffNameClasses} group`}
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 md:gap-2 flex-1 min-w-0">
                   {/* Avatar circle with initial */}
-                  <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                  <div className="flex-shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-xs text-blue-900 bg-white shadow-md">
                     {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                   </div>
                   <span className="truncate font-semibold text-blue-900">{staff.user_name}</span>
