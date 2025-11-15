@@ -157,6 +157,11 @@ const BrakesManager = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
+  // UI: unified header badge pickers
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showShiftModal, setShowShiftModal] = useState(false);
+
   // Key for sessionStorage
   const getSessionStorageKey = useCallback(() => {
     const locationKey = selectedLocation || ALL_LOCATIONS_VALUE;
@@ -1134,76 +1139,117 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen">
-      <h1 className="text-2xl font-semibold mb-2 md:mb-4 px-2 md:px-0 text-blue-600">Break Planner</h1>
+    <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen pb-20">
+      {/* Sticky Controls in one line (badges) */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm mb-4 md:mb-6">
+        <div className="container mx-auto px-2 md:px-0 py-2">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+            {/* Date badge */}
+            <button
+              onClick={() => { setShowDateModal(true); setShowLocationModal(false); setShowShiftModal(false); }}
+              className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
+            >
+              {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yyyy') : 'Select date'}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {/* Location badge */}
+            <button
+              onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
+              className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap shrink-0"
+            >
+              {selectedLocation || 'Hub'}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {/* Shift badge */}
+            <button
+              onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+              className="inline-flex items-center px-4 py-1.5 rounded-full border border-gray-300 bg-gray-100 text-charcoal text-sm shadow-sm whitespace-nowrap shrink-0"
+            >
+              {selectedShift}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
 
-      {/* Controls */}
-      <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-4 md:mb-6 px-1 md:px-0">
-        <div>
-          <label htmlFor="break-date" className="block text-sm font-medium text-charcoal mb-1">Date</label>
-          <div className="w-[220px]">
+      {/* Modals for pickers */}
+      {showDateModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-charcoal">Select date</h3>
+              <button onClick={() => setShowDateModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+            </div>
             <DatePicker
-              selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : null}
+              inline
+              selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()}
               onChange={(date) => {
                 if (date) {
                   setSelectedDate(formatDate(date, 'yyyy-MM-dd'));
+                  setShowDateModal(false);
                 }
               }}
-              dateFormat="dd/MM/yyyy"
               calendarStartDay={1}
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
-              placeholderText="Select date"
             />
           </div>
-        </div>
-        <div>
-          <label htmlFor="shift-type" className="block text-sm font-medium text-charcoal mb-1">Shift</label>
-          <select
-            id="shift-type"
-            value={selectedShift}
-            onChange={(e) => setSelectedShift(e.target.value)}
-            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-charcoal focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20"
-          >
-            <option value="Day" className="bg-white text-charcoal">Day (05:45 - 18:15)</option>
-            <option value="Afternoon" className="bg-white text-charcoal">Afternoon (14:00 - 02:30)</option>
-            <option value="Night" className="bg-white text-charcoal">Night (17:45 - 06:15)</option>
-          </select>
-        </div>
-        {isAdmin && (
-          <button
-            onClick={handleSaveAllBreaks}
-            className="ml-auto inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black/20 disabled:cursor-not-allowed disabled:bg-gray-400"
-            disabled={isLoading}
-          >
-            Save Breaks
-          </button>
-        )}
-      </div>
-
-      {locations.length > 0 && (
-        <div className="mb-4 md:mb-6 px-1 md:px-0">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
-            {locations.map(location => (
-              <button
-                key={location.id}
-                onClick={() => setSelectedLocation(location.name)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  selectedLocation === location.name
-                    ? 'bg-black text-white shadow-sm'
-                    : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                {location.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        </div>,
+        document.body
       )}
-      {/* Current Location Indicator (optional): removed "All locations" state */}
-      <div className="px-1 md:px-0 mb-3 text-sm text-gray-500">Location: {selectedLocation}</div>
 
-        {/* Messages */}
-        {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
+      {showLocationModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-charcoal">Select hub</h3>
+              <button onClick={() => setShowLocationModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+            </div>
+            <div className="max-h-[60vh] overflow-auto">
+              {locations.map(loc => (
+                <button
+                  key={loc.id}
+                  onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
+                  className={`w-full text-left px-3 py-2 rounded border mb-2 ${selectedLocation === loc.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {loc.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showShiftModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-charcoal">Select shift</h3>
+              <button onClick={() => setShowShiftModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+            </div>
+            <div className="space-y-2">
+              {['Day','Afternoon','Night'].map(shift => (
+                <button
+                  key={shift}
+                  onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
+                  className={`w-full text-left px-3 py-2 rounded border ${selectedShift === shift ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {shift}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Messages */}
+      {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
 
 
       {/* Break Slots Display */}
@@ -1263,6 +1309,21 @@ const BrakesManager = () => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sticky Bottom Save Bar */}
+      {isAdmin && (
+        <div className="fixed inset-x-0 bottom-0 z-20 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+          <div className="container mx-auto px-3 py-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}>
+            <button
+              onClick={handleSaveAllBreaks}
+              className="w-full rounded-full bg-black text-white py-2 font-semibold hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
+              disabled={isLoading}
+            >
+              Save Breaks
+            </button>
+          </div>
         </div>
       )}
 
