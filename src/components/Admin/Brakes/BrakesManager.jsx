@@ -259,7 +259,7 @@ const BrakesManager = () => {
             break_type: 'Night Break (60 min)'
           });
         }
-      } catch (e) {
+      } catch {
         // Safe-guard: if date parsing fails, skip special injection
       }
   
@@ -962,7 +962,6 @@ const BrakesManager = () => {
     }
 
     // No capacity limit: allow unlimited assignments per slot
-    const assignedToSlot = scheduledBreaks.filter(b => b.slot_id === slot.id);
     
     // Check if staff can be assigned to this slot (existing logic)
     const staffMember = availableStaff.find(s => s.id === staff.id);
@@ -1479,7 +1478,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-3">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
                     key={slot.id} 
@@ -1633,7 +1632,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col"
+        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
       >
         {/* Header */}
         <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
@@ -1710,7 +1709,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
           <h4 className="text-base md:text-lg font-semibold text-charcoal mb-2 md:mb-3">Currently Assigned</h4>
           {assignedStaff.length > 0 ? (
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
               {assignedStaff.map(staff => (
                 <div 
                   key={staff.id} 
@@ -1746,7 +1745,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         </div>
         
         {/* Available Staff List */}
-        <div className="flex-1 overflow-y-auto p-2 md:p-4">
+        <div className="p-2 md:p-4">
           <div className="flex justify-between items-center mb-2 md:mb-3">
             <h4 className="text-base md:text-lg font-semibold text-charcoal">Available Staff</h4>
             <button
@@ -1767,7 +1766,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               {showAllStaff ? "" : " (try 'Show All Staff' button)"}
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
               {eligibleStaff.map(staff => (
                 <button 
                   key={staff.id}
@@ -2290,7 +2289,6 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
   const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 md:px-2 md:py-1 rounded-full border-2 text-base md:text-sm font-semibold shadow-sm";
   const badgeIconClasses = "h-5 w-5 md:h-4 md:w-4";
   const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
-  const gridClasses = "grid grid-cols-1 gap-4 md:gap-5";
 
   // WARIANT 3 - Duże powiększenie
   // const cardClasses = `bg-white p-5 md:p-7 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[220px] md:min-h-[260px] flex flex-col justify-between relative`;
@@ -2350,7 +2348,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
         {/* List assigned staff with remove buttons */}
         {assignedStaff.length > 0 && (
           <div className="mt-3 md:mt-2 space-y-2.5 md:space-y-1.5">
-            {assignedStaff.map((staff, index) => (
+            {assignedStaff.map((staff) => (
               <div 
                 key={staff.id} 
                 className={`${staffNameClasses} group`}
