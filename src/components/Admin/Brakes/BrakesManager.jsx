@@ -2253,9 +2253,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
   // Na desktop: mniejsze i bardziej kompaktowe dla lepszego screenshotu
   const cardClasses = `bg-gray-100 p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-400 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-xl`;
   const timeClasses = "font-bold text-lg md:text-base text-charcoal";
-  const assignedClasses = "text-base md:text-sm font-medium text-gray-700";
   const staffNameClasses = "text-base md:text-sm bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-sm font-semibold text-blue-900 hover:bg-blue-200 hover:shadow-md transition-all";
-  const clickToAssignClasses = "mt-4 md:mt-3 text-center text-gray-600 text-base md:text-sm italic font-medium";
   const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 md:px-2 md:py-1 rounded-full border-2 text-base md:text-sm font-semibold shadow-sm";
   const badgeIconClasses = "h-5 w-5 md:h-4 md:w-4";
   const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
@@ -2308,12 +2306,9 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
             <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {slot.duration_minutes} min
+            {slot.duration_minutes} min • {assignedStaff.length}
           </span>
         </div>
-         <div className={assignedClasses}>
-           Assigned: {assignedStaff.length}
-         </div>
         
         {/* List assigned staff with remove buttons */}
         {assignedStaff.length > 0 && (
@@ -2351,8 +2346,6 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
           </div>
         )}
       </div>
-      
-       <div className={clickToAssignClasses}>Click to assign staff</div>
       
       {/* Edit button only for admins and custom slots */}
       {isAdmin && slot.is_custom && (
