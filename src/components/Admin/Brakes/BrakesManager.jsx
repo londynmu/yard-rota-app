@@ -158,6 +158,7 @@ const BrakesManager = () => {
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [deleteConfirmSlot, setDeleteConfirmSlot] = useState(null); // Slot pending deletion
 
   // UI: unified header badge pickers
   const [showDateModal, setShowDateModal] = useState(false);
@@ -809,53 +810,61 @@ const BrakesManager = () => {
       return false;
     }
     
-    // Show custom confirmation toast
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <div className="font-semibold text-gray-800">Delete Custom Slot?</div>
-        <div className="text-sm text-gray-600">
-          Are you sure you want to delete slot at {slotToDelete.start_time} ({slotToDelete.duration_minutes} min)?
-        </div>
-        <div className="flex gap-2 mt-1">
-          <button
-            onClick={() => {
-              // Remove the slot from state
-              setBreakSlots(prevSlots => 
-                prevSlots.filter(slot => slot.id !== slotId)
-              );
-              
-              // Remove from localCustomSlotsRef if it's a new slot
-              localCustomSlotsRef.current = localCustomSlotsRef.current.filter(slot => slot.id !== slotId);
-              
-              // Remove any scheduled breaks for this slot
-              const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
-              setScheduledBreaks(updatedAssignments);
-              // Save updated assignments to session storage
-              sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
-              
-              toast.dismiss(t.id);
-              toast.success(`Custom slot deleted. Remember to Save Breaks.`);
-            }}
-            className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 font-medium text-sm"
-          >
-            Yes, Delete
-          </button>
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-sm"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    ), {
-      duration: Infinity,
-      style: {
-        maxWidth: '400px',
-      }
-    });
-    
+    // Show confirmation modal
+    setDeleteConfirmSlot(slotToDelete);
     return true;
+  };
+  
+  const confirmDeleteSlot = async () => {
+    if (!deleteConfirmSlot) return;
+    
+    const slotId = deleteConfirmSlot.id;
+    const isNewSlot = slotId.startsWith('new-'); // Check if it's a temporary local slot
+    
+    try {
+      // If the slot was already saved to the database, delete it from there
+      if (!isNewSlot) {
+        console.log('[confirmDeleteSlot] Deleting slot from database:', slotId);
+        const { error } = await supabase
+          .from('scheduled_breaks')
+          .delete()
+          .eq('id', slotId);
+        
+        if (error) {
+          console.error('[confirmDeleteSlot] Error deleting from database:', error);
+          toast.error('Failed to delete slot from database.');
+          setDeleteConfirmSlot(null);
+          return;
+        }
+        console.log('[confirmDeleteSlot] Successfully deleted from database');
+      }
+      
+      // Remove the slot from state
+      setBreakSlots(prevSlots => 
+        prevSlots.filter(slot => slot.id !== slotId)
+      );
+      
+      // Remove from localCustomSlotsRef if it's a new slot
+      localCustomSlotsRef.current = localCustomSlotsRef.current.filter(slot => slot.id !== slotId);
+      
+      // Remove any scheduled breaks for this slot
+      const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
+      setScheduledBreaks(updatedAssignments);
+      // Save updated assignments to session storage
+      sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+      
+      toast.success(isNewSlot ? 'Custom slot removed.' : 'Custom slot deleted from database.');
+      setDeleteConfirmSlot(null);
+      
+      // Refresh data to ensure UI is in sync with database
+      if (!isNewSlot) {
+        await fetchBreakData();
+      }
+    } catch (err) {
+      console.error('[confirmDeleteSlot] Unexpected error:', err);
+      toast.error('An error occurred while deleting the slot.');
+      setDeleteConfirmSlot(null);
+    }
   };
 
   const handleAssignStaff = async (staff, slot) => {
@@ -1094,11 +1103,16 @@ const BrakesManager = () => {
       {/* Modals for pickers */}
       {showDateModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-charcoal">Select date</h3>
-              <button onClick={() => setShowDateModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+              <button onClick={() => setShowDateModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+            <div className="p-5">
             <style>
               {`
                 /* Kalendarz - responsywny mobile-first */
@@ -1318,6 +1332,7 @@ const BrakesManager = () => {
               }}
               calendarStartDay={1}
             />
+            </div>
           </div>
         </div>,
         document.body
@@ -1325,17 +1340,21 @@ const BrakesManager = () => {
 
       {showLocationModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-charcoal">Select hub</h3>
-              <button onClick={() => setShowLocationModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+              <button onClick={() => setShowLocationModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="max-h-[60vh] overflow-auto">
+            <div className="p-5 max-h-[60vh] overflow-auto space-y-3">
               {locations.map(loc => (
                 <button
                   key={loc.id}
                   onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
-                  className={`w-full text-left px-3 py-2 rounded border mb-2 ${selectedLocation === loc.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-medium ${selectedLocation === loc.name ? 'border-blue-500 bg-blue-50 text-blue-900' : 'border-gray-300 hover:bg-gray-50 text-charcoal hover:border-gray-400'}`}
                 >
                   {loc.name}
                 </button>
@@ -1348,17 +1367,21 @@ const BrakesManager = () => {
 
       {showShiftModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-charcoal">Select shift</h3>
-              <button onClick={() => setShowShiftModal(false)} className="text-gray-400 hover:text-charcoal">✕</button>
+              <button onClick={() => setShowShiftModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="space-y-2">
+            <div className="p-5 space-y-3">
               {['Day','Afternoon','Night'].map(shift => (
                 <button
                   key={shift}
                   onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
-                  className={`w-full text-left px-3 py-2 rounded border ${selectedShift === shift ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-medium ${selectedShift === shift ? 'border-blue-500 bg-blue-50 text-blue-900' : 'border-gray-300 hover:bg-gray-50 text-charcoal hover:border-gray-400'}`}
                 >
                   {shift}
                 </button>
@@ -1452,6 +1475,37 @@ const BrakesManager = () => {
           onAddCustomSlot={handleAddCustomSlot}
           selectedShift={selectedShift}
         />
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmSlot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-charcoal">Delete Custom Slot?</h3>
+            </div>
+            <div className="p-5">
+              <p className="text-base text-gray-600 mb-5">
+                Are you sure you want to delete slot at <strong>{deleteConfirmSlot.start_time}</strong> ({deleteConfirmSlot.duration_minutes} min)?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmDeleteSlot}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors shadow-md"
+                >
+                  Yes, Delete
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmSlot(null)}
+                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1725,28 +1779,28 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
   if (!isOpen) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-y-auto max-h-[90vh]"
+        className="relative bg-white text-charcoal rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-200">
+        <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex justify-between items-center">
-            <h3 className="text-base md:text-lg font-semibold text-charcoal">Create Custom Slot</h3>
+            <h3 className="text-lg font-semibold text-charcoal">Create Custom Slot</h3>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0"
+              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
         
         {/* Form Content */}
-        <div className="p-2 md:p-4">
+        <div className="p-5">
           <AddCustomSlotForm 
             onAddCustomSlot={(formData) => {
               const success = onAddCustomSlot(formData);
@@ -1836,53 +1890,51 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
   };
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
-        <div className="grid grid-cols-1 gap-2 md:gap-4">
-          {/* Start Time */}
-          <div>
-            <label htmlFor="cs_start_time" className="block text-sm font-medium text-charcoal mb-1">
-              Start Time
-            </label>
-            <select
-              id="cs_start_time"
-              name="start_time"
-              value={formData.start_time}
-              onChange={handleChange}
-              className="w-full bg-white text-charcoal border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value="" className="bg-white text-charcoal">Select time</option>
-              {generateTimeOptions().map(time => (
-                <option key={time} value={time} className="bg-white text-charcoal">
-                  {time}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Duration */}
-          <div>
-            <label htmlFor="cs_duration_minutes" className="block text-sm font-medium text-charcoal mb-1">
-              Duration (minutes)
-            </label>
-            <select
-              id="cs_duration_minutes"
-              name="duration_minutes"
-              value={formData.duration_minutes}
-              onChange={handleChange}
-              className="w-full bg-white text-charcoal border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value={15} className="bg-white text-charcoal">15 minutes</option>
-              <option value={30} className="bg-white text-charcoal">30 minutes</option>
-              <option value={45} className="bg-white text-charcoal">45 minutes</option>
-              <option value={60} className="bg-white text-charcoal">60 minutes</option>
-            </select>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Start Time */}
+        <div>
+          <label htmlFor="cs_start_time" className="block text-sm font-semibold text-charcoal mb-2">
+            Start Time
+          </label>
+          <select
+            id="cs_start_time"
+            name="start_time"
+            value={formData.start_time}
+            onChange={handleChange}
+            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
+          >
+            <option value="" className="bg-white text-charcoal">Select time</option>
+            {generateTimeOptions().map(time => (
+              <option key={time} value={time} className="bg-white text-charcoal">
+                {time}
+              </option>
+            ))}
+          </select>
         </div>
         
+        {/* Duration */}
         <div>
+          <label htmlFor="cs_duration_minutes" className="block text-sm font-semibold text-charcoal mb-2">
+            Duration (minutes)
+          </label>
+          <select
+            id="cs_duration_minutes"
+            name="duration_minutes"
+            value={formData.duration_minutes}
+            onChange={handleChange}
+            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
+          >
+            <option value={15} className="bg-white text-charcoal">15 minutes</option>
+            <option value={30} className="bg-white text-charcoal">30 minutes</option>
+            <option value={45} className="bg-white text-charcoal">45 minutes</option>
+            <option value={60} className="bg-white text-charcoal">60 minutes</option>
+          </select>
+        </div>
+        
+        <div className="pt-1">
           <button
             type="submit"
-            className="w-full px-3 py-1 md:px-4 md:py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+            className="w-full px-4 py-3.5 bg-black text-white text-base font-semibold rounded-lg hover:bg-gray-800 transition-colors shadow-md"
           >
             Add Custom Slot
           </button>
