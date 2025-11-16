@@ -146,15 +146,17 @@ const BrakesManager = () => {
     });
   };
 
-  const [showCustomSlotForm, setShowCustomSlotForm] = useState(false);
+  const [addSlotModalOpen, setAddSlotModalOpen] = useState(false);
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
   const [isLoading, setIsLoading] = useState(false);
   
+  // Ref to track locally added custom slots (not yet saved to DB)
+  const localCustomSlotsRef = useRef([]);
+  
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
 
   // UI: unified header badge pickers
@@ -233,8 +235,11 @@ const BrakesManager = () => {
     if (!selectedDate || !selectedShift) return;
     console.log(`[fetchBreakData] Starting fetch for Date: ${selectedDate}, Shift: ${selectedShift}`);
     setIsLoading(true);
+    
+    // Preserve locally added custom slots (not yet saved to DB)
+    const localCustomSlots = localCustomSlotsRef.current;
+    
     // Clear previous data except scheduledBreaks if found in session
-    setBreakSlots([]);
     setAvailableStaff([]);
 
     const sessionStorageKey = getSessionStorageKey();
@@ -310,43 +315,40 @@ const BrakesManager = () => {
       // Try to fetch custom slots definitions (where user_id is null and std_slot_id is null)
       let customSlotsData = [];
       try {
-        const query = supabase
+        // Don't filter by location in DB query since location is not saved for custom slots
+        const { data, error } = await supabase
           .from('scheduled_breaks')
-          .select('id, break_start_time, break_duration_minutes, break_type, capacity, location')
+          .select('id, break_start_time, break_duration_minutes, break_type, capacity')
           .eq('date', selectedDate)
           .eq('shift_type', selectedShift.toLowerCase())
           .is('user_id', null)
           .is('std_slot_id', null); // Only pure custom slots
-
-        if (locationFilter) {
-          query.eq('location', locationFilter);
-        }
           
-        const { data, error } = await query;
         if (error) throw error;
         if (data && data.length > 0) {
           console.log('[fetchBreakData] Fetched custom slot definitions:', data);
+          // Custom slots are shared across all locations for the same date/shift
           customSlotsData = data.map(slot => ({
             id: slot.id,
             start_time: slot.break_start_time,
             duration_minutes: slot.break_duration_minutes,
-            capacity: slot.capacity || 2, // Use fetched capacity or default 2 if null
+            capacity: slot.capacity || 999, // Use fetched capacity or default unlimited
             break_type: slot.break_type,
-            is_custom: true,
-            location: slot.location || null
+            is_custom: true
           }));
         }
       } catch (customSlotError) {
         console.warn("[fetchBreakData] Error fetching custom slot definitions:", customSlotError);
       }
   
-      // Combine standard and custom slots
+      // Combine standard, custom, and locally added slots
       const allSlots = sortBreakSlots([
         ...standardSlotsWithIds,
-        ...customSlotsData
+        ...customSlotsData,
+        ...localCustomSlots
       ], selectedShift);
       
-      console.log('[fetchBreakData] Combined all slots (standard + custom):', allSlots);
+      console.log('[fetchBreakData] Combined all slots (standard + custom + local):', allSlots);
       setBreakSlots(allSlots);
       
       // Fetch existing break assignments or use saved session data
@@ -651,8 +653,8 @@ const BrakesManager = () => {
                 break_duration_minutes: slot.duration_minutes,
                 break_type: mapToDbBreakType(slot.break_type),
                 shift_type: selectedShift.toLowerCase(),
-                capacity: slot.capacity, // Include capacity for custom slots
-                location: selectedLocation
+                capacity: slot.capacity // Include capacity for custom slots
+                // Note: location is NOT saved to DB for custom slots - it's filtered on frontend
             };
             // Only include ID if it's an existing custom slot for upsert
             if (!isNewCustomSlot) {
@@ -748,6 +750,7 @@ const BrakesManager = () => {
 
       toast.success("Breaks schedule saved successfully!");
       sessionStorage.removeItem(sessionStorageKey); // Clear temporary state on successful save
+      localCustomSlotsRef.current = []; // Clear locally added slots after successful save
       fetchBreakData(); // Refetch data to reflect saved state
       
     } catch (error) {
@@ -758,20 +761,19 @@ const BrakesManager = () => {
     }
   };
 
-  const handleAddCustomSlot = async (newSlotData) => {
+  const handleAddCustomSlot = (newSlotData) => {
     if (selectedLocation === ALL_LOCATIONS_VALUE) {
       toast.error('Select a specific location before adding custom slots.');
       return false;
     }
 
-    // Check for duplicates
+    // Check for duplicates - only check start_time
     const duplicateSlot = breakSlots.find(slot => 
-      slot.start_time === newSlotData.start_time && 
-      slot.duration_minutes === newSlotData.duration_minutes
+      slot.start_time === newSlotData.start_time
     );
     
     if (duplicateSlot) {
-      toast.error(`A slot starting at ${newSlotData.start_time} with duration ${newSlotData.duration_minutes} minutes already exists. Please use the edit function instead.`);
+      toast.error(`A slot starting at ${newSlotData.start_time} already exists.`);
       return false;
     }
     
@@ -784,128 +786,16 @@ const BrakesManager = () => {
       location: selectedLocation
     };
     
+    // Add to ref for persistence across fetchBreakData calls
+    localCustomSlotsRef.current = [...localCustomSlotsRef.current, newSlot];
+    
     setBreakSlots(prevSlots => sortBreakSlots([...prevSlots, newSlot], selectedShift));
-    // Note: Custom slot additions/edits require Save All Breaks - not saved to session temporarily
-    try {
-      toast.success("Custom break slot added successfully!");
-    } catch (error) {
-      console.error('Error adding custom slot:', error);
-      toast.error("Failed to add custom slot: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
+    
+    toast.success("Custom break slot added successfully! Remember to Save Breaks.");
     return true;
   };
 
-  const handleUpdateCustomSlot = async (slotId, updatedData) => {
-    // Find the slot to update
-    const slotToUpdate = breakSlots.find(slot => slot.id === slotId);
-    
-    if (!slotToUpdate) {
-      toast.error(`Could not find slot with ID ${slotId} to update.`);
-      return false;
-    }
-    
-    // For standard slots, only capacity can be updated (UI only)
-    if (!slotToUpdate.is_custom) {
-      // Just update the capacity for standard slots
-      setBreakSlots(prevSlots => 
-        sortBreakSlots(
-          prevSlots.map(slot => 
-            slot.id === slotId 
-              ? { ...slot, capacity: updatedData.capacity } 
-              : slot
-          ),
-          selectedShift
-        )
-      );
-      
-      // Track that this standard slot has been modified
-      // setModifiedStandardSlots(prev => ({
-      //   ...prev,
-      //   [slotId]: {
-      //     ...slotToUpdate,
-      //     capacity: updatedData.capacity
-      //   }
-      // }));
-      
-      // Update any scheduled breaks that reference this slot if capacity decreased
-      if (slotToUpdate.capacity > updatedData.capacity) {
-        const assignmentsForSlot = scheduledBreaks.filter(assignment => assignment.slot_id === slotId);
-        
-        if (assignmentsForSlot.length > updatedData.capacity) {
-          // Remove excess assignments (keep the first 'capacity' number of assignments)
-          const keepAssignments = assignmentsForSlot.slice(0, updatedData.capacity);
-          const keepIds = keepAssignments.map(a => a.id);
-          
-          const updatedAssignments = scheduledBreaks.filter(assignment => 
-            assignment.slot_id !== slotId || keepIds.includes(assignment.id)
-          );
-          setScheduledBreaks(updatedAssignments);
-          // Save updated assignments to session storage
-          sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
-        }
-      }
-      
-      return true;
-    }
-    
-    // For custom slots, check for duplicates (except this slot itself)
-    const duplicateSlot = breakSlots.find(slot => 
-      slot.id !== slotId && // Skip the slot we're updating
-      slot.start_time === updatedData.start_time && 
-      slot.duration_minutes === updatedData.duration_minutes
-    );
-    
-    if (duplicateSlot) {
-      toast.error(`A slot starting at ${updatedData.start_time} with duration ${updatedData.duration_minutes} minutes already exists. Please choose different parameters.`);
-      return false;
-    }
-    
-    // Update custom slot with all fields
-    setBreakSlots(prevSlots => 
-      sortBreakSlots(
-        prevSlots.map(slot => 
-          slot.id === slotId 
-            ? { ...slot, ...updatedData } 
-            : slot
-        ),
-        selectedShift
-      )
-    );
-    
-    // Update any scheduled breaks that reference this slot if capacity decreased
-    if (slotToUpdate.capacity !== updatedData.capacity) {
-      const assignmentsForSlot = scheduledBreaks.filter(assignment => assignment.slot_id === slotId);
-      
-      if (assignmentsForSlot.length > updatedData.capacity) {
-        // Remove excess assignments (keep the first 'capacity' number of assignments)
-        const keepAssignments = assignmentsForSlot.slice(0, updatedData.capacity);
-        const keepIds = keepAssignments.map(a => a.id);
-        
-        const updatedAssignments = scheduledBreaks.filter(assignment =>
-          assignment.slot_id !== slotId || keepIds.includes(assignment.id)
-        );
-        setScheduledBreaks(updatedAssignments);
-        // Save updated assignments to session storage
-        sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
-      }
-    }
-    // Note: Custom slot updates require Save All Breaks - not saved to session temporarily
-
-    try {
-      toast.success("Custom break slot updated successfully!");
-    } catch (error) {
-      console.error('Error updating custom slot:', error);
-      toast.error("Failed to update custom slot: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-
-    return true;
-  };
-
-  const handleDeleteCustomSlot = async (slotId) => {
+  const handleDeleteCustomSlot = (slotId) => {
     // Find the slot to delete
     const slotToDelete = breakSlots.find(slot => slot.id === slotId);
     
@@ -919,32 +809,51 @@ const BrakesManager = () => {
       return false;
     }
     
-    if (!window.confirm(`Are you sure you want to delete the custom slot at ${slotToDelete.start_time} (${slotToDelete.duration_minutes} minutes)?`)) {
-      return false;
-    }
-    
-    // Remove the slot from state
-    setBreakSlots(prevSlots => 
-      prevSlots.filter(slot => slot.id !== slotId)
-    );
-    
-    // Remove any scheduled breaks for this slot
-    const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
-    setScheduledBreaks(updatedAssignments);
-    // Save updated assignments to session storage
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
-    
-    // If the slot has a real database ID (not one of our temporary IDs), we'll delete it from DB
-    // when Save All Breaks is clicked
-    
-    try {
-      toast.success("Custom break slot deleted successfully!");
-    } catch (error) {
-      console.error('Error deleting custom slot:', error);
-      toast.error("Failed to delete custom slot: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
+    // Show custom confirmation toast
+    toast((t) => (
+      <div className="flex flex-col gap-2">
+        <div className="font-semibold text-gray-800">Delete Custom Slot?</div>
+        <div className="text-sm text-gray-600">
+          Are you sure you want to delete slot at {slotToDelete.start_time} ({slotToDelete.duration_minutes} min)?
+        </div>
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={() => {
+              // Remove the slot from state
+              setBreakSlots(prevSlots => 
+                prevSlots.filter(slot => slot.id !== slotId)
+              );
+              
+              // Remove from localCustomSlotsRef if it's a new slot
+              localCustomSlotsRef.current = localCustomSlotsRef.current.filter(slot => slot.id !== slotId);
+              
+              // Remove any scheduled breaks for this slot
+              const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
+              setScheduledBreaks(updatedAssignments);
+              // Save updated assignments to session storage
+              sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+              
+              toast.dismiss(t.id);
+              toast.success(`Custom slot deleted. Remember to Save Breaks.`);
+            }}
+            className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 font-medium text-sm"
+          >
+            Yes, Delete
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: Infinity,
+      style: {
+        maxWidth: '400px',
+      }
+    });
     
     return true;
   };
@@ -1100,13 +1009,6 @@ const BrakesManager = () => {
     setStaffModalOpen(true);
   };
   
-  const handleEditSlot = (slot) => {
-    // Only allow editing custom slots
-    if (!slot.is_custom) return;
-    setSelectedSlot(slot);
-    setEditModalOpen(true);
-  };
-  
   // Helper to get assigned staff for a slot
   const getAssignedStaffForSlot = (slotId) => {
     return scheduledBreaks.filter(assignment => {
@@ -1124,7 +1026,10 @@ const BrakesManager = () => {
     // Clear modified standard slots when date or shift changes
     // setModifiedStandardSlots({});
     // We DO NOT clear sessionStorage here - fetchBreakData will handle loading session or DB data
-  }, [selectedDate, selectedShift]);
+    
+    // Clear locally added custom slots when date, shift, or location changes
+    localCustomSlotsRef.current = [];
+  }, [selectedDate, selectedShift, selectedLocation]);
 
   // Update localStorage when selections change
   useEffect(() => {
@@ -1485,45 +1390,28 @@ const BrakesManager = () => {
                     slot={slot} 
                     assignedStaff={getAssignedStaffForSlot(slot.id)}
                     onSlotClick={handleSlotClick}
-                    onEditClick={handleEditSlot}
+                    onDeleteClick={handleDeleteCustomSlot}
                     onRemoveStaffClick={handleRemoveStaff}
                     currentUser={currentUser}
                     isAdmin={isAdmin}
                   />
                 ))}
+                
+                {/* Add Slot Card - Only for admins and only in last group */}
+                {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
+                  <div 
+                    onClick={() => setAddSlotModalOpen(true)}
+                    className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 md:h-10 md:w-10 text-gray-400 mb-2 md:mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-base md:text-sm font-semibold text-gray-600">Add Custom Slot</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
-
-          {/* Add Custom Slot Form - Only for admins */}
-          {isAdmin && (
-            <div>
-              <div className="flex justify-between items-center mb-2 md:mb-3 border-b border-gray-200 pb-1 md:pb-2">
-                <h2 className="text-xl font-semibold text-blue-500 mt-4 md:mt-8">Create Custom Slot</h2>
-                <button 
-                  onClick={() => setShowCustomSlotForm(!showCustomSlotForm)}
-                  className="flex items-center text-sm px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-charcoal border border-gray-300"
-                >
-                  {showCustomSlotForm ? 'Hide Form' : 'Show Form'}
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-4 w-4 ml-1 transition-transform ${showCustomSlotForm ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-              {showCustomSlotForm && (
-                <AddCustomSlotForm 
-                  onAddCustomSlot={handleAddCustomSlot}
-                  selectedShift={selectedShift}
-                />
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -1557,13 +1445,12 @@ const BrakesManager = () => {
         />
       )}
       
-      {editModalOpen && selectedSlot && (
-        <EditSlotModal 
-          isOpen={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          slot={selectedSlot}
-          onUpdate={handleUpdateCustomSlot}
-          onDelete={handleDeleteCustomSlot}
+      {addSlotModalOpen && (
+        <AddSlotModal 
+          isOpen={addSlotModalOpen}
+          onClose={() => setAddSlotModalOpen(false)}
+          onAddCustomSlot={handleAddCustomSlot}
+          selectedShift={selectedShift}
         />
       )}
     </div>
@@ -1802,211 +1689,75 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   );
 };
 
-// Edit Slot Modal Component
-const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
-  const [formData, setFormData] = useState({
-    start_time: '',
-    duration_minutes: 15,
-    capacity: 2,
-    break_type: 'Custom Slot'
-  });
+// Add Slot Modal Component
+const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
+  const modalRef = useRef(null);
   
-  // Initialize form data when slot changes
+  // Prevent body scrolling when modal is open
   useEffect(() => {
-    if (slot) {
-      setFormData({
-        start_time: slot.start_time || '',
-        duration_minutes: slot.duration_minutes || 15,
-        capacity: slot.capacity || 2,
-        break_type: slot.break_type || 'Custom Slot'
-      });
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
-  }, [slot]);
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
   
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'duration_minutes' || name === 'capacity' ? parseInt(value, 10) : value
-    }));
-  };
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // For standard slots, only pass capacity changes
-    if (!slot.is_custom) {
-      onUpdate(slot.id, { capacity: formData.capacity });
-      onClose();
-      return;
-    }
-    
-    // For custom slots, validate form data
-    if (!formData.start_time) {
-      alert('Please select a start time');
-      return;
-    }
-    
-    onUpdate(slot.id, formData);
-    onClose();
-  };
-  
-  // Generate time options (every 15 minutes)
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const formattedHour = hour.toString().padStart(2, '0');
-        const formattedMinute = minute.toString().padStart(2, '0');
-        options.push(`${formattedHour}:${formattedMinute}`);
+  // Close modal on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
       }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-    return options;
-  };
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
   
-  if (!isOpen || !slot) return null;
+  if (!isOpen) return null;
   
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
-      <div className="bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-hidden">
-        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-base md:text-lg font-semibold">
-            {slot.is_custom ? 'Edit Custom Slot' : 'Edit Standard Slot'}
-          </h3>
-          <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-charcoal"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      <div 
+        ref={modalRef}
+        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-y-auto max-h-[90vh]"
+      >
+        {/* Header */}
+        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-base md:text-lg font-semibold text-charcoal">Create Custom Slot</h3>
+            <button 
+              onClick={onClose}
+              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-2 md:p-4">
-          <div className="space-y-2 md:space-y-4">
-            {/* Start Time - disabled for standard slots */}
-            <div>
-              <label htmlFor="start_time" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
-                Start Time
-              </label>
-              <select
-                id="start_time"
-                name="start_time"
-                value={formData.start_time}
-                onChange={handleChange}
-                disabled={!slot.is_custom}
-                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
-                  !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              >
-                <option value="">Select time</option>
-                {generateTimeOptions().map(time => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Duration - disabled for standard slots */}
-            <div>
-              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
-                Duration (minutes)
-              </label>
-              <select
-                id="duration_minutes"
-                name="duration_minutes"
-                value={formData.duration_minutes}
-                onChange={handleChange}
-                disabled={!slot.is_custom}
-                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
-                  !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              >
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>60 minutes</option>
-              </select>
-            </div>
-            
-            {/* Capacity - always enabled for both standard and custom slots */}
-            <div>
-              <label htmlFor="capacity" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
-                Capacity
-              </label>
-              <input
-                type="number"
-                id="capacity"
-                name="capacity"
-                min={1}
-                max={10}
-                value={formData.capacity}
-                onChange={handleChange}
-                className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm"
-              />
-            </div>
-            
-            {/* Break Type - disabled for standard slots */}
-            <div>
-              <label htmlFor="break_type" className="block text-xs md:text-sm font-medium text-charcoal mb-1">
-                Break Type
-              </label>
-              <input
-                type="text"
-                id="break_type"
-                name="break_type"
-                value={formData.break_type}
-                onChange={handleChange}
-                disabled={!slot.is_custom}
-                className={`w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white text-sm ${
-                  !slot.is_custom ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              />
-            </div>
-            
-            {/* Notice for standard slots */}
-            {!slot.is_custom && (
-              <div className="text-blue-600 text-xs md:text-sm mt-1 md:mt-2 bg-blue-50 p-2 rounded-lg border border-blue-200">
-                Note: For standard slots, only capacity can be edited.
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-3 md:mt-6 flex justify-between">
-            {slot.is_custom && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this slot?')) {
-                    onDelete(slot.id);
-                    onClose();
-                  }
-                }}
-                className="px-2 py-1 md:px-4 md:py-2 bg-red-700 text-white rounded hover:bg-red-600 transition-colors text-xs md:text-sm"
-              >
-                Delete Slot
-              </button>
-            )}
-            
-            <div className={`flex gap-1 md:gap-2 ${slot.is_custom ? 'ml-auto' : ''}`}>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-2 py-1 md:px-4 md:py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-xs md:text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-2 py-1 md:px-4 md:py-2 bg-black bg-white text-white rounded hover:bg-gray-800 transition-colors text-xs md:text-sm"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </form>
+        {/* Form Content */}
+        <div className="p-2 md:p-4">
+          <AddCustomSlotForm 
+            onAddCustomSlot={(formData) => {
+              const success = onAddCustomSlot(formData);
+              if (success) {
+                onClose();
+              }
+              return success;
+            }}
+            selectedShift={selectedShift}
+          />
+        </div>
       </div>
     </div>,
     document.body
@@ -2017,9 +1768,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onDelete }) => {
 const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
   const [formData, setFormData] = useState({
     start_time: '',
-    duration_minutes: 15,
-    capacity: 2,
-    break_type: 'Custom Slot'
+    duration_minutes: 60
   });
   
   // Set a default start time based on shift when it changes
@@ -2042,27 +1791,33 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'duration_minutes' || name === 'capacity' ? parseInt(value, 10) : value
+      [name]: name === 'duration_minutes' ? parseInt(value, 10) : value
     }));
   };
   
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     // Validate form data
     if (!formData.start_time) {
       alert('Please select a start time');
       return;
     }
     
-    const success = onAddCustomSlot(formData);
+    // Add required fields for backend
+    const slotData = {
+      ...formData,
+      capacity: 999, // Unlimited capacity
+      break_type: `Custom Slot (${formData.duration_minutes} min)`
+    };
+    
+    const success = onAddCustomSlot(slotData);
     
     if (success) {
       // Reset form (except selected shift preference)
       setFormData({
         start_time: formData.start_time,
-        duration_minutes: 15,
-        capacity: 2,
-        break_type: 'Custom Slot'
+        duration_minutes: 60
       });
     }
   };
@@ -2081,11 +1836,8 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
   };
   
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-200">
-      <h3 className="text-lg font-semibold mb-4 text-charcoal">Create Custom Slot</h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
+    <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
+        <div className="grid grid-cols-1 gap-2 md:gap-4">
           {/* Start Time */}
           <div>
             <label htmlFor="cs_start_time" className="block text-sm font-medium text-charcoal mb-1">
@@ -2096,11 +1848,11 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="start_time"
               value={formData.start_time}
               onChange={handleChange}
-              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
+              className="w-full bg-white text-charcoal border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black"
             >
-              <option value="">Select time</option>
+              <option value="" className="bg-white text-charcoal">Select time</option>
               {generateTimeOptions().map(time => (
-                <option key={time} value={time}>
+                <option key={time} value={time} className="bg-white text-charcoal">
                   {time}
                 </option>
               ))}
@@ -2117,64 +1869,30 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
               name="duration_minutes"
               value={formData.duration_minutes}
               onChange={handleChange}
-              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
+              className="w-full bg-white text-charcoal border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black"
             >
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-              <option value={60}>60 minutes</option>
+              <option value={15} className="bg-white text-charcoal">15 minutes</option>
+              <option value={30} className="bg-white text-charcoal">30 minutes</option>
+              <option value={45} className="bg-white text-charcoal">45 minutes</option>
+              <option value={60} className="bg-white text-charcoal">60 minutes</option>
             </select>
-          </div>
-          
-          {/* Capacity */}
-          <div>
-            <label htmlFor="cs_capacity" className="block text-sm font-medium text-charcoal mb-1">
-              Capacity
-            </label>
-            <input
-              type="number"
-              id="cs_capacity"
-              name="capacity"
-              min={1}
-              max={10}
-              value={formData.capacity}
-              onChange={handleChange}
-              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
-            />
-          </div>
-          
-          {/* Break Type */}
-          <div>
-            <label htmlFor="cs_break_type" className="block text-sm font-medium text-charcoal mb-1">
-              Break Type
-            </label>
-            <input
-              type="text"
-              id="cs_break_type"
-              name="break_type"
-              value={formData.break_type}
-              onChange={handleChange}
-              className="w-full bg-white border border-gray-300 rounded px-2 py-1 md:px-3 md:py-2 focus:outline-none focus:ring-2 focus:ring-black focus:ring-white"
-              placeholder="Custom Slot"
-            />
           </div>
         </div>
         
         <div>
           <button
             type="submit"
-            className="px-3 py-1 md:px-4 md:py-2 bg-black bg-white text-white rounded hover:bg-gray-800 transition-colors"
+            className="w-full px-3 py-1 md:px-4 md:py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors"
           >
             Add Custom Slot
           </button>
         </div>
       </form>
-    </div>
   );
 };
 
 // Slot Card Component to display a break slot
-const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaffClick, currentUser, isAdmin }) => {
+const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, currentUser, isAdmin }) => {
   // Format start time to remove seconds (HH:MM:SS -> HH:MM)
   const formatStartTime = () => {
     try {
@@ -2281,8 +1999,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
   // const gridClasses = "grid grid-cols-1 gap-6 md:gap-7";
 
   const handleCardClick = (e) => {
-    // Prevent opening the modal if the click was on a remove button or edit button
-    if (e.target.closest('.remove-staff-button') || e.target.closest('.edit-slot-button')) {
+    // Prevent opening the modal if the click was on a remove button or delete button
+    if (e.target.closest('.remove-staff-button') || e.target.closest('.delete-slot-button')) {
       return;
     }
     onSlotClick(slot);
@@ -2347,17 +2065,21 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onEditClick, onRemoveStaff
         )}
       </div>
       
-      {/* Edit button only for admins and custom slots */}
+      {/* Delete button only for admins and custom slots - bottom right */}
       {isAdmin && slot.is_custom && (
-        <div className="flex justify-end gap-2 md:gap-3 mt-2 md:mt-3">
+        <div className="flex justify-end mt-2 md:mt-1">
           <button 
-            className="edit-slot-button text-sm md:text-base text-yellow-400 hover:text-yellow-300 font-medium"
+            className="delete-slot-button text-red-500 hover:text-red-700 hover:bg-red-100 p-1.5 md:p-2 rounded-full transition-all duration-200 flex items-center gap-1"
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering the card's onClick
-              onEditClick(slot);
+              onDeleteClick(slot.id);
             }}
+            title="Delete custom slot"
           >
-            Edit
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span className="text-xs md:text-sm font-medium">Delete</span>
           </button>
         </div>
       )}
@@ -2402,19 +2124,11 @@ StaffSelectionModal.propTypes = {
   isAllLocation: PropTypes.bool
 };
 
-EditSlotModal.propTypes = {
+AddSlotModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
-  slot: PropTypes.shape({
-    id: PropTypes.string,
-    start_time: PropTypes.string.isRequired,
-    duration_minutes: PropTypes.number.isRequired,
-    capacity: PropTypes.number.isRequired,
-    break_type: PropTypes.string,
-    is_custom: PropTypes.bool
-  }).isRequired,
-  onUpdate: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired
+  onAddCustomSlot: PropTypes.func.isRequired,
+  selectedShift: PropTypes.string
 };
 
 AddCustomSlotForm.propTypes = {
@@ -2439,7 +2153,7 @@ SlotCard.propTypes = {
     })
   ).isRequired,
   onSlotClick: PropTypes.func.isRequired,
-  onEditClick: PropTypes.func.isRequired,
+  onDeleteClick: PropTypes.func.isRequired,
   onRemoveStaffClick: PropTypes.func.isRequired,
   currentUser: PropTypes.shape({
     id: PropTypes.string.isRequired
