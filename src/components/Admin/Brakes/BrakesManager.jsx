@@ -1406,7 +1406,7 @@ const BrakesManager = () => {
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-3">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
                     key={slot.id} 
