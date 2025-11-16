@@ -22,29 +22,45 @@ const WeeklyRotaPage = () => {
   const [error, setError] = useState(null);
   const [expandedDayMobile, setExpandedDayMobile] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('Rugby');
-  const [selectedShiftType, setSelectedShiftType] = useState('all');
+  const [selectedShiftType, setSelectedShiftType] = useState(() => {
+    const savedShift = localStorage.getItem('weekly_rota_shift_type');
+    return savedShift || 'all';
+  });
   const [locations, setLocations] = useState([]);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadedFile, setDownloadedFile] = useState({ fileName: '', dateRange: '' });
   const [showShareOptionsModal, setShowShareOptionsModal] = useState(false);
   const dayRefs = useRef({});
-  const [isWeekMenuOpen, setIsWeekMenuOpen] = useState(false);
-  const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
-  const [isShiftMenuOpen, setIsShiftMenuOpen] = useState(false);
+  const [showWeekModal, setShowWeekModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showShiftModal, setShowShiftModal] = useState(false);
 
   // After changing expanded day on mobile, align the selected day just below the sticky header
+  // When closing (expandedDayMobile becomes null), scroll back to top
   useEffect(() => {
-    if (!expandedDayMobile) return;
     if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+    
+    // If closing expanded day (null), scroll to top
+    if (!expandedDayMobile) {
+      const timer = setTimeout(() => {
+        try {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch {
+          window.scrollTo(0, 0);
+        }
+      }, 360);
+      return () => clearTimeout(timer);
+    }
+    
+    // If opening a day, scroll to it
     const el = dayRefs.current[expandedDayMobile];
     if (!el) return;
-    // Wait for expand/collapse transition (~300ms) to finish, then perform precise scroll using window.scrollTo.
-    // This is more reliable across Android WebView/PWA than element.scrollIntoView in some cases.
+    
     const nav = document.getElementById('weekly-top-nav');
     const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
     const scrollToTarget = () => {
       const rect = el.getBoundingClientRect();
-      const extraGap = 8; // additional space between page header and day header
+      const extraGap = 8;
       const targetY = Math.max(0, window.scrollY + rect.top - headerHeight - extraGap);
       try {
         window.scrollTo({ top: targetY, behavior: 'smooth' });
@@ -100,12 +116,6 @@ const WeeklyRotaPage = () => {
     fetchLocations();
   }, []);
 
-  // Load last selected shift type from localStorage
-  useEffect(() => {
-    const savedShiftType = localStorage.getItem('weekly_rota_shift_type') || 'all';
-    setSelectedShiftType(savedShiftType);
-  }, []);
-
   // Save selected location when it changes
   useEffect(() => {
     localStorage.setItem('weekly_rota_location', selectedLocation);
@@ -125,7 +135,7 @@ const WeeklyRotaPage = () => {
         const start = format(weekStart, 'yyyy-MM-dd');
         const end = format(addDays(weekStart, 6), 'yyyy-MM-dd');
 
-        // Set up the base query with date range
+        // Set up the base query with date range and location
         let query = supabase
           .from('scheduled_rota')
           .select(`
@@ -140,9 +150,9 @@ const WeeklyRotaPage = () => {
           `)
           .gte('date', start)
           .lte('date', end)
-          .eq('location', selectedLocation); // Filter by selected location
+          .eq('location', selectedLocation);
 
-        // Add shift type filter if a specific shift type is selected
+        // Add shift type filter if not 'all'
         if (selectedShiftType !== 'all') {
           query = query.eq('shift_type', selectedShiftType);
         }
@@ -256,18 +266,9 @@ const WeeklyRotaPage = () => {
         return { container: 'bg-white border-gray-300 text-charcoal', icon: 'text-gray-600' };
     }
   };
-  // Trigger badge classes for shift filter dropdown
-  const getShiftTriggerClasses = (type) => {
-    switch (type) {
-      case 'day':
-        return 'bg-amber-100 border-amber-300 text-amber-800';
-      case 'afternoon':
-        return 'bg-orange-100 border-orange-300 text-orange-800';
-      case 'night':
-        return 'bg-blue-100 border-blue-300 text-blue-800';
-      default:
-        return 'bg-gray-100 border-gray-300 text-charcoal';
-    }
+  // All buttons are black like on Breaks page
+  const getShiftTriggerClasses = () => {
+    return 'bg-gray-800 border-gray-900 text-white hover:bg-gray-900';
   };
 
   // Component to render the details for an expanded day
@@ -763,10 +764,10 @@ const WeeklyRotaPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-offwhite">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black mb-4" />
-          <p className="text-charcoal text-lg">Loading your schedule...</p>
+          <p className="text-gray-900 text-lg font-semibold">Loading your schedule...</p>
         </div>
       </div>
     );
@@ -774,10 +775,10 @@ const WeeklyRotaPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-offwhite">
-        <div className="bg-white p-6 rounded-xl border border-gray-200 max-w-md shadow-lg">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-6 rounded-xl border-2 border-gray-300 max-w-md shadow-xl">
           <h3 className="text-xl font-semibold mb-4 flex items-center text-charcoal">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             Error Loading Rota
@@ -786,7 +787,7 @@ const WeeklyRotaPage = () => {
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={() => window.location.reload()}
-              className="flex-1 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center text-white"
+              className="flex-1 bg-black hover:bg-gray-900 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center text-white shadow-md"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -800,119 +801,40 @@ const WeeklyRotaPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite">
-      {/* Week Navigation */}
-      <div id="weekly-top-nav" className="bg-white sticky top-0 z-20 border-b border-gray-200 shadow-sm">
+    <div className="min-h-screen bg-gray-100">
+      {/* Week Navigation - Same style as Breaks */}
+      <div id="weekly-top-nav" className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
-            {/* Week Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsWeekMenuOpen((o) => !o);
-                  setIsLocationMenuOpen(false);
-                  setIsShiftMenuOpen(false);
-                }}
-                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-600 bg-blue-500 text-white text-sm shadow-sm"
-                aria-haspopup="menu"
-                aria-expanded={isWeekMenuOpen}
-              >
-                Week {getWeek(weekStart)}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-white/90" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-                </svg>
-              </button>
-              {isWeekMenuOpen && (
-                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
-                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
-                    onClick={() => { setWeekStart(addDays(weekStart, -7)); setIsWeekMenuOpen(false); }}>
-                    Previous week
-                  </button>
-                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
-                    onClick={() => { setWeekStart(getWeekStart(new Date())); setIsWeekMenuOpen(false); }}>
-                    Current week
-                  </button>
-                  <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-50"
-                    onClick={() => { setWeekStart(addDays(weekStart, 7)); setIsWeekMenuOpen(false); }}>
-                    Next week
-                  </button>
-                </div>
-              )}
-            </div>
-            {/* Location Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsLocationMenuOpen((o) => !o);
-                  setIsWeekMenuOpen(false);
-                  setIsShiftMenuOpen(false);
-                }}
-                className="inline-flex items-center px-4 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm"
-                aria-haspopup="menu"
-                aria-expanded={isLocationMenuOpen}
-              >
-                {selectedLocation || 'Hub'}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-                </svg>
-              </button>
-              {isLocationMenuOpen && (
-                <div className="absolute z-40 mt-1 w-44 max-h-64 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1">
-                  {locations.map((loc) => (
-                    <button
-                      key={loc.id}
-                      className={`w-full text-left px-3 py-2 rounded hover:bg-gray-50 ${selectedLocation === loc.name ? 'bg-blue-50' : ''}`}
-                      onClick={() => { setSelectedLocation(loc.name); setIsLocationMenuOpen(false); }}
-                    >
-                      {loc.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Shift filter Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsShiftMenuOpen((o) => !o);
-                  setIsWeekMenuOpen(false);
-                  setIsLocationMenuOpen(false);
-                }}
-                className={`inline-flex items-center px-4 py-1.5 rounded-full border text-sm shadow-sm ${getShiftTriggerClasses(selectedShiftType)}`}
-                aria-haspopup="menu"
-                aria-expanded={isShiftMenuOpen}
-              >
-                {selectedShiftType === 'all' ? 'All shifts'
-                  : selectedShiftType === 'day' ? 'Day'
-                  : selectedShiftType === 'afternoon' ? 'Afternoon'
-                  : 'Night'}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 opacity-80" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
-                </svg>
-              </button>
-              {isShiftMenuOpen && (
-                <div className="absolute z-40 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1">
-                  {['all','day','afternoon','night'].map(opt => (
-                    <button
-                      key={opt}
-                      className={`w-full text-left px-3 py-2 rounded hover:bg-gray-50 ${selectedShiftType === opt ? 'bg-blue-50' : ''}`}
-                      onClick={() => { setSelectedShiftType(opt); setIsShiftMenuOpen(false); }}
-                    >
-                      {opt === 'all' ? 'All shifts' : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Week Button */}
+            <button
+              onClick={() => setShowWeekModal(true)}
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+            >
+              Week {getWeek(weekStart)}
+            </button>
+            
+            {/* Location Button */}
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+            >
+              {selectedLocation || 'Hub'}
+            </button>
+            
+            {/* Shift Button */}
+            <button
+              onClick={() => setShowShiftModal(true)}
+              className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full ${getShiftTriggerClasses()}`}
+            >
+              {selectedShiftType === 'all' ? 'All'
+                : selectedShiftType === 'day' ? 'Day'
+                : selectedShiftType === 'afternoon' ? 'Afternoon'
+                : 'Night'}
+            </button>
           </div>
         </div>
       </div>
-
-      {/* Overlay to close dropdowns when clicking outside */}
-      {(isWeekMenuOpen || isLocationMenuOpen || isShiftMenuOpen) && createPortal(
-        <div className="fixed inset-0 z-10" onClick={() => { setIsWeekMenuOpen(false); setIsLocationMenuOpen(false); setIsShiftMenuOpen(false); }}></div>,
-        document.body
-      )}
 
       <div className="container mx-auto p-4">
         {/* Week Grid - zmniejszenie odstępów na większych ekranach */}
@@ -946,12 +868,12 @@ const WeeklyRotaPage = () => {
                 className={`
                   bg-white
                   rounded-xl 
-                  shadow-md
+                  shadow-lg
                   overflow-hidden
-                  border border-gray-200
-                  ${isToday ? 'ring-2 ring-blue-500' : ''} 
+                  border-2 border-gray-300
+                  ${isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''} 
                   ${isWeekend ? 'bg-gray-50' : ''}
-                  ${userHasShift ? 'border-l-4 border-l-amber-500' : ''}
+                  ${userHasShift ? 'border-l-4 border-l-orange-600' : ''}
                   relative
                   scroll-mt-28 md:scroll-mt-32
                 `}
@@ -962,13 +884,13 @@ const WeeklyRotaPage = () => {
                   className={`
                     relative
                     p-3 md:p-2
-                    border-b border-gray-200
+                    border-b-2 border-gray-300
                     bg-gray-100
                     cursor-pointer
                     flex items-center justify-between
                     sticky top-0 z-10
-                    ${userHasShift ? 'bg-amber-100' : ''}
-                    ${isToday ? 'bg-blue-100' : ''}
+                    ${userHasShift ? 'bg-orange-50' : ''}
+                    ${isToday ? 'bg-orange-100' : ''}
                   `}
                   onClick={handleHeaderClick}
                 >
@@ -978,12 +900,12 @@ const WeeklyRotaPage = () => {
                       rounded-full 
                       flex-shrink-0 
                       flex flex-col items-center justify-center
-                      bg-gray-100
-                      border border-gray-300
-                      ${isToday ? 'bg-white text-blue-600 border-2 border-blue-500 shadow-sm' : 'text-charcoal'}
+                      bg-white
+                      border-2 border-gray-400
+                      ${isToday ? 'bg-orange-600 text-white border-orange-700 shadow-md' : 'text-charcoal'}
                     `}>
-                      <span className="text-base md:text-sm font-extrabold leading-none">{format(dateObj, 'dd')}</span>
-                      <span className="text-[8px] opacity-70">{format(dateObj, 'MMM')}</span>
+                      <span className={`text-base md:text-sm font-extrabold leading-none ${isToday ? 'text-white' : ''}`}>{format(dateObj, 'dd')}</span>
+                      <span className={`text-[8px] ${isToday ? 'text-white opacity-90' : 'opacity-70'}`}>{format(dateObj, 'MMM')}</span>
                     </div>
                     
                     <div>
@@ -1048,14 +970,15 @@ const WeeklyRotaPage = () => {
                       w-8 h-8 
                       flex items-center justify-center 
                       rounded-full 
-                      bg-gray-100
-                      border border-gray-300
+                      bg-white
+                      border-2 border-gray-400
                       transition-colors 
-                      hover:bg-gray-200
+                      hover:bg-gray-100
+                      shadow-sm
                     `}>
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-5 w-5 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                        className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
                         fill="none" 
                         viewBox="0 0 24 24" 
                         stroke="currentColor"
@@ -1084,11 +1007,172 @@ const WeeklyRotaPage = () => {
         </div>
       </div>
 
-      {/* Share Options Modal */}
+      {/* Week Selection Modal */}
+      {showWeekModal && createPortal(
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-charcoal">Select Week</h3>
+              <button
+                onClick={() => setShowWeekModal(false)}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setWeekStart(addDays(weekStart, -7));
+                  setShowWeekModal(false);
+                }}
+                className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
+              >
+                Previous Week
+              </button>
+              <button
+                onClick={() => {
+                  setWeekStart(getWeekStart(new Date()));
+                  setShowWeekModal(false);
+                }}
+                className="w-full px-4 py-3 rounded-lg text-white bg-orange-600 hover:bg-orange-700 font-semibold border-2 border-orange-700 transition-colors"
+              >
+                Current Week
+              </button>
+              <button
+                onClick={() => {
+                  setWeekStart(addDays(weekStart, 7));
+                  setShowWeekModal(false);
+                }}
+                className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
+              >
+                Next Week
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Location Selection Modal */}
+      {showLocationModal && createPortal(
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-2 overflow-y-auto">
+              {locations.map((loc) => (
+                <button
+                  key={loc.id}
+                  onClick={() => {
+                    setSelectedLocation(loc.name);
+                    setShowLocationModal(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                    selectedLocation === loc.name
+                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                  }`}
+                >
+                  {loc.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Shift Type Selection Modal - Same as Breaks */}
+      {showShiftModal && createPortal(
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-charcoal">Select Shift Type</h3>
+              <button
+                onClick={() => setShowShiftModal(false)}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setSelectedShiftType('all');
+                  setShowShiftModal(false);
+                }}
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  selectedShiftType === 'all'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                }`}
+              >
+                All Shifts
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedShiftType('day');
+                  setShowShiftModal(false);
+                }}
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  selectedShiftType === 'day'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                }`}
+              >
+                Day
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedShiftType('afternoon');
+                  setShowShiftModal(false);
+                }}
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  selectedShiftType === 'afternoon'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                }`}
+              >
+                Afternoon
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedShiftType('night');
+                  setShowShiftModal(false);
+                }}
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  selectedShiftType === 'night'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                }`}
+              >
+                Night
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Share Options Modal - Dark Modern Premium Style */}
       {showShareOptionsModal && createPortal(
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-charcoal mb-4">Choose Sharing Method</h3>
+          <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold text-charcoal mb-4">Choose Sharing Method</h3>
             <p className="text-gray-600 mb-6 text-sm">How would you like to share the schedule?</p>
             <div className="space-y-3">
               <button
@@ -1096,7 +1180,7 @@ const WeeklyRotaPage = () => {
                   shareToWhatsApp();
                   setShowShareOptionsModal(false);
                 }}
-                className="w-full flex items-center justify-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-md transition-all duration-150 ease-in-out focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
+                className="w-full flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow-md transition-all duration-150 ease-in-out"
               >
                 <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375a9.869 9.869 0 01-1.516-5.26c0-5.445 4.455-9.885 9.942-9.885a9.865 9.865 0 017.021 2.91 9.788 9.788 0 012.909 6.99c-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652a12.062 12.062 0 005.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411" />
@@ -1108,7 +1192,7 @@ const WeeklyRotaPage = () => {
                   generateAndSharePDF(); // This function already handles showing its own modal
                   setShowShareOptionsModal(false);
                 }}
-                className="w-full flex items-center justify-center px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-150 ease-in-out focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
+                className="w-full flex items-center justify-center px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold shadow-md transition-all duration-150 ease-in-out"
               >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 2a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13h8.906C14.502 13 16 11.57 16 9.773c0-1.636-1.242-2.969-2.834-3.194C12.923 3.999 10.69 2 8 2zm2.354 6.854-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 1 1 .708-.708L7.5 9.293V5.5a.5.5 0 0 1 1 0v3.793l1.146-1.147a.5.5 0 0 1 .708.708z"/>
@@ -1117,7 +1201,7 @@ const WeeklyRotaPage = () => {
               </button>
               <button
                 onClick={() => setShowShareOptionsModal(false)}
-                className="w-full mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md transition-all duration-150 ease-in-out focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+                className="w-full mt-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-charcoal rounded-lg font-semibold border-2 border-gray-300 shadow-sm transition-all duration-150 ease-in-out"
               >
                 Cancel
               </button>
@@ -1127,15 +1211,15 @@ const WeeklyRotaPage = () => {
         document.body
       )}
 
-      {/* Download File Modal */}
+      {/* Download File Modal - Dark Modern Premium Style */}
       {showDownloadModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
             <h3 className="text-xl font-bold text-charcoal mb-4">PDF Downloaded</h3>
             <div className="text-gray-600 mb-6 space-y-3">
               <p>
                 <span className="font-medium">File: </span>
-                <span className="text-blue-600">{downloadedFile.fileName}</span>
+                <span className="text-orange-600 font-semibold">{downloadedFile.fileName}</span>
               </p>
               <p className="text-sm text-gray-500">Week: {downloadedFile.dateRange}</p>
               <p className="mt-4">Would you like to share the schedule via WhatsApp?</p>
@@ -1143,13 +1227,13 @@ const WeeklyRotaPage = () => {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button 
                 onClick={() => setShowDownloadModal(false)} 
-                className="px-4 py-2 bg-gray-200 text-charcoal rounded border border-gray-300 hover:bg-gray-300 transition-all"
+                className="px-4 py-2 bg-gray-200 text-charcoal rounded-lg border-2 border-gray-300 hover:bg-gray-300 font-semibold shadow-sm transition-all"
               >
                 Close
               </button>
               <button 
                 onClick={shareAfterDownload}
-                className="px-4 py-2 bg-green-600 text-white rounded border border-green-500 hover:bg-green-700 shadow-md transition-all flex items-center justify-center"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md font-semibold transition-all flex items-center justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4 mr-2" fill="currentColor">
                   <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375a9.869 9.869 0 01-1.516-5.26c0-5.445 4.455-9.885 9.942-9.885a9.865 9.865 0 017.021 2.91 9.788 9.788 0 012.909 6.99c-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652a12.062 12.062 0 005.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411" />

@@ -187,7 +187,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-offwhite flex flex-col pb-safe">
-      <header className="bg-white shadow-sm border-b border-gray-200 relative z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* Hide header on mobile for My Rota page - bottom nav provides navigation */}
+      <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${location.pathname === '/my-rota' ? 'hidden md:block' : ''}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
           
