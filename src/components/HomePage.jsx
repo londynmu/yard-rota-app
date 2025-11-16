@@ -298,16 +298,14 @@ export default function HomePage() {
 
       {/* iOS-Style Bottom Navigation - Mobile Only with safe area */}
       <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-gray-800 shadow-lg pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 py-2">
           {/* Home */}
           <Link
             to="/calendar"
-            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
-              location.pathname === '/calendar'
-                ? 'text-orange-600'
-                : 'text-white active:bg-gray-900'
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname === '/calendar' ? 'active' : ''
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,10 +317,8 @@ export default function HomePage() {
           {/* My Rota */}
           <Link
             to="/my-rota"
-            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
-              location.pathname === '/my-rota'
-                ? 'text-orange-600'
-                : 'text-white active:bg-gray-900'
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname === '/my-rota' ? 'active' : ''
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,10 +330,8 @@ export default function HomePage() {
           {/* Breaks */}
           <Link
             to="/brakes"
-            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
-              location.pathname === '/brakes'
-                ? 'text-orange-600'
-                : 'text-white active:bg-gray-900'
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname === '/brakes' ? 'active' : ''
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -350,10 +344,8 @@ export default function HomePage() {
           {isAdmin && (
             <Link
               to="/admin"
-              className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
-                location.pathname === '/admin' || location.pathname === '/rota-planner'
-                  ? 'text-orange-600'
-                  : 'text-white active:bg-gray-900'
+              className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+                location.pathname === '/admin' || location.pathname === '/rota-planner' ? 'active' : ''
               }`}
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,10 +359,8 @@ export default function HomePage() {
           {/* Profile */}
           <Link
             to="/profile"
-            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
-              location.pathname === '/profile'
-                ? 'text-orange-600'
-                : 'text-white active:bg-gray-900'
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname === '/profile' ? 'active' : ''
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
