@@ -1573,7 +1573,6 @@ const BrakesManager = () => {
 // Staff Selection Modal Component - Enhance the staff removal functionality
 const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation }) => {
   const modalRef = useRef(null);
-  const [showAllStaff, setShowAllStaff] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Prevent body scrolling when modal is open
@@ -1593,7 +1592,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   }, [isOpen, availableStaff]);
   
   // Filter staff that are eligible for this slot - restore proper filtering
-  const eligibleStaff = showAllStaff ? availableStaff : availableStaff.filter(staff => {
+  const eligibleStaff = availableStaff.filter(staff => {
     if (!staff) return false;
     
     // Check if staff is already assigned to THIS slot
@@ -1635,39 +1634,10 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-3 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h3 className="text-base md:text-lg font-semibold">
-              Assign Staff to Break Slot
-            </h3>
-            {typeof currentLocation === 'string' && (
-              <p className="text-xs text-gray-500">
-                Location: {isAllLocation ? 'All Locations' : currentLocation}
-              </p>
-            )}
-          </div>
-          <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-charcoal transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {isAllLocation && (
-          <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
-            Select a specific location tab to assign staff to this break.
-          </div>
-        )}
-
-        {/* Slot Info */}
-        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50/50 border-b border-gray-200">
-          <div className="flex justify-between">
-            <div>
-              <span className="text-gray-400 text-xs md:text-sm">Time:</span>{' '}
-              <span className="font-medium text-xs md:text-sm">{slot.start_time} - {
+        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-200">
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap text-sm md:text-base">
+              <span className="font-semibold text-charcoal">{slot.start_time} - {
                 // Calculate end time
                 (() => {
                   try {
@@ -1681,29 +1651,38 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                   }
                 })()
               }</span>
-            </div>
-            <div>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] md:text-xs font-medium ${
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${
                 slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
                 slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
                 'bg-purple-100 text-purple-800 border-purple-300'
               }`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {slot.duration_minutes} min
+                {slot.duration_minutes}min
               </span>
+              {typeof currentLocation === 'string' && !isAllLocation && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-600">{currentLocation}</span>
+                </>
+              )}
+              <span className="text-gray-400">•</span>
+              <span className="text-gray-600">Assigned: {assignedStaff.length}</span>
             </div>
+            <button 
+              onClick={onClose}
+              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <div className="mt-1">
-            <span className="text-gray-400 text-xs md:text-sm">Break Type:</span>{' '}
-            <span className="font-medium text-xs md:text-sm">{slot.break_type}</span>
-          </div>
-           <div className="mt-1">
-             <span className="text-gray-400 text-xs md:text-sm">Assigned:</span>{' '}
-             <span className="font-medium text-xs md:text-sm">{assignedStaff.length}</span>
-           </div>
         </div>
+        
+        {isAllLocation && (
+          <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
+            Select a specific location tab to assign staff to this break.
+          </div>
+        )}
         
         {/* Currently Assigned Staff */}
         <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
@@ -1746,24 +1725,15 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {/* Available Staff List */}
         <div className="p-2 md:p-4">
-          <div className="flex justify-between items-center mb-2 md:mb-3">
-            <h4 className="text-base md:text-lg font-semibold text-charcoal">Available Staff</h4>
-            <button
-              onClick={() => setShowAllStaff(prev => !prev)}
-              className="text-sm md:text-base bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors"
-            >
-              {showAllStaff ? "Show Eligible Only" : "Show All Staff"}
-            </button>
-          </div>
+          <h4 className="text-base md:text-lg font-semibold text-charcoal mb-2 md:mb-3">Available Staff</h4>
           
           {availableStaff.length === 0 ? (
             <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
-              No staff available for this shift/date
+              No available staff
             </div>
           ) : eligibleStaff.length === 0 ? (
             <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
-              No eligible staff available for this slot
-              {showAllStaff ? "" : " (try 'Show All Staff' button)"}
+              No available staff
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
