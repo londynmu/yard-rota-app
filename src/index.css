@@ -10,7 +10,7 @@
     transition-duration: 200ms;
   }
   
-  /* Custom scrollbar */
+  /* Custom scrollbar - Light mode only */
   ::-webkit-scrollbar {
     width: 12px;
   }
@@ -19,61 +19,38 @@
     background-color: rgb(243 244 246);
   }
   
-  .dark ::-webkit-scrollbar-track {
-    background-color: rgb(31 41 55);
-  }
-  
   ::-webkit-scrollbar-thumb {
     background-color: rgb(209 213 219);
     border-radius: 0.5rem;
-  }
-  
-  .dark ::-webkit-scrollbar-thumb {
-    background-color: rgb(75 85 99);
   }
   
   ::-webkit-scrollbar-thumb:hover {
     background-color: rgb(156 163 175);
   }
   
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(107 114 128);
-  }
-  
-  /* Selection color */
+  /* Selection color - Light mode only */
   ::selection {
     background-color: rgb(229 231 235);
   }
   
-  .dark ::selection {
-    background-color: rgb(55 65 81);
-  }
-  
-  /* Focus styles */
+  /* Focus styles - Light mode only */
   :focus-visible {
     outline: 2px solid transparent;
     outline-offset: 2px;
     box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
   }
   
-  .dark :focus-visible {
-    box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff;
-  }
-  
-  /* Body defaults */
+  /* Body defaults - Light mode only */
   body {
     background-color: #FAFAFA;
     color: #2D2D2D;
-    /* Respect safe area at the top (iOS/Android with cutouts when using standalone modes) */
-    padding-top: constant(safe-area-inset-top);
-    padding-top: env(safe-area-inset-top);
     /* Respect bottom safe area when gesture nav overlaps */
     padding-bottom: constant(safe-area-inset-bottom);
     padding-bottom: env(safe-area-inset-bottom);
   }
   
-  .dark body {
-    background-color: rgb(17 24 39);
-    color: rgb(243 244 246);
+  html, body, #root {
+    margin: 0;
+    padding: 0;
   }
 }

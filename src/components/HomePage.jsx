@@ -157,26 +157,26 @@ export default function HomePage() {
           width: '12rem',
           zIndex: 99999,
         }}
-        className="bg-white dark:bg-gray-800 rounded-lg py-1 border border-gray-200 dark:border-gray-700 shadow-lg"
+        className="bg-white rounded-lg py-1 border border-gray-200 shadow-lg"
       >
         {profileName && (
-          <div className="px-4 py-3 text-sm border-b border-gray-200 dark:border-gray-700">
-            <p className="font-medium text-charcoal dark:text-white">{profileName}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+          <div className="px-4 py-3 text-sm border-b border-gray-200">
+            <p className="font-medium text-charcoal">{profileName}</p>
+            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           </div>
         )}
         
         <Link
           to="/profile"
           onClick={() => setShowDropdown(false)}
-          className="block w-full text-left px-4 py-2 text-sm text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="block w-full text-left px-4 py-2 text-sm text-charcoal hover:bg-gray-100"
         >
           Profile
         </Link>
         
         <button
           onClick={handleSignOut}
-          className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+          className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
         >
           Log out
         </button>
@@ -187,16 +187,16 @@ export default function HomePage() {
   if (profileLoading) {
     // Return completely empty loading state with just background
     return (
-      <div className="min-h-screen bg-offwhite dark:bg-gray-900">
+      <div className="min-h-screen bg-offwhite">
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-offwhite dark:bg-gray-900 flex flex-col">
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 relative z-10">
+    <div className="min-h-screen bg-offwhite flex flex-col">
+      <header className="bg-white shadow-sm border-b border-gray-200 relative z-10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-charcoal dark:text-white">{getPageTitle()}</h1>
+          <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
           
           <div className="flex items-center space-x-4">
             <nav className="hidden md:flex space-x-2">
@@ -204,8 +204,8 @@ export default function HomePage() {
                 to="/calendar"
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   location.pathname === '/calendar' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 Main Page
@@ -214,8 +214,8 @@ export default function HomePage() {
                 to="/my-rota"
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   location.pathname === '/my-rota' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 My Rota
@@ -224,8 +224,8 @@ export default function HomePage() {
                 to="/brakes"
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   location.pathname === '/brakes' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 Breaks
@@ -236,8 +236,8 @@ export default function HomePage() {
                     to="/admin"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === '/admin' 
-                        ? 'bg-black text-white dark:bg-white dark:text-black' 
-                        : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-black text-white' 
+                        : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
                     Admin Panel
@@ -246,8 +246,8 @@ export default function HomePage() {
                     to="/rota-planner"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === '/rota-planner' 
-                        ? 'bg-black text-white dark:bg-white dark:text-black' 
-                        : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-black text-white' 
+                        : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
                     Rota Planner
@@ -257,7 +257,7 @@ export default function HomePage() {
             </nav>
             
             <button 
-              className="md:hidden p-2 rounded-lg text-charcoal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
+              className="md:hidden p-2 rounded-lg text-charcoal hover:bg-gray-100 focus:outline-none"
               onClick={toggleMobileMenu}
               aria-label="Menu"
             >
@@ -280,7 +280,7 @@ export default function HomePage() {
                 aria-label="User menu"
                 aria-haspopup="true"
               >
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 dark:border-gray-600 shadow-sm">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm">
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
@@ -288,8 +288,8 @@ export default function HomePage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                      <span className="text-charcoal dark:text-white font-medium text-sm">
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-charcoal font-medium text-sm">
                         {user?.email?.charAt(0).toUpperCase() || '?'}
                       </span>
                     </div>
@@ -301,15 +301,15 @@ export default function HomePage() {
         </div>
         
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="md:hidden bg-white border-b border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
               <Link
                 to="/calendar"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-lg ${
                   location.pathname === '/calendar' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 Main Page
@@ -319,8 +319,8 @@ export default function HomePage() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-lg ${
                   location.pathname === '/my-rota' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 My Rota
@@ -330,8 +330,8 @@ export default function HomePage() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-lg ${
                   location.pathname === '/brakes' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 Breaks
@@ -343,8 +343,8 @@ export default function HomePage() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`block px-3 py-2 rounded-lg ${
                       location.pathname === '/admin' 
-                        ? 'bg-black text-white dark:bg-white dark:text-black' 
-                        : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-black text-white' 
+                        : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
                     Admin Panel
@@ -354,8 +354,8 @@ export default function HomePage() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`block px-3 py-2 rounded-lg ${
                       location.pathname === '/rota-planner' 
-                        ? 'bg-black text-white dark:bg-white dark:text-black' 
-                        : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-black text-white' 
+                        : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
                     Rota Planner
@@ -367,15 +367,15 @@ export default function HomePage() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-lg ${
                   location.pathname === '/profile' 
-                    ? 'bg-black text-white dark:bg-white dark:text-black' 
-                    : 'text-charcoal dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
                 }`}
               >
                 Profile
               </Link>
               <button
                 onClick={handleSignOut}
-                className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                className="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-red-500 hover:bg-red-50"
               >
                 Log out
               </button>
