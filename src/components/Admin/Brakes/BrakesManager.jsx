@@ -1066,9 +1066,9 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="p-0 md:p-6 bg-white text-charcoal min-h-screen pb-20">
+    <div className="p-0 md:p-6 bg-gray-100 text-charcoal min-h-screen pb-20">
       {/* Sticky Controls in one line (badges) */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm mb-4 md:mb-6">
+      <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-300 shadow-lg mb-4 md:mb-6">
         <div className="w-full px-2 md:px-0 py-2">
           <div className="grid grid-cols-3 gap-2 w-full">
             {/* Date badge */}
@@ -1078,21 +1078,21 @@ const BrakesManager = () => {
                 setShowLocationModal(false); 
                 setShowShiftModal(false);
               }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
             >
               {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
             </button>
             {/* Location badge */}
             <button
               onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-sm shadow-sm whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
             >
               {selectedLocation || 'Hub'}
             </button>
             {/* Shift badge */}
             <button
               onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border border-gray-300 bg-gray-100 text-charcoal text-sm shadow-sm whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
             >
               {selectedShift}
             </button>
@@ -1103,10 +1103,10 @@ const BrakesManager = () => {
       {/* Modals for pickers */}
       {showDateModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-charcoal">Select date</h3>
-              <button onClick={() => setShowDateModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Select date</h3>
+              <button onClick={() => setShowDateModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1200,9 +1200,9 @@ const BrakesManager = () => {
                 /* Wybrany dzień */
                 .react-datepicker__day--selected,
                 .react-datepicker__day--keyboard-selected {
-                  background-color: #3b82f6 !important;
+                  background-color: #1f2937 !important;
                   color: white !important;
-                  font-weight: 600 !important;
+                  font-weight: 700 !important;
                 }
                 
                 /* Niedziela - czerwone tło */
@@ -1272,8 +1272,9 @@ const BrakesManager = () => {
                 
                 /* Dzisiejszy dzień - obramowanie */
                 .react-datepicker__day--today:not(.react-datepicker__day--selected) {
-                  border: 2px solid #3b82f6 !important;
-                  font-weight: 600 !important;
+                  border: 2px solid #ea580c !important;
+                  font-weight: 700 !important;
+                  background-color: #fed7aa !important;
                 }
                 
                 /* Media query dla większych ekranów */
@@ -1340,10 +1341,10 @@ const BrakesManager = () => {
 
       {showLocationModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-charcoal">Select hub</h3>
-              <button onClick={() => setShowLocationModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Select hub</h3>
+              <button onClick={() => setShowLocationModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1354,7 +1355,7 @@ const BrakesManager = () => {
                 <button
                   key={loc.id}
                   onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
-                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-medium ${selectedLocation === loc.name ? 'border-blue-500 bg-blue-50 text-blue-900' : 'border-gray-300 hover:bg-gray-50 text-charcoal hover:border-gray-400'}`}
+                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-semibold ${selectedLocation === loc.name ? 'border-gray-900 bg-gray-800 text-white shadow-lg' : 'border-gray-300 bg-white hover:bg-gray-100 text-charcoal hover:border-gray-400'}`}
                 >
                   {loc.name}
                 </button>
@@ -1367,10 +1368,10 @@ const BrakesManager = () => {
 
       {showShiftModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-charcoal">Select shift</h3>
-              <button onClick={() => setShowShiftModal(false)} className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1">
+          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Select shift</h3>
+              <button onClick={() => setShowShiftModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1381,7 +1382,7 @@ const BrakesManager = () => {
                 <button
                   key={shift}
                   onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
-                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-medium ${selectedShift === shift ? 'border-blue-500 bg-blue-50 text-blue-900' : 'border-gray-300 hover:bg-gray-50 text-charcoal hover:border-gray-400'}`}
+                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-semibold ${selectedShift === shift ? 'border-gray-900 bg-gray-800 text-white shadow-lg' : 'border-gray-300 bg-white hover:bg-gray-100 text-charcoal hover:border-gray-400'}`}
                 >
                   {shift}
                 </button>
@@ -1400,7 +1401,7 @@ const BrakesManager = () => {
       {isLoading ? (
         <div className="text-center py-10">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
-          <p className="mt-2 text-charcoal">Loading breaks...</p>
+          <p className="mt-2 text-gray-900 font-semibold">Loading breaks...</p>
         </div>
       ) : (
         <div className="space-y-4 md:space-y-8 px-1 md:px-0">
@@ -1424,12 +1425,12 @@ const BrakesManager = () => {
                 {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
                   <div 
                     onClick={() => setAddSlotModalOpen(true)}
-                    className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100"
+                    className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100 hover:shadow-lg"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 md:h-10 md:w-10 text-gray-400 mb-2 md:mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 md:h-10 md:w-10 text-orange-600 mb-2 md:mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="text-base md:text-sm font-semibold text-gray-600">Add Custom Slot</span>
+                    <span className="text-base md:text-sm font-bold text-gray-900">Add Custom Slot</span>
                   </div>
                 )}
               </div>
@@ -1440,11 +1441,11 @@ const BrakesManager = () => {
 
       {/* Sticky Bottom Save Bar */}
       {isAdmin && (
-        <div className="fixed inset-x-0 bottom-0 z-20 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+        <div className="fixed inset-x-0 bottom-0 z-20 bg-gray-100 border-t-2 border-gray-400 shadow-[0_-2px_12px_rgba(0,0,0,0.15)]">
           <div className="container mx-auto px-3 py-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}>
             <button
               onClick={handleSaveAllBreaks}
-              className="w-full rounded-full bg-black text-white py-2 font-semibold hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
+              className="w-full rounded-full bg-black text-white py-2 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg"
               disabled={isLoading}
             >
               Save Breaks
@@ -1480,13 +1481,13 @@ const BrakesManager = () => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-50 px-5 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-charcoal">Delete Custom Slot?</h3>
+          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
+            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900">
+              <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
             </div>
             <div className="p-5">
-              <p className="text-base text-gray-600 mb-5">
-                Are you sure you want to delete slot at <strong>{deleteConfirmSlot.start_time}</strong> ({deleteConfirmSlot.duration_minutes} min)?
+              <p className="text-base text-charcoal mb-5">
+                Are you sure you want to delete slot at <strong className="text-orange-600">{deleteConfirmSlot.start_time}</strong> ({deleteConfirmSlot.duration_minutes} min)?
               </p>
               <div className="flex gap-3">
                 <button
@@ -1497,7 +1498,7 @@ const BrakesManager = () => {
                 </button>
                 <button
                   onClick={() => setDeleteConfirmSlot(null)}
-                  className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
+                  className="flex-1 px-4 py-3 bg-gray-200 text-charcoal rounded-lg hover:bg-gray-300 font-semibold transition-colors"
                 >
                   Cancel
                 </button>
@@ -1572,13 +1573,13 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-lg shadow-xl border border-gray-200 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
+        className="relative bg-white text-charcoal rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="bg-gray-50 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-200">
+        <div className="bg-gray-800 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-900">
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-2 flex-wrap text-sm md:text-base">
-              <span className="font-semibold text-charcoal">{slot.start_time} - {
+              <span className="font-bold text-white">{slot.start_time} - {
                 // Calculate end time
                 (() => {
                   try {
@@ -1595,11 +1596,11 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               {typeof currentLocation === 'string' && !isAllLocation && (
                 <>
                   <span className="text-gray-400">•</span>
-                  <span className="text-gray-600">{currentLocation}</span>
+                  <span className="text-gray-300">{currentLocation}</span>
                 </>
               )}
               <span className="text-gray-400">•</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-blue-100 text-blue-800 border-blue-300">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border-2 text-xs font-bold bg-orange-600 text-white border-orange-700">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -1608,7 +1609,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
             </div>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0"
+              className="text-gray-300 hover:text-white transition-colors flex-shrink-0"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1625,22 +1626,22 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {/* Currently Assigned Staff */}
         <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
-          <h4 className="text-base md:text-lg font-semibold text-charcoal mb-2 md:mb-3">Currently Assigned</h4>
+          <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 md:mb-3">Currently Assigned</h4>
           {assignedStaff.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
               {assignedStaff.map(staff => (
                 <div 
                   key={staff.id} 
-                  className="flex justify-between items-center bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg shadow-sm group"
+                  className="flex justify-between items-center bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg shadow-md group"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Avatar circle with initial */}
-                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-base text-white bg-orange-600 shadow-md">
                       {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-base md:text-lg font-semibold text-blue-900">{staff.user_name}</div>
-                      <div className="text-sm md:text-base text-blue-700 opacity-80">{staff.preferred_shift}</div>
+                      <div className="text-base md:text-lg font-bold text-charcoal">{staff.user_name}</div>
+                      <div className="text-sm md:text-base text-gray-600">{staff.preferred_shift}</div>
                     </div>
                   </div>
                   <button 
@@ -1664,7 +1665,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {/* Available Staff List */}
         <div className="p-2 md:p-4">
-          <h4 className="text-base md:text-lg font-semibold text-charcoal mb-2 md:mb-3">Available Staff</h4>
+          <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 md:mb-3">Available Staff</h4>
           
           {availableStaff.length === 0 ? (
             <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
@@ -1689,22 +1690,22 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                   className={`w-full text-left flex items-center justify-between px-3 py-2 md:px-4 md:py-2.5 rounded-lg transition-all duration-200 ${
                      isProcessing || isAllLocation
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
-                      : 'bg-blue-100 border-2 border-blue-300 hover:bg-blue-200 hover:shadow-md focus:bg-blue-200'
+                      : 'bg-gray-100 border-2 border-gray-300 hover:bg-gray-200 hover:border-gray-500 hover:shadow-md focus:bg-gray-200 shadow-sm'
                   }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Avatar circle with initial */}
-                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-base text-blue-900 bg-white shadow-md">
+                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-base text-orange-700 bg-orange-50 shadow-md">
                       {`${staff.first_name[0]}${staff.last_name[0]}`.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-base md:text-lg font-semibold text-blue-900">{staff.first_name} {staff.last_name}</div>
-                      <div className="text-sm md:text-base text-blue-700 opacity-80">
+                      <div className="text-base md:text-lg font-bold text-charcoal">{staff.first_name} {staff.last_name}</div>
+                      <div className="text-sm md:text-base text-gray-600">
                         {staff.preferred_shift} 
                         {/* For Day shift, show which breaks are already assigned */}
                         {staff.preferred_shift?.toLowerCase() === 'day' && (
                           <span className="ml-2">
-                            {staff.has_break_15 && <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-900 border border-blue-400 rounded text-xs md:text-sm mr-1 font-medium">15m</span>}
+                            {staff.has_break_15 && <span className="inline-block px-2 py-0.5 bg-orange-200 text-orange-900 border border-orange-400 rounded text-xs md:text-sm mr-1 font-medium">15m</span>}
                             {staff.has_break_45 && <span className="inline-block px-2 py-0.5 bg-green-200 text-green-900 border border-green-400 rounded text-xs md:text-sm font-medium">45m</span>}
                           </span>
                         )}
@@ -1717,7 +1718,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                       </div>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-blue-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-orange-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
@@ -1730,7 +1731,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-3 py-1 md:px-4 md:py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-xs md:text-sm"
+            className="px-3 py-1 md:px-4 md:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs md:text-sm font-semibold shadow-md"
           >
             Close
           </button>
@@ -1780,15 +1781,15 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
+        className="relative bg-white text-charcoal rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="bg-gray-50 px-5 py-4 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex-shrink-0">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-charcoal">Create Custom Slot</h3>
+            <h3 className="text-lg font-bold text-white">Create Custom Slot</h3>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-charcoal transition-colors flex-shrink-0 -mr-1"
+              className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1891,7 +1892,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
     <form onSubmit={handleSubmit} className="space-y-5">
         {/* Start Time */}
         <div>
-          <label htmlFor="cs_start_time" className="block text-sm font-semibold text-charcoal mb-2">
+          <label htmlFor="cs_start_time" className="block text-sm font-bold text-gray-900 mb-2">
             Start Time
           </label>
           <select
@@ -1899,7 +1900,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
             name="start_time"
             value={formData.start_time}
             onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
+            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
           >
             <option value="" className="bg-white text-charcoal">Select time</option>
             {generateTimeOptions().map(time => (
@@ -1912,7 +1913,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         
         {/* Duration */}
         <div>
-          <label htmlFor="cs_duration_minutes" className="block text-sm font-semibold text-charcoal mb-2">
+          <label htmlFor="cs_duration_minutes" className="block text-sm font-bold text-gray-900 mb-2">
             Duration (minutes)
           </label>
           <select
@@ -1920,7 +1921,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
             name="duration_minutes"
             value={formData.duration_minutes}
             onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
+            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
           >
             <option value={15} className="bg-white text-charcoal">15 minutes</option>
             <option value={30} className="bg-white text-charcoal">30 minutes</option>
@@ -1932,7 +1933,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div className="pt-1">
           <button
             type="submit"
-            className="w-full px-4 py-3.5 bg-black text-white text-base font-semibold rounded-lg hover:bg-gray-800 transition-colors shadow-md"
+            className="w-full px-4 py-3.5 bg-black text-white text-base font-bold rounded-lg hover:bg-gray-900 transition-colors shadow-lg"
           >
             Add Custom Slot
           </button>
@@ -2017,11 +2018,10 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
   // const gridClasses = "grid grid-cols-1 gap-3 md:gap-4";
 
   // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
-  // Szare karty slotów z wyraźnymi paskami dla osób
-  // Na desktop: mniejsze i bardziej kompaktowe dla lepszego screenshotu
-  const cardClasses = `bg-gray-100 p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-400 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-xl`;
-  const timeClasses = "font-bold text-lg md:text-base text-charcoal";
-  const staffNameClasses = "text-base md:text-sm bg-blue-100 border-2 border-blue-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-sm font-semibold text-blue-900 hover:bg-blue-200 hover:shadow-md transition-all";
+  // Dark Modern Premium - białe karty z szaro-czarnymi i pomarańczowymi akcentami
+  const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-2xl`;
+  const timeClasses = "font-bold text-lg md:text-base text-gray-900";
+  const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
   const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 md:px-2 md:py-1 rounded-full border-2 text-base md:text-sm font-semibold shadow-sm";
   const badgeIconClasses = "h-5 w-5 md:h-4 md:w-4";
   const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
@@ -2066,7 +2066,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
           <span className={timeClasses}>
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className={`${badgeClasses} bg-blue-100 text-blue-800 border-blue-300`}>
+          <span className={`${badgeClasses} bg-orange-600 text-white border-orange-700`}>
             <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
@@ -2084,10 +2084,10 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
               >
                 <div className="flex items-center gap-2 md:gap-2 flex-1 min-w-0">
                   {/* Avatar circle with initial */}
-                  <div className="flex-shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-full border-2 border-blue-400 flex items-center justify-center font-bold text-sm md:text-xs text-blue-900 bg-white shadow-md">
+                  <div className="flex-shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-xs text-white bg-orange-600 shadow-md">
                     {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                   </div>
-                  <span className="truncate font-semibold text-blue-900">{staff.user_name}</span>
+                  <span className="truncate font-semibold text-charcoal">{staff.user_name}</span>
                 </div>
                 {/* Show remove button only if user is admin or it's their own break */}
                 {(isAdmin || staff.user_id === currentUser?.id) && (
@@ -2096,7 +2096,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
                       e.stopPropagation(); // Prevent triggering the card's onClick
                       onRemoveStaffClick(staff);
                     }} 
-                    className="remove-staff-button flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-100 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
+                    className="remove-staff-button flex-shrink-0 text-red-600 hover:text-white hover:bg-red-600 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
                     aria-label={`Remove ${staff.user_name}`}
                     title={`Remove ${staff.user_name}`}
                   >
