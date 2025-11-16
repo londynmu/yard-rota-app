@@ -1592,13 +1592,6 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                   }
                 })()
               }</span>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${
-                slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
-                'bg-purple-100 text-purple-800 border-purple-300'
-              }`}>
-                {slot.duration_minutes}min
-              </span>
               {typeof currentLocation === 'string' && !isAllLocation && (
                 <>
                   <span className="text-gray-400">•</span>
@@ -1606,7 +1599,12 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                 </>
               )}
               <span className="text-gray-400">•</span>
-              <span className="text-gray-600">Assigned: {assignedStaff.length}</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-blue-100 text-blue-800 border-blue-300">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {assignedStaff.length}
+              </span>
             </div>
             <button 
               onClick={onClose}
@@ -2068,15 +2066,11 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
           <span className={timeClasses}>
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className={`${badgeClasses} ${
-            slot.duration_minutes === 15 ? 'bg-blue-100 text-blue-800 border-blue-300' :
-            slot.duration_minutes === 45 ? 'bg-teal-100 text-teal-800 border-teal-300' :
-            'bg-purple-100 text-purple-800 border-purple-300'
-          }`}>
+          <span className={`${badgeClasses} bg-blue-100 text-blue-800 border-blue-300`}>
             <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            {slot.duration_minutes} min • {assignedStaff.length}
+            {assignedStaff.length}
           </span>
         </div>
         
