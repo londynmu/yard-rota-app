@@ -186,7 +186,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite flex flex-col pb-safe">
+    <div className="min-h-screen bg-offwhite flex flex-col">
       {/* Hide header on mobile for My Rota page - bottom nav provides navigation */}
       <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${location.pathname === '/my-rota' ? 'hidden md:block' : ''}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -296,13 +296,9 @@ export default function HomePage() {
         </Routes>
       </main>
 
-      {/* iOS-Style Bottom Navigation - Mobile Only */}
+      {/* iOS-Style Bottom Navigation - Mobile Only with safe area */}
       <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-gray-300 shadow-lg"
-        style={{ 
-          paddingBottom: 'constant(safe-area-inset-bottom)',
-          paddingBottom: 'env(safe-area-inset-bottom)'
-        }}
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-gray-800 shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 py-2">
           {/* Home */}
@@ -311,7 +307,7 @@ export default function HomePage() {
             className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
               location.pathname === '/calendar'
                 ? 'text-orange-600'
-                : 'text-gray-600 active:bg-gray-100'
+                : 'text-white active:bg-gray-900'
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,7 +322,7 @@ export default function HomePage() {
             className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
               location.pathname === '/my-rota'
                 ? 'text-orange-600'
-                : 'text-gray-600 active:bg-gray-100'
+                : 'text-white active:bg-gray-900'
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +337,7 @@ export default function HomePage() {
             className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
               location.pathname === '/brakes'
                 ? 'text-orange-600'
-                : 'text-gray-600 active:bg-gray-100'
+                : 'text-white active:bg-gray-900'
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,7 +353,7 @@ export default function HomePage() {
               className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
                 location.pathname === '/admin' || location.pathname === '/rota-planner'
                   ? 'text-orange-600'
-                  : 'text-gray-600 active:bg-gray-100'
+                  : 'text-white active:bg-gray-900'
               }`}
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,7 +370,7 @@ export default function HomePage() {
             className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all ${
               location.pathname === '/profile'
                 ? 'text-orange-600'
-                : 'text-gray-600 active:bg-gray-100'
+                : 'text-white active:bg-gray-900'
             }`}
           >
             <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

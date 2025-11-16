@@ -15,10 +15,10 @@ if (Capacitor.getPlatform() !== 'web') {
     try {
       // Do not draw under the status bar; system provides safe area
       await StatusBar.setOverlaysWebView({ overlay: false })
-      // Dark icons for light backgrounds (light mode app)
-      await StatusBar.setStyle({ style: Style.Dark })
-      // Gray-100 status bar to match app design (#f3f4f6)
-      await StatusBar.setBackgroundColor({ color: '#f3f4f6' })
+      // Light icons for dark status bar
+      await StatusBar.setStyle({ style: Style.Light })
+      // Black status bar for visibility
+      await StatusBar.setBackgroundColor({ color: '#000000' })
     } catch (err) {
       console.error('StatusBar setup error:', err)
     }

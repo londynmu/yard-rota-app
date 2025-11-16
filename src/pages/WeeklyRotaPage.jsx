@@ -894,97 +894,96 @@ const WeeklyRotaPage = () => {
                   `}
                   onClick={handleHeaderClick}
                 >
+                  {/* Left side: Date circle + Day name */}
                   <div className="flex items-center space-x-3 md:space-x-2">
                     <div className={`
                       w-11 h-11 md:w-9 md:h-9
                       rounded-full 
                       flex-shrink-0 
                       flex flex-col items-center justify-center
-                      bg-white
                       border-2 border-gray-400
-                      ${isToday ? 'bg-orange-600 text-white border-orange-700 shadow-md' : 'text-charcoal'}
+                      ${isToday ? 'bg-orange-600 border-orange-700 shadow-md' : 'bg-white'}
                     `}>
-                      <span className={`text-base md:text-sm font-extrabold leading-none ${isToday ? 'text-white' : ''}`}>{format(dateObj, 'dd')}</span>
-                      <span className={`text-[8px] ${isToday ? 'text-white opacity-90' : 'opacity-70'}`}>{format(dateObj, 'MMM')}</span>
+                      <span className={`text-base md:text-sm font-extrabold leading-none ${isToday ? '!text-white' : 'text-charcoal'}`}>{format(dateObj, 'dd')}</span>
+                      <span className={`text-[8px] ${isToday ? '!text-white !opacity-90' : 'text-charcoal opacity-70'}`}>{format(dateObj, 'MMM')}</span>
                     </div>
                     
-                    <div>
-                      <h3 className="text-base md:text-sm font-bold text-charcoal leading-tight">
-                        {format(dateObj, 'EEEE')}
-                      </h3>
-                      
-                      {dayData.length > 0 ? (
-                        <div className="flex space-x-2 mt-0.5">
-                          {/* Calculate shift counts */}
-                          {(() => {
-                            // Filter out shifts without assigned profiles (like deleted users)
-                            const filteredDayData = dayData.filter(slot => slot.profiles);
-                            
-                            const shiftCounts = {
-                              day: filteredDayData.filter(s => s.shift_type === 'day').length,
-                              afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
-                              night: filteredDayData.filter(s => s.shift_type === 'night').length
-                            };
-                            
-                            return (
-                              <>
-                                {shiftCounts.day > 0 && (
-                                  <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                                    </svg>
-                                    {shiftCounts.day}
-                                  </span>
-                                )}
-                                
-                                {shiftCounts.afternoon > 0 && (
-                                  <span className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                                    </svg>
-                                    {shiftCounts.afternoon}
-                                  </span>
-                                )}
-                                
-                                {shiftCounts.night > 0 && (
-                                  <span className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                                    </svg>
-                                    {shiftCounts.night}
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-600">No shifts scheduled</span>
-                      )}
-                    </div>
+                    <h3 className="text-base md:text-sm font-bold text-charcoal leading-tight">
+                      {format(dateObj, 'EEEE')}
+                    </h3>
                   </div>
                   
-                  {/* Expand/Collapse button - only on mobile */}
-                  <div className="md:hidden">
-                    <div className={`
-                      w-8 h-8 
-                      flex items-center justify-center 
-                      rounded-full 
-                      bg-white
-                      border-2 border-gray-400
-                      transition-colors 
-                      hover:bg-gray-100
-                      shadow-sm
-                    `}>
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                  {/* Right side: Shift badges stacked vertically + Expand button */}
+                  <div className="flex items-center gap-2">
+                    {/* Shift count badges - stacked vertically */}
+                    {dayData.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {(() => {
+                          // Filter out shifts without assigned profiles (like deleted users)
+                          const filteredDayData = dayData.filter(slot => slot.profiles);
+                          
+                          const shiftCounts = {
+                            day: filteredDayData.filter(s => s.shift_type === 'day').length,
+                            afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
+                            night: filteredDayData.filter(s => s.shift_type === 'night').length
+                          };
+                          
+                          return (
+                            <>
+                              {shiftCounts.day > 0 && (
+                                <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                                  </svg>
+                                  {shiftCounts.day}
+                                </span>
+                              )}
+                              
+                              {shiftCounts.afternoon > 0 && (
+                                <span className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                  </svg>
+                                  {shiftCounts.afternoon}
+                                </span>
+                              )}
+                              
+                              {shiftCounts.night > 0 && (
+                                <span className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                  </svg>
+                                  {shiftCounts.night}
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+                    
+                    {/* Expand/Collapse button - only on mobile */}
+                    <div className="md:hidden">
+                      <div className={`
+                        w-8 h-8 
+                        flex items-center justify-center 
+                        rounded-full 
+                        bg-white
+                        border-2 border-gray-400
+                        transition-colors 
+                        hover:bg-gray-100
+                        shadow-sm
+                      `}>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
