@@ -1602,7 +1602,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                 </>
               )}
               <span className="text-gray-400">•</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border-2 text-xs font-bold bg-orange-600 text-white border-orange-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold bg-gray-200 text-charcoal border-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -2024,8 +2024,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
   const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg hover:shadow-2xl`;
   const timeClasses = "font-bold text-lg md:text-base text-gray-900";
   const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
-  const badgeClasses = "inline-flex items-center gap-2 px-3 py-1.5 md:px-2 md:py-1 rounded-full border-2 text-base md:text-sm font-semibold shadow-sm";
-  const badgeIconClasses = "h-5 w-5 md:h-4 md:w-4";
+  const badgeClasses = "inline-flex items-center gap-1 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full border text-sm md:text-xs font-semibold";
+  const badgeIconClasses = "h-3.5 w-3.5 md:h-3 md:w-3";
   const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
 
   // WARIANT 3 - Duże powiększenie
@@ -2068,7 +2068,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
           <span className={timeClasses}>
             {formatStartTime()} - {calculateEndTime()}
           </span>
-          <span className={`${badgeClasses} bg-orange-600 text-white border-orange-700`}>
+          <span className={`${badgeClasses} bg-gray-200 text-charcoal border-gray-400`}>
             <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
