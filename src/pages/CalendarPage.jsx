@@ -231,12 +231,12 @@ export default function CalendarPage() {
               </div>
             )}
             
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <div>
               {/* Calendar Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between px-4 py-4 mb-4">
                 <button
                   onClick={handlePreviousMonth}
-                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
+                  className="p-2 rounded-lg hover:bg-white/50 transition-colors text-charcoal"
                   aria-label="Previous month"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -250,31 +250,13 @@ export default function CalendarPage() {
                 
                 <button
                   onClick={handleNextMonth}
-                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
+                  className="p-2 rounded-lg hover:bg-white/50 transition-colors text-charcoal"
                   aria-label="Next month"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-              </div>
-              
-              {/* Legend */}
-              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-                <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-charcoal">
-                  <div className="flex items-center">
-                    <span className="w-4 h-4 rounded-full bg-green-500 mr-2 border border-gray-300"></span>
-                    <span>Available</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-4 h-4 rounded-full bg-red-500 mr-2 border border-gray-300"></span>
-                    <span>Unavailable</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-4 h-4 rounded-full bg-blue-500 mr-2 border border-gray-300"></span>
-                    <span>Holiday</span>
-                  </div>
-                </div>
               </div>
               
               {/* Calendar Grid */}
@@ -284,6 +266,24 @@ export default function CalendarPage() {
                 onDayClick={handleDayClick}
                 isLoading={loading}
               />
+            </div>
+            
+            {/* Legend - Below Calendar */}
+            <div className="mt-4 px-4 py-3">
+              <div className="flex justify-center items-center gap-6 text-sm font-medium text-charcoal">
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                  <span>Unavailable</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                  <span>Holiday</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
