@@ -1103,16 +1103,16 @@ const BrakesManager = () => {
       {/* Modals for pickers */}
       {showDateModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Select date</h3>
-              <button onClick={() => setShowDateModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+              <h3 className="text-lg font-bold text-charcoal">Select Date</h3>
+              <button onClick={() => setShowDateModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-5">
+            <div className="p-6">
             <style>
               {`
                 /* Kalendarz - responsywny mobile-first */
@@ -1341,21 +1341,25 @@ const BrakesManager = () => {
 
       {showLocationModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Select hub</h3>
-              <button onClick={() => setShowLocationModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+              <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
+              <button onClick={() => setShowLocationModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-5 max-h-[60vh] overflow-auto space-y-3">
+            <div className="p-6 max-h-[60vh] overflow-auto space-y-2">
               {locations.map(loc => (
                 <button
                   key={loc.id}
                   onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
-                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-semibold ${selectedLocation === loc.name ? 'border-gray-900 bg-gray-800 text-white shadow-lg' : 'border-gray-300 bg-white hover:bg-gray-100 text-charcoal hover:border-gray-400'}`}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                    selectedLocation === loc.name
+                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                  }`}
                 >
                   {loc.name}
                 </button>
@@ -1368,21 +1372,25 @@ const BrakesManager = () => {
 
       {showShiftModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Select shift</h3>
-              <button onClick={() => setShowShiftModal(false)} className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+              <h3 className="text-lg font-bold text-charcoal">Select Shift</h3>
+              <button onClick={() => setShowShiftModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-5 space-y-3">
+            <div className="p-6 space-y-2">
               {['Day','Afternoon','Night'].map(shift => (
                 <button
                   key={shift}
                   onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
-                  className={`w-full text-center px-4 py-3 rounded-lg border-2 transition-all text-base font-semibold ${selectedShift === shift ? 'border-gray-900 bg-gray-800 text-white shadow-lg' : 'border-gray-300 bg-white hover:bg-gray-100 text-charcoal hover:border-gray-400'}`}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                    selectedShift === shift
+                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                  }`}
                 >
                   {shift}
                 </button>
@@ -1421,6 +1429,22 @@ const BrakesManager = () => {
                     isAdmin={isAdmin}
                   />
                 ))}
+                
+                {/* Save Button - Only on mobile, before Add Custom Slot */}
+                {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
+                  <div className="md:hidden col-span-1">
+                    <button
+                      onClick={handleSaveAllBreaks}
+                      className="w-full h-full min-h-[180px] rounded-xl bg-black text-white font-bold text-lg hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg flex flex-col items-center justify-center gap-3"
+                      disabled={isLoading}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Breaks
+                    </button>
+                  </div>
+                )}
                 
                 {/* Add Slot Card - Only for admins and only in last group */}
                 {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
