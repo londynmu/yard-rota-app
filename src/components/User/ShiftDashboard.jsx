@@ -35,7 +35,7 @@ const getNightSortValue = (timeStr) => {
   return totalMinutes;
 };
 
-export default function ShiftDashboard() {
+export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher = false }) {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
   const [breakInfo, setBreakInfo] = useState(null);
@@ -43,10 +43,10 @@ export default function ShiftDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeView, setActiveView] = useState('shift'); // 'shift' or 'breaks'
+  const [activeView, setActiveView] = useState(initialView === 'shifts' ? 'team' : initialView === 'breaks' ? 'team' : initialView); // 'shift', 'breaks', or 'team'
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
-  const [teamView, setTeamView] = useState('shifts'); // 'shifts' or 'breaks' - for team schedule
+  const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState('Rugby'); // location tab (Rugby default)
   
   // Fetch user profile to get shift preference
@@ -726,30 +726,32 @@ export default function ShiftDashboard() {
     return (
       <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
         {/* Toggle between Shifts and Breaks */}
-        <div className="border-b border-gray-200">
-          <div className="flex">
-            <button 
-              onClick={() => setTeamView('shifts')}
-              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
-                teamView === 'shifts' 
-                  ? 'text-emerald-800 bg-emerald-50 border-b-2 border-black rounded-t-md' 
-                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
-              }`}
-            >
-              Today's Shifts
-            </button>
-            <button 
-              onClick={() => setTeamView('breaks')}
-              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
-                teamView === 'breaks' 
-                  ? 'text-sky-800 bg-sky-50 border-b-2 border-black rounded-t-md' 
-                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
-              }`}
-            >
-              Today's Breaks
-            </button>
+        {!hideTabSwitcher && (
+          <div className="border-b border-gray-200">
+            <div className="flex">
+              <button 
+                onClick={() => setTeamView('shifts')}
+                className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                  teamView === 'shifts' 
+                    ? 'text-emerald-800 bg-emerald-50 border-b-2 border-black rounded-t-md' 
+                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
+                }`}
+              >
+                Today's Shifts
+              </button>
+              <button 
+                onClick={() => setTeamView('breaks')}
+                className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                  teamView === 'breaks' 
+                    ? 'text-sky-800 bg-sky-50 border-b-2 border-black rounded-t-md' 
+                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
+                }`}
+              >
+                Today's Breaks
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Location Tabs */}
         <div className="border-b border-gray-200 px-4 py-2">
@@ -987,41 +989,43 @@ export default function ShiftDashboard() {
       <div className={`h-1 ${getShiftAccentColor(shift.shift_type)}`}></div>
       
       {/* Header with tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex">
-          <button 
-            onClick={() => setActiveView('shift')}
-            className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
-              activeView === 'shift' 
-                ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
-                : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              Today&apos;s Shift
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => setActiveView('breaks')}
-            className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
-              activeView === 'breaks' 
-                ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
-                : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Breaks Schedule
-            </div>
-          </button>
+      {!hideTabSwitcher && (
+        <div className="border-b border-gray-200">
+          <div className="flex">
+            <button 
+              onClick={() => setActiveView('shift')}
+              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                activeView === 'shift' 
+                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Today&apos;s Shift
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => setActiveView('breaks')}
+              className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
+                activeView === 'breaks' 
+                  ? 'text-charcoal bg-gray-100 border-b-2 border-black' 
+                  : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Breaks Schedule
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Main content area */}
       <div className="p-3">
