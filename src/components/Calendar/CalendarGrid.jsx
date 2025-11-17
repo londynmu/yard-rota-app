@@ -60,16 +60,16 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
 
   if (isLoading) {
     return (
-      <div className="w-full h-80 sm:h-48 flex items-center justify-center bg-gray-50">
+      <div className="w-full h-80 sm:h-48 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
 
   return (
-    <div className="w-full rounded-b-xl overflow-hidden">
+    <div className="w-full">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-1 bg-gray-100 border-b border-gray-200">
+      <div className="grid grid-cols-7 gap-1 mb-2">
         {weekdays.map((day) => (
           <div key={day} className="p-1 sm:p-1 text-center font-bold text-xs sm:text-sm text-charcoal">
             {day}
@@ -78,9 +78,9 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
       </div>
 
       {/* Calendar grid */}
-      <div className="bg-white">
+      <div>
         {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 gap-1 py-0.5 px-1 sm:py-0.5 border-t border-gray-200">
+          <div key={weekIndex} className="grid grid-cols-7 gap-1 py-0.5 px-1 sm:py-0.5">
             {week.map((day) => {
               const dateString = format(day, 'yyyy-MM-dd');
               const isCurrentMonth = isSameMonth(day, currentDate);
@@ -101,11 +101,11 @@ export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoadi
                   title={isPastDate ? "Cannot set availability for past dates" : (hasComment ? dayInfo.comment : "")}
                   className={`
                     aspect-square sm:aspect-auto sm:h-10 md:h-10 flex flex-col items-center justify-center transition-all text-center rounded-lg relative
-                    ${isCurrentMonth ? 'text-charcoal font-semibold' : 'text-gray-500'} 
+                    ${isCurrentMonth ? 'text-charcoal font-semibold' : 'text-gray-400'} 
                     ${isCurrentDay ? 'ring-2 ring-black shadow-md scale-105 z-10' : ''}
-                    ${isPastDate && !colorClass ? 'bg-gray-100 cursor-not-allowed text-gray-400' : ''}
+                    ${isPastDate && !colorClass ? 'bg-gray-200/50 cursor-not-allowed text-gray-400' : ''}
                     ${isPastDate && colorClass ? `${colorClass} opacity-50 cursor-not-allowed` : ''}
-                    ${!isPastDate && (colorClass || 'hover:bg-gray-100 border border-gray-200')}
+                    ${!isPastDate && (colorClass || 'hover:bg-white/50 border border-gray-300')}
                   `}
                 >
                   <span className={`text-sm font-medium ${isCurrentDay ? 'font-bold' : ''}`}>{format(day, 'd')}</span>
