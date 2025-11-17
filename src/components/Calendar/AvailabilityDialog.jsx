@@ -37,12 +37,12 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-auto my-auto border border-gray-200">
-        <div className="flex justify-between items-center mb-5">
+        <div className="flex justify-between items-start mb-5">
           <div>
             <h2 className="text-xl font-bold leading-tight text-charcoal">
-              Set Availability for {format(date, 'MMM d, yyyy')}
+              Set Availability for {dayOfWeek}
             </h2>
-            <p className="text-gray-600 text-sm font-medium">{dayOfWeek}</p>
+            <p className="text-gray-600 text-sm font-medium mt-1">{format(date, 'd MMM yyyy')}</p>
           </div>
           <button
             type="button"
@@ -58,14 +58,11 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
         
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label className="block text-charcoal font-medium mb-3">
-              Availability Status
-            </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
                 onClick={() => setStatus('available')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
+                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
                   status === 'available' 
                     ? 'bg-green-500 text-white shadow-md border-2 border-green-600 scale-105' 
                     : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
@@ -77,7 +74,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
               <button
                 type="button"
                 onClick={() => setStatus('unavailable')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
+                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
                   status === 'unavailable' 
                     ? 'bg-red-500 text-white shadow-md border-2 border-red-600 scale-105' 
                     : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
@@ -89,7 +86,7 @@ export default function AvailabilityDialog({ date, initialData, onSave, onClose 
               <button
                 type="button"
                 onClick={() => setStatus('holiday')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center font-medium transition-all ${
+                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
                   status === 'holiday' 
                     ? 'bg-blue-500 text-white shadow-md border-2 border-blue-600 scale-105' 
                     : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
