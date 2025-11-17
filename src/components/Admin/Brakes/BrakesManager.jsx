@@ -1066,7 +1066,7 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="bg-gray-100 text-charcoal min-h-screen pb-20">
+    <div className="bg-gray-100 text-charcoal min-h-screen pb-32 md:pb-20">
       {/* Sticky Controls in one line (badges) */}
       <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
@@ -1430,22 +1430,6 @@ const BrakesManager = () => {
                   />
                 ))}
                 
-                {/* Save Button - Only on mobile, before Add Custom Slot */}
-                {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
-                  <div className="md:hidden col-span-1">
-                    <button
-                      onClick={handleSaveAllBreaks}
-                      className="w-full h-full min-h-[180px] rounded-xl bg-black text-white font-bold text-lg hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg flex flex-col items-center justify-center gap-3"
-                      disabled={isLoading}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Save Breaks
-                    </button>
-                  </div>
-                )}
-                
                 {/* Add Slot Card - Only for admins and only in last group */}
                 {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
                   <div 
@@ -1465,13 +1449,28 @@ const BrakesManager = () => {
         )}
       </div>
 
-      {/* Sticky Bottom Save Bar */}
+      {/* Sticky Bottom Save Bar - Desktop only */}
       {isAdmin && (
-        <div className="fixed inset-x-0 bottom-0 z-20 bg-gray-100 border-t-2 border-gray-400 shadow-[0_-2px_12px_rgba(0,0,0,0.15)]">
-          <div className="container mx-auto px-3 py-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}>
+        <div className="hidden md:block fixed inset-x-0 bottom-0 z-20 bg-gray-100 border-t-2 border-gray-400 shadow-[0_-2px_12px_rgba(0,0,0,0.15)]">
+          <div className="container mx-auto px-3 py-2">
             <button
               onClick={handleSaveAllBreaks}
               className="w-full rounded-full bg-black text-white py-2 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg"
+              disabled={isLoading}
+            >
+              Save Breaks
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Save Bar - Floating above bottom navigation */}
+      {isAdmin && (
+        <div className="md:hidden fixed inset-x-0 bottom-20 z-20">
+          <div className="container mx-auto px-4">
+            <button
+              onClick={handleSaveAllBreaks}
+              className="w-full bg-black text-white py-3 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg rounded-xl"
               disabled={isLoading}
             >
               Save Breaks
