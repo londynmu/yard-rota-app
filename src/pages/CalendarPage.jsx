@@ -167,7 +167,7 @@ export default function CalendarPage() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-100">
+    <>
       {/* Centered Popup Message */}
       {popup.show && (
         <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-4 rounded-lg shadow-lg text-center text-base font-medium border
@@ -176,8 +176,8 @@ export default function CalendarPage() {
         </div>
       )}
       
-      {/* Sticky Tab Navigation - Same style as My Rota and Breaks */}
-      <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+      {/* Sticky Tab Navigation - Fixed at top */}
+      <div className="fixed top-0 left-0 right-0 bg-white z-20 border-b border-gray-300 shadow-md pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Availability Tab Button */}
@@ -219,79 +219,92 @@ export default function CalendarPage() {
         </div>
       </div>
       
-      <div className="container mx-auto p-4">
-      {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
-          {errorMessage}
-        </div>
-      )}
+      <div className="fixed top-[60px] bottom-16 md:bottom-0 left-0 right-0 bg-gray-100 overflow-hidden">
       
       {/* Show Calendar when Availability tab is active */}
       {activeTab === 'availability' && (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mb-4">
-          {/* Calendar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-            <button
-              onClick={handlePreviousMonth}
-              className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
-              aria-label="Previous month"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+        <div className="h-full flex items-center justify-center px-4">
+          <div className="w-full max-w-2xl">
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
+                {errorMessage}
+              </div>
+            )}
             
-            <h2 className="text-2xl font-bold text-charcoal">
-              {format(currentDate, 'MMMM yyyy')}
-            </h2>
-            
-            <button
-              onClick={handleNextMonth}
-              className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
-              aria-label="Next month"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-          
-          {/* Legend */}
-          <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-charcoal">
-              <div className="flex items-center">
-                <span className="w-4 h-4 rounded-full bg-green-500 mr-2 border border-gray-300"></span>
-                <span>Available</span>
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+              {/* Calendar Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                <button
+                  onClick={handlePreviousMonth}
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
+                  aria-label="Previous month"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <h2 className="text-2xl font-bold text-charcoal">
+                  {format(currentDate, 'MMMM yyyy')}
+                </h2>
+                
+                <button
+                  onClick={handleNextMonth}
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-charcoal"
+                  aria-label="Next month"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
-              <div className="flex items-center">
-                <span className="w-4 h-4 rounded-full bg-red-500 mr-2 border border-gray-300"></span>
-                <span>Unavailable</span>
+              
+              {/* Legend */}
+              <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-wrap items-center gap-6 text-sm font-medium text-charcoal">
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 rounded-full bg-green-500 mr-2 border border-gray-300"></span>
+                    <span>Available</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 rounded-full bg-red-500 mr-2 border border-gray-300"></span>
+                    <span>Unavailable</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-4 h-4 rounded-full bg-blue-500 mr-2 border border-gray-300"></span>
+                    <span>Holiday</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center">
-                <span className="w-4 h-4 rounded-full bg-blue-500 mr-2 border border-gray-300"></span>
-                <span>Holiday</span>
-              </div>
+              
+              {/* Calendar Grid */}
+              <CalendarGrid
+                currentDate={currentDate}
+                dayData={dayData}
+                onDayClick={handleDayClick}
+                isLoading={loading}
+              />
             </div>
           </div>
-          
-          {/* Calendar Grid */}
-          <CalendarGrid
-            currentDate={currentDate}
-            dayData={dayData}
-            onDayClick={handleDayClick}
-            isLoading={loading}
-          />
         </div>
       )}
       
       {/* Show Shifts when Shifts tab is active */}
       {activeTab === 'shifts' && (
-        <ShiftDashboard initialView="shifts" hideTabSwitcher={true} />
+        <div className="h-full overflow-y-auto">
+          <div className="container mx-auto p-4">
+            <ShiftDashboard initialView="shifts" hideTabSwitcher={true} />
+          </div>
+        </div>
       )}
       
       {/* Show Breaks when Breaks tab is active */}
       {activeTab === 'breaks' && (
-        <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
+        <div className="h-full overflow-y-auto">
+          <div className="container mx-auto p-4">
+            <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
+          </div>
+        </div>
       )}
       
       {/* Availability Dialog */}
@@ -304,6 +317,6 @@ export default function CalendarPage() {
         />
       )}
       </div>
-    </div>
+    </>
   );
 } 
