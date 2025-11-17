@@ -1068,9 +1068,9 @@ const BrakesManager = () => {
   return (
     <div className="bg-gray-100 text-charcoal min-h-screen pb-20">
       {/* Sticky Controls in one line (badges) */}
-      <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-300 shadow-lg pt-safe">
-        <div className="w-full px-2 md:px-4 py-2 md:py-3">
-          <div className="grid grid-cols-3 gap-2 w-full">
+      <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
             {/* Date badge */}
             <button
               onClick={() => { 
