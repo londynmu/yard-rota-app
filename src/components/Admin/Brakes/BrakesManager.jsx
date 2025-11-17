@@ -1066,10 +1066,10 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="p-0 md:p-6 bg-gray-100 text-charcoal min-h-screen pb-20">
+    <div className="bg-gray-100 text-charcoal min-h-screen pb-20">
       {/* Sticky Controls in one line (badges) */}
-      <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-300 shadow-lg mb-4 md:mb-6">
-        <div className="w-full px-2 md:px-0 py-2">
+      <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-300 shadow-lg pt-safe">
+        <div className="w-full px-2 md:px-4 py-2 md:py-3">
           <div className="grid grid-cols-3 gap-2 w-full">
             {/* Date badge */}
             <button
@@ -1398,13 +1398,14 @@ const BrakesManager = () => {
 
 
       {/* Break Slots Display */}
-      {isLoading ? (
-        <div className="text-center py-10">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
-          <p className="mt-2 text-gray-900 font-semibold">Loading breaks...</p>
-        </div>
-      ) : (
-        <div className="space-y-4 md:space-y-8 px-1 md:px-0">
+      <div className="container mx-auto p-4">
+        {isLoading ? (
+          <div className="text-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
+            <p className="mt-2 text-gray-900 font-semibold">Loading breaks...</p>
+          </div>
+        ) : (
+          <div className="space-y-4 md:space-y-8">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-3">
@@ -1436,8 +1437,9 @@ const BrakesManager = () => {
               </div>
             </div>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Sticky Bottom Save Bar */}
       {isAdmin && (
