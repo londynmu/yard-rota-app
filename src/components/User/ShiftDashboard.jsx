@@ -760,11 +760,8 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
       return breakShiftType === currentShift;
     };
 
-    // Sort breaks: active first, then current shift breaks, then alphabetically
+    // Sort breaks: active first, then by time (considering night shift)
     const sortBreaks = (breaks, shiftType) => {
-      const currentShift = getCurrentShiftType();
-      const isCurrentShift = shiftType === currentShift;
-      
       return [...breaks].sort((a, b) => {
         const aActive = isBreakActive(a.break_start_time, a.break_duration_minutes);
         const bActive = isBreakActive(b.break_start_time, b.break_duration_minutes);
@@ -773,18 +770,26 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
         if (aActive && !bActive) return -1;
         if (!aActive && bActive) return 1;
         
-        // 2. If both active or both inactive, prioritize current shift breaks
-        if (isCurrentShift) {
-          // Both are from current shift - already sorted by active status, then alphabetically
-          const aName = `${a.profiles?.first_name || ''} ${a.profiles?.last_name || ''}`.trim();
-          const bName = `${b.profiles?.first_name || ''} ${b.profiles?.last_name || ''}`.trim();
-          return aName.localeCompare(bName);
+        // 2. Sort by time - handle night shift properly
+        const aTime = toMinutes(a.break_start_time);
+        const bTime = toMinutes(b.break_start_time);
+        
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        
+        // For night shift, times after 18:00 (1080 minutes) should come before times before 06:00 (360 minutes)
+        if (shiftType === 'night') {
+          // Night shift spans from 18:00 to 06:00 next day
+          // Times 18:00-23:59 (1080-1439) are "early" in the shift
+          // Times 00:00-05:59 (0-359) are "late" in the shift
+          const aAdjusted = aTime >= 18 * 60 ? aTime : aTime + 24 * 60; // Add 24h to early morning times
+          const bAdjusted = bTime >= 18 * 60 ? bTime : bTime + 24 * 60;
+          return aAdjusted - bAdjusted;
         }
         
-        // 3. If not current shift, just sort alphabetically
-        const aName = `${a.profiles?.first_name || ''} ${a.profiles?.last_name || ''}`.trim();
-        const bName = `${b.profiles?.first_name || ''} ${b.profiles?.last_name || ''}`.trim();
-        return aName.localeCompare(bName);
+        // For day and afternoon shifts, normal time sorting
+        return aTime - bTime;
       });
     };
 
