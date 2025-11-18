@@ -14,7 +14,6 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
-  const [activeTab, setActiveTab] = useState('availability'); // 'availability', 'breaks'
   
   // Function to show popup
   const showPopup = (type, message, duration = 3000) => {
@@ -176,88 +175,57 @@ export default function CalendarPage() {
         </div>
       )}
       
-      {/* Sticky Tab Navigation - Fixed at top */}
-      <div className="fixed top-0 md:top-[73px] left-0 right-0 bg-white z-20 border-b border-gray-300 shadow-md pt-safe">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-2">
-            {/* Availability Tab Button */}
-            <button
-              onClick={() => setActiveTab('availability')}
-              className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full ${
-                activeTab === 'availability'
-                  ? 'border-gray-900 bg-gray-800 text-white hover:bg-gray-900'
-                  : 'border-gray-400 bg-white text-charcoal hover:bg-gray-100'
-              }`}
-            >
-              Availability
-            </button>
+      {/* Main scrollable container */}
+      <div className="h-full overflow-y-auto bg-offwhite px-4 py-6 md:px-6 pb-20 md:pb-6">
+        <div className="max-w-4xl mx-auto space-y-8">
+          
+          {/* Availability Calendar Section */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 md:p-6">
+            <h2 className="text-xl font-bold text-charcoal mb-4">Your Availability</h2>
             
-            {/* Today's Breaks Tab Button */}
-            <button
-              onClick={() => setActiveTab('breaks')}
-              className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full ${
-                activeTab === 'breaks'
-                  ? 'border-gray-900 bg-gray-800 text-white hover:bg-gray-900'
-                  : 'border-gray-400 bg-white text-charcoal hover:bg-gray-100'
-              }`}
-            >
-              Breaks
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div className="fixed top-[60px] md:top-[133px] bottom-16 md:bottom-0 left-0 right-0 bg-gray-100 overflow-hidden">
-      
-      {/* Show Calendar when Availability tab is active */}
-      {activeTab === 'availability' && (
-        <div className="h-full flex items-center justify-center px-4">
-          <div className="w-full max-w-2xl">
             {errorMessage && (
               <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
                 {errorMessage}
               </div>
             )}
             
-            <div>
-              {/* Calendar Header */}
-              <div className="flex items-center justify-between px-4 py-4 mb-4">
-                <button
-                  onClick={handlePreviousMonth}
-                  className="p-2 rounded-lg hover:bg-white/50 transition-colors text-charcoal"
-                  aria-label="Previous month"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                
-                <h2 className="text-2xl font-bold text-charcoal">
-                  {format(currentDate, 'MMMM yyyy')}
-                </h2>
-                
-                <button
-                  onClick={handleNextMonth}
-                  className="p-2 rounded-lg hover:bg-white/50 transition-colors text-charcoal"
-                  aria-label="Next month"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={handlePreviousMonth}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-charcoal"
+                aria-label="Previous month"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
               
-              {/* Calendar Grid */}
-              <CalendarGrid
-                currentDate={currentDate}
-                dayData={dayData}
-                onDayClick={handleDayClick}
-                isLoading={loading}
-              />
+              <h3 className="text-2xl font-bold text-charcoal">
+                {format(currentDate, 'MMMM yyyy')}
+              </h3>
+              
+              <button
+                onClick={handleNextMonth}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-charcoal"
+                aria-label="Next month"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
             
+            {/* Calendar Grid */}
+            <CalendarGrid
+              currentDate={currentDate}
+              dayData={dayData}
+              onDayClick={handleDayClick}
+              isLoading={loading}
+            />
+            
             {/* Legend - Below Calendar */}
-            <div className="mt-4 px-4 py-3">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-center items-center gap-6 text-sm font-medium text-charcoal">
                 <div className="flex items-center">
                   <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
@@ -274,17 +242,15 @@ export default function CalendarPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Show Breaks when Breaks tab is active */}
-      {activeTab === 'breaks' && (
-        <div className="h-full overflow-y-auto">
-          <div className="pt-4">
+          
+          {/* Today's Breaks Section */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 md:p-6">
+            <h2 className="text-xl font-bold text-charcoal mb-4">Today's Breaks</h2>
             <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
           </div>
+          
         </div>
-      )}
+      </div>
       
       {/* Availability Dialog */}
       {selectedDate && (
@@ -295,7 +261,6 @@ export default function CalendarPage() {
           onSave={handleSaveAvailability}
         />
       )}
-      </div>
     </>
   );
 } 

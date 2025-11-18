@@ -40,34 +40,24 @@
     box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
   }
   
-  /* Body defaults - Auto adapt to system theme for safe areas */
+  /* Body defaults - ALWAYS LIGHT MODE */
   body {
-    background-color: #FFFFFF;
-    color: #2D2D2D;
+    background-color: #FFFFFF !important;
+    color: #2D2D2D !important;
   }
   
-  /* Light mode (default) - White safe areas */
+  /* Light mode ONLY - White safe areas always */
   html, body, #root {
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    background-color: #FFFFFF;
+    background-color: #FFFFFF !important;
+    color-scheme: light !important;
   }
   
-  /* Dark mode - Black safe areas for visibility */
-  @media (prefers-color-scheme: dark) {
-    html, body, #root {
-      background-color: #000000;
-    }
-    
-    body {
-      background-color: #000000;
-    }
-  }
-  
-  /* Dark theme via data attribute (backup) */
-  html[data-theme="dark"], html[data-theme="dark"] body, html[data-theme="dark"] #root {
-    background-color: #000000;
+  /* Force light theme - override system preferences */
+  html, body {
+    color-scheme: light only !important;
   }
 }
 

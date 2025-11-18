@@ -9,37 +9,25 @@ import { ToastProvider } from './components/ui/ToastContext'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 
-// Configure native Status Bar on mobile (Android/iOS) - Auto adapt to system theme
+// Configure native Status Bar on mobile (Android/iOS) - ALWAYS LIGHT MODE
 if (Capacitor.getPlatform() !== 'web') {
-  const updateStatusBar = async () => {
+  const setupStatusBar = async () => {
     try {
-      // Check system color scheme
-      const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
-      
+      // Force light mode always - white background with dark text/icons
       await StatusBar.setOverlaysWebView({ overlay: false })
+      await StatusBar.setStyle({ style: Style.Dark })
+      await StatusBar.setBackgroundColor({ color: '#FFFFFF' })
       
-      if (isDarkMode) {
-        // Dark mode: black status bar with light icons
-        await StatusBar.setStyle({ style: Style.Light })
-        await StatusBar.setBackgroundColor({ color: '#000000' })
-        document.documentElement.setAttribute('data-theme', 'dark')
-      } else {
-        // Light mode: white status bar with dark icons
-        await StatusBar.setStyle({ style: Style.Dark })
-        await StatusBar.setBackgroundColor({ color: '#FFFFFF' })
-        document.documentElement.setAttribute('data-theme', 'light')
-      }
+      // Force light theme
+      document.documentElement.setAttribute('data-theme', 'light')
+      document.documentElement.style.colorScheme = 'light'
     } catch (err) {
       console.error('StatusBar setup error:', err)
     }
   }
   
-  // Initial setup
-  updateStatusBar()
-  
-  // Listen for system theme changes
-  const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  darkModeQuery.addEventListener('change', updateStatusBar)
+  // Setup on app start
+  setupStatusBar()
 }
 
 createRoot(document.getElementById('root')).render(

@@ -19,22 +19,25 @@ public class MainActivity extends BridgeActivity {
     // Switch from launch (splash) theme to main content theme
     setTheme(R.style.AppTheme_NoActionBar);
     super.onCreate(savedInstanceState);
-    // Force non-transparent status bar with dark icons and no content under it
+    // FORCE LIGHT MODE: White status bar and navigation bar with DARK icons
     final Window window = getWindow();
     window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
     window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-    window.setStatusBarColor(Color.BLACK);
+    window.setStatusBarColor(Color.WHITE);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      window.setNavigationBarColor(Color.BLACK);
+      window.setNavigationBarColor(Color.WHITE);
     }
-    // Remove layout fullscreen flags and enable light status bar icons (API 23+)
+    // Remove layout fullscreen flags and enable DARK status bar icons (API 23+)
     final View decor = window.getDecorView();
     int sysUi = decor.getSystemUiVisibility();
     sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
     sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-    // Ensure light icons (no LIGHT_STATUS_BAR flag -> light icons on dark bg)
+    // Enable DARK icons on WHITE background (LIGHT_STATUS_BAR flag = dark icons)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      sysUi &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
     }
     decor.setSystemUiVisibility(sysUi);
     // Make system bars consume insets so WebView does not draw under status bar
@@ -48,11 +51,11 @@ public class MainActivity extends BridgeActivity {
       return insets;
     });
 
-    // Explicitly show system bars (in case device/gesture settings hid them)
+    // Explicitly show system bars with DARK icons (light appearance = dark icons)
     WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
     if (controller != null) {
-      controller.setAppearanceLightStatusBars(false);
-      controller.setAppearanceLightNavigationBars(false);
+      controller.setAppearanceLightStatusBars(true);
+      controller.setAppearanceLightNavigationBars(true);
       controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
@@ -66,8 +69,8 @@ public class MainActivity extends BridgeActivity {
     final View decor = window.getDecorView();
     WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
     if (controller != null) {
-      controller.setAppearanceLightStatusBars(false);
-      controller.setAppearanceLightNavigationBars(false);
+      controller.setAppearanceLightStatusBars(true);
+      controller.setAppearanceLightNavigationBars(true);
       controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
@@ -82,8 +85,8 @@ public class MainActivity extends BridgeActivity {
     final View decor = window.getDecorView();
     WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
     if (controller != null) {
-      controller.setAppearanceLightStatusBars(false);
-      controller.setAppearanceLightNavigationBars(false);
+      controller.setAppearanceLightStatusBars(true);
+      controller.setAppearanceLightNavigationBars(true);
       controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
       controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
     }
