@@ -1102,17 +1102,15 @@ const BrakesManager = () => {
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Select Date</h3>
-              <button onClick={() => setShowDateModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
+              <h3 className="text-lg font-bold text-white">Select Date</h3>
+              <button onClick={() => setShowDateModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                Done
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
             <style>
               {`
                 /* Kalendarz - responsywny mobile-first */
@@ -1340,17 +1338,15 @@ const BrakesManager = () => {
       )}
 
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
-              <button onClick={() => setShowLocationModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
+              <h3 className="text-lg font-bold text-white">Select Location</h3>
+              <button onClick={() => setShowLocationModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                Done
               </button>
             </div>
-            <div className="p-6 max-h-[60vh] overflow-auto space-y-2">
+            <div className="p-6 overflow-y-auto flex-1 space-y-2">
               {locations.map(loc => (
                 <button
                   key={loc.id}
@@ -1371,17 +1367,15 @@ const BrakesManager = () => {
       )}
 
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Select Shift</h3>
-              <button onClick={() => setShowShiftModal(false)} className="text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
+              <h3 className="text-lg font-bold text-white">Select Shift</h3>
+              <button onClick={() => setShowShiftModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                Done
               </button>
             </div>
-            <div className="p-6 space-y-2">
+            <div className="p-6 overflow-y-auto flex-1 space-y-2">
               {['Day','Afternoon','Night'].map(shift => (
                 <button
                   key={shift}
@@ -1505,9 +1499,9 @@ const BrakesManager = () => {
       
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlot && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
-            <div className="bg-gray-800 px-5 py-4 border-b border-gray-900">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 z-10">
               <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
             </div>
             <div className="p-5">
@@ -1538,6 +1532,7 @@ const BrakesManager = () => {
 };
 
 // Staff Selection Modal Component - Enhance the staff removal functionality
+// eslint-disable-next-line no-unused-vars
 const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation }) => {
   const modalRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1595,16 +1590,16 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   
   // Use createPortal to render the modal in the document body
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 md:p-4 bg-black/70">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
+        className="relative bg-white text-charcoal rounded-t-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="bg-gray-800 px-2 py-2 md:px-4 md:py-2.5 border-b border-gray-900">
+        {/* Header - Sticky */}
+        <div className="sticky top-0 bg-black px-3 py-3 md:px-5 md:py-4 border-b border-gray-900 flex-shrink-0 z-10">
           <div className="flex justify-between items-center gap-2">
-            <div className="flex items-center gap-2 flex-wrap text-sm md:text-base">
-              <span className="font-bold text-white">{slot.start_time} - {
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              <span className="font-bold text-white text-xl md:text-2xl">{slot.start_time} - {
                 // Calculate end time
                 (() => {
                   try {
@@ -1618,13 +1613,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                   }
                 })()
               }</span>
-              {typeof currentLocation === 'string' && !isAllLocation && (
-                <>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-gray-300">{currentLocation}</span>
-                </>
-              )}
-              <span className="text-gray-400">•</span>
+              <span className="text-gray-400 text-lg">•</span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold bg-gray-200 text-charcoal border-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -1634,14 +1623,15 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
             </div>
             <button 
               onClick={onClose}
-              className="text-gray-300 hover:text-white transition-colors flex-shrink-0"
+              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Done
             </button>
           </div>
         </div>
+        
+        {/* Content - Scrollable */}
+        <div className="overflow-y-auto flex-1">
         
         {isAllLocation && (
           <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
@@ -1751,15 +1741,6 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
             </div>
           )}
         </div>
-        
-        {/* Footer */}
-        <div className="px-2 py-2 md:px-4 md:py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-3 py-1 md:px-4 md:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs md:text-sm font-semibold shadow-md"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>,
@@ -1803,28 +1784,26 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
   if (!isOpen) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
+        className="relative bg-white text-charcoal rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="bg-gray-800 px-5 py-4 border-b border-gray-900 flex-shrink-0">
+        {/* Header - Sticky */}
+        <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex-shrink-0 z-10">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Create Custom Slot</h3>
             <button 
               onClick={onClose}
-              className="text-gray-300 hover:text-white transition-colors flex-shrink-0 -mr-1"
+              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Done
             </button>
           </div>
         </div>
         
-        {/* Form Content */}
-        <div className="p-5">
+        {/* Form Content - Scrollable */}
+        <div className="p-5 overflow-y-auto flex-1">
           <AddCustomSlotForm 
             onAddCustomSlot={(formData) => {
               const success = onAddCustomSlot(formData);
