@@ -214,18 +214,18 @@ export default function HomePage() {
               >
                 My Rota
               </Link>
-              <Link
-                to="/brakes"
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  location.pathname === '/brakes' 
-                    ? 'bg-black text-white' 
-                    : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                Breaks
-              </Link>
               {isAdmin && (
                 <>
+                  <Link
+                    to="/brakes"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      location.pathname === '/brakes' 
+                        ? 'bg-black text-white' 
+                        : 'text-charcoal hover:bg-gray-100'
+                    }`}
+                  >
+                    Breaks
+                  </Link>
                   <Link
                     to="/admin"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -290,7 +290,7 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
-          <Route path="/brakes" element={<BrakesPage />} />
+          <Route path="/brakes" element={isAdmin ? <BrakesPage /> : <Navigate to="/calendar" replace />} />
           <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>
@@ -327,33 +327,34 @@ export default function HomePage() {
             <span className="text-xs font-medium">My Rota</span>
           </Link>
 
-          {/* Breaks */}
-          <Link
-            to="/brakes"
-            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
-              location.pathname === '/brakes' ? 'active' : ''
-            }`}
-          >
-            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-xs font-medium">Breaks</span>
-          </Link>
-
-          {/* Admin (only if admin) */}
+          {/* Breaks & Admin (only if admin) */}
           {isAdmin && (
-            <Link
-              to="/admin"
-              className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
-                location.pathname === '/admin' || location.pathname === '/rota-planner' ? 'active' : ''
-              }`}
-            >
-              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-xs font-medium">Admin</span>
-            </Link>
+            <>
+              <Link
+                to="/brakes"
+                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/brakes' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-medium">Breaks</span>
+              </Link>
+
+              <Link
+                to="/admin"
+                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/admin' || location.pathname === '/rota-planner' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-xs font-medium">Admin</span>
+              </Link>
+            </>
           )}
 
           {/* Profile */}
