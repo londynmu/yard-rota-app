@@ -3,6 +3,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 
 // Helper to calculate end time for breaks
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -48,6 +49,7 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
   const [allBreaks, setAllBreaks] = useState([]);
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState('Rugby'); // location tab (Rugby default)
+  const [showLocationModal, setShowLocationModal] = useState(false);
   
   // Fetch user profile to get shift preference
   useEffect(() => {
@@ -723,18 +725,93 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
     // Map user -> location for breaks filtering
     const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
 
+    // Helper function to check if break is currently active
+    const isBreakActive = (breakStartTime, breakDurationMinutes) => {
+      const now = getNowMinutes();
+      const start = toMinutes(breakStartTime);
+      const end = start + (breakDurationMinutes || 0);
+      return now >= start && now < end;
+    };
+
+    // Determine current shift type based on time
+    const getCurrentShiftType = () => {
+      const now = getNowMinutes();
+      const hour = Math.floor(now / 60);
+      
+      // Night shift: before 06:00 (from previous day 18:00) or after 18:00 (today's night)
+      if (now < 6 * 60 || now >= 18 * 60) {
+        return 'night';
+      }
+      // Day shift: 06:00-17:00
+      if (now >= 6 * 60 && now < 17 * 60) {
+        return 'day';
+      }
+      // Afternoon shift: 17:00-21:00
+      if (now >= 17 * 60 && now < 21 * 60) {
+        return 'afternoon';
+      }
+      // After 21:00, it's night shift
+      return 'night';
+    };
+
+    // Check if break belongs to current shift
+    const isBreakFromCurrentShift = (breakShiftType) => {
+      const currentShift = getCurrentShiftType();
+      return breakShiftType === currentShift;
+    };
+
+    // Sort breaks: active first, then current shift breaks, then alphabetically
+    const sortBreaks = (breaks, shiftType) => {
+      const currentShift = getCurrentShiftType();
+      const isCurrentShift = shiftType === currentShift;
+      
+      return [...breaks].sort((a, b) => {
+        const aActive = isBreakActive(a.break_start_time, a.break_duration_minutes);
+        const bActive = isBreakActive(b.break_start_time, b.break_duration_minutes);
+        
+        // 1. Active breaks first
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        
+        // 2. If both active or both inactive, prioritize current shift breaks
+        if (isCurrentShift) {
+          // Both are from current shift - already sorted by active status, then alphabetically
+          const aName = `${a.profiles?.first_name || ''} ${a.profiles?.last_name || ''}`.trim();
+          const bName = `${b.profiles?.first_name || ''} ${b.profiles?.last_name || ''}`.trim();
+          return aName.localeCompare(bName);
+        }
+        
+        // 3. If not current shift, just sort alphabetically
+        const aName = `${a.profiles?.first_name || ''} ${a.profiles?.last_name || ''}`.trim();
+        const bName = `${b.profiles?.first_name || ''} ${b.profiles?.last_name || ''}`.trim();
+        return aName.localeCompare(bName);
+      });
+    };
+
     return (
-      <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
+      <>
+        {/* Location Button - Only for Breaks view */}
+        {teamView === 'breaks' && (
+          <div className="mb-4 px-4">
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+            >
+              {teamLocation || 'Select Location'}
+            </button>
+          </div>
+        )}
+
         {/* Toggle between Shifts and Breaks */}
         {!hideTabSwitcher && (
-          <div className="border-b border-gray-200">
-            <div className="flex">
+          <div className="mb-4 px-4">
+            <div className="flex bg-white rounded-lg border border-gray-200 overflow-hidden">
               <button 
                 onClick={() => setTeamView('shifts')}
                 className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                   teamView === 'shifts' 
-                    ? 'text-emerald-800 bg-emerald-50 border-b-2 border-black rounded-t-md' 
-                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
+                    ? 'text-emerald-800 bg-emerald-50 border-b-2 border-black' 
+                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
                 }`}
               >
                 Today's Shifts
@@ -743,8 +820,8 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
                 onClick={() => setTeamView('breaks')}
                 className={`flex-1 py-2.5 px-4 text-center font-medium transition-all ${
                   teamView === 'breaks' 
-                    ? 'text-sky-800 bg-sky-50 border-b-2 border-black rounded-t-md' 
-                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50 rounded-t-md'
+                    ? 'text-sky-800 bg-sky-50 border-b-2 border-black' 
+                    : 'text-gray-600 hover:text-charcoal hover:bg-gray-50'
                 }`}
               >
                 Today's Breaks
@@ -753,25 +830,27 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
           </div>
         )}
 
-        {/* Location Tabs */}
-        <div className="border-b border-gray-200 px-4 py-2">
-          <div className="flex flex-wrap gap-2">
-            {sortedLocations.map(loc => (
-              <button
-                key={loc}
-                onClick={() => setTeamLocation(loc)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  teamLocation === loc ? 'bg-black text-white' : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                {loc}
-              </button>
-            ))}
+        {/* Location Tabs - Only for Shifts view */}
+        {teamView === 'shifts' && (
+          <div className="mb-4 px-4">
+            <div className="flex flex-wrap gap-2">
+              {sortedLocations.map(loc => (
+                <button
+                  key={loc}
+                  onClick={() => setTeamLocation(loc)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    teamLocation === loc ? 'bg-black text-white' : 'text-charcoal hover:bg-gray-100'
+                  }`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
-        <div className="p-4 max-h-96 overflow-y-auto">
+        <div className="px-4 pb-4">
           {teamView === 'shifts' ? (
             allShifts.length === 0 ? (
               <p className="text-gray-600 text-center py-4">No shifts scheduled for today</p>
@@ -912,23 +991,31 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
               <p className="text-gray-600 text-center py-4">No breaks scheduled for today</p>
             ) : (
               <div className="space-y-4">
-                {['day', 'afternoon', 'night'].map(shiftType => {
-                  const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
-                  if (breaks.length === 0) return null;
+                {(() => {
+                  const currentShift = getCurrentShiftType();
+                  // Order: current shift first, then others
+                  const shiftOrder = [currentShift, 'day', 'afternoon', 'night'].filter((v, i, a) => a.indexOf(v) === i);
                   
-                  const shiftColors = {
-                    day: 'bg-amber-100 text-amber-800 border-amber-300',
-                    afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
-                    night: 'bg-blue-100 text-blue-800 border-blue-300'
-                  };
+                  return shiftOrder.map(shiftType => {
+                    const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
+                    if (breaks.length === 0) return null;
+                    
+                    // Sort breaks: active first, then alphabetically (current shift already prioritized by order)
+                    const sortedBreaks = sortBreaks(breaks, shiftType);
+                    
+                    const shiftColors = {
+                      day: 'bg-amber-100 text-amber-800 border-amber-300',
+                      afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
+                      night: 'bg-blue-100 text-blue-800 border-blue-300'
+                    };
 
-                  return (
-                    <div key={shiftType}>
-                      <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
-                        {shiftType} Shift ({breaks.length})
-                      </h3>
-                      <ul className="space-y-1 mt-2">
-                        {breaks.map(b => {
+                    return (
+                      <div key={shiftType}>
+                        <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
+                          {shiftType} Shift ({sortedBreaks.length})
+                        </h3>
+                        <ul className="space-y-1 mt-2">
+                          {sortedBreaks.map(b => {
                           const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
                           const isMe = b.user_id === user?.id;
                           const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
@@ -969,12 +1056,51 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
                       </ul>
                     </div>
                   );
-                })}
+                  });
+                })()}
               </div>
             )
           )}
         </div>
-      </div>
+
+        {/* Location Selection Modal */}
+        {showLocationModal && createPortal(
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-2 overflow-y-auto">
+                {sortedLocations.map((loc) => (
+                  <button
+                    key={loc}
+                    onClick={() => {
+                      setTeamLocation(loc);
+                      setShowLocationModal(false);
+                    }}
+                    className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                      teamLocation === loc
+                        ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                        : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </>
     );
   }
 
