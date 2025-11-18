@@ -280,7 +280,9 @@ export default function CalendarPage() {
       {/* Show Breaks when Breaks tab is active */}
       {activeTab === 'breaks' && (
         <div className="h-full overflow-y-auto">
-          <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
+          <div className="pt-4">
+            <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
+          </div>
         </div>
       )}
       
