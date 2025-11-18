@@ -177,7 +177,7 @@ export default function CalendarPage() {
       )}
       
       {/* Sticky Tab Navigation - Fixed at top */}
-      <div className="fixed top-0 left-0 right-0 bg-white z-20 border-b border-gray-300 shadow-md pt-safe">
+      <div className="fixed top-0 md:top-[73px] left-0 right-0 bg-white z-20 border-b border-gray-300 shadow-md pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Availability Tab Button */}
@@ -219,7 +219,7 @@ export default function CalendarPage() {
         </div>
       </div>
       
-      <div className="fixed top-[60px] bottom-16 md:bottom-0 left-0 right-0 bg-gray-100 overflow-hidden">
+      <div className="fixed top-[60px] md:top-[133px] bottom-16 md:bottom-0 left-0 right-0 bg-gray-100 overflow-hidden">
       
       {/* Show Calendar when Availability tab is active */}
       {activeTab === 'availability' && (
