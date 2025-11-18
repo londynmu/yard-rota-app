@@ -14,7 +14,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
-  const [activeTab, setActiveTab] = useState('availability'); // 'availability', 'shifts', 'breaks'
+  const [activeTab, setActiveTab] = useState('availability'); // 'availability', 'breaks'
   
   // Function to show popup
   const showPopup = (type, message, duration = 3000) => {
@@ -192,18 +192,6 @@ export default function CalendarPage() {
               Availability
             </button>
             
-            {/* Today's Shifts Tab Button */}
-            <button
-              onClick={() => setActiveTab('shifts')}
-              className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full ${
-                activeTab === 'shifts'
-                  ? 'border-gray-900 bg-gray-800 text-white hover:bg-gray-900'
-                  : 'border-gray-400 bg-white text-charcoal hover:bg-gray-100'
-              }`}
-            >
-              Shifts
-            </button>
-            
             {/* Today's Breaks Tab Button */}
             <button
               onClick={() => setActiveTab('breaks')}
@@ -285,15 +273,6 @@ export default function CalendarPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Show Shifts when Shifts tab is active */}
-      {activeTab === 'shifts' && (
-        <div className="h-full overflow-y-auto">
-          <div className="container mx-auto p-4">
-            <ShiftDashboard initialView="shifts" hideTabSwitcher={true} />
           </div>
         </div>
       )}
