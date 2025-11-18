@@ -36,7 +36,15 @@ const getNightSortValue = (timeStr) => {
   return totalMinutes;
 };
 
-export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher = false }) {
+export default function ShiftDashboard({ 
+  initialView = 'shift', 
+  hideTabSwitcher = false, 
+  hideLocationButton = false,
+  selectedLocation = null,
+  renderShiftBadges = false,
+  selectedShifts = ['day', 'afternoon', 'night'],
+  onShiftCountsChange = null
+}) {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
   const [breakInfo, setBreakInfo] = useState(null);
@@ -48,8 +56,33 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
-  const [teamLocation, setTeamLocation] = useState('Rugby'); // location tab (Rugby default)
+  const [teamLocation, setTeamLocation] = useState(selectedLocation || 'Rugby'); // location tab (Rugby default)
   const [showLocationModal, setShowLocationModal] = useState(false);
+  
+  // Sync with external selectedLocation if provided
+  useEffect(() => {
+    if (selectedLocation) {
+      setTeamLocation(selectedLocation);
+    }
+  }, [selectedLocation]);
+  
+  // Update shift counts when data changes
+  useEffect(() => {
+    if (onShiftCountsChange && allBreaks.length > 0) {
+      const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
+      const breaksByType = {
+        day: allBreaks.filter(b => b.shift_type === 'day'),
+        afternoon: allBreaks.filter(b => b.shift_type === 'afternoon'),
+        night: allBreaks.filter(b => b.shift_type === 'night')
+      };
+      const counts = {
+        day: breaksByType.day.filter(b => userLocationMap.get(b.user_id) === teamLocation).length,
+        afternoon: breaksByType.afternoon.filter(b => userLocationMap.get(b.user_id) === teamLocation).length,
+        night: breaksByType.night.filter(b => userLocationMap.get(b.user_id) === teamLocation).length
+      };
+      onShiftCountsChange(counts);
+    }
+  }, [allBreaks, allShifts, teamLocation, onShiftCountsChange]);
   
   // Fetch user profile to get shift preference
   useEffect(() => {
@@ -795,8 +828,8 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
 
     return (
       <>
-        {/* Location Button - Only for Breaks view */}
-        {teamView === 'breaks' && (
+        {/* Location Button - Only for Breaks view AND if not hidden */}
+        {teamView === 'breaks' && !hideLocationButton && (
           <div className="mb-4 px-4">
             <button
               onClick={() => setShowLocationModal(true)}
@@ -855,7 +888,7 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
         )}
 
         {/* Content */}
-        <div className="px-4 pb-4">
+        <div className={hideLocationButton ? '' : 'px-4 pb-4'}>
           {teamView === 'shifts' ? (
             allShifts.length === 0 ? (
               <p className="text-gray-600 text-center py-4">No shifts scheduled for today</p>
@@ -1002,6 +1035,9 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
                   const shiftOrder = [currentShift, 'day', 'afternoon', 'night'].filter((v, i, a) => a.indexOf(v) === i);
                   
                   return shiftOrder.map(shiftType => {
+                    // Filter by selected shifts
+                    if (!selectedShifts.includes(shiftType)) return null;
+                    
                     const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
                     if (breaks.length === 0) return null;
                     
@@ -1016,10 +1052,12 @@ export default function ShiftDashboard({ initialView = 'shift', hideTabSwitcher 
 
                     return (
                       <div key={shiftType}>
-                        <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
-                          {shiftType} Shift ({sortedBreaks.length})
-                        </h3>
-                        <ul className="space-y-1 mt-2">
+                        {!renderShiftBadges && (
+                          <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
+                            {shiftType} Shift ({sortedBreaks.length})
+                          </h3>
+                        )}
+                        <ul className={`space-y-1 ${renderShiftBadges ? '' : 'mt-2'}`}>
                           {sortedBreaks.map(b => {
                           const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
                           const isMe = b.user_id === user?.id;

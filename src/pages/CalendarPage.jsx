@@ -14,6 +14,9 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
+  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+  const [selectedShifts, setSelectedShifts] = useState(['day', 'afternoon', 'night']);
+  const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   
   // Function to show popup
   const showPopup = (type, message, duration = 3000) => {
@@ -177,17 +180,33 @@ export default function CalendarPage() {
       
       {/* Main scrollable container */}
       <div className="h-full overflow-y-auto bg-offwhite px-4 py-6 md:px-6 pb-20 md:pb-6">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-6">
           
-          {/* Availability Calendar Section */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 md:p-6">
-            <h2 className="text-xl font-bold text-charcoal mb-4">Your Availability</h2>
-            
+          {/* Availability Calendar Section - No white container */}
+          <div>
             {errorMessage && (
               <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
                 {errorMessage}
               </div>
             )}
+            
+            {/* Legend - Above Calendar */}
+            <div className="mb-4">
+              <div className="flex justify-center items-center gap-6 text-sm font-medium text-charcoal">
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                  <span>Unavailable</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                  <span>Holiday</span>
+                </div>
+              </div>
+            </div>
             
             {/* Calendar Header */}
             <div className="flex items-center justify-between mb-4">
@@ -223,31 +242,94 @@ export default function CalendarPage() {
               onDayClick={handleDayClick}
               isLoading={loading}
             />
+          </div>
+          
+          {/* Pastel Divider Line */}
+          <div className="border-t-2 border-blue-100"></div>
+          
+          {/* Today's Breaks Section - Title with Badges */}
+          <div className="mb-3">
+            <h2 className="text-xl font-bold text-charcoal mb-2">Today's Breaks</h2>
             
-            {/* Legend - Below Calendar */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex justify-center items-center gap-6 text-sm font-medium text-charcoal">
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                  <span>Available</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                  <span>Unavailable</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
-                  <span>Holiday</span>
-                </div>
-              </div>
+            {/* Badges Row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Location Badge */}
+              <button
+                onClick={() => {
+                  const locations = ['Rugby', 'NRC', 'Nuneaton'];
+                  const currentIndex = locations.indexOf(selectedLocation);
+                  const nextIndex = (currentIndex + 1) % locations.length;
+                  setSelectedLocation(locations[nextIndex]);
+                }}
+                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
+              >
+                {selectedLocation}
+              </button>
+              
+              {/* Shift Badges - Clickable filters */}
+              <button
+                onClick={() => {
+                  setSelectedShifts(prev => 
+                    prev.includes('day') 
+                      ? prev.filter(s => s !== 'day')
+                      : [...prev, 'day']
+                  );
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedShifts.includes('day')
+                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Day {shiftCounts.day > 0 && `(${shiftCounts.day})`}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSelectedShifts(prev => 
+                    prev.includes('afternoon') 
+                      ? prev.filter(s => s !== 'afternoon')
+                      : [...prev, 'afternoon']
+                  );
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedShifts.includes('afternoon')
+                    ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
+                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Afternoon {shiftCounts.afternoon > 0 && `(${shiftCounts.afternoon})`}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSelectedShifts(prev => 
+                    prev.includes('night') 
+                      ? prev.filter(s => s !== 'night')
+                      : [...prev, 'night']
+                  );
+                }}
+                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedShifts.includes('night')
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Night {shiftCounts.night > 0 && `(${shiftCounts.night})`}
+              </button>
             </div>
           </div>
           
-          {/* Today's Breaks Section */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 md:p-6">
-            <h2 className="text-xl font-bold text-charcoal mb-4">Today's Breaks</h2>
-            <ShiftDashboard initialView="breaks" hideTabSwitcher={true} />
-          </div>
+          {/* Today's Breaks List - No container, full width like calendar */}
+          <ShiftDashboard 
+            initialView="breaks" 
+            hideTabSwitcher={true} 
+            hideLocationButton={true}
+            selectedLocation={selectedLocation}
+            renderShiftBadges={true}
+            selectedShifts={selectedShifts}
+            onShiftCountsChange={setShiftCounts}
+          />
           
         </div>
       </div>
