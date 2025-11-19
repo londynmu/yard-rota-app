@@ -1102,7 +1102,7 @@ const BrakesManager = () => {
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
           <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Date</h3>
@@ -1338,7 +1338,7 @@ const BrakesManager = () => {
       )}
 
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
           <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Location</h3>
@@ -1367,7 +1367,7 @@ const BrakesManager = () => {
       )}
 
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
           <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Shift</h3>
@@ -1498,7 +1498,7 @@ const BrakesManager = () => {
       
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlot && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
           <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 z-10">
               <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
@@ -1589,7 +1589,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   
   // Use createPortal to render the modal in the document body
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
         className="relative bg-white text-charcoal rounded-t-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
@@ -1783,7 +1783,7 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
   if (!isOpen) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
         className="relative bg-white text-charcoal rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
