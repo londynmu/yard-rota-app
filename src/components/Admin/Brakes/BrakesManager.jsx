@@ -1103,7 +1103,7 @@ const BrakesManager = () => {
       {/* Modals for pickers */}
       {showDateModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Date</h3>
               <button onClick={() => setShowDateModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
@@ -1339,7 +1339,7 @@ const BrakesManager = () => {
 
       {showLocationModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Location</h3>
               <button onClick={() => setShowLocationModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
@@ -1368,7 +1368,7 @@ const BrakesManager = () => {
 
       {showShiftModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-t-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
               <h3 className="text-lg font-bold text-white">Select Shift</h3>
               <button onClick={() => setShowShiftModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
@@ -1499,7 +1499,7 @@ const BrakesManager = () => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlot && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
+          <div className="bg-white rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 z-10">
               <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
             </div>
@@ -1592,7 +1592,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-t-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
+        className="relative bg-white text-charcoal rounded-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
       >
         {/* Header - Sticky */}
         <div className="sticky top-0 bg-black px-3 py-3 md:px-5 md:py-4 border-b border-gray-900 flex-shrink-0 z-10">
@@ -1786,7 +1786,7 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-t-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
+        className="relative bg-white text-charcoal rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Header - Sticky */}
         <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex-shrink-0 z-10">
