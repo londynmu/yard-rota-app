@@ -124,6 +124,7 @@ export function parseShunterCSV(fileContent) {
  */
 export function validateCSVData(parsedData) {
   const errors = [];
+  const warnings = [];
   
   if (!Array.isArray(parsedData) || parsedData.length === 0) {
     errors.push('No valid data found in CSV file');
@@ -138,17 +139,17 @@ export function validateCSVData(parsedData) {
   });
   
   const duplicates = Object.entries(duplicateCounts)
-    .filter(([_, count]) => count > 3)
+    .filter(([, count]) => count > 3)
     .map(([id, count]) => `${id} (${count} times)`);
   
   if (duplicates.length > 0) {
-    errors.push(`Unusual duplicate count (more than 3 shifts): ${duplicates.join(', ')}`);
+    warnings.push(`Multiple shift entries detected (more than 3) for: ${duplicates.join(', ')}. This is usually fine for day/afternoon/night shifts, but review if unexpected.`);
   }
   
   return {
     isValid: errors.length === 0,
     errors,
-    warnings: duplicates.length > 0 ? errors : []
+    warnings
   };
 }
 
