@@ -290,3 +290,4 @@ PerformanceStats.propTypes = {
 
 export default PerformanceStats;
 
+

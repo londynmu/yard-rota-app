@@ -129,3 +129,4 @@ GRANT SELECT ON public.profiles TO authenticated;
 -- 3. View leaderboard at /performance page
 -- ============================================
 
+
