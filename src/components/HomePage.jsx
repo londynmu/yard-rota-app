@@ -8,6 +8,7 @@ import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
 import BrakesPage from '../pages/BrakesPage';
+import PerformanceLeaderboard from '../pages/PerformanceLeaderboard';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
@@ -214,6 +215,16 @@ export default function HomePage() {
               >
                 My Rota
               </Link>
+              <Link
+                to="/performance"
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  location.pathname === '/performance' 
+                    ? 'bg-black text-white' 
+                    : 'text-charcoal hover:bg-gray-100'
+                }`}
+              >
+                Performance
+              </Link>
               {isAdmin && (
                 <>
                   <Link
@@ -290,6 +301,7 @@ export default function HomePage() {
           <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
+          <Route path="/performance" element={<PerformanceLeaderboard />} />
           <Route path="/brakes" element={isAdmin ? <BrakesPage /> : <Navigate to="/calendar" replace />} />
           <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
@@ -325,6 +337,19 @@ export default function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span className="text-xs font-medium">My Rota</span>
+          </Link>
+
+          {/* Performance */}
+          <Link
+            to="/performance"
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname === '/performance' ? 'active' : ''
+            }`}
+          >
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span className="text-xs font-medium">Stats</span>
           </Link>
 
           {/* Breaks & Admin (only if admin) */}

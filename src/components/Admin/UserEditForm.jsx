@@ -13,6 +13,7 @@ const capitalizeFirstLetter = (string) => {
 export default function UserEditForm({ user, onClose, onSuccess }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [yardSystemId, setYardSystemId] = useState('');
   const [shiftPreference, setShiftPreference] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [performanceScore, setPerformanceScore] = useState(50);
@@ -33,6 +34,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   const [formErrors, setFormErrors] = useState({
     firstName: '',
     lastName: '',
+    yardSystemId: '',
     shiftPreference: '',
     performanceScore: '',
     timeRange: ''
@@ -86,6 +88,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     if (user) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
+      setYardSystemId(user.yard_system_id || '');
       setShiftPreference(user.shift_preference || '');
       setIsActive(user.is_active !== false); // Default to true if not set
       setPerformanceScore(user.performance_score || 50);
@@ -111,11 +114,12 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   };
 
   // Form validation
-  const validateForm = () => {
+  const validateForm = async () => {
     let isValid = true;
     const errors = {
       firstName: '',
       lastName: '',
+      yardSystemId: '',
       shiftPreference: '',
       performanceScore: '',
       timeRange: ''
@@ -130,6 +134,30 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     if (!lastName.trim()) {
       errors.lastName = 'Last name is required';
       isValid = false;
+    }
+    
+    // Validate Yard System ID if provided
+    if (yardSystemId.trim()) {
+      const trimmedId = yardSystemId.trim().toUpperCase();
+      
+      // Check if it's changed from original
+      if (trimmedId !== (user.yard_system_id || '').toUpperCase()) {
+        // Check for uniqueness
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('yard_system_id', trimmedId)
+          .neq('id', user.id);
+        
+        if (error) {
+          console.error('Error checking yard_system_id uniqueness:', error);
+          errors.yardSystemId = 'Error validating Yard System ID';
+          isValid = false;
+        } else if (data && data.length > 0) {
+          errors.yardSystemId = 'This Yard System ID is already in use';
+          isValid = false;
+        }
+      }
     }
     
     if (!shiftPreference) {
@@ -150,7 +178,8 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    const isFormValid = await validateForm();
+    if (!isFormValid) {
       return;
     }
     
@@ -162,6 +191,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         id: user.id,
         first_name: capitalizeFirstLetter(firstName.trim()),
         last_name: capitalizeFirstLetter(lastName.trim()),
+        yard_system_id: yardSystemId.trim().toUpperCase() || null,
         shift_preference: shiftPreference,
         is_active: isActive,
         performance_score: parseInt(performanceScore, 10),
@@ -354,6 +384,30 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                 />
                 {formErrors.lastName && (
                   <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-2">
+                  Yard System ID
+                </label>
+                <input
+                  id="admin-edit-yardSystemId"
+                  type="text"
+                  value={yardSystemId}
+                  onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
+                  style={{ textTransform: 'uppercase' }}
+                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., AG10, AK2024"
+                  disabled={loading}
+                />
+                <p className="mt-1 text-xs text-gray-600">
+                  Enter ID from daily report (e.g., AG10, AK2024). Required for performance tracking.
+                </p>
+                {formErrors.yardSystemId && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
                 )}
               </div>
               
