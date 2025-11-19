@@ -172,6 +172,37 @@ const BrakesManager = () => {
     return `brakes_temp_assignments_${selectedDate}_${selectedShift}_${locationKey}`;
   }, [selectedDate, selectedShift, selectedLocation]);
 
+  const getUnsavedFlagKey = useCallback(() => `${getSessionStorageKey()}_dirty`, [getSessionStorageKey]);
+
+  const markAssignmentsDirty = useCallback(() => {
+    try {
+      sessionStorage.setItem(getUnsavedFlagKey(), 'true');
+    } catch (err) {
+      console.warn('[BrakesManager] Failed to mark assignments dirty:', err);
+    }
+  }, [getUnsavedFlagKey]);
+
+  const clearAssignmentCache = useCallback(() => {
+    try {
+      const sessionStorageKey = getSessionStorageKey();
+      const dirtyKey = getUnsavedFlagKey();
+      sessionStorage.removeItem(sessionStorageKey);
+      sessionStorage.removeItem(dirtyKey);
+    } catch (err) {
+      console.warn('[BrakesManager] Failed to clear assignment cache:', err);
+    }
+  }, [getSessionStorageKey, getUnsavedFlagKey]);
+
+  const persistAssignmentsToSession = useCallback((assignments) => {
+    try {
+      const sessionStorageKey = getSessionStorageKey();
+      sessionStorage.setItem(sessionStorageKey, JSON.stringify(assignments));
+      markAssignmentsDirty();
+    } catch (err) {
+      console.error('[BrakesManager] Failed to persist assignments to sessionStorage:', err);
+    }
+  }, [getSessionStorageKey, markAssignmentsDirty]);
+
   // TODO: Define standard slots structure based on requirements
   const standardSlotsConfig = {
     Day: [
@@ -244,7 +275,12 @@ const BrakesManager = () => {
     setAvailableStaff([]);
 
     const sessionStorageKey = getSessionStorageKey();
-    let savedAssignments = sessionStorage.getItem(sessionStorageKey);
+    const unsavedFlagKey = getUnsavedFlagKey();
+    const hasUnsavedChanges = sessionStorage.getItem(unsavedFlagKey) === 'true';
+    let savedAssignments = hasUnsavedChanges ? sessionStorage.getItem(sessionStorageKey) : null;
+    if (!hasUnsavedChanges) {
+      clearAssignmentCache();
+    }
     const locationFilter = selectedLocation === ALL_LOCATIONS_VALUE ? null : selectedLocation;
 
     try {
@@ -367,7 +403,7 @@ const BrakesManager = () => {
           setScheduledBreaks(processedScheduled);
         } catch (parseError) {
           console.error("[fetchBreakData] Error parsing sessionStorage assignments:", parseError);
-          sessionStorage.removeItem(sessionStorageKey); // Clear invalid data
+          clearAssignmentCache();
           // Fallback to fetching from DB
           savedAssignments = null; // Reset flag
         }
@@ -534,7 +570,7 @@ const BrakesManager = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate, selectedShift, selectedLocation, getSessionStorageKey, toast]);
+  }, [selectedDate, selectedShift, selectedLocation, getSessionStorageKey, getUnsavedFlagKey, clearAssignmentCache, toast]);
 
   // NEW useEffect to calculate break times reactively based on scheduledBreaks and allSlots
   useEffect(() => {
@@ -603,7 +639,6 @@ const BrakesManager = () => {
   const handleSaveAllBreaks = async () => {
     setIsLoading(true);
     
-    const sessionStorageKey = getSessionStorageKey();
     if (selectedLocation === ALL_LOCATIONS_VALUE) {
       toast.error('Select a specific location before saving breaks.');
       setIsLoading(false);
@@ -750,7 +785,7 @@ const BrakesManager = () => {
       }
 
       toast.success("Breaks schedule saved successfully!");
-      sessionStorage.removeItem(sessionStorageKey); // Clear temporary state on successful save
+      clearAssignmentCache(); // Clear temporary state on successful save
       localCustomSlotsRef.current = []; // Clear locally added slots after successful save
       fetchBreakData(); // Refetch data to reflect saved state
       
@@ -851,7 +886,7 @@ const BrakesManager = () => {
       const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
       setScheduledBreaks(updatedAssignments);
       // Save updated assignments to session storage
-      sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+      persistAssignmentsToSession(updatedAssignments);
       
       toast.success(isNewSlot ? 'Custom slot removed.' : 'Custom slot deleted from database.');
       setDeleteConfirmSlot(null);
@@ -933,7 +968,7 @@ const BrakesManager = () => {
     // Add to scheduled breaks state
     const updatedAssignments = [...scheduledBreaks, newAssignment];
     setScheduledBreaks(updatedAssignments);
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+    persistAssignmentsToSession(updatedAssignments);
     // Removed per request: no toast after each add
     
     // Update staff break status
@@ -973,7 +1008,7 @@ const BrakesManager = () => {
     setScheduledBreaks(updatedAssignments);
 
     // Save updated assignments to session storage
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+    persistAssignmentsToSession(updatedAssignments);
     
     // Find the slot to get its duration
     const slot = breakSlots.find(s => s.id === assignment.slot_id);
