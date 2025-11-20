@@ -1,16 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
-import { format as formatDate, subDays, startOfWeek, startOfMonth } from 'date-fns';
+import { format as formatDate, startOfWeek, startOfMonth } from 'date-fns';
+import { createPortal } from 'react-dom';
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [customStartDate, setCustomStartDate] = useState(null);
-  const [customEndDate, setCustomEndDate] = useState(null);
-  const [showCustomRange, setShowCustomRange] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    return localStorage.getItem('performance_period') || 'today';
+  });
+  const [sortOption, setSortOption] = useState(() => {
+    return localStorage.getItem('performance_sort') || 'moves';
+  });
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
+
+  // Save preferences to localStorage
+  useEffect(() => {
+    localStorage.setItem('performance_period', selectedPeriod);
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    localStorage.setItem('performance_sort', sortOption);
+  }, [sortOption]);
 
   // Calculate date range based on selected period
   const getDateRange = useCallback(() => {
@@ -30,23 +44,15 @@ const PerformanceLeaderboard = () => {
         startDate = formatDate(startOfMonth(today), 'yyyy-MM-dd');
         endDate = formatDate(today, 'yyyy-MM-dd');
         break;
-      case 'custom':
-        if (customStartDate && customEndDate) {
-          startDate = formatDate(customStartDate, 'yyyy-MM-dd');
-          endDate = formatDate(customEndDate, 'yyyy-MM-dd');
-        } else {
-          return null;
-        }
-        break;
       case 'all':
       default:
-        startDate = '2020-01-01'; // Far past date
+        startDate = '2020-01-01';
         endDate = formatDate(today, 'yyyy-MM-dd');
         break;
     }
 
     return { startDate, endDate };
-  }, [selectedPeriod, customStartDate, customEndDate]);
+  }, [selectedPeriod]);
 
   // Fetch leaderboard data
   const fetchLeaderboard = useCallback(async () => {
@@ -128,11 +134,30 @@ const PerformanceLeaderboard = () => {
       }));
 
       // Sort by total moves (descending), then by avg collect time (ascending)
+      leaderboard.forEach(user => {
+        user.avgTravelSeconds = user.totalMoves > 0
+          ? Math.round(user.totalTravelSeconds / user.totalMoves)
+          : 0;
+      });
+
       leaderboard.sort((a, b) => {
-        if (b.totalMoves !== a.totalMoves) {
-          return b.totalMoves - a.totalMoves;
+        switch (sortOption) {
+          case 'collect':
+            if (a.avgCollectSeconds !== b.avgCollectSeconds) {
+              return a.avgCollectSeconds - b.avgCollectSeconds;
+            }
+            return b.totalMoves - a.totalMoves;
+          case 'travel':
+            if (a.avgTravelSeconds !== b.avgTravelSeconds) {
+              return a.avgTravelSeconds - b.avgTravelSeconds;
+            }
+            return b.totalMoves - a.totalMoves;
+          default:
+            if (b.totalMoves !== a.totalMoves) {
+              return b.totalMoves - a.totalMoves;
+            }
+            return a.avgCollectSeconds - b.avgCollectSeconds;
         }
-        return a.avgCollectSeconds - b.avgCollectSeconds;
       });
 
       setLeaderboardData(leaderboard);
@@ -142,7 +167,7 @@ const PerformanceLeaderboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [getDateRange, toast]);
+  }, [getDateRange, toast, sortOption]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -181,127 +206,132 @@ const PerformanceLeaderboard = () => {
     }
   };
 
+  const getPeriodLabel = (period) => {
+    switch (period) {
+      case 'today': return 'Today';
+      case 'week': return 'This Week';
+      case 'month': return 'This Month';
+      case 'all': return 'All Time';
+      default: return 'Today';
+    }
+  };
+
+  const getSortLabel = (sort) => {
+    switch (sort) {
+      case 'collect': return 'Avg Collect';
+      case 'travel': return 'Avg Travel';
+      default: return 'Total Moves';
+    }
+  };
+
   const top3 = leaderboardData.slice(0, 3);
   const rest = leaderboardData.slice(3);
 
   return (
-    <div className="min-h-screen bg-offwhite">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-charcoal mb-4">Performance Leaderboard</h1>
-          
-          {/* Period Filters */}
-          <div className="flex flex-wrap gap-2">
+    <div className="min-h-screen bg-offwhite pb-20">
+      {/* Sticky Badge Header (jak w My Rota) */}
+      <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-xl mx-auto">
             <button
-              onClick={() => {
-                setSelectedPeriod('today');
-                setShowCustomRange(false);
-              }}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedPeriod === 'today'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-charcoal border border-gray-300 hover:bg-gray-100'
-              }`}
+              onClick={() => setShowPeriodModal(true)}
+              className="flex-1 px-4 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors text-center"
             >
-              Today
+              {getPeriodLabel(selectedPeriod)}
             </button>
             <button
-              onClick={() => {
-                setSelectedPeriod('week');
-                setShowCustomRange(false);
-              }}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedPeriod === 'week'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-charcoal border border-gray-300 hover:bg-gray-100'
-              }`}
+              onClick={() => setShowSortModal(true)}
+              className="flex-1 px-4 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors text-center"
             >
-              This Week
-            </button>
-            <button
-              onClick={() => {
-                setSelectedPeriod('month');
-                setShowCustomRange(false);
-              }}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedPeriod === 'month'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-charcoal border border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              This Month
-            </button>
-            <button
-              onClick={() => {
-                setSelectedPeriod('all');
-                setShowCustomRange(false);
-              }}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedPeriod === 'all'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-charcoal border border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              All Time
-            </button>
-            <button
-              onClick={() => {
-                setShowCustomRange(!showCustomRange);
-                if (!showCustomRange) {
-                  setSelectedPeriod('custom');
-                }
-              }}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedPeriod === 'custom'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-charcoal border border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              Custom Range
+              Sort: {getSortLabel(sortOption)}
             </button>
           </div>
-
-          {/* Custom Date Range Picker */}
-          {showCustomRange && (
-            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-charcoal mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={customStartDate ? formatDate(customStartDate, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setCustomStartDate(new Date(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-charcoal bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-charcoal mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={customEndDate ? formatDate(customEndDate, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setCustomEndDate(new Date(e.target.value))}
-                    max={formatDate(new Date(), 'yyyy-MM-dd')}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-charcoal bg-white"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={fetchLeaderboard}
-                    disabled={!customStartDate || !customEndDate}
-                    className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
+      {/* Period Selection Modal */}
+      {showPeriodModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
+          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
+              <h3 className="text-lg font-bold text-white">Select Period</h3>
+              <button 
+                onClick={() => setShowPeriodModal(false)} 
+                className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[70vh]">
+              {[
+                { value: 'today', label: 'Today' },
+                { value: 'week', label: 'This Week' },
+                { value: 'month', label: 'This Month' },
+                { value: 'all', label: 'All Time' }
+              ].map((period) => (
+                <button
+                  key={period.value}
+                  onClick={() => {
+                    setSelectedPeriod(period.value);
+                    setShowPeriodModal(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                    selectedPeriod === period.value
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-charcoal hover:bg-gray-200'
+                  }`}
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Sort Selection Modal */}
+      {showSortModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
+          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
+              <h3 className="text-lg font-bold text-white">Sort Leaderboard</h3>
+              <button 
+                onClick={() => setShowSortModal(false)} 
+                className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[70vh]">
+              {[
+                { value: 'moves', label: 'Total Moves (descending)' },
+                { value: 'collect', label: 'Avg Collect Time (ascending)' },
+                { value: 'travel', label: 'Avg Travel Time (ascending)' }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setSortOption(option.value);
+                    setShowSortModal(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                    sortOption === option.value
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-charcoal hover:bg-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-4 md:py-6">
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>

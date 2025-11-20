@@ -129,6 +129,7 @@ export default function HomePage() {
     if (path === '/profile') return 'Your Profile';
     if (path === '/rota-planner') return 'Rota Planner';
     if (path === '/brakes') return 'Breaks';
+    if (path === '/performance') return 'Performance';
     
     return 'My Rota';
   };
@@ -189,108 +190,121 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-offwhite flex flex-col">
       {/* Hide header on mobile for My Rota, Breaks, and Calendar pages - bottom nav provides navigation */}
-      <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${(location.pathname === '/my-rota' || location.pathname === '/brakes' || location.pathname === '/calendar') ? 'hidden md:block' : ''}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
-          
-          <div className="flex items-center space-x-4">
-            <nav className="hidden md:flex space-x-2">
-              <Link
-                to="/calendar"
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  location.pathname === '/calendar' 
-                    ? 'bg-black text-white' 
-                    : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                Main Page
-              </Link>
-              <Link
-                to="/my-rota"
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  location.pathname === '/my-rota' 
-                    ? 'bg-black text-white' 
-                    : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                My Rota
-              </Link>
-              <Link
-                to="/performance"
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  location.pathname === '/performance' 
-                    ? 'bg-black text-white' 
-                    : 'text-charcoal hover:bg-gray-100'
-                }`}
-              >
-                Performance
-              </Link>
-              {isAdmin && (
-                <>
+      {(() => {
+        const path = location.pathname;
+        const hideHeaderCompletely = path === '/performance';
+        const hideHeaderOnMobile = path === '/my-rota' || path === '/brakes' || path === '/calendar';
+        const visibilityClass = hideHeaderCompletely ? 'hidden' : hideHeaderOnMobile ? 'hidden md:block' : '';
+
+        if (hideHeaderCompletely) {
+          return null;
+        }
+
+        return (
+          <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
+              
+              <div className="flex items-center space-x-4">
+                <nav className="hidden md:flex space-x-2">
                   <Link
-                    to="/brakes"
+                    to="/calendar"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      location.pathname === '/brakes' 
+                      location.pathname === '/calendar' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
-                    Breaks
+                    Main Page
                   </Link>
                   <Link
-                    to="/admin"
+                    to="/my-rota"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      location.pathname === '/admin' 
+                      location.pathname === '/my-rota' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
-                    Admin Panel
+                    My Rota
                   </Link>
                   <Link
-                    to="/rota-planner"
+                    to="/performance"
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      location.pathname === '/rota-planner' 
+                      location.pathname === '/performance' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
                     }`}
                   >
-                    Rota Planner
+                    Performance
                   </Link>
-                </>
-              )}
-            </nav>
-            
-            {isAdmin && <NotificationBell />}
-            
-            <div className="relative">
-              <button 
-                ref={avatarButtonRef}
-                onClick={toggleDropdown}
-                className="flex items-center focus:outline-none"
-                aria-label="User menu"
-                aria-haspopup="true"
-              >
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm">
-                  {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-charcoal font-medium text-sm">
-                        {user?.email?.charAt(0).toUpperCase() || '?'}
-                      </span>
-                    </div>
+                  {isAdmin && (
+                    <>
+                      <Link
+                        to="/brakes"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          location.pathname === '/brakes' 
+                            ? 'bg-black text-white' 
+                            : 'text-charcoal hover:bg-gray-100'
+                        }`}
+                      >
+                        Breaks
+                      </Link>
+                      <Link
+                        to="/admin"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          location.pathname === '/admin' 
+                            ? 'bg-black text-white' 
+                            : 'text-charcoal hover:bg-gray-100'
+                        }`}
+                      >
+                        Admin Panel
+                      </Link>
+                      <Link
+                        to="/rota-planner"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          location.pathname === '/rota-planner' 
+                            ? 'bg-black text-white' 
+                            : 'text-charcoal hover:bg-gray-100'
+                        }`}
+                      >
+                        Rota Planner
+                      </Link>
+                    </>
                   )}
+                </nav>
+                
+                {isAdmin && <NotificationBell />}
+                
+                <div className="relative">
+                  <button 
+                    ref={avatarButtonRef}
+                    onClick={toggleDropdown}
+                    className="flex items-center focus:outline-none"
+                    aria-label="User menu"
+                    aria-haspopup="true"
+                  >
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm">
+                      {avatarUrl ? (
+                        <img 
+                          src={avatarUrl} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-charcoal font-medium text-sm">
+                            {user?.email?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
                 </div>
-              </button>
+              </div>
             </div>
-          </div>
-        </div>
-      </header>
+          </header>
+        );
+      })()}
       
       {renderDropdownMenu()}
       

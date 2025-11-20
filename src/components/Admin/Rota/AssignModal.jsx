@@ -18,6 +18,30 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [showUserNoteModal, setShowUserNoteModal] = useState(false);
   const [userNoteData, setUserNoteData] = useState(null);
 
+  const normalizedSlotLocation = slot?.location?.trim().toLowerCase() || '';
+  const normalizedSlotShift = slot?.shift_type?.trim().toLowerCase() || '';
+
+  const normalizePreferenceValue = (value) => value?.trim().toLowerCase() || '';
+
+  const matchesLocationPreference = (preferredLocation) => {
+    const normalizedPref = normalizePreferenceValue(preferredLocation);
+    if (!normalizedPref) return true;
+    if (['both', 'all', 'any'].includes(normalizedPref)) return true;
+    return normalizedPref === normalizedSlotLocation;
+  };
+
+  const hasDifferentLocationPreference = (preferredLocation) => {
+    const normalizedPref = normalizePreferenceValue(preferredLocation);
+    if (!normalizedPref) return false;
+    if (['both', 'all', 'any'].includes(normalizedPref)) return false;
+    return normalizedPref !== normalizedSlotLocation;
+  };
+
+  const matchesShiftPreference = (shiftPreference) => {
+    if (!shiftPreference) return true;
+    return normalizePreferenceValue(shiftPreference) === normalizedSlotShift;
+  };
+
   // Format time to remove seconds (HH:MM)
   const formatTimeWithoutSeconds = (timeString) => {
     return timeString.split(':').slice(0, 2).join(':');
@@ -315,12 +339,12 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           }
           
           // Shift preference match
-          if (profile.shift_preference === slot.shift_type) {
+          if (profile.shift_preference && matchesShiftPreference(profile.shift_preference)) {
             matchScore += 5; // Increased weight
           }
           
           // Location preference match
-          if ((profile.preferred_location === slot.location || profile.preferred_location === 'Both')) {
+          if (profile.preferred_location && matchesLocationPreference(profile.preferred_location)) {
             matchScore += 3; // Increased weight
           }
           
@@ -533,45 +557,55 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
   // Filter and sort by selected tab
   const getFilteredEmployees = () => {
-    return availableEmployees
-      .filter(employee => {
-        // For "other_locations" tab, only show employees from different locations
-        if (selectedTab === 'other_locations') {
-          return employee.preferred_location !== slot.location && 
-                 employee.preferred_location !== 'Both';
-        }
-        
-        // Then filter based on tab and other criteria
-        if (selectedTab === 'assigned') {
-          return employee.isAssigned;
-        } else if (selectedTab === 'available') {
-          // Only show employees who prefer this shift type AND are available without conflicts
-          // Include employees with matching location preference OR "Both" preference
-          return !employee.isAssigned && 
-                 !employee.hasOverlappingConflict && 
-                 !employee.hasBreakTimeConflict && 
-                 employee.availabilityStatus.toLowerCase() === 'available' &&
-                 employee.shift_preference === slot.shift_type && // Only matching shift preference
-                 (employee.preferred_location === slot.location || employee.preferred_location === 'Both');
-        } else if (selectedTab === 'other_shifts') {
-          // Show employees who prefer different shift types but are otherwise available
-          // Include employees with matching location preference OR "Both" preference
-          return !employee.isAssigned && 
-                 !employee.hasOverlappingConflict && 
-                 !employee.hasBreakTimeConflict && 
-                 employee.availabilityStatus.toLowerCase() === 'available' &&
-                 employee.shift_preference !== slot.shift_type && // Different shift preference
-                 (employee.preferred_location === slot.location || employee.preferred_location === 'Both');
-        } else if (selectedTab === 'conflicts') {
-          return !employee.isAssigned && 
-                 (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
-        } else if (selectedTab === 'unavailable') {
-          return !employee.isAssigned && 
-                 employee.availabilityStatus.toLowerCase() !== 'available';
-        }
-        
-        return true;
-      });
+    if (!slot) {
+      return availableEmployees;
+    }
+
+    return availableEmployees.filter(employee => {
+      const availabilityStatus = employee.availabilityStatus?.toLowerCase() || 'unknown';
+      const isAvailableToday = availabilityStatus === 'available';
+      const locationMatches = matchesLocationPreference(employee.preferred_location);
+      const locationDifferent = hasDifferentLocationPreference(employee.preferred_location);
+      const shiftMatches = matchesShiftPreference(employee.shift_preference);
+
+      if (selectedTab === 'other_locations') {
+        return employee.preferred_location && locationDifferent;
+      }
+
+      if (selectedTab === 'assigned') {
+        return employee.isAssigned;
+      }
+
+      if (selectedTab === 'available') {
+        return !employee.isAssigned &&
+               !employee.hasOverlappingConflict &&
+               !employee.hasBreakTimeConflict &&
+               isAvailableToday &&
+               shiftMatches &&
+               locationMatches;
+      }
+
+      if (selectedTab === 'other_shifts') {
+        return !employee.isAssigned &&
+               !employee.hasOverlappingConflict &&
+               !employee.hasBreakTimeConflict &&
+               isAvailableToday &&
+               !shiftMatches &&
+               !!employee.shift_preference &&
+               locationMatches;
+      }
+
+      if (selectedTab === 'conflicts') {
+        return !employee.isAssigned &&
+               (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
+      }
+
+      if (selectedTab === 'unavailable') {
+        return !employee.isAssigned && availabilityStatus !== 'available';
+      }
+      
+      return true;
+    });
   };
 
   const capacityPercentage = (localAssignedCount / slot.capacity) * 100;
