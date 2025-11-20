@@ -43,9 +43,15 @@ public class MainActivity extends BridgeActivity {
 
   private void installSafeAreaListener(final View root) {
     if (root == null) return;
+
+    final int baseLeft = root.getPaddingLeft();
+    final int baseTop = root.getPaddingTop();
+    final int baseRight = root.getPaddingRight();
+    final int baseBottom = root.getPaddingBottom();
+
     ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
       Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-      v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+      v.setPadding(baseLeft, baseTop + bars.top, baseRight, baseBottom + bars.bottom);
       return insets;
     });
     ViewCompat.requestApplyInsets(root);
