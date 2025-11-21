@@ -192,13 +192,12 @@ export default function HomePage() {
       {/* Hide header on mobile for My Rota, Breaks, and Calendar pages - bottom nav provides navigation */}
       {(() => {
         const path = location.pathname;
-        const hideHeaderCompletely = path === '/performance';
-        const hideHeaderOnMobile = path === '/my-rota' || path === '/brakes' || path === '/calendar';
-        const visibilityClass = hideHeaderCompletely ? 'hidden' : hideHeaderOnMobile ? 'hidden md:block' : '';
-
-        if (hideHeaderCompletely) {
-          return null;
-        }
+        const hideHeaderOnMobile = 
+          path === '/my-rota' || 
+          path === '/brakes' || 
+          path === '/calendar' ||
+          path === '/performance';
+        const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
 
         return (
           <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
