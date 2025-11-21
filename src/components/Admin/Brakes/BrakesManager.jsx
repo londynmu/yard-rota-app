@@ -172,6 +172,37 @@ const BrakesManager = () => {
     return `brakes_temp_assignments_${selectedDate}_${selectedShift}_${locationKey}`;
   }, [selectedDate, selectedShift, selectedLocation]);
 
+  const getUnsavedFlagKey = useCallback(() => `${getSessionStorageKey()}_dirty`, [getSessionStorageKey]);
+
+  const markAssignmentsDirty = useCallback(() => {
+    try {
+      sessionStorage.setItem(getUnsavedFlagKey(), 'true');
+    } catch (err) {
+      console.warn('[BrakesManager] Failed to mark assignments dirty:', err);
+    }
+  }, [getUnsavedFlagKey]);
+
+  const clearAssignmentCache = useCallback(() => {
+    try {
+      const sessionStorageKey = getSessionStorageKey();
+      const dirtyKey = getUnsavedFlagKey();
+      sessionStorage.removeItem(sessionStorageKey);
+      sessionStorage.removeItem(dirtyKey);
+    } catch (err) {
+      console.warn('[BrakesManager] Failed to clear assignment cache:', err);
+    }
+  }, [getSessionStorageKey, getUnsavedFlagKey]);
+
+  const persistAssignmentsToSession = useCallback((assignments) => {
+    try {
+      const sessionStorageKey = getSessionStorageKey();
+      sessionStorage.setItem(sessionStorageKey, JSON.stringify(assignments));
+      markAssignmentsDirty();
+    } catch (err) {
+      console.error('[BrakesManager] Failed to persist assignments to sessionStorage:', err);
+    }
+  }, [getSessionStorageKey, markAssignmentsDirty]);
+
   // TODO: Define standard slots structure based on requirements
   const standardSlotsConfig = {
     Day: [
@@ -244,7 +275,12 @@ const BrakesManager = () => {
     setAvailableStaff([]);
 
     const sessionStorageKey = getSessionStorageKey();
-    let savedAssignments = sessionStorage.getItem(sessionStorageKey);
+    const unsavedFlagKey = getUnsavedFlagKey();
+    const hasUnsavedChanges = sessionStorage.getItem(unsavedFlagKey) === 'true';
+    let savedAssignments = hasUnsavedChanges ? sessionStorage.getItem(sessionStorageKey) : null;
+    if (!hasUnsavedChanges) {
+      clearAssignmentCache();
+    }
     const locationFilter = selectedLocation === ALL_LOCATIONS_VALUE ? null : selectedLocation;
 
     try {
@@ -367,7 +403,7 @@ const BrakesManager = () => {
           setScheduledBreaks(processedScheduled);
         } catch (parseError) {
           console.error("[fetchBreakData] Error parsing sessionStorage assignments:", parseError);
-          sessionStorage.removeItem(sessionStorageKey); // Clear invalid data
+          clearAssignmentCache();
           // Fallback to fetching from DB
           savedAssignments = null; // Reset flag
         }
@@ -534,7 +570,7 @@ const BrakesManager = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate, selectedShift, selectedLocation, getSessionStorageKey, toast]);
+  }, [selectedDate, selectedShift, selectedLocation, getSessionStorageKey, getUnsavedFlagKey, clearAssignmentCache, toast]);
 
   // NEW useEffect to calculate break times reactively based on scheduledBreaks and allSlots
   useEffect(() => {
@@ -600,14 +636,14 @@ const BrakesManager = () => {
   }, [selectedDate, selectedShift, selectedLocation, fetchBreakData]);
 
   // --- Actions ---
-  const handleSaveAllBreaks = async () => {
-    setIsLoading(true);
-    
-    const sessionStorageKey = getSessionStorageKey();
+  const handleSaveAllBreaks = async (silent = false) => {
     if (selectedLocation === ALL_LOCATIONS_VALUE) {
-      toast.error('Select a specific location before saving breaks.');
-      setIsLoading(false);
+      toast.error('Please select a specific location before saving breaks.');
       return;
+    }
+    
+    if (!silent) {
+      setIsLoading(true);
     }
 
     try {
@@ -749,16 +785,27 @@ const BrakesManager = () => {
         }
       }
 
-      toast.success("Breaks schedule saved successfully!");
-      sessionStorage.removeItem(sessionStorageKey); // Clear temporary state on successful save
+      if (!silent) {
+        toast.success("Breaks schedule saved successfully!");
+      }
+      clearAssignmentCache(); // Clear temporary state on successful save
       localCustomSlotsRef.current = []; // Clear locally added slots after successful save
-      fetchBreakData(); // Refetch data to reflect saved state
+      
+      // For silent save, keep current state (optimistic UI update)
+      // No need to refetch - data is already up to date locally
+      if (!silent) {
+        // Only refetch when explicitly saving (with loading spinner)
+        fetchBreakData();
+      }
+      // If silent=true, we keep the current state as-is without refetching
       
     } catch (error) {
       console.error('Error saving all breaks:', error);
       toast.error("Failed to save breaks: " + error.message);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -851,7 +898,7 @@ const BrakesManager = () => {
       const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
       setScheduledBreaks(updatedAssignments);
       // Save updated assignments to session storage
-      sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+      persistAssignmentsToSession(updatedAssignments);
       
       toast.success(isNewSlot ? 'Custom slot removed.' : 'Custom slot deleted from database.');
       setDeleteConfirmSlot(null);
@@ -933,7 +980,7 @@ const BrakesManager = () => {
     // Add to scheduled breaks state
     const updatedAssignments = [...scheduledBreaks, newAssignment];
     setScheduledBreaks(updatedAssignments);
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+    persistAssignmentsToSession(updatedAssignments);
     // Removed per request: no toast after each add
     
     // Update staff break status
@@ -961,7 +1008,7 @@ const BrakesManager = () => {
     );
   };
   
-  const handleRemoveStaff = (assignment) => {
+  const handleRemoveStaff = async (assignment) => {
     // Check if user has permission to remove this assignment
     if (!isAdmin && assignment.user_id !== currentUser?.id) {
       toast.error('You can only remove your own breaks');
@@ -973,7 +1020,7 @@ const BrakesManager = () => {
     setScheduledBreaks(updatedAssignments);
 
     // Save updated assignments to session storage
-    sessionStorage.setItem(getSessionStorageKey(), JSON.stringify(updatedAssignments));
+    persistAssignmentsToSession(updatedAssignments);
     
     // Find the slot to get its duration
     const slot = breakSlots.find(s => s.id === assignment.slot_id);
@@ -1000,6 +1047,12 @@ const BrakesManager = () => {
         return s;
       })
     );
+    
+    // Auto-save to server after removal (silent save without reload)
+    // Use setTimeout to ensure React state updates are processed first
+    setTimeout(() => {
+      handleSaveAllBreaks(true); // true = silent save
+    }, 100);
   };
 
   // --- Grouping Logic ---
@@ -1442,36 +1495,6 @@ const BrakesManager = () => {
         )}
       </div>
 
-      {/* Sticky Bottom Save Bar - Desktop only */}
-      {isAdmin && (
-        <div className="hidden md:block fixed inset-x-0 bottom-0 z-20 bg-gray-100 border-t-2 border-gray-400 shadow-[0_-2px_12px_rgba(0,0,0,0.15)]">
-          <div className="container mx-auto px-3 py-2">
-            <button
-              onClick={handleSaveAllBreaks}
-              className="w-full rounded-full bg-black text-white py-2 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg"
-              disabled={isLoading}
-            >
-              Save Breaks
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Save Bar - Floating above bottom navigation */}
-      {isAdmin && (
-        <div className="md:hidden fixed inset-x-0 bottom-20 z-20">
-          <div className="container mx-auto px-4">
-            <button
-              onClick={handleSaveAllBreaks}
-              className="w-full bg-black text-white py-3 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg rounded-xl"
-              disabled={isLoading}
-            >
-              Save Breaks
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Modals */}
       {staffModalOpen && selectedSlot && (
         <StaffSelectionModal 
@@ -1484,6 +1507,7 @@ const BrakesManager = () => {
           onRemoveStaff={handleRemoveStaff}
           currentLocation={selectedLocation}
           isAllLocation={selectedLocation === ALL_LOCATIONS_VALUE}
+          onSave={handleSaveAllBreaks}
         />
       )}
       
@@ -1532,7 +1556,7 @@ const BrakesManager = () => {
 
 // Staff Selection Modal Component - Enhance the staff removal functionality
 // eslint-disable-next-line no-unused-vars
-const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation }) => {
+const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation, onSave }) => {
   const modalRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -1621,8 +1645,21 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               </span>
             </div>
             <button 
-              onClick={onClose}
-              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              onClick={() => {
+                if (!isAllLocation) {
+                  // Save silently in background without blocking modal close
+                  onSave(true); // Pass silent=true
+                }
+                // Close modal immediately
+                onClose();
+              }}
+              disabled={isAllLocation}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex-shrink-0 ${
+                isAllLocation 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+              title={isAllLocation ? 'Select a specific location to save changes' : 'Save and close'}
             >
               Done
             </button>
@@ -1634,7 +1671,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {isAllLocation && (
           <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
-            Select a specific location tab to assign staff to this break.
+            <strong>Read-only mode:</strong> Select a specific location tab to assign staff and save changes.
           </div>
         )}
         
@@ -2173,7 +2210,8 @@ StaffSelectionModal.propTypes = {
   onAssignStaff: PropTypes.func.isRequired,
   onRemoveStaff: PropTypes.func.isRequired,
   currentLocation: PropTypes.string,
-  isAllLocation: PropTypes.bool
+  isAllLocation: PropTypes.bool,
+  onSave: PropTypes.func.isRequired
 };
 
 AddSlotModal.propTypes = {

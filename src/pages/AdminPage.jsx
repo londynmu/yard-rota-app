@@ -10,6 +10,7 @@ import LoginStats from '../components/Admin/LoginStats';
 import BreaksConfigManager from '../components/Admin/BreaksConfigManager';
 import AgencyConfigManager from '../components/Admin/AgencyConfigManager';
 import LocationConfigManager from '../components/Admin/LocationConfigManager';
+import PerformanceImport from '../components/Admin/PerformanceImport';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
@@ -193,7 +194,7 @@ export default function AdminPage() {
         <div className="border-b border-gray-200 bg-white px-6 py-4">
           <div className="overflow-x-auto pb-1">
             <div className="flex flex-nowrap whitespace-nowrap border-b border-gray-200 mb-[-1px] min-w-full">
-              {['users', 'approvals', 'availability', 'settings', 'breaks config', 'locations', 'agencies', 'stats'].map((tab) => (
+              {['users', 'approvals', 'availability', 'settings', 'breaks config', 'locations', 'agencies', 'performance', 'stats'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -218,6 +219,7 @@ export default function AdminPage() {
           {activeTab === 'breaks config' && <BreaksConfigManager />}
           {activeTab === 'locations' && <LocationConfigManager />}
           {activeTab === 'agencies' && <AgencyConfigManager />}
+          {activeTab === 'performance' && <PerformanceImport />}
           {activeTab === 'stats' && <LoginStats />}
         </div>
       </div>

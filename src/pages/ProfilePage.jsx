@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
+import PerformanceStats from '../components/User/PerformanceStats';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -1010,6 +1011,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
           </form>
         </div>
+
+        {/* Performance Stats Section */}
+        {!isRequired && !simplifiedView && (
+          <div className="max-w-4xl mx-auto mt-6">
+            <PerformanceStats period="month" />
+          </div>
+        )}
       </div>
     </div>
   );

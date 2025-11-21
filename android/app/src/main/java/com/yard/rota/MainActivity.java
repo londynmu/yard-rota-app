@@ -14,6 +14,49 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.core.graphics.Insets;
 
 public class MainActivity extends BridgeActivity {
+
+  private void enforceSystemBarAppearance(final Window window) {
+    final View decor = window.getDecorView();
+    int sysUi = decor.getSystemUiVisibility();
+    sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+    sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+    sysUi &= ~View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+    sysUi &= ~View.SYSTEM_UI_FLAG_FULLSCREEN;
+    sysUi &= ~View.SYSTEM_UI_FLAG_IMMERSIVE;
+    sysUi &= ~View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+    }
+    decor.setSystemUiVisibility(sysUi);
+
+    WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
+    if (controller != null) {
+      controller.setAppearanceLightStatusBars(true);
+      controller.setAppearanceLightNavigationBars(true);
+      controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_DEFAULT);
+      controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
+    }
+  }
+
+  private void installSafeAreaListener(final View root) {
+    if (root == null) return;
+
+    final int baseLeft = root.getPaddingLeft();
+    final int baseTop = root.getPaddingTop();
+    final int baseRight = root.getPaddingRight();
+    final int baseBottom = root.getPaddingBottom();
+
+    ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+      Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+      v.setPadding(baseLeft, baseTop + bars.top, baseRight, baseBottom + bars.bottom);
+      return insets;
+    });
+    ViewCompat.requestApplyInsets(root);
+  }
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Switch from launch (splash) theme to main content theme
@@ -27,53 +70,17 @@ public class MainActivity extends BridgeActivity {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       window.setNavigationBarColor(Color.WHITE);
     }
-    // Remove layout fullscreen flags and enable DARK status bar icons (API 23+)
-    final View decor = window.getDecorView();
-    int sysUi = decor.getSystemUiVisibility();
-    sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-    sysUi &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-    // Enable DARK icons on WHITE background (LIGHT_STATUS_BAR flag = dark icons)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      sysUi |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-    }
-    decor.setSystemUiVisibility(sysUi);
-    // Make system bars consume insets so WebView does not draw under status bar
-    WindowCompat.setDecorFitsSystemWindows(window, true);
 
-    // Apply system bar insets as padding to the root content so top/bottom are respected
-    final View root = findViewById(android.R.id.content);
-    ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-      Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-      v.setPadding(0, bars.top, 0, bars.bottom);
-      return insets;
-    });
-
-    // Explicitly show system bars with DARK icons (light appearance = dark icons)
-    WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
-    if (controller != null) {
-      controller.setAppearanceLightStatusBars(true);
-      controller.setAppearanceLightNavigationBars(true);
-      controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
-      controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
-    }
+    WindowCompat.setDecorFitsSystemWindows(window, false);
+    enforceSystemBarAppearance(window);
+    installSafeAreaListener(findViewById(android.R.id.content));
   }
 
   @Override
   public void onResume() {
     super.onResume();
     // Re-assert system bar visibility on resume (some OEMs toggle immersive)
-    final Window window = getWindow();
-    final View decor = window.getDecorView();
-    WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
-    if (controller != null) {
-      controller.setAppearanceLightStatusBars(true);
-      controller.setAppearanceLightNavigationBars(true);
-      controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
-      controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
-    }
+    enforceSystemBarAppearance(getWindow());
   }
 
   @Override
@@ -81,14 +88,6 @@ public class MainActivity extends BridgeActivity {
     super.onWindowFocusChanged(hasFocus);
     if (!hasFocus) return;
     // Re-apply when window regains focus (addresses One UI dark mode edge cases)
-    final Window window = getWindow();
-    final View decor = window.getDecorView();
-    WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
-    if (controller != null) {
-      controller.setAppearanceLightStatusBars(true);
-      controller.setAppearanceLightNavigationBars(true);
-      controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_BARS_BY_SWIPE);
-      controller.show(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.navigationBars());
-    }
+    enforceSystemBarAppearance(getWindow());
   }
 }
