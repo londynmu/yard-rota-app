@@ -1008,7 +1008,7 @@ const BrakesManager = () => {
     );
   };
   
-  const handleRemoveStaff = (assignment) => {
+  const handleRemoveStaff = async (assignment) => {
     // Check if user has permission to remove this assignment
     if (!isAdmin && assignment.user_id !== currentUser?.id) {
       toast.error('You can only remove your own breaks');
@@ -1047,6 +1047,12 @@ const BrakesManager = () => {
         return s;
       })
     );
+    
+    // Auto-save to server after removal (silent save without reload)
+    // Use setTimeout to ensure React state updates are processed first
+    setTimeout(() => {
+      handleSaveAllBreaks(true); // true = silent save
+    }, 100);
   };
 
   // --- Grouping Logic ---
