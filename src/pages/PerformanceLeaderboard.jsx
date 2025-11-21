@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -25,6 +25,21 @@ const SORT_OPTIONS = [
   { value: 'collect', label: 'Avg Collect Time' },
   { value: 'travel', label: 'Avg Travel Time' },
 ];
+
+const normalizePerformanceRecords = (records) => {
+  return (records || []).map((record) => {
+    if (!record.report_date) {
+      return { ...record, actual_date: null, actual_date_obj: null };
+    }
+    const reportDateObj = parseISO(record.report_date);
+    const actualDateObj = subDays(reportDateObj, 1);
+    return {
+      ...record,
+      actual_date_obj: actualDateObj,
+      actual_date: formatDate(actualDateObj, 'yyyy-MM-dd'),
+    };
+  });
+};
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
@@ -58,6 +73,7 @@ const PerformanceLeaderboard = () => {
   const [showMyStatsModal, setShowMyStatsModal] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [myStatsLoading, setMyStatsLoading] = useState(false);
+  const [teamOverviewExpanded, setTeamOverviewExpanded] = useState(false);
   const [myStatsError, setMyStatsError] = useState(null);
   const [myStatsData, setMyStatsData] = useState(null);
   const [rawPerformance, setRawPerformance] = useState([]);
@@ -121,12 +137,13 @@ const PerformanceLeaderboard = () => {
 
       if (error) throw error;
 
-      setRawPerformance(performanceData || []);
+      const normalizedPerformance = normalizePerformanceRecords(performanceData);
+      setRawPerformance(normalizedPerformance);
 
       // Aggregate data by user
       const userStats = {};
       
-      (performanceData || []).forEach(record => {
+      normalizedPerformance.forEach(record => {
         if (!record.profiles || !record.profiles.yard_system_id) {
           // Skip users without yard_system_id
           return;
@@ -241,7 +258,9 @@ const PerformanceLeaderboard = () => {
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
+      const normalizedData = normalizePerformanceRecords(data);
+
+      if (!normalizedData || normalizedData.length === 0) {
         setMyStatsData(null);
         return;
       }
@@ -260,17 +279,17 @@ const PerformanceLeaderboard = () => {
         );
       };
 
-      const latestDate = data[0].report_date;
-      const latestDateObj = latestDate ? parseISO(latestDate) : new Date();
+      const latestDate = normalizedData[0].actual_date;
+      const latestDateObj = normalizedData[0].actual_date_obj || new Date();
 
-      const lastDayRecords = data.filter((record) => record.report_date === latestDate);
+      const lastDayRecords = normalizedData.filter((record) => record.actual_date === latestDate);
       const last7Start = formatDate(subDays(latestDateObj, 6), 'yyyy-MM-dd');
       const last30Start = formatDate(subDays(latestDateObj, 29), 'yyyy-MM-dd');
 
-      const last7Records = data.filter((record) => record.report_date >= last7Start);
-      const last30Records = data.filter((record) => record.report_date >= last30Start);
+      const last7Records = normalizedData.filter((record) => record.actual_date && record.actual_date >= last7Start);
+      const last30Records = normalizedData.filter((record) => record.actual_date && record.actual_date >= last30Start);
 
-      const bestDayRecord = data.reduce((best, record) => {
+      const bestDayRecord = normalizedData.reduce((best, record) => {
         const moves = record.number_of_moves || 0;
         if (!best || moves > (best.number_of_moves || 0)) {
           return record;
@@ -278,7 +297,7 @@ const PerformanceLeaderboard = () => {
         return best;
       }, null);
 
-      const overall = aggregate(data);
+      const overall = aggregate(normalizedData);
 
       setMyStatsData({
         latestDate,
@@ -289,7 +308,7 @@ const PerformanceLeaderboard = () => {
         daysLogged: data.length,
         bestDay: {
           moves: bestDayRecord?.number_of_moves || 0,
-          date: bestDayRecord?.report_date || null,
+          date: bestDayRecord?.actual_date || null,
         },
       });
     } catch (err) {
@@ -376,9 +395,9 @@ const PerformanceLeaderboard = () => {
     if (!rawPerformance.length) return [];
 
     const totalsByDate = rawPerformance.reduce((acc, record) => {
-      if (!record.report_date) return acc;
+      if (!record.actual_date) return acc;
       const moves = record.number_of_moves || 0;
-      acc[record.report_date] = (acc[record.report_date] || 0) + moves;
+      acc[record.actual_date] = (acc[record.actual_date] || 0) + moves;
       return acc;
     }, {});
 
@@ -403,13 +422,16 @@ const PerformanceLeaderboard = () => {
   const getRowBackgroundClass = (rank) => {
     switch (rank) {
       case 1:
-        return 'bg-gradient-to-r from-yellow-100 via-amber-50 to-yellow-100';
+        return 'bg-gradient-to-br from-yellow-100 via-amber-50 to-yellow-100 border-amber-300';
       case 2:
-        return 'bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200';
+        return 'bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-gray-300';
       case 3:
-        return 'bg-gradient-to-r from-orange-100 via-amber-50 to-orange-100';
+        return 'bg-gradient-to-br from-orange-100 via-amber-50 to-orange-100 border-orange-300';
       default:
-        return '';
+        // Subtle alternating colors for other ranks
+        return rank % 2 === 0 
+          ? 'bg-blue-50 border-blue-200' 
+          : 'bg-green-50 border-green-200';
     }
   };
 
@@ -771,100 +793,94 @@ const PerformanceLeaderboard = () => {
           </div>
         ) : (
           <>
-            {/* Team overview */}
-            <section className="mb-8">
+            {/* Team overview - Collapsible */}
+            <section className="mb-6">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="flex items-end justify-between mb-4"
+                layout
+                className={`overflow-hidden shadow-lg cursor-pointer ${
+                  teamOverviewExpanded 
+                    ? 'rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 border-2 border-orange-200' 
+                    : 'rounded-full bg-gradient-to-r from-orange-400 to-orange-300'
+                }`}
+                onClick={() => setTeamOverviewExpanded(!teamOverviewExpanded)}
+                whileTap={{ scale: teamOverviewExpanded ? 0.99 : 0.95 }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
               >
-                <h2 className="text-2xl font-bold text-charcoal">Team overview</h2>
-                <p className="text-sm text-gray-500">
-                  {leaderboardData.length} active shunters in view
-                </p>
+                {/* Header - Always Visible */}
+                <motion.div 
+                  className={`flex items-center justify-between ${teamOverviewExpanded ? 'p-4' : 'px-6 py-3'}`}
+                  layout
+                >
+                  <div className="flex items-center gap-3">
+                    <motion.span layout className={teamOverviewExpanded ? 'text-xl' : 'text-2xl'}>
+                      📊
+                    </motion.span>
+                    <div>
+                      <motion.p layout className="text-charcoal font-bold text-sm">
+                        Team Overview
+                      </motion.p>
+                      {!teamOverviewExpanded && (
+                        <motion.p
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="text-gray-700 text-xs"
+                        >
+                          {leaderboardData.length} active shunters
+                        </motion.p>
+                      )}
+                    </div>
+                  </div>
+                  <motion.svg 
+                    className="w-5 h-5 text-charcoal flex-shrink-0" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    animate={{ rotate: teamOverviewExpanded ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </motion.svg>
+                </motion.div>
+
+                {/* Expandable Content */}
+                <AnimatePresence initial={false}>
+                  {teamOverviewExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.4, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 space-y-2 pointer-events-none">
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Avg moves / day</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Full locations</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.totalFullLocations.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Fastest collect</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.fastestCollect?.avgCollectTime || '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Fastest travel</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.fastestTravel?.avgTravelTime || '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2">
+                          <span className="text-sm text-gray-700">Most consistent</span>
+                          <span className="text-lg font-bold text-charcoal">
+                            {teamHighlights.reliabilityLeader ? `${teamHighlights.reliabilityLeader.daysWorked} days` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1 }}
-                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
-                >
-                  <p className="text-xs uppercase text-gray-500">Avg moves / day</p>
-                  <p className="text-3xl font-bold text-charcoal mt-1">
-                    {teamHighlights.avgMovesPerDay.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {teamHighlights.totalMoves.toLocaleString()} moves this period
-                  </p>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
-                >
-                  <p className="text-xs uppercase text-gray-500">Full locations logged</p>
-                  <p className="text-3xl font-bold text-charcoal mt-1">
-                    {teamHighlights.totalFullLocations.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Across {teamHighlights.activeShunters} shunters
-                  </p>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
-                >
-                  <p className="text-xs uppercase text-gray-500">Fastest collect</p>
-                  <p className="text-3xl font-bold text-charcoal mt-1">
-                    {teamHighlights.fastestCollect?.avgCollectTime || '—'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {teamHighlights.fastestCollect ? formatShunterName(teamHighlights.fastestCollect) : 'Awaiting data'}
-                  </p>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.4 }}
-                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
-                >
-                  <p className="text-xs uppercase text-gray-500">Fastest travel</p>
-                  <p className="text-3xl font-bold text-charcoal mt-1">
-                    {teamHighlights.fastestTravel?.avgTravelTime || '—'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {teamHighlights.fastestTravel ? formatShunterName(teamHighlights.fastestTravel) : 'Awaiting data'}
-                  </p>
-                </motion.div>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.5 }}
-                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
-                >
-                  <p className="text-xs uppercase text-gray-500">Most consistent</p>
-                  <p className="text-3xl font-bold text-charcoal mt-1">
-                    {teamHighlights.reliabilityLeader
-                      ? `${teamHighlights.reliabilityLeader.daysWorked} days`
-                      : '—'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {teamHighlights.reliabilityLeader
-                      ? formatShunterName(teamHighlights.reliabilityLeader)
-                      : 'Highest attendance pending'}
-                  </p>
-                </motion.div>
-              </div>
             </section>
 
             {/* Trend */}
@@ -872,180 +888,98 @@ const PerformanceLeaderboard = () => {
               <TrendChart data={trendSeries} />
             </section>
 
-            {/* Detailed table */}
+            {/* Detailed list - Floating cards */}
             <section>
               <div className="flex items-end justify-between mb-4">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
                   <h2 className="text-2xl font-bold text-charcoal">All shunters</h2>
                 </div>
-                <p className="text-sm text-gray-500">Tap row for full breakdown</p>
+                <p className="text-sm text-gray-500">Tap card for details</p>
               </div>
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Rank</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Shunter</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Moves</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Collect</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Travel</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Full Loc.</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Days</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {leaderboardData.map((user, index) => {
-                        const rank = index + 1;
-                        const isExpanded = expandedUserId === user.userId;
-                        const rowBgClass = getRowBackgroundClass(rank);
-                        return (
-                          <React.Fragment key={user.userId}>
-                            <motion.tr
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3, delay: index * 0.05 }}
-                              whileHover={{ scale: 1.01, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
-                              onClick={() => toggleExpandedUser(user.userId)}
-                              className={`cursor-pointer transition-all ${rowBgClass} ${isExpanded ? 'shadow-md' : ''}`}
-                            >
-                              <td className="px-4 py-4">
-                                <div className="scale-90 origin-left">
-                                  {getRankBadge(rank)}
-                                </div>
-                              </td>
-                              <td className="px-4 py-4">
-                                <div className="flex items-center gap-3">
-                                  {user.avatarUrl ? (
-                                    <img
-                                      src={user.avatarUrl}
-                                      alt={formatShunterName(user)}
-                                      className="w-10 h-10 rounded-full border-2 border-gray-300 shadow-sm"
-                                    />
-                                  ) : (
-                                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-                                      {user.firstName?.charAt(0)}
-                                      {user.lastName?.charAt(0)}
-                                    </div>
-                                  )}
-                                  <div>
-                                    <div className="font-semibold text-charcoal">
-                                      {formatShunterName(user)}
-                                    </div>
-                                    <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4 text-right font-bold text-charcoal">
-                                {user.totalMoves.toLocaleString()}
-                              </td>
-                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.avgCollectTime}</td>
-                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.avgTravelTime}</td>
-                              <td className="px-4 py-4 text-right font-medium text-gray-700">
-                                {(user.totalFullLocations || 0).toLocaleString()}
-                              </td>
-                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.daysWorked}</td>
-                            </motion.tr>
-                            <AnimatePresence>
-                              {isExpanded && (
-                                <motion.tr
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  transition={{ duration: 0.3 }}
-                                  className={rowBgClass}
-                                >
-                                  <td colSpan={7} className="px-4 pb-4 pt-0">
-                                    <motion.div
-                                      initial={{ y: -10 }}
-                                      animate={{ y: 0 }}
-                                      transition={{ duration: 0.3 }}
-                                    >
-                                      {renderDetailPanel(user)}
-                                    </motion.div>
-                                  </td>
-                                </motion.tr>
-                              )}
-                            </AnimatePresence>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="space-y-3">
+                {/* Floating Cards - Unified Design */}
+                {leaderboardData.map((user, index) => {
+                  const rank = index + 1;
+                  const isExpanded = expandedUserId === user.userId;
+                  const cardBgClass = getRowBackgroundClass(rank);
+                  return (
+                    <motion.div
+                      key={user.userId}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.03 }}
+                      whileHover={{ y: -2, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => toggleExpandedUser(user.userId)}
+                      className={`${cardBgClass} rounded-2xl border-2 p-4 shadow-md cursor-pointer transition-all`}
+                    >
+                      {/* Header Row */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="scale-90">
+                          {getRankBadge(rank)}
+                        </div>
+                        {user.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={formatShunterName(user)}
+                            className="w-12 h-12 md:w-10 md:h-10 rounded-full border-2 border-white shadow-md"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 md:w-10 md:h-10 rounded-full bg-gray-400 flex items-center justify-center font-bold text-white shadow-md">
+                            {user.firstName?.charAt(0)}
+                            {user.lastName?.charAt(0)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-charcoal truncate">
+                            {formatShunterName(user)}
+                          </div>
+                          <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-charcoal">{user.totalMoves}</div>
+                          <div className="text-xs text-gray-600">moves</div>
+                        </div>
+                      </div>
 
-                {/* Mobile Cards */}
-                <div className="md:hidden divide-y divide-gray-200">
-                  {leaderboardData.map((user, index) => {
-                    const rank = index + 1;
-                    const isExpanded = expandedUserId === user.userId;
-                    const rowBgClass = getRowBackgroundClass(rank);
-                    return (
-                      <motion.div
-                        key={user.userId}
-                        initial={{ opacity: 0, x: -30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.05 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => toggleExpandedUser(user.userId)}
-                        className={`p-4 cursor-pointer active:bg-gray-100 transition-all ${rowBgClass}`}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="scale-90">
-                            {getRankBadge(rank)}
-                          </div>
-                          {user.avatarUrl ? (
-                            <img
-                              src={user.avatarUrl}
-                              alt={formatShunterName(user)}
-                              className="w-12 h-12 rounded-full border-2 border-gray-300 shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white shadow-sm">
-                              {user.firstName?.charAt(0)}
-                              {user.lastName?.charAt(0)}
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <div className="font-semibold text-charcoal">
-                              {formatShunterName(user)}
-                            </div>
-                            <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
-                          </div>
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="bg-white/70 rounded-lg p-2 text-center">
+                          <div className="text-sm font-bold text-charcoal">{user.avgCollectTime}</div>
+                          <div className="text-xs text-gray-600">Collect</div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
-                            <div className="text-lg font-bold text-charcoal">{user.totalMoves}</div>
-                            <div className="text-xs text-gray-600">Moves</div>
-                          </div>
-                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
-                            <div className="text-sm font-semibold text-charcoal">{user.avgCollectTime}</div>
-                            <div className="text-xs text-gray-600">Collect</div>
-                          </div>
-                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
-                            <div className="text-sm font-semibold text-charcoal">{user.avgTravelTime}</div>
-                            <div className="text-xs text-gray-600">Travel</div>
-                          </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center">
+                          <div className="text-sm font-bold text-charcoal">{user.avgTravelTime}</div>
+                          <div className="text-xs text-gray-600">Travel</div>
                         </div>
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0, y: -10 }}
-                              animate={{ opacity: 1, height: 'auto', y: 0 }}
-                              exit={{ opacity: 0, height: 0, y: -10 }}
-                              transition={{ duration: 0.3 }}
-                              className="mt-3 overflow-hidden"
-                            >
-                              {renderDetailPanel(user)}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center">
+                          <div className="text-sm font-bold text-charcoal">{(user.totalFullLocations || 0).toLocaleString()}</div>
+                          <div className="text-xs text-gray-600">Full Loc.</div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center">
+                          <div className="text-sm font-bold text-charcoal">{user.daysWorked}</div>
+                          <div className="text-xs text-gray-600">Days</div>
+                        </div>
+                      </div>
+
+                      {/* Expanded Details */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="mt-3 overflow-hidden"
+                          >
+                            {renderDetailPanel(user)}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
               </div>
             </section>
           </>
@@ -1067,11 +1001,31 @@ function TrendChart({ data }) {
   }
 
   // Format data for Recharts
-  const chartData = data.map((point) => ({
-    date: point.date,
-    moves: point.totalMoves,
-    formattedDate: formatDate(parseISO(point.date), data.length > 7 ? 'dd MMM' : 'EEE dd'),
-  }));
+  const chartData = data.map((point) => {
+    const dateObj = parseISO(point.date);
+    return {
+      date: point.date,
+      moves: point.totalMoves,
+      formattedDate: formatDate(dateObj, 'EEE dd MMM'),
+      dayLabel: formatDate(dateObj, 'EEE'),
+      dateLabel: formatDate(dateObj, 'dd MMM'),
+    };
+  });
+
+  const renderDateTick = ({ x, y, payload }) => {
+    const dayLabel = payload?.payload?.dayLabel || '';
+    const dateLabel = payload?.payload?.dateLabel || '';
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={-2} textAnchor="middle" fill="#ea580c" fontSize={11} fontWeight={700}>
+          {dayLabel}
+        </text>
+        <text x={0} y={0} dy={12} textAnchor="middle" fill="#2D2D2D" fontSize={11}>
+          {dateLabel}
+        </text>
+      </g>
+    );
+  };
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload }) => {
@@ -1101,7 +1055,7 @@ function TrendChart({ data }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
           <p className="text-xs text-gray-500 mt-1">Team performance over time</p>
@@ -1113,31 +1067,27 @@ function TrendChart({ data }) {
           </p>
         </div>
       </div>
-      <div className="h-64">
+      <div className="h-72 -mx-2">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+            margin={{ top: 20, right: 15, left: 15, bottom: 5 }}
           >
             <defs>
               <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
+                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
-              dataKey="formattedDate"
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickLine={{ stroke: '#e5e7eb' }}
-              axisLine={{ stroke: '#e5e7eb' }}
+              dataKey="dateLabel"
+              height={50}
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+              tick={renderDateTick}
             />
-            <YAxis
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickLine={{ stroke: '#e5e7eb' }}
-              axisLine={{ stroke: '#e5e7eb' }}
-              tickFormatter={(value) => value.toLocaleString()}
-            />
+            <YAxis hide />
             <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
@@ -1146,6 +1096,13 @@ function TrendChart({ data }) {
               strokeWidth={3}
               fill="url(#colorMoves)"
               activeDot={{ r: 6, fill: '#ea580c', stroke: '#fff', strokeWidth: 2 }}
+              label={{
+                position: 'top',
+                fill: '#2D2D2D',
+                fontSize: 11,
+                fontWeight: 700,
+                formatter: (value) => value.toLocaleString()
+              }}
             />
           </AreaChart>
         </ResponsiveContainer>
