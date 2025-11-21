@@ -324,14 +324,6 @@ const PerformanceLeaderboard = () => {
     return RANGE_LOOKUP[range]?.label || RANGE_LOOKUP.last_day.label;
   };
 
-  const getSortLabel = (sort) => {
-    switch (sort) {
-      case 'collect': return 'Avg Collect';
-      case 'travel': return 'Avg Travel';
-      default: return 'Total Moves';
-    }
-  };
-
   const getAverageTime = (stat, type) => {
     if (!stat || !stat.moves) return '0:00';
     const totalSeconds = type === 'collect' ? stat.collectSeconds : stat.travelSeconds;
@@ -339,7 +331,6 @@ const PerformanceLeaderboard = () => {
     return secondsToTime(Math.round(totalSeconds / stat.moves));
   };
 
-  const featuredPerformers = leaderboardData.slice(0, 6);
 
   const teamHighlights = useMemo(() => {
     if (!leaderboardData.length) {
@@ -399,19 +390,6 @@ const PerformanceLeaderboard = () => {
 
   const toggleExpandedUser = (userId) => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
-  };
-
-  const getRankAccent = (rank) => {
-    switch (rank) {
-      case 1:
-        return 'border-amber-400 shadow-amber-100 shadow-lg';
-      case 2:
-        return 'border-gray-400 shadow-gray-100 shadow-md';
-      case 3:
-        return 'border-amber-600 shadow-orange-100 shadow-md';
-      default:
-        return 'border-gray-200';
-    }
   };
 
   const getRankBadge = (rank) => {
@@ -911,106 +889,6 @@ const PerformanceLeaderboard = () => {
             <section className="mb-8">
               <TrendChart data={trendSeries} />
             </section>
-
-            {/* Featured performers */}
-            {featuredPerformers.length > 0 && (
-              <section className="mb-8">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex items-end justify-between mb-4"
-                >
-                  <h2 className="text-2xl font-bold text-charcoal">Top contributors</h2>
-                  <p className="text-sm text-gray-500">
-                    Sorted by {getSortLabel(sortOption)}
-                  </p>
-                </motion.div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {featuredPerformers.map((user, index) => {
-                    const rank = index + 1;
-                    return (
-                      <motion.div
-                        key={user.userId}
-                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{
-                          duration: 0.5,
-                          delay: index * 0.1,
-                          ease: [0.25, 0.46, 0.45, 0.94]
-                        }}
-                        whileHover={{
-                          y: -8,
-                          scale: 1.02,
-                          transition: { duration: 0.2 }
-                        }}
-                        className={`bg-white border rounded-2xl p-4 flex flex-col gap-4 cursor-pointer ${getRankAccent(rank)}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {getRankBadge(rank)}
-                          {user.avatarUrl ? (
-                            <motion.img
-                              whileHover={{ scale: 1.1, rotate: 5 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                              src={user.avatarUrl}
-                              alt={formatShunterName(user)}
-                              className="w-12 h-12 rounded-full border-2 border-gray-200"
-                            />
-                          ) : (
-                            <motion.div
-                              whileHover={{ scale: 1.1, rotate: -5 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                              className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-white"
-                            >
-                              {user.firstName?.charAt(0)}
-                              {user.lastName?.charAt(0)}
-                            </motion.div>
-                          )}
-                          <div>
-                            <p className="font-semibold text-charcoal">{formatShunterName(user)}</p>
-                            <p className="text-xs text-gray-500 font-mono">{user.yardSystemId}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"
-                          >
-                            <p className="text-xs uppercase text-gray-500">Moves</p>
-                            <p className="text-2xl font-bold text-charcoal">
-                              {user.totalMoves.toLocaleString()}
-                            </p>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"
-                          >
-                            <p className="text-xs uppercase text-gray-500">Days</p>
-                            <p className="text-2xl font-bold text-charcoal">
-                              {user.daysWorked}
-                            </p>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            className="rounded-xl border border-gray-100 bg-white p-3 text-center"
-                          >
-                            <p className="text-xs uppercase text-gray-500">Avg collect</p>
-                            <p className="text-xl font-semibold text-charcoal">{user.avgCollectTime}</p>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            className="rounded-xl border border-gray-100 bg-white p-3 text-center"
-                          >
-                            <p className="text-xs uppercase text-gray-500">Avg travel</p>
-                            <p className="text-xl font-semibold text-charcoal">{user.avgTravelTime}</p>
-                          </motion.div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
 
             {/* Detailed table */}
             <section>
