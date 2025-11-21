@@ -393,42 +393,24 @@ const PerformanceLeaderboard = () => {
   };
 
   const getRankBadge = (rank) => {
-    const badges = {
-      1: {
-        bg: 'bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600',
-        icon: '👑',
-        text: 'Champion',
-        glow: 'shadow-lg shadow-amber-300/50'
-      },
-      2: {
-        bg: 'bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500',
-        icon: '🥈',
-        text: '2nd Place',
-        glow: 'shadow-md shadow-gray-300/50'
-      },
-      3: {
-        bg: 'bg-gradient-to-br from-orange-400 via-amber-600 to-orange-700',
-        icon: '🥉',
-        text: '3rd Place',
-        glow: 'shadow-md shadow-orange-300/50'
-      }
-    };
-
-    if (rank <= 3) {
-      const badge = badges[rank];
-      return (
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${badge.bg} ${badge.glow} text-white font-bold text-sm`}>
-          <span className="text-base">{badge.icon}</span>
-          <span>{badge.text}</span>
-        </div>
-      );
-    }
-
     return (
-      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 font-bold text-gray-700">
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-gray-300 font-bold text-charcoal shadow-sm">
         {rank}
       </div>
     );
+  };
+
+  const getRowBackgroundClass = (rank) => {
+    switch (rank) {
+      case 1:
+        return 'bg-gradient-to-r from-yellow-100 via-amber-50 to-yellow-100';
+      case 2:
+        return 'bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200';
+      case 3:
+        return 'bg-gradient-to-r from-orange-100 via-amber-50 to-orange-100';
+      default:
+        return '';
+    }
   };
 
   const getPerformanceTags = (user) => {
@@ -912,74 +894,59 @@ const PerformanceLeaderboard = () => {
                         <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Travel</th>
                         <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Full Loc.</th>
                         <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Days</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {leaderboardData.map((user, index) => {
                         const rank = index + 1;
                         const isExpanded = expandedUserId === user.userId;
+                        const rowBgClass = getRowBackgroundClass(rank);
                         return (
                           <React.Fragment key={user.userId}>
                             <motion.tr
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ duration: 0.3, delay: index * 0.05 }}
-                              whileHover={{ backgroundColor: 'rgb(249 250 251)' }}
-                              className={`${isExpanded ? 'bg-gray-50' : ''}`}
+                              whileHover={{ scale: 1.01, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                              onClick={() => toggleExpandedUser(user.userId)}
+                              className={`cursor-pointer transition-all ${rowBgClass} ${isExpanded ? 'shadow-md' : ''}`}
                             >
-                              <td className="px-4 py-3">
-                                <div className="scale-75 origin-left">
+                              <td className="px-4 py-4">
+                                <div className="scale-90 origin-left">
                                   {getRankBadge(rank)}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-4">
                                 <div className="flex items-center gap-3">
                                   {user.avatarUrl ? (
-                                    <motion.img
-                                      whileHover={{ scale: 1.15 }}
-                                      transition={{ type: "spring", stiffness: 300 }}
+                                    <img
                                       src={user.avatarUrl}
                                       alt={formatShunterName(user)}
-                                      className="w-10 h-10 rounded-full border border-gray-300"
+                                      className="w-10 h-10 rounded-full border-2 border-gray-300 shadow-sm"
                                     />
                                   ) : (
-                                    <motion.div
-                                      whileHover={{ scale: 1.15 }}
-                                      transition={{ type: "spring", stiffness: 300 }}
-                                      className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white"
-                                    >
+                                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white shadow-sm">
                                       {user.firstName?.charAt(0)}
                                       {user.lastName?.charAt(0)}
-                                    </motion.div>
+                                    </div>
                                   )}
                                   <div>
-                                    <div className="font-medium text-charcoal">
+                                    <div className="font-semibold text-charcoal">
                                       {formatShunterName(user)}
                                     </div>
                                     <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-charcoal">
+                              <td className="px-4 py-4 text-right font-bold text-charcoal">
                                 {user.totalMoves.toLocaleString()}
                               </td>
-                              <td className="px-4 py-3 text-right text-gray-700">{user.avgCollectTime}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">{user.avgTravelTime}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">
+                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.avgCollectTime}</td>
+                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.avgTravelTime}</td>
+                              <td className="px-4 py-4 text-right font-medium text-gray-700">
                                 {(user.totalFullLocations || 0).toLocaleString()}
                               </td>
-                              <td className="px-4 py-3 text-right text-gray-700">{user.daysWorked}</td>
-                              <td className="px-4 py-3 text-right">
-                                <motion.button
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  onClick={() => toggleExpandedUser(user.userId)}
-                                  className="text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-1 hover:bg-gray-100 transition-colors"
-                                >
-                                  {isExpanded ? 'Hide' : 'Details'}
-                                </motion.button>
-                              </td>
+                              <td className="px-4 py-4 text-right font-medium text-gray-700">{user.daysWorked}</td>
                             </motion.tr>
                             <AnimatePresence>
                               {isExpanded && (
@@ -988,8 +955,9 @@ const PerformanceLeaderboard = () => {
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
                                   transition={{ duration: 0.3 }}
+                                  className={rowBgClass}
                                 >
-                                  <td colSpan={8} className="px-4 pb-4">
+                                  <td colSpan={7} className="px-4 pb-4 pt-0">
                                     <motion.div
                                       initial={{ y: -10 }}
                                       animate={{ y: 0 }}
@@ -1013,37 +981,32 @@ const PerformanceLeaderboard = () => {
                   {leaderboardData.map((user, index) => {
                     const rank = index + 1;
                     const isExpanded = expandedUserId === user.userId;
+                    const rowBgClass = getRowBackgroundClass(rank);
                     return (
                       <motion.div
                         key={user.userId}
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.4, delay: index * 0.05 }}
-                        className="p-4"
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => toggleExpandedUser(user.userId)}
+                        className={`p-4 cursor-pointer active:bg-gray-100 transition-all ${rowBgClass}`}
                       >
                         <div className="flex items-center gap-3 mb-3">
                           <div className="scale-90">
                             {getRankBadge(rank)}
                           </div>
                           {user.avatarUrl ? (
-                            <motion.img
-                              whileHover={{ scale: 1.15, rotate: 5 }}
-                              whileTap={{ scale: 0.95 }}
-                              transition={{ type: "spring", stiffness: 300 }}
+                            <img
                               src={user.avatarUrl}
                               alt={formatShunterName(user)}
-                              className="w-12 h-12 rounded-full border-2 border-gray-300"
+                              className="w-12 h-12 rounded-full border-2 border-gray-300 shadow-sm"
                             />
                           ) : (
-                            <motion.div
-                              whileHover={{ scale: 1.15, rotate: -5 }}
-                              whileTap={{ scale: 0.95 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                              className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white"
-                            >
+                            <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white shadow-sm">
                               {user.firstName?.charAt(0)}
                               {user.lastName?.charAt(0)}
-                            </motion.div>
+                            </div>
                           )}
                           <div className="flex-1">
                             <div className="font-semibold text-charcoal">
@@ -1053,39 +1016,19 @@ const PerformanceLeaderboard = () => {
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="bg-gray-50 rounded-lg p-2"
-                          >
+                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
                             <div className="text-lg font-bold text-charcoal">{user.totalMoves}</div>
                             <div className="text-xs text-gray-600">Moves</div>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="bg-gray-50 rounded-lg p-2"
-                          >
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
                             <div className="text-sm font-semibold text-charcoal">{user.avgCollectTime}</div>
                             <div className="text-xs text-gray-600">Collect</div>
-                          </motion.div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="bg-gray-50 rounded-lg p-2"
-                          >
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-2 shadow-sm">
                             <div className="text-sm font-semibold text-charcoal">{user.avgTravelTime}</div>
                             <div className="text-xs text-gray-600">Travel</div>
-                          </motion.div>
+                          </div>
                         </div>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => toggleExpandedUser(user.userId)}
-                          className="mt-3 w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-2 hover:bg-gray-50 transition-colors"
-                        >
-                          {isExpanded ? 'Hide details' : 'More details'}
-                        </motion.button>
                         <AnimatePresence>
                           {isExpanded && (
                             <motion.div
