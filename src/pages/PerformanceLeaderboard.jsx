@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabaseClient';
@@ -53,6 +53,7 @@ const PerformanceLeaderboard = () => {
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [showMyStatsModal, setShowMyStatsModal] = useState(false);
+  const [expandedUserId, setExpandedUserId] = useState(null);
   const [myStatsLoading, setMyStatsLoading] = useState(false);
   const [myStatsError, setMyStatsError] = useState(null);
   const [myStatsData, setMyStatsData] = useState(null);
@@ -336,8 +337,139 @@ const PerformanceLeaderboard = () => {
     return secondsToTime(Math.round(totalSeconds / stat.moves));
   };
 
-  const top3 = leaderboardData.slice(0, 3);
-  const rest = leaderboardData.slice(3);
+  const featuredPerformers = leaderboardData.slice(0, 6);
+
+  const teamHighlights = useMemo(() => {
+    if (!leaderboardData.length) {
+      return {
+        avgMovesPerDay: 0,
+        totalMoves: 0,
+        totalFullLocations: 0,
+        activeShunters: 0,
+        fastestCollect: null,
+        fastestTravel: null,
+        reliabilityLeader: null,
+      };
+    }
+
+    const totalMoves = leaderboardData.reduce((sum, user) => sum + (user.totalMoves || 0), 0);
+    const totalDays = leaderboardData.reduce((sum, user) => sum + (user.daysWorked || 0), 0);
+    const totalFullLocations = leaderboardData.reduce((sum, user) => sum + (user.totalFullLocations || 0), 0);
+
+    const sortedByCollect = [...leaderboardData]
+      .filter((user) => user.avgCollectSeconds > 0)
+      .sort((a, b) => a.avgCollectSeconds - b.avgCollectSeconds);
+
+    const sortedByTravel = [...leaderboardData]
+      .filter((user) => user.avgTravelSeconds > 0)
+      .sort((a, b) => a.avgTravelSeconds - b.avgTravelSeconds);
+
+    const reliabilityLeader = [...leaderboardData]
+      .filter((user) => user.daysWorked > 0)
+      .sort((a, b) => b.daysWorked - a.daysWorked)[0] || null;
+
+    return {
+      avgMovesPerDay: totalDays > 0 ? Math.round(totalMoves / totalDays) : 0,
+      totalMoves,
+      totalFullLocations,
+      activeShunters: leaderboardData.length,
+      fastestCollect: sortedByCollect[0] || null,
+      fastestTravel: sortedByTravel[0] || null,
+      reliabilityLeader,
+    };
+  }, [leaderboardData]);
+
+  const toggleExpandedUser = (userId) => {
+    setExpandedUserId((prev) => (prev === userId ? null : userId));
+  };
+
+  const getRankAccent = (rank) => {
+    switch (rank) {
+      case 1:
+        return 'border-amber-400 shadow-amber-100';
+      case 2:
+        return 'border-gray-400 shadow-gray-100';
+      case 3:
+        return 'border-amber-600 shadow-orange-100';
+      default:
+        return 'border-gray-200';
+    }
+  };
+
+  const getPerformanceTags = (user) => {
+    const tags = [];
+    if (user.avgCollectSeconds && user.avgCollectSeconds < 150) {
+      tags.push('Fast collector');
+    }
+    if (user.avgTravelSeconds && user.avgTravelSeconds < 200) {
+      tags.push('Quick travel');
+    }
+    if (user.daysWorked >= 5) {
+      tags.push('Consistent');
+    }
+    if (user.totalFullLocations >= 20) {
+      tags.push('Full locations pro');
+    }
+    if (!tags.length) {
+      tags.push('Solid contributor');
+    }
+    return tags;
+  };
+
+  const formatShunterName = (user) => {
+    if (!user) return '—';
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    return name || user.yardSystemId || '—';
+  };
+
+  const renderDetailPanel = (user) => {
+    const movesPerDay = user.daysWorked ? (user.totalMoves / user.daysWorked).toFixed(1) : '0.0';
+    const tags = getPerformanceTags(user);
+
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Moves / day</p>
+            <p className="text-2xl font-bold text-charcoal">{movesPerDay}</p>
+            <p className="text-xs text-gray-500">{user.daysWorked} logged days</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Full locations</p>
+            <p className="text-2xl font-bold text-charcoal">
+              {(user.totalFullLocations || 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-gray-500">All time in range</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Avg collect</p>
+            <p className="text-2xl font-bold text-charcoal">{user.avgCollectTime}</p>
+            <p className="text-xs text-gray-500">
+              Target: &lt; 02:00
+            </p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Avg travel</p>
+            <p className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</p>
+            <p className="text-xs text-gray-500">Lower = faster transfers</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-xs uppercase text-gray-500 mb-2">Performance notes</p>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={`${user.userId}-${tag}`}
+                className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-offwhite pb-20">
@@ -609,167 +741,284 @@ const PerformanceLeaderboard = () => {
           </div>
         ) : (
           <>
-            {/* Top 3 Podium */}
-            {top3.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-charcoal mb-4">Top Performers</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {top3.map((user, index) => {
+            {/* Team overview */}
+            <section className="mb-8">
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Team overview</p>
+                  <h2 className="text-2xl font-bold text-charcoal">Operational pulse</h2>
+                </div>
+                <p className="text-sm text-gray-500">
+                  {leaderboardData.length} active shunters in view
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs uppercase text-gray-500">Avg moves / day</p>
+                  <p className="text-3xl font-bold text-charcoal mt-1">
+                    {teamHighlights.avgMovesPerDay.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {teamHighlights.totalMoves.toLocaleString()} moves this period
+                  </p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs uppercase text-gray-500">Full locations logged</p>
+                  <p className="text-3xl font-bold text-charcoal mt-1">
+                    {teamHighlights.totalFullLocations.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Across {teamHighlights.activeShunters} shunters
+                  </p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs uppercase text-gray-500">Fastest collect</p>
+                  <p className="text-3xl font-bold text-charcoal mt-1">
+                    {teamHighlights.fastestCollect?.avgCollectTime || '—'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {teamHighlights.fastestCollect ? formatShunterName(teamHighlights.fastestCollect) : 'Awaiting data'}
+                  </p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs uppercase text-gray-500">Fastest travel</p>
+                  <p className="text-3xl font-bold text-charcoal mt-1">
+                    {teamHighlights.fastestTravel?.avgTravelTime || '—'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {teamHighlights.fastestTravel ? formatShunterName(teamHighlights.fastestTravel) : 'Awaiting data'}
+                  </p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs uppercase text-gray-500">Most consistent</p>
+                  <p className="text-3xl font-bold text-charcoal mt-1">
+                    {teamHighlights.reliabilityLeader
+                      ? `${teamHighlights.reliabilityLeader.daysWorked} days`
+                      : '—'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {teamHighlights.reliabilityLeader
+                      ? formatShunterName(teamHighlights.reliabilityLeader)
+                      : 'Highest attendance pending'}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Featured performers */}
+            {featuredPerformers.length > 0 && (
+              <section className="mb-8">
+                <div className="flex items-end justify-between mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">Top contributors</p>
+                    <h2 className="text-2xl font-bold text-charcoal">Spotlight</h2>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Sorted by {getSortLabel(sortOption)}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {featuredPerformers.map((user, index) => {
                     const rank = index + 1;
                     return (
                       <div
                         key={user.userId}
-                        className={`border-2 rounded-lg p-6 ${getMedalBorderColor(rank)} shadow-lg`}
+                        className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col gap-4 ${getRankAccent(rank)}`}
                       >
-                        <div className="text-center">
-                          <div className="text-5xl mb-3">{getMedalEmoji(rank)}</div>
-                          <div className="text-4xl font-bold text-charcoal mb-1">#{rank}</div>
-                          
-                          {/* Avatar */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl font-bold text-charcoal">#{rank}</div>
                           {user.avatarUrl ? (
                             <img
                               src={user.avatarUrl}
-                              alt={`${user.firstName} ${user.lastName}`}
-                              className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-gray-300"
+                              alt={formatShunterName(user)}
+                              className="w-12 h-12 rounded-full border border-gray-200"
                             />
                           ) : (
-                            <div className="w-20 h-20 rounded-full mx-auto mb-3 bg-gray-300 flex items-center justify-center text-2xl font-bold text-white">
-                              {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-white">
+                              {user.firstName?.charAt(0)}
+                              {user.lastName?.charAt(0)}
                             </div>
                           )}
-                          
-                          <h3 className="text-lg font-semibold text-charcoal">
-                            {user.firstName} {user.lastName}
-                          </h3>
-                          <p className="text-sm text-gray-600 font-mono">{user.yardSystemId}</p>
-                          
-                          <div className="mt-4 space-y-2">
-                            <div className="bg-white rounded-md p-3 border border-gray-200">
-                              <div className="text-3xl font-bold text-charcoal">{user.totalMoves}</div>
-                              <div className="text-xs text-gray-600">Total Moves</div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className="bg-white rounded-md p-2 border border-gray-200">
-                                <div className="font-semibold text-charcoal">{user.avgCollectTime}</div>
-                                <div className="text-gray-600">Avg Collect</div>
-                              </div>
-                              <div className="bg-white rounded-md p-2 border border-gray-200">
-                                <div className="font-semibold text-charcoal">{user.avgTravelTime}</div>
-                                <div className="text-gray-600">Avg Travel</div>
-                              </div>
-                            </div>
+                          <div>
+                            <p className="font-semibold text-charcoal">{formatShunterName(user)}</p>
+                            <p className="text-xs text-gray-500 font-mono">{user.yardSystemId}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
+                            <p className="text-xs uppercase text-gray-500">Moves</p>
+                            <p className="text-2xl font-bold text-charcoal">
+                              {user.totalMoves.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
+                            <p className="text-xs uppercase text-gray-500">Days</p>
+                            <p className="text-2xl font-bold text-charcoal">
+                              {user.daysWorked}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-gray-100 bg-white p-3 text-center">
+                            <p className="text-xs uppercase text-gray-500">Avg collect</p>
+                            <p className="text-xl font-semibold text-charcoal">{user.avgCollectTime}</p>
+                          </div>
+                          <div className="rounded-xl border border-gray-100 bg-white p-3 text-center">
+                            <p className="text-xs uppercase text-gray-500">Avg travel</p>
+                            <p className="text-xl font-semibold text-charcoal">{user.avgTravelTime}</p>
                           </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* Rest of Leaderboard */}
-            {rest.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold text-charcoal mb-4">All Shunters</h2>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Desktop Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Rank</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Shunter</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Moves</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Collect</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Travel</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Days</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {rest.map((user, index) => {
-                          const rank = index + 4;
-                          return (
-                            <tr key={user.userId} className="hover:bg-gray-50">
+            {/* Detailed table */}
+            <section>
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
+                  <h2 className="text-2xl font-bold text-charcoal">All shunters</h2>
+                </div>
+                <p className="text-sm text-gray-500">Tap row for full breakdown</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Rank</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-charcoal">Shunter</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Moves</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Collect</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Avg Travel</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Full Loc.</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Days</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-charcoal">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {leaderboardData.map((user, index) => {
+                        const rank = index + 1;
+                        const isExpanded = expandedUserId === user.userId;
+                        return (
+                          <React.Fragment key={user.userId}>
+                            <tr className={`transition-colors ${isExpanded ? 'bg-gray-50' : 'hover:bg-gray-50'}`}>
                               <td className="px-4 py-3 text-charcoal font-semibold">#{rank}</td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-3">
                                   {user.avatarUrl ? (
                                     <img
                                       src={user.avatarUrl}
-                                      alt={`${user.firstName} ${user.lastName}`}
+                                      alt={formatShunterName(user)}
                                       className="w-10 h-10 rounded-full border border-gray-300"
                                     />
                                   ) : (
                                     <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white">
-                                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                                      {user.firstName?.charAt(0)}
+                                      {user.lastName?.charAt(0)}
                                     </div>
                                   )}
                                   <div>
                                     <div className="font-medium text-charcoal">
-                                      {user.firstName} {user.lastName}
+                                      {formatShunterName(user)}
                                     </div>
                                     <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-charcoal">{user.totalMoves}</td>
-                              <td className="px-4 py-3 text-right text-gray-600">{user.avgCollectTime}</td>
-                              <td className="px-4 py-3 text-right text-gray-600">{user.avgTravelTime}</td>
-                              <td className="px-4 py-3 text-right text-gray-500">{user.daysWorked}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-charcoal">
+                                {user.totalMoves.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-700">{user.avgCollectTime}</td>
+                              <td className="px-4 py-3 text-right text-gray-700">{user.avgTravelTime}</td>
+                              <td className="px-4 py-3 text-right text-gray-700">
+                                {(user.totalFullLocations || 0).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-700">{user.daysWorked}</td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  onClick={() => toggleExpandedUser(user.userId)}
+                                  className="text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-1 hover:bg-gray-100 transition-colors"
+                                >
+                                  {isExpanded ? 'Hide' : 'Details'}
+                                </button>
+                              </td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile Cards */}
-                  <div className="md:hidden divide-y divide-gray-200">
-                    {rest.map((user, index) => {
-                      const rank = index + 4;
-                      return (
-                        <div key={user.userId} className="p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="text-xl font-bold text-charcoal">#{rank}</div>
-                            {user.avatarUrl ? (
-                              <img
-                                src={user.avatarUrl}
-                                alt={`${user.firstName} ${user.lastName}`}
-                                className="w-12 h-12 rounded-full border border-gray-300"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white">
-                                {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                              </div>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={8} className="px-4 pb-4">
+                                  {renderDetailPanel(user)}
+                                </td>
+                              </tr>
                             )}
-                            <div className="flex-1">
-                              <div className="font-semibold text-charcoal">
-                                {user.firstName} {user.lastName}
-                              </div>
-                              <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden divide-y divide-gray-200">
+                  {leaderboardData.map((user, index) => {
+                    const rank = index + 1;
+                    const isExpanded = expandedUserId === user.userId;
+                    return (
+                      <div key={user.userId} className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="text-xl font-bold text-charcoal">#{rank}</div>
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={formatShunterName(user)}
+                              className="w-12 h-12 rounded-full border border-gray-300"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white">
+                              {user.firstName?.charAt(0)}
+                              {user.lastName?.charAt(0)}
                             </div>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="bg-gray-50 rounded p-2">
-                              <div className="text-lg font-bold text-charcoal">{user.totalMoves}</div>
-                              <div className="text-xs text-gray-600">Moves</div>
+                          )}
+                          <div className="flex-1">
+                            <div className="font-semibold text-charcoal">
+                              {formatShunterName(user)}
                             </div>
-                            <div className="bg-gray-50 rounded p-2">
-                              <div className="text-sm font-semibold text-charcoal">{user.avgCollectTime}</div>
-                              <div className="text-xs text-gray-600">Collect</div>
-                            </div>
-                            <div className="bg-gray-50 rounded p-2">
-                              <div className="text-sm font-semibold text-charcoal">{user.avgTravelTime}</div>
-                              <div className="text-xs text-gray-600">Travel</div>
-                            </div>
+                            <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-gray-50 rounded p-2">
+                            <div className="text-lg font-bold text-charcoal">{user.totalMoves}</div>
+                            <div className="text-xs text-gray-600">Moves</div>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <div className="text-sm font-semibold text-charcoal">{user.avgCollectTime}</div>
+                            <div className="text-xs text-gray-600">Collect</div>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <div className="text-sm font-semibold text-charcoal">{user.avgTravelTime}</div>
+                            <div className="text-xs text-gray-600">Travel</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => toggleExpandedUser(user.userId)}
+                          className="mt-3 w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-2 hover:bg-gray-50 transition-colors"
+                        >
+                          {isExpanded ? 'Hide details' : 'More details'}
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-3">
+                            {renderDetailPanel(user)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            </section>
           </>
         )}
       </div>
