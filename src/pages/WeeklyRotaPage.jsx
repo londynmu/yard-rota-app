@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -360,11 +361,19 @@ const WeeklyRotaPage = () => {
               </div>
               
               <ul className="divide-y divide-gray-200 bg-white rounded-md">
-                {slots.map((slot) => {
+                {slots.map((slot, slotIndex) => {
                   const isCurrentUser = slot.user_id === user?.id;
                   return (
-                    <li 
+                    <motion.li 
                       key={slot.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ 
+                        duration: 0.3, 
+                        delay: slotIndex * 0.03,
+                        ease: 'easeOut'
+                      }}
+                      whileTap={{ scale: 0.98 }}
                       className={`p-2 md:p-2 ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex flex-col">
@@ -407,7 +416,7 @@ const WeeklyRotaPage = () => {
                             </span>
                           )}
                         </div>
-                    </li>
+                    </motion.li>
                   );
                 })}
               </ul>
@@ -807,31 +816,34 @@ const WeeklyRotaPage = () => {
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Week Button */}
-            <button
+            <motion.button
               onClick={() => setShowWeekModal(true)}
+              whileTap={{ scale: 0.95 }}
               className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
             >
               Week {getWeek(weekStart)}
-            </button>
+            </motion.button>
             
             {/* Location Button */}
-            <button
+            <motion.button
               onClick={() => setShowLocationModal(true)}
+              whileTap={{ scale: 0.95 }}
               className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
             >
               {selectedLocation || 'Hub'}
-            </button>
+            </motion.button>
             
             {/* Shift Button */}
-            <button
+            <motion.button
               onClick={() => setShowShiftModal(true)}
+              whileTap={{ scale: 0.95 }}
               className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full ${getShiftTriggerClasses()}`}
             >
               {selectedShiftType === 'all' ? 'All'
                 : selectedShiftType === 'day' ? 'Day'
                 : selectedShiftType === 'afternoon' ? 'Afternoon'
                 : 'Night'}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -863,8 +875,28 @@ const WeeklyRotaPage = () => {
             };
             
             return (
-              <div
+              <motion.div
                 key={dateStr}
+                initial={{ opacity: 0, y: 20 }}
+                animate={isToday ? {
+                  opacity: 1,
+                  y: 0,
+                  boxShadow: [
+                    '0 0 0 0 rgba(234, 88, 12, 0.7)',
+                    '0 0 0 10px rgba(234, 88, 12, 0)',
+                    '0 0 0 0 rgba(234, 88, 12, 0)'
+                  ]
+                } : { opacity: 1, y: 0 }}
+                transition={isToday ? {
+                  opacity: { duration: 0.4, delay: index * 0.05 },
+                  y: { duration: 0.4, delay: index * 0.05, ease: [0.25, 0.46, 0.45, 0.94] },
+                  boxShadow: { duration: 2, repeat: Infinity, ease: "easeOut" }
+                } : {
+                  duration: 0.4,
+                  delay: index * 0.05,
+                  ease: [0.25, 0.46, 0.45, 0.94]
+                }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
                 className={`
                   bg-white
                   rounded-xl 
@@ -931,30 +963,45 @@ const WeeklyRotaPage = () => {
                           return (
                             <>
                               {shiftCounts.day > 0 && (
-                                <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
+                                <motion.span
+                                  initial={{ scale: 0, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+                                  className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300"
+                                >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
                                   </svg>
                                   {shiftCounts.day}
-                                </span>
+                                </motion.span>
                               )}
                               
                               {shiftCounts.afternoon > 0 && (
-                                <span className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300">
+                                <motion.span
+                                  initial={{ scale: 0, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.15 }}
+                                  className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300"
+                                >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                                   </svg>
                                   {shiftCounts.afternoon}
-                                </span>
+                                </motion.span>
                               )}
                               
                               {shiftCounts.night > 0 && (
-                                <span className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300">
+                                <motion.span
+                                  initial={{ scale: 0, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
+                                  className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300"
+                                >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                                   </svg>
                                   {shiftCounts.night}
-                                </span>
+                                </motion.span>
                               )}
                             </>
                           );
@@ -964,43 +1011,57 @@ const WeeklyRotaPage = () => {
                     
                     {/* Expand/Collapse button - only on mobile */}
                     <div className="md:hidden">
-                      <div className={`
-                        w-8 h-8 
-                        flex items-center justify-center 
-                        rounded-full 
-                        bg-white
-                        border-2 border-gray-400
-                        transition-colors 
-                        hover:bg-gray-100
-                        shadow-sm
-                      `}>
-                        <svg 
+                      <motion.div
+                        whileTap={{ scale: 0.9 }}
+                        className={`
+                          w-8 h-8 
+                          flex items-center justify-center 
+                          rounded-full 
+                          bg-white
+                          border-2 border-gray-400
+                          transition-colors 
+                          hover:bg-gray-100
+                          shadow-sm
+                        `}
+                      >
+                        <motion.svg 
                           xmlns="http://www.w3.org/2000/svg" 
-                          className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                          className="h-5 w-5 text-gray-900" 
                           fill="none" 
                           viewBox="0 0 24 24" 
                           stroke="currentColor"
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
+                        </motion.svg>
+                      </motion.div>
                     </div>
                   </div>
                 </div>
                 
                 {/* Mobile: Conditionally visible details area with transition */}
-                <div className={`transition-all duration-300 ease-in-out overflow-auto md:hidden
-                  ${isExpanded ? 'max-h-[75vh] opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <div className="p-3">
-                    <DayDetails dateStr={dateStr} />
-                  </div>
-                </div>
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className="overflow-auto md:hidden"
+                    >
+                      <div className="p-3">
+                        <DayDetails dateStr={dateStr} />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Desktop: Always visible details area */}
                 <div className="hidden md:block p-3 md:p-2">
                   <DayDetails dateStr={dateStr} />
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -1008,8 +1069,19 @@ const WeeklyRotaPage = () => {
 
       {/* Week Selection Modal */}
       {showWeekModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full"
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-charcoal">Select Week</h3>
               <button
@@ -1050,15 +1122,26 @@ const WeeklyRotaPage = () => {
                 Next Week
               </button>
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
 
       {/* Location Selection Modal */}
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full max-h-[80vh] flex flex-col"
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
               <button
@@ -1088,15 +1171,26 @@ const WeeklyRotaPage = () => {
                 </button>
               ))}
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
 
       {/* Shift Type Selection Modal - Same as Breaks */}
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full"
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-charcoal">Select Shift Type</h3>
               <button
@@ -1162,15 +1256,26 @@ const WeeklyRotaPage = () => {
                 Night
               </button>
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
 
       {/* Share Options Modal - Dark Modern Premium Style */}
       {showShareOptionsModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full"
+          >
             <h3 className="text-lg font-bold text-charcoal mb-4">Choose Sharing Method</h3>
             <p className="text-gray-600 mb-6 text-sm">How would you like to share the schedule?</p>
             <div className="space-y-3">
@@ -1205,15 +1310,26 @@ const WeeklyRotaPage = () => {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
 
       {/* Download File Modal - Dark Modern Premium Style */}
       {showDownloadModal && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
-          <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]"
+        >
+          <motion.div 
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-lg shadow-2xl border-2 border-gray-400 overflow-hidden p-6 max-w-md w-full mx-4 md:mx-0"
+          >
             <h3 className="text-xl font-bold text-charcoal mb-4">PDF Downloaded</h3>
             <div className="text-gray-600 mb-6 space-y-3">
               <p>
@@ -1240,8 +1356,8 @@ const WeeklyRotaPage = () => {
                 Share via WhatsApp
               </button>
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
     </div>
