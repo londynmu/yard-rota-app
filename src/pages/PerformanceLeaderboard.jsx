@@ -177,11 +177,23 @@ const PerformanceLeaderboard = () => {
       leaderboard.sort((a, b) => {
         switch (sortOption) {
           case 'collect':
+            // Users with 0 moves should rank last
+            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
+            if (a.totalMoves === 0) return 1; // a ranks after b
+            if (b.totalMoves === 0) return -1; // b ranks after a
+            
+            // Both have moves - compare collect times
             if (a.avgCollectSeconds !== b.avgCollectSeconds) {
               return a.avgCollectSeconds - b.avgCollectSeconds;
             }
             return b.totalMoves - a.totalMoves;
           case 'travel':
+            // Users with 0 moves should rank last
+            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
+            if (a.totalMoves === 0) return 1; // a ranks after b
+            if (b.totalMoves === 0) return -1; // b ranks after a
+            
+            // Both have moves - compare travel times
             if (a.avgTravelSeconds !== b.avgTravelSeconds) {
               return a.avgTravelSeconds - b.avgTravelSeconds;
             }
