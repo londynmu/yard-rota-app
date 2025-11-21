@@ -23,6 +23,19 @@ const SORT_OPTIONS = [
   { value: 'travel', label: 'Avg Travel Time' },
 ];
 
+const SHIFT_ORDER = ['day', 'afternoon', 'night'];
+const SHIFT_LABELS = {
+  day: 'Day Shift',
+  afternoon: 'Afternoon Shift',
+  night: 'Night Shift',
+};
+const SHIFT_CARD_ACCENT = {
+  day: 'border-t-4 border-t-amber-400',
+  afternoon: 'border-t-4 border-t-orange-400',
+  night: 'border-t-4 border-t-blue-500',
+  default: 'border-t-4 border-t-gray-300',
+};
+
 const PerformanceLeaderboard = () => {
   const toast = useToast();
   const { user } = useAuth();
@@ -57,6 +70,7 @@ const PerformanceLeaderboard = () => {
   const [myStatsLoading, setMyStatsLoading] = useState(false);
   const [myStatsError, setMyStatsError] = useState(null);
   const [myStatsData, setMyStatsData] = useState(null);
+  const [rawPerformance, setRawPerformance] = useState([]);
 
   // Save preferences to localStorage
   useEffect(() => {
@@ -116,6 +130,8 @@ const PerformanceLeaderboard = () => {
         .order('report_date', { ascending: false });
 
       if (error) throw error;
+
+      setRawPerformance(performanceData || []);
 
       // Aggregate data by user
       const userStats = {};
@@ -194,6 +210,7 @@ const PerformanceLeaderboard = () => {
       setLeaderboardData(leaderboard);
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
+      setRawPerformance([]);
       toast.error('Failed to load leaderboard data');
     } finally {
       setLoading(false);
@@ -379,6 +396,81 @@ const PerformanceLeaderboard = () => {
     };
   }, [leaderboardData]);
 
+  const shiftSummaries = useMemo(() => {
+    const createSummary = () => ({
+      totalMoves: 0,
+      totalCollectSeconds: 0,
+      totalTravelSeconds: 0,
+      shunters: new Set(),
+      records: [],
+    });
+
+    const summaries = {};
+
+    (rawPerformance || []).forEach((record) => {
+      const shiftKey = (record.shift_type || 'unknown').toLowerCase();
+      if (!summaries[shiftKey]) summaries[shiftKey] = createSummary();
+      const summary = summaries[shiftKey];
+      const moves = record.number_of_moves || 0;
+
+      summary.totalMoves += moves;
+      summary.totalCollectSeconds += timeToSeconds(record.avg_time_to_collect) * moves;
+      summary.totalTravelSeconds += timeToSeconds(record.avg_time_to_travel) * moves;
+      summary.records.push(record);
+      if (record.user_id) summary.shunters.add(record.user_id);
+    });
+
+    return SHIFT_ORDER.map((key) => {
+      const data = summaries[key] || createSummary();
+      const avgCollectSeconds = data.totalMoves > 0
+        ? Math.round(data.totalCollectSeconds / data.totalMoves)
+        : 0;
+      const avgTravelSeconds = data.totalMoves > 0
+        ? Math.round(data.totalTravelSeconds / data.totalMoves)
+        : 0;
+
+      const bestCollector = data.records
+        .filter((record) => record.avg_time_to_collect && (record.number_of_moves || 0) > 0)
+        .sort(
+          (a, b) =>
+            timeToSeconds(a.avg_time_to_collect) - timeToSeconds(b.avg_time_to_collect)
+        )[0];
+
+      return {
+        key,
+        label: SHIFT_LABELS[key] || key,
+        totalMoves: data.totalMoves,
+        avgCollectSeconds,
+        avgCollectTime: secondsToTime(avgCollectSeconds),
+        avgTravelSeconds,
+        avgTravelTime: secondsToTime(avgTravelSeconds),
+        activeShunters: data.shunters.size,
+        bestCollector: bestCollector?.profiles
+          ? {
+              name: formatShunterName(bestCollector.profiles),
+              yardSystemId: bestCollector.profiles.yard_system_id,
+            }
+          : null,
+      };
+    });
+  }, [rawPerformance]);
+
+  const trendSeries = useMemo(() => {
+    if (!rawPerformance.length) return [];
+
+    const totalsByDate = rawPerformance.reduce((acc, record) => {
+      if (!record.report_date) return acc;
+      const moves = record.number_of_moves || 0;
+      acc[record.report_date] = (acc[record.report_date] || 0) + moves;
+      return acc;
+    }, {});
+
+    return Object.entries(totalsByDate)
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([date, totalMoves]) => ({ date, totalMoves }))
+      .slice(-10); // show last 10 days for readability
+  }, [rawPerformance]);
+
   const toggleExpandedUser = (userId) => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
   };
@@ -418,8 +510,53 @@ const PerformanceLeaderboard = () => {
 
   const formatShunterName = (user) => {
     if (!user) return '—';
-    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-    return name || user.yardSystemId || '—';
+    const first =
+      user.firstName ??
+      user.first_name ??
+      '';
+    const last =
+      user.lastName ??
+      user.last_name ??
+      '';
+    const yardId =
+      user.yardSystemId ??
+      user.yard_system_id ??
+      user.yardSystemIdFromReport ??
+      '';
+    const name = `${first} ${last}`.trim();
+    return name || yardId || '—';
+  };
+
+  const getShiftHealth = (summary) => {
+    if (!summary.totalMoves) {
+      return {
+        label: 'No data',
+        className: 'text-gray-500',
+        message: 'Awaiting recent performance logs.',
+      };
+    }
+
+    if (summary.avgCollectSeconds <= 140 && summary.avgTravelSeconds <= 220) {
+      return {
+        label: 'On target',
+        className: 'text-green-600',
+        message: 'Collect and travel times within target.',
+      };
+    }
+
+    if (summary.avgCollectSeconds <= 180 && summary.avgTravelSeconds <= 260) {
+      return {
+        label: 'Monitor',
+        className: 'text-amber-600',
+        message: 'Slight slowdown detected, keep an eye on it.',
+      };
+    }
+
+    return {
+      label: 'Action needed',
+      className: 'text-red-600',
+      message: 'Investigate delays affecting this shift.',
+    };
   };
 
   const renderDetailPanel = (user) => {
@@ -805,6 +942,72 @@ const PerformanceLeaderboard = () => {
               </div>
             </section>
 
+            {/* Shift statuses */}
+            <section className="mb-8">
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Shift health</p>
+                  <h2 className="text-2xl font-bold text-charcoal">Status by shift</h2>
+                </div>
+                <p className="text-sm text-gray-500">Based on performance reports</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {shiftSummaries.map((summary) => {
+                  const status = getShiftHealth(summary);
+                  return (
+                    <div
+                      key={summary.key}
+                      className={`bg-white border border-gray-200 rounded-2xl p-4 shadow-sm ${SHIFT_CARD_ACCENT[summary.key] || SHIFT_CARD_ACCENT.default}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">{summary.label}</p>
+                          <h3 className="text-xl font-bold text-charcoal">
+                            {summary.totalMoves.toLocaleString()} moves
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {summary.activeShunters} active shunters
+                          </p>
+                        </div>
+                        <div className={`text-sm font-semibold ${status.className}`}>
+                          {status.label}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{status.message}</p>
+                      <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">Avg collect</p>
+                          <p className="text-lg font-semibold text-charcoal">{summary.avgCollectTime}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">Avg travel</p>
+                          <p className="text-lg font-semibold text-charcoal">{summary.avgTravelTime}</p>
+                        </div>
+                      </div>
+                      {summary.bestCollector ? (
+                        <p className="text-xs text-gray-500 mt-4">
+                          Fastest collect:{" "}
+                          <span className="font-semibold text-charcoal">
+                            {summary.bestCollector.name}
+                          </span>
+                          {summary.bestCollector.yardSystemId && (
+                            <span className="text-gray-400"> · {summary.bestCollector.yardSystemId}</span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-4">No collector data yet.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Trend */}
+            <section className="mb-8">
+              <TrendChart data={trendSeries} />
+            </section>
+
             {/* Featured performers */}
             {featuredPerformers.length > 0 && (
               <section className="mb-8">
@@ -1027,6 +1230,81 @@ const PerformanceLeaderboard = () => {
 };
 
 export default PerformanceLeaderboard;
+
+function TrendChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <p className="text-sm text-gray-500">No trend data for the selected period yet.</p>
+      </div>
+    );
+  }
+
+  const totals = data.map((point) => point.totalMoves);
+  const max = Math.max(...totals);
+  const min = Math.min(...totals);
+  const range = max - min || 1;
+
+  const computeY = (value) => {
+    const normalized = (value - min) / range;
+    return 90 - normalized * 70; // keep padding within chart
+  };
+
+  const computeX = (index) => {
+    if (data.length === 1) return 10;
+    return (index / (data.length - 1)) * 100;
+  };
+
+  const points = data
+    .map((point, idx) => `${computeX(idx)},${computeY(point.totalMoves)}`)
+    .join(' ');
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs uppercase text-gray-500">Trend</p>
+          <h3 className="text-xl font-bold text-charcoal">Total moves trend</h3>
+        </div>
+        <p className="text-sm text-gray-500">
+          Last logged: {data[data.length - 1].totalMoves.toLocaleString()}
+        </p>
+      </div>
+      <div className="h-40">
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="w-full h-full text-orange-600"
+        >
+          <polyline
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={points}
+          />
+          {data.map((point, idx) => (
+            <circle
+              key={point.date}
+              cx={computeX(idx)}
+              cy={computeY(point.totalMoves)}
+              r="2.2"
+              fill="currentColor"
+            />
+          ))}
+        </svg>
+      </div>
+      <div className="mt-3 flex justify-between text-[11px] text-gray-500">
+        {data.map((point) => (
+          <span key={`label-${point.date}`}>
+            {formatDate(parseISO(point.date), data.length > 7 ? 'dd MMM' : 'EEE dd')}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 
 
