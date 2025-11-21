@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -316,23 +318,6 @@ const PerformanceLeaderboard = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const getMedalEmoji = (rank) => {
-    switch (rank) {
-      case 1: return '🥇';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      default: return null;
-    }
-  };
-
-  const getMedalBorderColor = (rank) => {
-    switch (rank) {
-      case 1: return 'border-yellow-400 bg-yellow-50';
-      case 2: return 'border-gray-400 bg-gray-50';
-      case 3: return 'border-amber-600 bg-amber-50';
-      default: return 'border-gray-200 bg-white';
-    }
-  };
 
   const getRangeLabel = (range) => {
     return RANGE_LOOKUP[range]?.label || RANGE_LOOKUP.last_day.label;
@@ -1081,68 +1066,100 @@ function TrendChart({ data }) {
     );
   }
 
-  const totals = data.map((point) => point.totalMoves);
-  const max = Math.max(...totals);
-  const min = Math.min(...totals);
-  const range = max - min || 1;
+  // Format data for Recharts
+  const chartData = data.map((point) => ({
+    date: point.date,
+    moves: point.totalMoves,
+    formattedDate: formatDate(parseISO(point.date), data.length > 7 ? 'dd MMM' : 'EEE dd'),
+  }));
 
-  const computeY = (value) => {
-    const normalized = (value - min) / range;
-    return 90 - normalized * 70; // keep padding within chart
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const dataPoint = payload[0].payload;
+      return (
+        <div className="bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+          <p className="text-xs font-semibold text-gray-600 mb-1">{dataPoint.formattedDate}</p>
+          <p className="text-lg font-bold text-orange-600">
+            {dataPoint.moves.toLocaleString()} moves
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
-  const computeX = (index) => {
-    if (data.length === 1) return 10;
-    return (index / (data.length - 1)) * 100;
+  CustomTooltip.propTypes = {
+    active: PropTypes.bool,
+    payload: PropTypes.arrayOf(PropTypes.shape({
+      payload: PropTypes.shape({
+        formattedDate: PropTypes.string,
+        moves: PropTypes.number,
+      }),
+    })),
   };
-
-  const points = data
-    .map((point, idx) => `${computeX(idx)},${computeY(point.totalMoves)}`)
-    .join(' ');
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-charcoal">Daily moves</h3>
-        <p className="text-sm text-gray-500">
-          Last logged: {data[data.length - 1].totalMoves.toLocaleString()}
-        </p>
+        <div>
+          <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
+          <p className="text-xs text-gray-500 mt-1">Team performance over time</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500">Last logged</p>
+          <p className="text-2xl font-bold text-orange-600">
+            {data[data.length - 1].totalMoves.toLocaleString()}
+          </p>
+        </div>
       </div>
-      <div className="h-40">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="w-full h-full text-orange-600"
-        >
-          <polyline
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={points}
-          />
-          {data.map((point, idx) => (
-            <circle
-              key={point.date}
-              cx={computeX(idx)}
-              cy={computeY(point.totalMoves)}
-              r="2.2"
-              fill="currentColor"
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#ea580c" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey="formattedDate"
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              tickLine={{ stroke: '#e5e7eb' }}
+              axisLine={{ stroke: '#e5e7eb' }}
             />
-          ))}
-        </svg>
-      </div>
-      <div className="mt-3 flex justify-between text-[11px] text-gray-500">
-        {data.map((point) => (
-          <span key={`label-${point.date}`}>
-            {formatDate(parseISO(point.date), data.length > 7 ? 'dd MMM' : 'EEE dd')}
-          </span>
-        ))}
+            <YAxis
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              tickLine={{ stroke: '#e5e7eb' }}
+              axisLine={{ stroke: '#e5e7eb' }}
+              tickFormatter={(value) => value.toLocaleString()}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="moves"
+              stroke="#ea580c"
+              strokeWidth={3}
+              fill="url(#colorMoves)"
+              activeDot={{ r: 6, fill: '#ea580c', stroke: '#fff', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
 }
+
+TrendChart.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.shape({
+    date: PropTypes.string.isRequired,
+    totalMoves: PropTypes.number.isRequired,
+  })),
+};
 
 
 
