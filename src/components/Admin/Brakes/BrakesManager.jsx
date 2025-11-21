@@ -1477,36 +1477,6 @@ const BrakesManager = () => {
         )}
       </div>
 
-      {/* Sticky Bottom Save Bar - Desktop only */}
-      {isAdmin && (
-        <div className="hidden md:block fixed inset-x-0 bottom-0 z-20 bg-gray-100 border-t-2 border-gray-400 shadow-[0_-2px_12px_rgba(0,0,0,0.15)]">
-          <div className="container mx-auto px-3 py-2">
-            <button
-              onClick={handleSaveAllBreaks}
-              className="w-full rounded-full bg-black text-white py-2 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg"
-              disabled={isLoading}
-            >
-              Save Breaks
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Save Bar - Floating above bottom navigation */}
-      {isAdmin && (
-        <div className="md:hidden fixed inset-x-0 bottom-20 z-20">
-          <div className="container mx-auto px-4">
-            <button
-              onClick={handleSaveAllBreaks}
-              className="w-full bg-black text-white py-3 font-bold hover:bg-gray-900 disabled:bg-gray-400 transition-colors shadow-lg rounded-xl"
-              disabled={isLoading}
-            >
-              Save Breaks
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Modals */}
       {staffModalOpen && selectedSlot && (
         <StaffSelectionModal 
@@ -1519,6 +1489,7 @@ const BrakesManager = () => {
           onRemoveStaff={handleRemoveStaff}
           currentLocation={selectedLocation}
           isAllLocation={selectedLocation === ALL_LOCATIONS_VALUE}
+          onSave={handleSaveAllBreaks}
         />
       )}
       
@@ -1567,7 +1538,7 @@ const BrakesManager = () => {
 
 // Staff Selection Modal Component - Enhance the staff removal functionality
 // eslint-disable-next-line no-unused-vars
-const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation }) => {
+const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation, onSave }) => {
   const modalRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -1656,7 +1627,10 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               </span>
             </div>
             <button 
-              onClick={onClose}
+              onClick={async () => {
+                await onSave();
+                onClose();
+              }}
               className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
             >
               Done
@@ -2208,7 +2182,8 @@ StaffSelectionModal.propTypes = {
   onAssignStaff: PropTypes.func.isRequired,
   onRemoveStaff: PropTypes.func.isRequired,
   currentLocation: PropTypes.string,
-  isAllLocation: PropTypes.bool
+  isAllLocation: PropTypes.bool,
+  onSave: PropTypes.func.isRequired
 };
 
 AddSlotModal.propTypes = {
