@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
@@ -403,14 +404,53 @@ const PerformanceLeaderboard = () => {
   const getRankAccent = (rank) => {
     switch (rank) {
       case 1:
-        return 'border-amber-400 shadow-amber-100';
+        return 'border-amber-400 shadow-amber-100 shadow-lg';
       case 2:
-        return 'border-gray-400 shadow-gray-100';
+        return 'border-gray-400 shadow-gray-100 shadow-md';
       case 3:
-        return 'border-amber-600 shadow-orange-100';
+        return 'border-amber-600 shadow-orange-100 shadow-md';
       default:
         return 'border-gray-200';
     }
+  };
+
+  const getRankBadge = (rank) => {
+    const badges = {
+      1: {
+        bg: 'bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600',
+        icon: '👑',
+        text: 'Champion',
+        glow: 'shadow-lg shadow-amber-300/50'
+      },
+      2: {
+        bg: 'bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500',
+        icon: '🥈',
+        text: '2nd Place',
+        glow: 'shadow-md shadow-gray-300/50'
+      },
+      3: {
+        bg: 'bg-gradient-to-br from-orange-400 via-amber-600 to-orange-700',
+        icon: '🥉',
+        text: '3rd Place',
+        glow: 'shadow-md shadow-orange-300/50'
+      }
+    };
+
+    if (rank <= 3) {
+      const badge = badges[rank];
+      return (
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${badge.bg} ${badge.glow} text-white font-bold text-sm`}>
+          <span className="text-base">{badge.icon}</span>
+          <span>{badge.text}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 border-2 border-gray-300 font-bold text-gray-700">
+        {rank}
+      </div>
+    );
   };
 
   const getPerformanceTags = (user) => {
@@ -773,14 +813,25 @@ const PerformanceLeaderboard = () => {
           <>
             {/* Team overview */}
             <section className="mb-8">
-              <div className="flex items-end justify-between mb-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex items-end justify-between mb-4"
+              >
                 <h2 className="text-2xl font-bold text-charcoal">Team overview</h2>
                 <p className="text-sm text-gray-500">
                   {leaderboardData.length} active shunters in view
                 </p>
-              </div>
+              </motion.div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                >
                   <p className="text-xs uppercase text-gray-500">Avg moves / day</p>
                   <p className="text-3xl font-bold text-charcoal mt-1">
                     {teamHighlights.avgMovesPerDay.toLocaleString()}
@@ -788,8 +839,14 @@ const PerformanceLeaderboard = () => {
                   <p className="text-xs text-gray-500 mt-2">
                     {teamHighlights.totalMoves.toLocaleString()} moves this period
                   </p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                >
                   <p className="text-xs uppercase text-gray-500">Full locations logged</p>
                   <p className="text-3xl font-bold text-charcoal mt-1">
                     {teamHighlights.totalFullLocations.toLocaleString()}
@@ -797,8 +854,14 @@ const PerformanceLeaderboard = () => {
                   <p className="text-xs text-gray-500 mt-2">
                     Across {teamHighlights.activeShunters} shunters
                   </p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                >
                   <p className="text-xs uppercase text-gray-500">Fastest collect</p>
                   <p className="text-3xl font-bold text-charcoal mt-1">
                     {teamHighlights.fastestCollect?.avgCollectTime || '—'}
@@ -806,8 +869,14 @@ const PerformanceLeaderboard = () => {
                   <p className="text-xs text-gray-500 mt-2">
                     {teamHighlights.fastestCollect ? formatShunterName(teamHighlights.fastestCollect) : 'Awaiting data'}
                   </p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.4 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                >
                   <p className="text-xs uppercase text-gray-500">Fastest travel</p>
                   <p className="text-3xl font-bold text-charcoal mt-1">
                     {teamHighlights.fastestTravel?.avgTravelTime || '—'}
@@ -815,8 +884,14 @@ const PerformanceLeaderboard = () => {
                   <p className="text-xs text-gray-500 mt-2">
                     {teamHighlights.fastestTravel ? formatShunterName(teamHighlights.fastestTravel) : 'Awaiting data'}
                   </p>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm cursor-pointer"
+                >
                   <p className="text-xs uppercase text-gray-500">Most consistent</p>
                   <p className="text-3xl font-bold text-charcoal mt-1">
                     {teamHighlights.reliabilityLeader
@@ -828,7 +903,7 @@ const PerformanceLeaderboard = () => {
                       ? formatShunterName(teamHighlights.reliabilityLeader)
                       : 'Highest attendance pending'}
                   </p>
-                </div>
+                </motion.div>
               </div>
             </section>
 
@@ -840,33 +915,56 @@ const PerformanceLeaderboard = () => {
             {/* Featured performers */}
             {featuredPerformers.length > 0 && (
               <section className="mb-8">
-                <div className="flex items-end justify-between mb-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-end justify-between mb-4"
+                >
                   <h2 className="text-2xl font-bold text-charcoal">Top contributors</h2>
                   <p className="text-sm text-gray-500">
                     Sorted by {getSortLabel(sortOption)}
                   </p>
-                </div>
+                </motion.div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {featuredPerformers.map((user, index) => {
                     const rank = index + 1;
                     return (
-                      <div
+                      <motion.div
                         key={user.userId}
-                        className={`bg-white border rounded-2xl p-4 shadow-sm flex flex-col gap-4 ${getRankAccent(rank)}`}
+                        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{
+                          duration: 0.5,
+                          delay: index * 0.1,
+                          ease: [0.25, 0.46, 0.45, 0.94]
+                        }}
+                        whileHover={{
+                          y: -8,
+                          scale: 1.02,
+                          transition: { duration: 0.2 }
+                        }}
+                        className={`bg-white border rounded-2xl p-4 flex flex-col gap-4 cursor-pointer ${getRankAccent(rank)}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="text-2xl font-bold text-charcoal">#{rank}</div>
+                          {getRankBadge(rank)}
                           {user.avatarUrl ? (
-                            <img
+                            <motion.img
+                              whileHover={{ scale: 1.1, rotate: 5 }}
+                              transition={{ type: "spring", stiffness: 300 }}
                               src={user.avatarUrl}
                               alt={formatShunterName(user)}
-                              className="w-12 h-12 rounded-full border border-gray-200"
+                              className="w-12 h-12 rounded-full border-2 border-gray-200"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-white">
+                            <motion.div
+                              whileHover={{ scale: 1.1, rotate: -5 }}
+                              transition={{ type: "spring", stiffness: 300 }}
+                              className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-white"
+                            >
                               {user.firstName?.charAt(0)}
                               {user.lastName?.charAt(0)}
-                            </div>
+                            </motion.div>
                           )}
                           <div>
                             <p className="font-semibold text-charcoal">{formatShunterName(user)}</p>
@@ -874,28 +972,40 @@ const PerformanceLeaderboard = () => {
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"
+                          >
                             <p className="text-xs uppercase text-gray-500">Moves</p>
                             <p className="text-2xl font-bold text-charcoal">
                               {user.totalMoves.toLocaleString()}
                             </p>
-                          </div>
-                          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"
+                          >
                             <p className="text-xs uppercase text-gray-500">Days</p>
                             <p className="text-2xl font-bold text-charcoal">
                               {user.daysWorked}
                             </p>
-                          </div>
-                          <div className="rounded-xl border border-gray-100 bg-white p-3 text-center">
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="rounded-xl border border-gray-100 bg-white p-3 text-center"
+                          >
                             <p className="text-xs uppercase text-gray-500">Avg collect</p>
                             <p className="text-xl font-semibold text-charcoal">{user.avgCollectTime}</p>
-                          </div>
-                          <div className="rounded-xl border border-gray-100 bg-white p-3 text-center">
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="rounded-xl border border-gray-100 bg-white p-3 text-center"
+                          >
                             <p className="text-xs uppercase text-gray-500">Avg travel</p>
                             <p className="text-xl font-semibold text-charcoal">{user.avgTravelTime}</p>
-                          </div>
+                          </motion.div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -933,21 +1043,37 @@ const PerformanceLeaderboard = () => {
                         const isExpanded = expandedUserId === user.userId;
                         return (
                           <React.Fragment key={user.userId}>
-                            <tr className={`transition-colors ${isExpanded ? 'bg-gray-50' : 'hover:bg-gray-50'}`}>
-                              <td className="px-4 py-3 text-charcoal font-semibold">#{rank}</td>
+                            <motion.tr
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.05 }}
+                              whileHover={{ backgroundColor: 'rgb(249 250 251)' }}
+                              className={`${isExpanded ? 'bg-gray-50' : ''}`}
+                            >
+                              <td className="px-4 py-3">
+                                <div className="scale-75 origin-left">
+                                  {getRankBadge(rank)}
+                                </div>
+                              </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-3">
                                   {user.avatarUrl ? (
-                                    <img
+                                    <motion.img
+                                      whileHover={{ scale: 1.15 }}
+                                      transition={{ type: "spring", stiffness: 300 }}
                                       src={user.avatarUrl}
                                       alt={formatShunterName(user)}
                                       className="w-10 h-10 rounded-full border border-gray-300"
                                     />
                                   ) : (
-                                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white">
+                                    <motion.div
+                                      whileHover={{ scale: 1.15 }}
+                                      transition={{ type: "spring", stiffness: 300 }}
+                                      className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white"
+                                    >
                                       {user.firstName?.charAt(0)}
                                       {user.lastName?.charAt(0)}
-                                    </div>
+                                    </motion.div>
                                   )}
                                   <div>
                                     <div className="font-medium text-charcoal">
@@ -967,21 +1093,36 @@ const PerformanceLeaderboard = () => {
                               </td>
                               <td className="px-4 py-3 text-right text-gray-700">{user.daysWorked}</td>
                               <td className="px-4 py-3 text-right">
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                   onClick={() => toggleExpandedUser(user.userId)}
                                   className="text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-1 hover:bg-gray-100 transition-colors"
                                 >
                                   {isExpanded ? 'Hide' : 'Details'}
-                                </button>
+                                </motion.button>
                               </td>
-                            </tr>
-                            {isExpanded && (
-                              <tr>
-                                <td colSpan={8} className="px-4 pb-4">
-                                  {renderDetailPanel(user)}
-                                </td>
-                              </tr>
-                            )}
+                            </motion.tr>
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.tr
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.3 }}
+                                >
+                                  <td colSpan={8} className="px-4 pb-4">
+                                    <motion.div
+                                      initial={{ y: -10 }}
+                                      animate={{ y: 0 }}
+                                      transition={{ duration: 0.3 }}
+                                    >
+                                      {renderDetailPanel(user)}
+                                    </motion.div>
+                                  </td>
+                                </motion.tr>
+                              )}
+                            </AnimatePresence>
                           </React.Fragment>
                         );
                       })}
@@ -995,20 +1136,36 @@ const PerformanceLeaderboard = () => {
                     const rank = index + 1;
                     const isExpanded = expandedUserId === user.userId;
                     return (
-                      <div key={user.userId} className="p-4">
+                      <motion.div
+                        key={user.userId}
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                        className="p-4"
+                      >
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="text-xl font-bold text-charcoal">#{rank}</div>
+                          <div className="scale-90">
+                            {getRankBadge(rank)}
+                          </div>
                           {user.avatarUrl ? (
-                            <img
+                            <motion.img
+                              whileHover={{ scale: 1.15, rotate: 5 }}
+                              whileTap={{ scale: 0.95 }}
+                              transition={{ type: "spring", stiffness: 300 }}
                               src={user.avatarUrl}
                               alt={formatShunterName(user)}
-                              className="w-12 h-12 rounded-full border border-gray-300"
+                              className="w-12 h-12 rounded-full border-2 border-gray-300"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white">
+                            <motion.div
+                              whileHover={{ scale: 1.15, rotate: -5 }}
+                              whileTap={{ scale: 0.95 }}
+                              transition={{ type: "spring", stiffness: 300 }}
+                              className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center font-bold text-white"
+                            >
                               {user.firstName?.charAt(0)}
                               {user.lastName?.charAt(0)}
-                            </div>
+                            </motion.div>
                           )}
                           <div className="flex-1">
                             <div className="font-semibold text-charcoal">
@@ -1018,31 +1175,53 @@ const PerformanceLeaderboard = () => {
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-gray-50 rounded p-2">
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gray-50 rounded-lg p-2"
+                          >
                             <div className="text-lg font-bold text-charcoal">{user.totalMoves}</div>
                             <div className="text-xs text-gray-600">Moves</div>
-                          </div>
-                          <div className="bg-gray-50 rounded p-2">
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gray-50 rounded-lg p-2"
+                          >
                             <div className="text-sm font-semibold text-charcoal">{user.avgCollectTime}</div>
                             <div className="text-xs text-gray-600">Collect</div>
-                          </div>
-                          <div className="bg-gray-50 rounded p-2">
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="bg-gray-50 rounded-lg p-2"
+                          >
                             <div className="text-sm font-semibold text-charcoal">{user.avgTravelTime}</div>
                             <div className="text-xs text-gray-600">Travel</div>
-                          </div>
+                          </motion.div>
                         </div>
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={() => toggleExpandedUser(user.userId)}
                           className="mt-3 w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded-full px-3 py-2 hover:bg-gray-50 transition-colors"
                         >
                           {isExpanded ? 'Hide details' : 'More details'}
-                        </button>
-                        {isExpanded && (
-                          <div className="mt-3">
-                            {renderDetailPanel(user)}
-                          </div>
-                        )}
-                      </div>
+                        </motion.button>
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0, y: -10 }}
+                              animate={{ opacity: 1, height: 'auto', y: 0 }}
+                              exit={{ opacity: 0, height: 0, y: -10 }}
+                              transition={{ duration: 0.3 }}
+                              className="mt-3 overflow-hidden"
+                            >
+                              {renderDetailPanel(user)}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
                     );
                   })}
                 </div>
