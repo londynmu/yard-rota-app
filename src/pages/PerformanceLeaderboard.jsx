@@ -23,19 +23,6 @@ const SORT_OPTIONS = [
   { value: 'travel', label: 'Avg Travel Time' },
 ];
 
-const SHIFT_ORDER = ['day', 'afternoon', 'night'];
-const SHIFT_LABELS = {
-  day: 'Day Shift',
-  afternoon: 'Afternoon Shift',
-  night: 'Night Shift',
-};
-const SHIFT_CARD_ACCENT = {
-  day: 'border-t-4 border-t-amber-400',
-  afternoon: 'border-t-4 border-t-orange-400',
-  night: 'border-t-4 border-t-blue-500',
-  default: 'border-t-4 border-t-gray-300',
-};
-
 const PerformanceLeaderboard = () => {
   const toast = useToast();
   const { user } = useAuth();
@@ -396,65 +383,6 @@ const PerformanceLeaderboard = () => {
     };
   }, [leaderboardData]);
 
-  const shiftSummaries = useMemo(() => {
-    const createSummary = () => ({
-      totalMoves: 0,
-      totalCollectSeconds: 0,
-      totalTravelSeconds: 0,
-      shunters: new Set(),
-      records: [],
-    });
-
-    const summaries = {};
-
-    (rawPerformance || []).forEach((record) => {
-      const shiftKey = (record.shift_type || 'unknown').toLowerCase();
-      if (!summaries[shiftKey]) summaries[shiftKey] = createSummary();
-      const summary = summaries[shiftKey];
-      const moves = record.number_of_moves || 0;
-
-      summary.totalMoves += moves;
-      summary.totalCollectSeconds += timeToSeconds(record.avg_time_to_collect) * moves;
-      summary.totalTravelSeconds += timeToSeconds(record.avg_time_to_travel) * moves;
-      summary.records.push(record);
-      if (record.user_id) summary.shunters.add(record.user_id);
-    });
-
-    return SHIFT_ORDER.map((key) => {
-      const data = summaries[key] || createSummary();
-      const avgCollectSeconds = data.totalMoves > 0
-        ? Math.round(data.totalCollectSeconds / data.totalMoves)
-        : 0;
-      const avgTravelSeconds = data.totalMoves > 0
-        ? Math.round(data.totalTravelSeconds / data.totalMoves)
-        : 0;
-
-      const bestCollector = data.records
-        .filter((record) => record.avg_time_to_collect && (record.number_of_moves || 0) > 0)
-        .sort(
-          (a, b) =>
-            timeToSeconds(a.avg_time_to_collect) - timeToSeconds(b.avg_time_to_collect)
-        )[0];
-
-      return {
-        key,
-        label: SHIFT_LABELS[key] || key,
-        totalMoves: data.totalMoves,
-        avgCollectSeconds,
-        avgCollectTime: secondsToTime(avgCollectSeconds),
-        avgTravelSeconds,
-        avgTravelTime: secondsToTime(avgTravelSeconds),
-        activeShunters: data.shunters.size,
-        bestCollector: bestCollector?.profiles
-          ? {
-              name: formatShunterName(bestCollector.profiles),
-              yardSystemId: bestCollector.profiles.yard_system_id,
-            }
-          : null,
-      };
-    });
-  }, [rawPerformance]);
-
   const trendSeries = useMemo(() => {
     if (!rawPerformance.length) return [];
 
@@ -525,38 +453,6 @@ const PerformanceLeaderboard = () => {
       '';
     const name = `${first} ${last}`.trim();
     return name || yardId || '—';
-  };
-
-  const getShiftHealth = (summary) => {
-    if (!summary.totalMoves) {
-      return {
-        label: 'No data',
-        className: 'text-gray-500',
-        message: 'Awaiting recent performance logs.',
-      };
-    }
-
-    if (summary.avgCollectSeconds <= 140 && summary.avgTravelSeconds <= 220) {
-      return {
-        label: 'On target',
-        className: 'text-green-600',
-        message: 'Collect and travel times within target.',
-      };
-    }
-
-    if (summary.avgCollectSeconds <= 180 && summary.avgTravelSeconds <= 260) {
-      return {
-        label: 'Monitor',
-        className: 'text-amber-600',
-        message: 'Slight slowdown detected, keep an eye on it.',
-      };
-    }
-
-    return {
-      label: 'Action needed',
-      className: 'text-red-600',
-      message: 'Investigate delays affecting this shift.',
-    };
   };
 
   const renderDetailPanel = (user) => {
@@ -881,10 +777,7 @@ const PerformanceLeaderboard = () => {
             {/* Team overview */}
             <section className="mb-8">
               <div className="flex items-end justify-between mb-4">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Team overview</p>
-                  <h2 className="text-2xl font-bold text-charcoal">Operational pulse</h2>
-                </div>
+                <h2 className="text-2xl font-bold text-charcoal">Team overview</h2>
                 <p className="text-sm text-gray-500">
                   {leaderboardData.length} active shunters in view
                 </p>
@@ -942,67 +835,6 @@ const PerformanceLeaderboard = () => {
               </div>
             </section>
 
-            {/* Shift statuses */}
-            <section className="mb-8">
-              <div className="flex items-end justify-between mb-4">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Shift health</p>
-                  <h2 className="text-2xl font-bold text-charcoal">Status by shift</h2>
-                </div>
-                <p className="text-sm text-gray-500">Based on performance reports</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {shiftSummaries.map((summary) => {
-                  const status = getShiftHealth(summary);
-                  return (
-                    <div
-                      key={summary.key}
-                      className={`bg-white border border-gray-200 rounded-2xl p-4 shadow-sm ${SHIFT_CARD_ACCENT[summary.key] || SHIFT_CARD_ACCENT.default}`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-xs uppercase text-gray-500">{summary.label}</p>
-                          <h3 className="text-xl font-bold text-charcoal">
-                            {summary.totalMoves.toLocaleString()} moves
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {summary.activeShunters} active shunters
-                          </p>
-                        </div>
-                        <div className={`text-sm font-semibold ${status.className}`}>
-                          {status.label}
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">{status.message}</p>
-                      <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-                        <div>
-                          <p className="text-xs uppercase text-gray-500">Avg collect</p>
-                          <p className="text-lg font-semibold text-charcoal">{summary.avgCollectTime}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase text-gray-500">Avg travel</p>
-                          <p className="text-lg font-semibold text-charcoal">{summary.avgTravelTime}</p>
-                        </div>
-                      </div>
-                      {summary.bestCollector ? (
-                        <p className="text-xs text-gray-500 mt-4">
-                          Fastest collect:{" "}
-                          <span className="font-semibold text-charcoal">
-                            {summary.bestCollector.name}
-                          </span>
-                          {summary.bestCollector.yardSystemId && (
-                            <span className="text-gray-400"> · {summary.bestCollector.yardSystemId}</span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-4">No collector data yet.</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
             {/* Trend */}
             <section className="mb-8">
               <TrendChart data={trendSeries} />
@@ -1012,10 +844,7 @@ const PerformanceLeaderboard = () => {
             {featuredPerformers.length > 0 && (
               <section className="mb-8">
                 <div className="flex items-end justify-between mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Top contributors</p>
-                    <h2 className="text-2xl font-bold text-charcoal">Spotlight</h2>
-                  </div>
+                  <h2 className="text-2xl font-bold text-charcoal">Top contributors</h2>
                   <p className="text-sm text-gray-500">
                     Sorted by {getSortLabel(sortOption)}
                   </p>
@@ -1262,10 +1091,7 @@ function TrendChart({ data }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-xs uppercase text-gray-500">Trend</p>
-          <h3 className="text-xl font-bold text-charcoal">Total moves trend</h3>
-        </div>
+        <h3 className="text-xl font-bold text-charcoal">Daily moves</h3>
         <p className="text-sm text-gray-500">
           Last logged: {data[data.length - 1].totalMoves.toLocaleString()}
         </p>
