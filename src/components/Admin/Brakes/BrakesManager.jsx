@@ -637,13 +637,12 @@ const BrakesManager = () => {
 
   // --- Actions ---
   const handleSaveAllBreaks = async () => {
-    setIsLoading(true);
-    
     if (selectedLocation === ALL_LOCATIONS_VALUE) {
-      toast.error('Select a specific location before saving breaks.');
-      setIsLoading(false);
+      toast.error('Please select a specific location before saving breaks.');
       return;
     }
+    
+    setIsLoading(true);
 
     try {
       // Prepare assignments (records with user_id) - use current state
@@ -1628,10 +1627,18 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
             </div>
             <button 
               onClick={async () => {
-                await onSave();
+                if (!isAllLocation) {
+                  await onSave();
+                }
                 onClose();
               }}
-              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              disabled={isAllLocation}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex-shrink-0 ${
+                isAllLocation 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+              title={isAllLocation ? 'Select a specific location to save changes' : 'Save and close'}
             >
               Done
             </button>
@@ -1643,7 +1650,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         
         {isAllLocation && (
           <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
-            Select a specific location tab to assign staff to this break.
+            <strong>Read-only mode:</strong> Select a specific location tab to assign staff and save changes.
           </div>
         )}
         
