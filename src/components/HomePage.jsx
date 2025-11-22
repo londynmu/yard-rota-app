@@ -210,10 +210,10 @@ export default function HomePage() {
               )}
               {isAdminPage && (
                 <div className="flex items-center gap-3">
-                  {/* Hamburger for admin sidebar - teraz na mobile i desktop */}
+                  {/* Hamburger for admin sidebar - TYLKO na mobile */}
                   <button
                     onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     title="Open menu"
                   >
                     <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

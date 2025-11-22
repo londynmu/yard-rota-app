@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   format, 
   addWeeks, 
@@ -26,6 +26,7 @@ export default function AvailabilityManager() {
     // Try to get sort filter from localStorage
     return localStorage.getItem('availability_manager_sort') || 'all';
   });
+  const [searchQuery, setSearchQuery] = useState('');
   const [availabilityData, setAvailabilityData] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -75,16 +76,28 @@ export default function AvailabilityManager() {
     fetchUsers();
   }, []);
 
-  // Apply sorting when users or sortBy changes
+  // Apply sorting and search when users, sortBy or searchQuery changes
   useEffect(() => {
     if (users.length === 0) return;
     
     let filtered = [...users];
     
+    // Apply shift filter
     if (sortBy !== 'all') {
-      filtered = users.filter(user => 
+      filtered = filtered.filter(user => 
         user.shift_preference?.toLowerCase() === sortBy.toLowerCase()
       );
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(user => {
+        const fullName = user.name.toLowerCase();
+        const firstName = (user.first_name || '').toLowerCase();
+        const lastName = (user.last_name || '').toLowerCase();
+        return fullName.includes(query) || firstName.includes(query) || lastName.includes(query);
+      });
     }
     
     // Sort users first by shift type (Day, Afternoon, Night), then by name
@@ -103,7 +116,7 @@ export default function AvailabilityManager() {
     });
     
     setSortedUsers(filtered);
-  }, [users, sortBy]);
+  }, [users, sortBy, searchQuery]);
 
   // Get the current week starting from Saturday
   const getWeekStartingSaturday = (date) => {
@@ -161,33 +174,33 @@ export default function AvailabilityManager() {
     fetchAvailabilityData();
   }, [currentDate, users]);
 
-  // Handle sort change
-  const handleSortChange = (event) => {
+  // Handle sort change - memoized
+  const handleSortChange = useCallback((event) => {
     setSortBy(event.target.value);
-  };
+  }, []);
 
-  // Navigate to the previous week
-  const goToPreviousWeek = () => {
+  // Navigate to the previous week - memoized
+  const goToPreviousWeek = useCallback(() => {
     setCurrentDate(prevDate => subWeeks(prevDate, 1));
-  };
+  }, []);
 
-  // Navigate to the next week
-  const goToNextWeek = () => {
+  // Navigate to the next week - memoized
+  const goToNextWeek = useCallback(() => {
     setCurrentDate(prevDate => addWeeks(prevDate, 1));
-  };
+  }, []);
 
-  // Generate days for the current week starting from Saturday
-  const daysInWeek = (() => {
+  // Generate days for the current week starting from Saturday - memoized
+  const daysInWeek = useMemo(() => {
     const weekStart = getWeekStartingSaturday(currentDate);
     const weekEnd = addDays(weekStart, 6); // 7 days total (Saturday through Friday)
     return eachDayOfInterval({ start: weekStart, end: weekEnd });
-  })();
+  }, [currentDate]);
 
-  // Get day names for the column headers - rearranged to start with Saturday
-  const weekdays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  // Get day names for the column headers - memoized constant
+  const weekdays = useMemo(() => ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'], []);
 
-  // Open modal to edit availability
-  const openModal = (userId, date) => {
+  // Open modal to edit availability - memoized
+  const openModal = useCallback((userId, date) => {
     const user = users.find(u => u.id === userId);
     const dateObj = parseISO(date);
     const userAvailability = availabilityData[userId]?.[date] || null;
@@ -196,15 +209,15 @@ export default function AvailabilityManager() {
     setSelectedDate(dateObj);
     setCurrentAvailability(userAvailability);
     setShowModal(true);
-  };
+  }, [users, availabilityData]);
 
-  // Close modal
-  const closeModal = () => {
+  // Close modal - memoized
+  const closeModal = useCallback(() => {
     setShowModal(false);
     setSelectedUser(null);
     setSelectedDate(null);
     setCurrentAvailability(null);
-  };
+  }, []);
 
   // Handle save from modal
   const handleSaveAvailability = async (data) => {
@@ -282,73 +295,91 @@ export default function AvailabilityManager() {
   const getShiftTypeColor = (shiftType) => {
     switch (shiftType?.toLowerCase()) {
       case 'day':
-        return 'text-yellow-300';
+        return 'text-yellow-700 bg-yellow-100';
       case 'afternoon':
-        return 'text-orange-400';
+        return 'text-orange-700 bg-orange-100';
       case 'night':
-        return 'text-blue-400';
+        return 'text-blue-700 bg-blue-100';
       default:
-        return 'text-charcoal';
+        return 'text-gray-600 bg-gray-100';
     }
   };
+
+  // Get the week date range for display - memoized
+  const weekDisplayRange = useMemo(() => {
+    const weekStart = getWeekStartingSaturday(currentDate);
+    const weekEnd = addDays(weekStart, 6);
+    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+  }, [currentDate]);
 
   if (isLoading && users.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-charcoal"></div>
       </div>
     );
   }
 
-  // Get the week date range for display
-  const weekStart = getWeekStartingSaturday(currentDate);
-  const weekEnd = addDays(weekStart, 6);
-  const weekDisplayRange = `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
-
   return (
-    <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200 shadow-xl w-full max-w-full overflow-hidden">
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-        <div className="flex items-center">
-          <button
-            className="text-charcoal bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
-            onClick={goToPreviousWeek}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-          </button>
-          
-          <h2 className="text-xl font-semibold text-charcoal mx-4">
-            {weekDisplayRange}
-          </h2>
-          
-          <button
-            className="text-charcoal bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors"
-            onClick={goToNextWeek}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <div className="w-full sm:w-auto">
-          <div className="flex items-center bg-white/10 rounded-lg p-2">
-            <label htmlFor="shift-filter" className="text-charcoal mr-2 whitespace-nowrap">
-              Filter Shift:
-            </label>
-            <select
-              id="shift-filter"
-              className="bg-white/10 text-charcoal rounded-md px-3 py-1 border border-gray-200 w-full sm:w-auto"
-              value={sortBy}
-              onChange={handleSortChange}
+    <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200 w-full max-w-full overflow-hidden"
+    >
+      <div className="flex flex-col gap-4 mb-4">
+        {/* Navigation Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              className="text-charcoal bg-gray-100 hover:bg-gray-200 rounded-lg p-2"
+              onClick={goToPreviousWeek}
             >
-              <option value="all" className="bg-white text-black">All Shifts</option>
-              <option value="day" className="bg-white text-black">Day Shift</option>
-              <option value="afternoon" className="bg-white text-black">Afternoon Shift</option>
-              <option value="night" className="bg-white text-black">Night Shift</option>
-            </select>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </button>
+            
+            <h2 className="text-lg font-semibold text-charcoal px-3 whitespace-nowrap">
+              {weekDisplayRange}
+            </h2>
+            
+            <button
+              className="text-charcoal bg-gray-100 hover:bg-gray-200 rounded-lg p-2"
+              onClick={goToNextWeek}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </button>
           </div>
+        </div>
+
+        {/* Filters Row */}
+        <div className="flex flex-col sm:flex-row gap-2 items-center">
+          {/* Search */}
+          <div className="flex-1 w-full">
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent"
+            />
+          </div>
+          
+          {/* Shift Filter */}
+          <select
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent"
+            value={sortBy}
+            onChange={handleSortChange}
+          >
+            <option value="all">All Shifts</option>
+            <option value="day">Day</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="night">Night</option>
+          </select>
+
+          {/* Results count */}
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            {sortedUsers.length} user{sortedUsers.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
@@ -356,35 +387,42 @@ export default function AvailabilityManager() {
         <div className="min-w-full px-4 sm:px-0">
           <table className="min-w-full table-fixed">
             <thead>
-              <tr>
-                <th className="px-3 py-3 bg-white/10 text-left text-xs font-medium text-charcoal uppercase tracking-wider rounded-tl-lg border-b border-white/10 w-[20%] sm:w-[16%]">
+              <tr className="bg-gray-50">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase border-b border-gray-200 w-[20%] sm:w-[16%]">
                   User
                 </th>
                 {daysInWeek.map((day, i) => (
                   <th 
-                    key={i} 
-                    className={`px-1 py-3 bg-white/10 text-center text-xs font-medium text-charcoal uppercase tracking-wider ${
-                      i === daysInWeek.length - 1 ? 'rounded-tr-lg' : ''
-                    } ${isToday(day) ? 'bg-white/20' : ''} border-b border-white/10 w-[11.42%]`}
+                    key={i}
+                    className={`px-1 py-2 text-center text-xs font-semibold uppercase ${
+                      isToday(day) ? 'bg-blue-100 text-blue-700' : 'text-gray-700'
+                    } border-b border-gray-200 w-[11.42%]`}
                   >
                     <div>{format(day, 'd')}</div>
-                    <div className="text-charcoal/80">{weekdays[i]}</div>
+                    <div className="text-xs">{weekdays[i]}</div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-y divide-gray-100 bg-white">
               {sortedUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-white/5">
-                  <td className="px-3 py-3 text-sm font-medium text-charcoal border-b border-white/10 w-[20%] sm:w-[16%] truncate">
-                    <div>
-                      {user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email}
+                <tr 
+                  key={user.id}
+                  className="hover:bg-gray-50"
+                >
+                  <td className="px-3 py-2 text-sm border-b border-gray-100 w-[20%] sm:w-[16%]">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-gray-900 truncate">
+                        {user.first_name && user.last_name 
+                          ? `${user.first_name} ${user.last_name}`
+                          : user.name || user.email}
+                      </span>
+                      {user.shift_preference && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getShiftTypeColor(user.shift_preference)} uppercase inline-block w-fit`}>
+                          {user.shift_preference}
+                        </span>
+                      )}
                     </div>
-                    {user.shift_preference && (
-                      <div className={`text-xs ${getShiftTypeColor(user.shift_preference)}`}>
-                        {user.shift_preference} Shift
-                      </div>
-                    )}
                   </td>
                   {daysInWeek.map((day, i) => {
                     const formattedDate = format(day, 'yyyy-MM-dd');
@@ -395,22 +433,20 @@ export default function AvailabilityManager() {
                     return (
                       <td 
                         key={i} 
-                        className={`px-1 py-3 text-center text-sm border-b border-white/10 ${
-                          isToday(day) ? 'bg-white/10' : ''
-                        } ${!isSameMonth(day, currentDate) ? 'text-charcoal/40' : ''} w-[11.42%]`}
+                        className={`px-1 py-2 text-center text-sm border-b border-gray-100 ${
+                          isToday(day) ? 'bg-blue-50' : ''
+                        } ${!isSameMonth(day, currentDate) ? 'text-gray-400' : ''} w-[11.42%]`}
                       >
                         <div className="flex justify-center">
                           <button
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 ${
-                              userAvailability ? getColorByStatus(userAvailability.status) : 'bg-white/10 hover:bg-white/20'
+                            className={`w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 ${
+                              userAvailability ? getColorByStatus(userAvailability.status) : 'bg-gray-200 hover:bg-gray-300'
                             }`}
                             onClick={() => openModal(user.id, formattedDate)}
-                            title={userAvailability?.comment || 'Click to set availability'}
+                            title={userAvailability?.comment || 'Set availability'}
                           >
-                            {userAvailability?.status ? (
-                              <span className="sr-only">{userAvailability.status}</span>
-                            ) : (
-                              <svg className="w-4 h-4 text-charcoal/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            {!userAvailability?.status && (
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                               </svg>
                             )}
@@ -426,18 +462,18 @@ export default function AvailabilityManager() {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap justify-start gap-4 text-sm text-charcoal">
+      <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-green-500/70"></div>
-          <span>Available</span>
+          <span className="text-gray-700">Available</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-red-500/70"></div>
-          <span>Unavailable</span>
+          <span className="text-gray-700">Unavailable</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-blue-500/70"></div>
-          <span>Holiday</span>
+          <span className="text-gray-700">Holiday</span>
         </div>
       </div>
 

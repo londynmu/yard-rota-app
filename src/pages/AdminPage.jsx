@@ -25,20 +25,19 @@ export default function AdminPage() {
     const savedSection = localStorage.getItem('adminActiveSection');
     return savedSection || 'dashboard';
   });
-  // Domyślnie sidebar zwinięty - rozwijany na żądanie
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
+  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
 
-  // Listener dla custom event z top bara
+  // Listener dla custom event z top bara - tylko mobile
   useEffect(() => {
     const handleToggleSidebar = () => {
       if (window.innerWidth < 768) {
         setMobileSidebarOpen(true);
-      } else {
-        setSidebarOpen(true);
       }
+      // Na desktop nie potrzebujemy hamburgera - hover działa automatycznie
     };
     
     window.addEventListener('toggleAdminSidebar', handleToggleSidebar);
@@ -355,44 +354,35 @@ export default function AdminPage() {
   // Główna zawartość strony admina (tylko jeśli isAdmin === true)
   return (
     <div className="min-h-screen bg-offwhite">
-      {/* Overlay - gdy sidebar otwarty */}
-      {(sidebarOpen || mobileSidebarOpen) && (
+      {/* Mobile Overlay - tylko na mobile */}
+      {mobileSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => {
-            setSidebarOpen(false);
-            setMobileSidebarOpen(false);
-          }}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - wysuwany z lewej strony */}
+      {/* Sidebar - zawsze widoczny na desktop, rozwija się po najechaniu */}
       <aside 
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
         className={`
-          w-72
-          bg-white border-r border-gray-200 transition-all duration-300 flex flex-col shadow-2xl
+          ${sidebarHovered ? 'w-72' : 'w-20'}
+          bg-white border-r border-gray-200 flex flex-col shadow-lg
           fixed inset-y-0 left-0 z-50
-          ${sidebarOpen || mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          transition-all duration-200 ease-out
         `}
       >
         {/* Sidebar Header - wyrównany z top barem */}
-        <div className="px-4 py-5 flex items-center justify-between min-h-[73px]">
-          <div>
-            <h2 className="text-xl font-bold text-charcoal">Admin Panel</h2>
-            <p className="text-xs text-gray-600">Management Console</p>
-          </div>
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setMobileSidebarOpen(false);
-            }}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close sidebar"
-          >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="px-4 py-5 flex items-center justify-center min-h-[73px] overflow-hidden">
+          {sidebarHovered ? (
+            <div className="flex-1 animate-fadeIn" style={{ animationDelay: '150ms' }}>
+              <h2 className="text-lg font-bold text-charcoal whitespace-nowrap">Admin Panel</h2>
+            </div>
+          ) : (
+            <div className="text-2xl">⚙️</div>
+          )}
         </div>
 
         {/* Sidebar Menu */}
@@ -404,39 +394,46 @@ export default function AdminPage() {
                 key={item.id}
                 onClick={() => {
                   setActiveSection(item.id);
-                  setSidebarOpen(false);
                   setMobileSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-2 mb-0.5 rounded-lg transition-all ${
+                className={`relative w-full flex items-center ${sidebarHovered ? 'gap-3 px-4' : 'justify-center px-2'} py-2 mb-0.5 rounded-lg ${
                   isActive
                     ? 'bg-charcoal text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
+                title={!sidebarHovered ? item.label : ''}
               >
                 <span className="text-2xl flex-shrink-0">{item.icon}</span>
-                <div className="flex-1 text-left font-medium flex items-center gap-2">
-                  {item.label}
-                  {item.badge > 0 && (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
+                {sidebarHovered && (
+                  <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
+                    {item.label}
+                    {item.badge > 0 && (
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {!sidebarHovered && item.badge > 0 && (
+                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-orange-600 rounded-full border border-white"></span>
+                )}
               </button>
             );
           })}
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 text-center">
-            Logged in as Admin
+        {sidebarHovered && (
+          <div className="p-4 border-t border-gray-200 opacity-0 animate-fadeIn" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
+            <div className="text-xs text-gray-500 text-center whitespace-nowrap">
+              Logged in as Admin
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
-      {/* Main Content Area */}
-      <main className="min-h-screen overflow-y-auto">
+      {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
+      <main className="min-h-screen overflow-y-auto md:ml-20">
         <div className="p-4 md:p-6 lg:p-8">
           {renderContent()}
         </div>

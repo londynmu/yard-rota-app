@@ -47,7 +47,7 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
   // Create portal content
   const modalContent = (
     <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4"
       style={{ 
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -60,41 +60,48 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
       onClick={onClose}
     >
       <div 
-        className="bg-black rounded-xl shadow-2xl p-6 w-full max-w-sm mx-auto border-2 border-white/30"
+        className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto border border-gray-200"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-5">
-          <div>
-            <h2 className="text-xl font-bold leading-tight text-charcoal">
-              Edit Availability for {user.name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email}
+        <div className="flex justify-between items-start mb-5">
+          <div className="flex-1 pr-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              Edit Availability
             </h2>
-            <p className="text-charcoal/90 text-sm font-medium">{format(date, 'MMM d, yyyy')} - {dayOfWeek}</p>
+            <p className="text-gray-600 text-sm font-medium">
+              {user.first_name && user.last_name 
+                ? `${user.first_name} ${user.last_name}`
+                : user.name || user.email}
+            </p>
+            <p className="text-gray-500 text-sm mt-1">
+              {format(date, 'MMM d, yyyy')} - {dayOfWeek}
+            </p>
           </div>
           <button
             type="button"
-            className="text-charcoal/80 hover:text-charcoal hover:bg-white/10 p-1.5 rounded-full"
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-full transition-colors flex-shrink-0"
             onClick={onClose}
             aria-label="Close"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-charcoal font-medium mb-3">
+          <div className="mb-5">
+            <label className="block text-gray-700 font-semibold mb-3 text-sm">
               Availability Status
             </label>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setStatus('available')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center text-charcoal font-medium transition-all ${
+                className={`rounded-xl py-3 px-2 flex justify-center items-center font-semibold transition-all ${
                   status === 'available' 
-                    ? 'bg-green-500/80 shadow-lg shadow-green-500/30 border-2 border-green-400/50 scale-105' 
-                    : 'bg-green-500/50 hover:bg-green-500/70 border border-green-400/30 hover:scale-102'
+                    ? 'bg-green-500 text-white shadow-lg ring-2 ring-green-400 ring-offset-2' 
+                    : 'bg-green-100 text-green-700 hover:bg-green-200 border-2 border-green-300'
                 }`}
               >
                 Available
@@ -103,10 +110,10 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
               <button
                 type="button"
                 onClick={() => setStatus('unavailable')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center text-charcoal font-medium transition-all ${
+                className={`rounded-xl py-3 px-2 flex justify-center items-center font-semibold transition-all ${
                   status === 'unavailable' 
-                    ? 'bg-red-500/80 shadow-lg shadow-red-500/30 border-2 border-red-400/50 scale-105' 
-                    : 'bg-red-500/50 hover:bg-red-500/70 border border-red-400/30 hover:scale-102'
+                    ? 'bg-red-500 text-white shadow-lg ring-2 ring-red-400 ring-offset-2' 
+                    : 'bg-red-100 text-red-700 hover:bg-red-200 border-2 border-red-300'
                 }`}
               >
                 Unavailable
@@ -115,10 +122,10 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
               <button
                 type="button"
                 onClick={() => setStatus('holiday')}
-                className={`rounded-lg py-3 px-2 flex justify-center items-center text-charcoal font-medium transition-all ${
+                className={`rounded-xl py-3 px-2 flex justify-center items-center font-semibold transition-all ${
                   status === 'holiday' 
-                    ? 'bg-blue-500/80 shadow-lg shadow-blue-500/30 border-2 border-blue-400/50 scale-105' 
-                    : 'bg-blue-500/50 hover:bg-blue-500/70 border border-blue-400/30 hover:scale-102'
+                    ? 'bg-blue-500 text-white shadow-lg ring-2 ring-blue-400 ring-offset-2' 
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-2 border-blue-300'
                 }`}
               >
                 Holiday
@@ -127,30 +134,30 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
           </div>
           
           <div className="mb-6">
-            <label className="block text-charcoal font-medium mb-2" htmlFor="comment">
+            <label className="block text-gray-700 font-semibold mb-2 text-sm" htmlFor="comment">
               Comments (optional)
             </label>
             <textarea
               id="comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/40 text-charcoal placeholder-white/50"
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent text-gray-900 placeholder-gray-400 resize-none"
               rows="3"
               placeholder="Add any notes about this day..."
             ></textarea>
           </div>
           
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-white/30 rounded-lg text-charcoal hover:bg-white/20 transition-all active:scale-95"
+              className="px-5 py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-blue-500/80 border border-blue-400/40 text-charcoal rounded-lg hover:bg-blue-500/90 transition-all shadow-md hover:shadow-blue-500/30 active:scale-95"
+              className="px-6 py-2.5 bg-charcoal text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-md"
             >
               Save
             </button>
