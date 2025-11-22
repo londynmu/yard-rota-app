@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // Helper to calculate end time for breaks
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -59,7 +59,6 @@ export default function ShiftDashboard({
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState(selectedLocation || 'Rugby'); // location tab (Rugby default)
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [currentHeroIndex, setCurrentHeroIndex] = useState(0); // For hero section carousel
   
   // Sync with external selectedLocation if provided
   useEffect(() => {
@@ -67,11 +66,6 @@ export default function ShiftDashboard({
       setTeamLocation(selectedLocation);
     }
   }, [selectedLocation]);
-  
-  // Reset hero index when breaks list changes
-  useEffect(() => {
-    setCurrentHeroIndex(0);
-  }, [allBreaks, teamLocation, selectedShifts]);
   
   // Update shift counts when data changes
   useEffect(() => {
@@ -1038,269 +1032,126 @@ export default function ShiftDashboard({
               <div className="space-y-4">
                 {(() => {
                   const currentShift = getCurrentShiftType();
-                  // Order: current shift first, then others
                   const shiftOrder = [currentShift, 'day', 'afternoon', 'night'].filter((v, i, a) => a.indexOf(v) === i);
-                  
-                  // Get all active breaks across all shifts
-                  const allActiveBreaks = allBreaks
-                    .filter(b => {
-                      const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
-                      return br.active && userLocationMap.get(b.user_id) === teamLocation && selectedShifts.includes(b.shift_type);
-                    })
-                    .map(b => ({
-                      ...b,
-                      progress: getBreakProgressFor(b.break_start_time, b.break_duration_minutes)
-                    }));
 
-                  return (
-                    <>
-                      {/* Hero Section - Active Breaks Only */}
-                      {allActiveBreaks.length > 0 && (
-                        <div className="mb-6">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <motion.div
-                                className="w-2 h-2 rounded-full bg-red-500"
-                                animate={{ scale: [1, 1.2, 1] }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                              />
-                              <h3 className="text-sm font-bold text-red-600 uppercase tracking-wide">
-                                On Break Now
-                              </h3>
-                            </div>
-                            {allActiveBreaks.length > 1 && (
-                              <span className="text-xs text-gray-500 font-medium">
-                                {currentHeroIndex + 1} / {allActiveBreaks.length}
-                              </span>
-                            )}
-                          </div>
+                  return shiftOrder.map(shiftType => {
+                    if (!selectedShifts.includes(shiftType)) return null;
 
-                          {/* Swipeable Hero Cards */}
-                          <div className="relative overflow-hidden">
-                            <AnimatePresence mode="wait">
-                              <motion.div
-                                key={currentHeroIndex}
-                                initial={{ opacity: 0, x: 300 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -300 }}
-                                transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                                drag={allActiveBreaks.length > 1 ? "x" : false}
-                                dragConstraints={{ left: 0, right: 0 }}
-                                dragElastic={0.2}
-                                onDragEnd={(e, { offset, velocity }) => {
-                                  const swipeThreshold = 50;
-                                  if (offset.x > swipeThreshold) {
-                                    // Swipe right - previous
-                                    setCurrentHeroIndex((prev) => 
-                                      prev === 0 ? allActiveBreaks.length - 1 : prev - 1
-                                    );
-                                  } else if (offset.x < -swipeThreshold) {
-                                    // Swipe left - next
-                                    setCurrentHeroIndex((prev) => 
-                                      prev === allActiveBreaks.length - 1 ? 0 : prev + 1
-                                    );
-                                  }
-                                }}
-                                className="select-none"
-                              >
-                                {(() => {
-                                  const b = allActiveBreaks[currentHeroIndex];
-                                  const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
-                                  const isMe = b.user_id === user?.id;
-                                  
-                                  return (
-                                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-5 border-2 border-green-200 shadow-lg">
-                                      <div className="flex items-start gap-4 mb-4">
-                                        {/* Avatar */}
-                                        {b.profiles?.avatar_url ? (
-                                          <motion.img
-                                            src={b.profiles.avatar_url}
-                                            alt={`${b.profiles.first_name} ${b.profiles.last_name}`}
-                                            className="w-16 h-16 rounded-full border-2 border-green-300 object-cover"
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                          />
-                                        ) : (
-                                          <motion.div
-                                            className="w-16 h-16 rounded-full bg-green-200 flex items-center justify-center text-xl font-bold text-green-700 border-2 border-green-300"
-                                            initial={{ scale: 0 }}
-                                            animate={{ scale: 1 }}
-                                            transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                          >
-                                            {b.profiles?.first_name?.charAt(0) || '?'}
-                                            {b.profiles?.last_name?.charAt(0) || '?'}
-                                          </motion.div>
-                                        )}
-                                        
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0">
-                                          <motion.h4 
-                                            className="text-xl font-bold text-charcoal mb-1 truncate"
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.1 }}
-                                          >
-                                            {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
-                                            {isMe && <span className="text-green-600"> (You)</span>}
-                                          </motion.h4>
-                                          <motion.div 
-                                            className="flex items-center gap-2 text-sm text-gray-600"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.2 }}
-                                          >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <span className="font-medium">{b.break_start_time?.substring(0,5)} - {endTime}</span>
-                                          </motion.div>
-                                        </div>
-                                      </div>
+                    const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
+                    if (breaks.length === 0) return null;
 
-                                      {/* Progress */}
-                                      <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                      >
-                                        <div className="flex justify-between items-center text-sm mb-2">
-                                          <span className="font-semibold text-green-700">
-                                            {b.progress.left} min remaining
-                                          </span>
-                                          <span className="text-gray-600 font-medium">
-                                            {b.progress.pct}% complete
-                                          </span>
-                                        </div>
-                                        <div className="h-3 w-full bg-green-100 rounded-full overflow-hidden border border-green-200">
-                                          <motion.div 
-                                            className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full"
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${b.progress.pct}%` }}
-                                            transition={{ duration: 0.8, ease: "easeOut" }}
-                                          />
-                                        </div>
-                                      </motion.div>
-                                    </div>
-                                  );
-                                })()}
-                              </motion.div>
-                            </AnimatePresence>
+                    const sortedBreaks = sortBreaks(breaks, shiftType);
+                    let orderedBreaks = [...sortedBreaks];
 
-                            {/* Swipe indicators */}
-                            {allActiveBreaks.length > 1 && (
-                              <div className="flex justify-center gap-1.5 mt-3">
-                                {allActiveBreaks.map((_, idx) => (
-                                  <motion.button
-                                    key={idx}
-                                    onClick={() => setCurrentHeroIndex(idx)}
-                                    className={`h-1.5 rounded-full transition-all ${
-                                      idx === currentHeroIndex 
-                                        ? 'bg-green-600 w-6' 
-                                        : 'bg-gray-300 w-1.5'
-                                    }`}
-                                    whileTap={{ scale: 0.9 }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    if (user?.id) {
+                      const myIndex = orderedBreaks.findIndex(b => b.user_id === user.id);
+                      if (myIndex !== -1) {
+                        const myBreak = orderedBreaks[myIndex];
+                        const myProgress = getBreakProgressFor(myBreak.break_start_time, myBreak.break_duration_minutes);
+                        // Only reposition when the user's break is not currently active
+                        if (!myProgress.active) {
+                          orderedBreaks.splice(myIndex, 1);
+                          const activeCount = orderedBreaks.reduce((count, b) => {
+                            const progress = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
+                            return progress.active ? count + 1 : count;
+                          }, 0);
+                          orderedBreaks.splice(activeCount, 0, myBreak);
+                        }
+                      }
+                    }
+                    const shiftColors = {
+                      day: 'bg-amber-100 text-amber-800 border-amber-300',
+                      afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
+                      night: 'bg-blue-100 text-blue-800 border-blue-300'
+                    };
 
-                      {/* All Breaks List */}
-                      <div>
-                        {allActiveBreaks.length > 0 && (
-                          <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
-                            All Breaks Today
+                    return (
+                      <motion.div 
+                        key={shiftType}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        {!renderShiftBadges && (
+                          <h3 className={`text-xs font-bold uppercase mb-3 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
+                            {shiftType} Shift ({sortedBreaks.length})
                           </h3>
                         )}
-                        {shiftOrder.map(shiftType => {
-                          // Filter by selected shifts
-                          if (!selectedShifts.includes(shiftType)) return null;
-                          
-                          const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
-                          if (breaks.length === 0) return null;
-                          
-                          // Sort breaks: active first, then alphabetically (current shift already prioritized by order)
-                          const sortedBreaks = sortBreaks(breaks, shiftType);
-                          
-                          const shiftColors = {
-                            day: 'bg-amber-100 text-amber-800 border-amber-300',
-                            afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
-                            night: 'bg-blue-100 text-blue-800 border-blue-300'
-                          };
+                        <div className="space-y-3 mb-4">
+                          {orderedBreaks.map((b, index) => {
+                            const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
+                            const isMe = b.user_id === user?.id;
+                            const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
+                            const isActive = br.active;
+                            let cardColors = isActive
+                              ? 'bg-green-50 border-green-300 shadow-green-100'
+                              : 'bg-orange-50 border-orange-200 shadow-orange-100';
+                            let cardExtras = '';
 
-                          return (
-                            <motion.div 
-                              key={shiftType}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.4 }}
-                            >
-                              {!renderShiftBadges && (
-                                <h3 className={`text-xs font-bold uppercase mb-2 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
-                                  {shiftType} Shift ({sortedBreaks.length})
-                                </h3>
-                              )}
-                              <ul className={`space-y-1 ${renderShiftBadges ? '' : 'mt-2'} mb-4`}>
-                                {sortedBreaks.map((b, index) => {
-                                const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
-                                const isMe = b.user_id === user?.id;
-                                const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
-                                const itemClass = br.active
-                                  ? 'bg-green-50 border-green-200'
-                                  : (isMe ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200');
-                                return (
-                                  <motion.li 
-                                    key={b.id} 
-                                    className={`p-2 rounded-lg border flex flex-col gap-1 ${itemClass}`}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                                    whileTap={{ scale: 0.98 }}
-                                  >
-                                    {br.active && (
-                                      <div className="mb-0.5">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-600 text-white leading-tight tracking-wide whitespace-nowrap">
-                                          ON BREAK
-                                        </span>
-                                      </div>
-                                    )}
-                                    <div className="flex justify-between items-center">
-                                      <span className={`font-medium ${isMe ? 'text-black' : 'text-charcoal'}`}>
-                                        {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}{isMe ? ' (You)' : ''}
-                                      </span>
-                                      <span className="text-sm text-gray-600">
-                                        {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                      </span>
+                            if (isMe) {
+                              if (isActive) {
+                                cardExtras = 'ring-2 ring-green-400 ring-offset-2 ring-offset-green-50';
+                              } else {
+                                cardColors = 'bg-amber-50 border-amber-300 shadow-amber-100';
+                                cardExtras = 'ring-2 ring-amber-300';
+                              }
+                            }
+
+                            return (
+                              <motion.div
+                                key={b.id}
+                                className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: index * 0.03 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <div className="flex justify-between items-start gap-2">
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                                      {shiftType} shift
+                                    </p>
+                                    <p className="text-lg font-bold text-charcoal">
+                                      {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
+                                      {isMe && <span className="text-gray-600"> (You)</span>}
+                                    </p>
+                                  </div>
+                                  <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                                    {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                  </span>
+                                </div>
+
+                                <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                                  <span className="inline-flex items-center gap-1 font-semibold">
+                                    <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-orange-400'}`}></span>
+                                    {isActive ? 'On break now' : 'Scheduled break'}
+                                  </span>
+                                  {isActive && <span className="text-green-700 font-semibold">{br.left}m left</span>}
+                                </div>
+
+                                {isActive && (
+                                  <div className="mt-3">
+                                    <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                                      <span>Break progress</span>
+                                      <span>{br.pct}%</span>
                                     </div>
-                                    {(br.active || isMe) && br.active && (
-                                      <div className="mt-0.5">
-                                        <div className="flex justify-between text-[10px] text-gray-600 mb-0.5">
-                                          <span>Break progress</span>
-                                          <span>{br.pct}% • {br.left}m left</span>
-                                        </div>
-                                        <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                                          <motion.div 
-                                            className="h-full bg-green-600 rounded-full"
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${br.pct}%` }}
-                                            transition={{ duration: 0.5 }}
-                                          />
-                                        </div>
-                                      </div>
-                                    )}
-                                  </motion.li>
-                                );
-                              })}
-                            </ul>
-                          </motion.div>
-                        );
-                        })}
-                      </div>
-                    </>
-                  );
+                                    <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-green-200">
+                                      <motion.div
+                                        className="h-full bg-green-500 rounded-full"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${br.pct}%` }}
+                                        transition={{ duration: 0.4 }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    );
+                  });
                 })()}
               </div>
             )

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -891,10 +891,7 @@ const PerformanceLeaderboard = () => {
             {/* Detailed list - Floating cards */}
             <section>
               <div className="flex items-end justify-between mb-4">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
-                  <h2 className="text-2xl font-bold text-charcoal">All shunters</h2>
-                </div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
                 <p className="text-sm text-gray-500">Tap card for details</p>
               </div>
               <div className="space-y-3">
@@ -1055,28 +1052,19 @@ function TrendChart({ data }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
-          <p className="text-xs text-gray-500 mt-1">Team performance over time</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500">Last logged</p>
-          <p className="text-2xl font-bold text-orange-600">
-            {data[data.length - 1].totalMoves.toLocaleString()}
-          </p>
-        </div>
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
       </div>
       <div className="h-72 -mx-2">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
+          <BarChart
             data={chartData}
             margin={{ top: 20, right: 15, left: 15, bottom: 5 }}
           >
             <defs>
               <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
+                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.75} />
+                <stop offset="95%" stopColor="#ea580c" stopOpacity={0.15} />
               </linearGradient>
             </defs>
             <XAxis
@@ -1089,22 +1077,19 @@ function TrendChart({ data }) {
             />
             <YAxis hide />
             <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
+            <Bar
               dataKey="moves"
-              stroke="#ea580c"
-              strokeWidth={3}
               fill="url(#colorMoves)"
-              activeDot={{ r: 6, fill: '#ea580c', stroke: '#fff', strokeWidth: 2 }}
+              maxBarSize={48}
+              radius={[12, 12, 0, 0]}
               label={{
                 position: 'top',
                 fill: '#2D2D2D',
                 fontSize: 11,
                 fontWeight: 700,
-                formatter: (value) => value.toLocaleString()
               }}
             />
-          </AreaChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
