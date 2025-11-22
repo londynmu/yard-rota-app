@@ -284,14 +284,14 @@ export default function AgencyManager() {
   };
 
   return (
-    <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-      <h3 className="text-lg font-semibold text-charcoal mb-4">Agency Management</h3>
+    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Agency Management</h3>
       
       {/* Add new agency button */}
       {!showAddForm && (
         <button
           onClick={() => setShowAddForm(true)}
-          className="mb-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal transition-colors"
+          className="mb-4 px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors"
         >
           Add New Agency
         </button>
@@ -299,12 +299,12 @@ export default function AgencyManager() {
       
       {/* Add new agency form */}
       {showAddForm && (
-        <div className="mb-6 p-4 border border-white/20 rounded-lg bg-white/5">
-          <h4 className="text-md font-medium text-charcoal mb-3">Add New Agency</h4>
+        <div className="mb-5 p-4 border border-gray-200 rounded-lg bg-white">
+          <h4 className="text-base font-medium text-gray-900 mb-3">Add New Agency</h4>
           
           <div className="space-y-3">
             <div>
-              <label className="block text-charcoal text-sm font-medium mb-1" htmlFor="new-agency-name">
+              <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="new-agency-name">
                 Agency Name*
               </label>
               <input
@@ -314,7 +314,7 @@ export default function AgencyManager() {
                 value={newAgency.name}
                 onChange={handleInputChange}
                 placeholder="Enter agency name"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                 disabled={loading}
                 ref={newAgencyInputRef}
                 required
@@ -322,7 +322,7 @@ export default function AgencyManager() {
             </div>
             
             <div>
-              <label className="block text-charcoal text-sm font-medium mb-1" htmlFor="new-agency-email">
+              <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="new-agency-email">
                 Email
               </label>
               <input
@@ -332,13 +332,13 @@ export default function AgencyManager() {
                 value={newAgency.email}
                 onChange={handleInputChange}
                 placeholder="Enter agency email"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                 disabled={loading}
               />
             </div>
             
             <div>
-              <label className="block text-charcoal text-sm font-medium mb-1" htmlFor="new-agency-contact">
+              <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="new-agency-contact">
                 Contact Person
               </label>
               <input
@@ -348,13 +348,13 @@ export default function AgencyManager() {
                 value={newAgency.contact_person}
                 onChange={handleInputChange}
                 placeholder="Enter contact person name"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                 disabled={loading}
               />
             </div>
             
             <div>
-              <label className="block text-charcoal text-sm font-medium mb-1" htmlFor="new-agency-phone">
+              <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="new-agency-phone">
                 Phone Number
               </label>
               <input
@@ -364,13 +364,13 @@ export default function AgencyManager() {
                 value={newAgency.phone_number}
                 onChange={handleInputChange}
                 placeholder="Enter phone number"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                 disabled={loading}
               />
             </div>
             
             <div>
-              <label className="block text-charcoal text-sm font-medium mb-1" htmlFor="new-agency-notes">
+              <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="new-agency-notes">
                 Notes
               </label>
               <textarea
@@ -380,17 +380,17 @@ export default function AgencyManager() {
                 onChange={handleInputChange}
                 placeholder="Enter additional notes"
                 rows="3"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                 disabled={loading}
               ></textarea>
             </div>
             
-            <div className="flex space-x-2 pt-2">
+            <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={handleAddAgency}
                 disabled={loading || !newAgency.name.trim()}
-                className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal transition-colors ${
+                className={`px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
                   loading || !newAgency.name.trim() ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
@@ -401,7 +401,7 @@ export default function AgencyManager() {
                 type="button"
                 onClick={() => setShowAddForm(false)}
                 disabled={loading}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-charcoal transition-colors"
+                className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-gray-700 transition-colors"
               >
                 Cancel
               </button>
@@ -411,28 +411,28 @@ export default function AgencyManager() {
       )}
       
       {/* Agencies list */}
-      <div className="mb-4">
-        <h4 className="text-md font-medium text-charcoal mb-2">Existing Agencies</h4>
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Existing Agencies</h4>
         
         {loading && agencies.length === 0 ? (
-          <div className="text-charcoal text-center py-4">Loading agencies...</div>
+          <div className="text-gray-600 text-center py-4 text-sm">Loading agencies...</div>
         ) : agencies.length === 0 ? (
-          <div className="text-charcoal/70 text-center py-4">No agencies found</div>
+          <div className="text-gray-500 text-center py-4 text-sm">No agencies found</div>
         ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+          <div className="space-y-2">
             {agencies.map(agency => (
               <div 
                 key={agency.id} 
-                className={`p-3 rounded-md border ${
+                className={`p-3 rounded-lg border ${
                   agency.is_active 
                     ? 'bg-white border-gray-200' 
-                    : 'bg-white/5 border-white/10 text-charcoal/60'
+                    : 'bg-white border-gray-200 opacity-60'
                 }`}
               >
                 {editAgencyId === agency.id ? (
                   <div className="space-y-2">
                     <div>
-                      <label className="block text-charcoal text-sm font-medium mb-1">
+                      <label className="block text-gray-700 text-sm font-medium mb-1">
                         Agency Name*
                       </label>
                       <input
@@ -440,13 +440,13 @@ export default function AgencyManager() {
                         name="name"
                         value={editAgencyData.name}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                        className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                         disabled={loading}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-charcoal text-sm font-medium mb-1">
+                      <label className="block text-gray-700 text-sm font-medium mb-1">
                         Email
                       </label>
                       <input
@@ -454,13 +454,13 @@ export default function AgencyManager() {
                         name="email"
                         value={editAgencyData.email}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                        className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                         disabled={loading}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-charcoal text-sm font-medium mb-1">
+                      <label className="block text-gray-700 text-sm font-medium mb-1">
                         Contact Person
                       </label>
                       <input
@@ -468,13 +468,13 @@ export default function AgencyManager() {
                         name="contact_person"
                         value={editAgencyData.contact_person}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                        className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                         disabled={loading}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-charcoal text-sm font-medium mb-1">
+                      <label className="block text-gray-700 text-sm font-medium mb-1">
                         Phone Number
                       </label>
                       <input
@@ -482,13 +482,13 @@ export default function AgencyManager() {
                         name="phone_number"
                         value={editAgencyData.phone_number}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                        className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                         disabled={loading}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-charcoal text-sm font-medium mb-1">
+                      <label className="block text-gray-700 text-sm font-medium mb-1">
                         Notes
                       </label>
                       <textarea
@@ -496,23 +496,23 @@ export default function AgencyManager() {
                         value={editAgencyData.notes}
                         onChange={handleEditInputChange}
                         rows="3"
-                        className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+                        className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                         disabled={loading}
                       ></textarea>
                     </div>
                     
-                    <div className="flex space-x-2 pt-2">
+                    <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => updateAgency(agency.id)}
                         disabled={loading}
-                        className="px-3 py-1 bg-green-500/40 hover:bg-green-600/40 border border-green-400/30 rounded text-charcoal transition-colors"
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors text-sm"
                       >
                         Save
                       </button>
                       <button
                         onClick={cancelEditing}
                         disabled={loading}
-                        className="px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-charcoal transition-colors"
+                        className="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-gray-700 transition-colors text-sm"
                       >
                         Cancel
                       </button>
@@ -521,79 +521,76 @@ export default function AgencyManager() {
                 ) : (
                   <div>
                     <div className="flex justify-between">
-                      <h5 className={`text-lg font-medium ${!agency.is_active ? 'line-through' : ''}`}>
+                      <h5 className={`text-base font-medium text-gray-900 ${!agency.is_active ? 'line-through text-gray-500' : ''}`}>
                         {agency.name}
                       </h5>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => startEditing(agency)}
                           disabled={loading}
-                          className="text-blue-400 hover:text-blue-300 transition-colors p-2"
-                          aria-label="Edit agency"
-                          title="Edit agency"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors p-1.5 rounded"
+                          aria-label="Edit"
+                          title="Edit"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
-                          <span className="sr-only">Edit</span>
                         </button>
                         <button
                           onClick={() => confirmToggleAgencyStatus(agency.id, agency.name, agency.is_active)}
                           disabled={loading}
                           className={`${
                             agency.is_active 
-                              ? 'text-red-400 hover:text-red-300' 
-                              : 'text-green-400 hover:text-green-300'
-                          } transition-colors p-2`}
-                          aria-label={agency.is_active ? 'Deactivate agency' : 'Activate agency'}
-                          title={agency.is_active ? 'Deactivate agency' : 'Activate agency'}
+                              ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                              : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                          } transition-colors p-1.5 rounded`}
+                          aria-label={agency.is_active ? 'Deactivate' : 'Activate'}
+                          title={agency.is_active ? 'Deactivate' : 'Activate'}
                         >
                           {agency.is_active ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                             </svg>
                           ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           )}
-                          <span className="sr-only">{agency.is_active ? 'Deactivate' : 'Activate'}</span>
                         </button>
                         <button
                           onClick={() => confirmDeleteAgency(agency.id, agency.name)}
                           disabled={loading}
-                          className="text-red-500 hover:text-red-400 transition-colors p-2"
-                          aria-label="Delete agency"
-                          title="Delete agency"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
+                          aria-label="Delete"
+                          title="Delete"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
-                          <span className="sr-only">Delete</span>
                         </button>
                       </div>
                     </div>
                     
                     {agency.email && (
-                      <div className="mt-1 text-sm">
-                        <span className="text-charcoal/70">Email:</span> {agency.email}
+                      <div className="mt-1 text-sm text-gray-600">
+                        <span className="font-medium">Email:</span> {agency.email}
                       </div>
                     )}
                     
                     {agency.contact_person && (
-                      <div className="mt-1 text-sm">
-                        <span className="text-charcoal/70">Contact:</span> {agency.contact_person}
+                      <div className="mt-1 text-sm text-gray-600">
+                        <span className="font-medium">Contact:</span> {agency.contact_person}
                       </div>
                     )}
                     
                     {agency.phone_number && (
-                      <div className="mt-1 text-sm">
-                        <span className="text-charcoal/70">Phone:</span> {agency.phone_number}
+                      <div className="mt-1 text-sm text-gray-600">
+                        <span className="font-medium">Phone:</span> {agency.phone_number}
                       </div>
                     )}
                     
                     {agency.notes && (
-                      <div className="mt-2 text-sm text-charcoal/80 border-t border-white/10 pt-2">
+                      <div className="mt-2 text-sm text-gray-700 border-t border-gray-200 pt-2">
                         {agency.notes}
                       </div>
                     )}

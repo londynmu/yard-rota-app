@@ -21,7 +21,7 @@ const Modal = ({ isOpen, onClose, children }) => {
   // Create a portal to render the modal outside the normal DOM hierarchy
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center"
       style={{ 
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
@@ -34,7 +34,7 @@ const Modal = ({ isOpen, onClose, children }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-lg w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-200"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-100"
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -84,42 +84,33 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
   
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="bg-white px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-white px-5 py-4 border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-charcoal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-lg font-bold text-charcoal">
-                Filter & Sort Users
-              </h3>
-            </div>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Filter & Sort
+          </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-charcoal hover:bg-gray-100 rounded-md p-1 transition-colors"
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-full transition-colors"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
         </div>
       </div>
       
-      <div className="px-6 py-4">
+      <div className="px-5 py-4">
         {/* Shift Filter */}
-        <div className="mb-6">
-          <h4 className="text-charcoal font-semibold mb-3">Filter by Shift</h4>
+        <div className="mb-5">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Filter by Shift</h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'all' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -132,10 +123,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>All</span>
             </label>
             
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'day' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -148,10 +139,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Day</span>
             </label>
             
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'afternoon' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -164,10 +155,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Afternoon</span>
             </label>
             
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'night' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -183,13 +174,13 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
         
         {/* Sort Options */}
-        <div className="mb-6">
-          <h4 className="text-charcoal font-semibold mb-3">Sort By</h4>
+        <div className="mb-5">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Sort By</h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               sortBy === 'name' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -202,10 +193,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Last Name</span>
             </label>
             
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               sortBy === 'score' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -221,13 +212,13 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
         
         {/* Sort Order */}
-        <div className="mb-6">
-          <h4 className="text-charcoal font-semibold mb-3">Sort Order</h4>
+        <div className="mb-5">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Order</h4>
           <div className="grid grid-cols-2 gap-2">
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               sortOrder === 'asc' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -240,10 +231,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Ascending</span>
             </label>
             
-            <label className={`flex items-center justify-center p-2 border rounded-md cursor-pointer transition-colors ${
+            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
               sortOrder === 'desc' 
-              ? 'bg-black text-white border-black' 
-              : 'bg-white border-gray-300 text-charcoal hover:bg-gray-100'
+              ? 'bg-charcoal text-white border-charcoal' 
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -259,20 +250,20 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
       </div>
       
-      <div className="bg-white px-6 py-4 flex justify-between border-t border-gray-200">
+      <div className="bg-white px-5 py-3 flex justify-between gap-3 border-t border-gray-200">
         <button
           type="button"
           onClick={handleReset}
-          className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors"
+          className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
         >
           Reset
         </button>
         <button
           type="button"
           onClick={handleApplyFilters}
-          className="px-4 py-2 rounded-md bg-black text-white hover:opacity-90 transition-colors"
+          className="flex-1 px-4 py-2 text-sm rounded-lg bg-charcoal text-white hover:bg-charcoal/90 transition-colors"
         >
-          Apply Filters
+          Apply
         </button>
       </div>
     </Modal>
@@ -314,6 +305,9 @@ export default function UserList({ users, onRefresh }) {
     };
   });
   
+  // Search query state
+  const [searchQuery, setSearchQuery] = useState('');
+  
   // Filtered and sorted users
   const [filteredUsers, setFilteredUsers] = useState([]);
   
@@ -335,6 +329,22 @@ export default function UserList({ users, onRefresh }) {
   // Apply filters and sorting when users or filters change
   useEffect(() => {
     let result = [...users];
+    
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(user => {
+        const firstName = (user.first_name || '').toLowerCase();
+        const lastName = (user.last_name || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        return firstName.includes(query) || 
+               lastName.includes(query) || 
+               fullName.includes(query) ||
+               email.includes(query);
+      });
+    }
     
     // Apply shift filter
     if (filters.shift !== 'all') {
@@ -365,7 +375,7 @@ export default function UserList({ users, onRefresh }) {
     });
     
     setFilteredUsers(result);
-  }, [users, filters]);
+  }, [users, filters, searchQuery]);
   
   // Focus on confirmation input when step changes to 2
   useEffect(() => {
@@ -558,19 +568,17 @@ export default function UserList({ users, onRefresh }) {
   // Delete Modal Content
   const deleteModalContent = (
     <>
-            <div className="bg-red-50 px-6 py-4 border-b border-gray-200 sticky top-0 z-10">
+            <div className="bg-white px-5 py-4 border-b border-gray-200 sticky top-0 z-10">
               <div className="flex items-center justify-between">
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-5 w-5 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-bold text-charcoal">
-                      Delete Confirmation
-                    </h3>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete User
+                  </h3>
                 </div>
                 <button
             type="button"
@@ -578,50 +586,50 @@ export default function UserList({ users, onRefresh }) {
               e.stopPropagation();
               closeDeleteModal();
             }}
-                  className="text-charcoal hover:bg-gray-100 rounded-md p-1 transition-colors"
+                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-full transition-colors"
                   aria-label="Close"
                 >
-                  <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
-            <div className="px-6 py-4">
+            <div className="px-5 py-4">
               {confirmationStep === 1 ? (
                 <div>
-                  <p className="text-charcoal mb-4">
+                  <p className="text-gray-700 mb-3 text-sm">
                     Are you sure you want to delete this user?
                   </p>
-                  <p className="text-charcoal font-medium text-lg">
+                  <p className="text-gray-900 font-semibold text-base mb-4">
                     {userToDelete?.first_name} {userToDelete?.last_name}
                   </p>
-                  <div className="bg-red-50 border-l-4 border-red-300 text-red-700 p-4 mb-4 rounded-r-md">
-                    <p className="font-medium">Warning</p>
-                    <p className="text-sm">This action cannot be undone. All user data will be permanently removed.</p>
+                  <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg">
+                    <p className="font-medium text-sm">⚠️ Warning</p>
+                    <p className="text-xs mt-1">This action cannot be undone. All user data will be permanently removed.</p>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <p className="text-charcoal mb-4">
-                    <span className="font-medium">Final confirmation required.</span> Please type <span className="font-bold text-red-700">delete</span> to confirm:
+                  <p className="text-gray-700 mb-3 text-sm">
+                    <span className="font-medium">Final confirmation required.</span> Please type <span className="font-semibold text-red-600">delete</span> to confirm:
                   </p>
                   <input
                     ref={confirmInputRef}
                     type="text"
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 mb-4 text-charcoal"
+                    className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-charcoal focus:ring-2 focus:ring-charcoal/20 text-gray-900 text-sm"
                     placeholder="Type 'delete' to confirm"
                   />
                 </div>
               )}
             </div>
-            <div className="bg-white px-6 py-4 flex justify-between border-t border-gray-200">
+            <div className="bg-white px-5 py-3 flex gap-3 border-t border-gray-200">
               <button
           type="button"
           onClick={closeDeleteModal}
-                className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors"
+                className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
@@ -629,7 +637,7 @@ export default function UserList({ users, onRefresh }) {
                 <button
             type="button"
                   onClick={handleFirstConfirmation}
-                  className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  className="flex-1 px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
                 >
                   Continue
                 </button>
@@ -638,7 +646,7 @@ export default function UserList({ users, onRefresh }) {
             type="button"
                   onClick={handleDeleteUser}
                   disabled={confirmationInput.toLowerCase() !== 'delete'}
-                  className={`px-4 py-2 rounded-md font-medium focus:outline-none transition-colors ${
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg font-medium focus:outline-none transition-colors ${
                     confirmationInput.toLowerCase() === 'delete'
                       ? 'bg-red-600 text-white hover:bg-red-700'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -653,33 +661,39 @@ export default function UserList({ users, onRefresh }) {
   
   return (
     <>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-charcoal">User Management</h1>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+        <div className="flex-1">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 pl-9 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal text-gray-900 placeholder-gray-400"
+            />
+            <svg 
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+        <div className="flex items-center justify-between sm:justify-end gap-3">
+          <div className="text-gray-600 text-sm whitespace-nowrap">
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift} shift)` : ''}
+          </div>
           <button
             onClick={openFilterModal}
-            className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center"
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
             Filter & Sort
           </button>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center"
-            aria-label="Refresh"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-      </div>
-      <div className="mb-4 flex justify-between items-center">
-        <div className="text-gray-600 text-sm">
-          {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift} shift)` : ''}
         </div>
       </div>
 

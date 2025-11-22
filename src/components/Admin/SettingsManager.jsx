@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import BreaksConfigManager from './BreaksConfigManager';
+import LocationConfigManager from './LocationConfigManager';
+import AgencyConfigManager from './AgencyConfigManager';
 
 export default function SettingsManager() {
   // State for various settings
@@ -121,11 +124,11 @@ export default function SettingsManager() {
   // Toggle switch component
   const ToggleSwitch = ({ enabled, onChange, label }) => (
     <div className="flex items-center justify-between">
-      <span className="text-white text-sm">{label}</span>
+      <span className="text-gray-700 text-sm">{label}</span>
       <button
         type="button"
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-          enabled ? 'bg-blue-500/70' : 'bg-white/20'
+          enabled ? 'bg-charcoal' : 'bg-gray-300'
         }`}
         onClick={() => onChange(!enabled)}
       >
@@ -153,35 +156,65 @@ export default function SettingsManager() {
   }
   
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm w-full max-w-full overflow-hidden">
+    <div className="w-full max-w-full">
       {/* Settings Sections Navigation */}
-      <div className="flex mb-6 overflow-x-auto pb-2 -mx-4 px-4">
+      <div className="flex mb-4 overflow-x-auto pb-2 gap-2">
         <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 ${
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
             activeSection === 'notifications' 
-              ? 'bg-black text-white' 
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-charcoal text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
           onClick={() => setActiveSection('notifications')}
         >
           Notifications
         </button>
         <button
-          className={`px-4 py-2 rounded-lg font-medium mr-2 ${
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
             activeSection === 'team' 
-              ? 'bg-black text-white' 
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-charcoal text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
           onClick={() => setActiveSection('team')}
         >
           Team Management
         </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
+            activeSection === 'breaks' 
+              ? 'bg-charcoal text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          onClick={() => setActiveSection('breaks')}
+        >
+          Breaks Config
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
+            activeSection === 'locations' 
+              ? 'bg-charcoal text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          onClick={() => setActiveSection('locations')}
+        >
+          Locations
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
+            activeSection === 'agencies' 
+              ? 'bg-charcoal text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          onClick={() => setActiveSection('agencies')}
+        >
+          Agencies
+        </button>
       </div>
       
       {/* Notification Settings */}
       {activeSection === 'notifications' && (
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
-          <h3 className="text-lg font-semibold text-charcoal mb-4">Notification Settings</h3>
+        <div className="bg-gray-50 rounded-lg p-5 mb-4 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Settings</h3>
           
           <div className="space-y-4">
             <ToggleSwitch
@@ -191,7 +224,7 @@ export default function SettingsManager() {
             />
             
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
+              <label className="block text-gray-700 text-sm font-medium mb-2">
                 Reminder Days Before Shift
               </label>
               <input
@@ -200,7 +233,7 @@ export default function SettingsManager() {
                 max="14"
                 value={reminderDays}
                 onChange={(e) => setReminderDays(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
               />
             </div>
             
@@ -215,7 +248,7 @@ export default function SettingsManager() {
             type="button"
             onClick={() => saveSettings('Notification')}
             disabled={isSaving}
-            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+            className={`mt-4 px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
               isSaving ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -226,11 +259,11 @@ export default function SettingsManager() {
       
       {/* Team Management Settings */}
       {activeSection === 'team' && (
-        <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-4">Team Management</h3>
+        <div className="bg-gray-50 rounded-lg p-5 mb-4 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Management</h3>
           
           <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
+            <label className="block text-gray-700 text-sm font-medium mb-2">
               Minimum Staffing Level (Day Shift)
             </label>
             <input
@@ -239,12 +272,12 @@ export default function SettingsManager() {
               max="20"
               value={minStaffingDay}
               onChange={(e) => setMinStaffingDay(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
             />
           </div>
           
           <div className="mb-4">
-            <label className="block text-white text-sm font-medium mb-2">
+            <label className="block text-gray-700 text-sm font-medium mb-2">
               Minimum Staffing Level (Night Shift)
             </label>
             <input
@@ -253,7 +286,7 @@ export default function SettingsManager() {
               max="20"
               value={minStaffingNight}
               onChange={(e) => setMinStaffingNight(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
             />
           </div>
           
@@ -261,7 +294,7 @@ export default function SettingsManager() {
             type="button"
             onClick={() => saveSettings('Team')}
             disabled={isSaving}
-            className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-white transition-colors ${
+            className={`mt-4 px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
               isSaving ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
@@ -270,12 +303,33 @@ export default function SettingsManager() {
         </div>
       )}
       
+      {/* Breaks Configuration */}
+      {activeSection === 'breaks' && (
+        <div className="mb-4">
+          <BreaksConfigManager />
+        </div>
+      )}
+      
+      {/* Locations Management */}
+      {activeSection === 'locations' && (
+        <div className="mb-4">
+          <LocationConfigManager />
+        </div>
+      )}
+      
+      {/* Agencies Management */}
+      {activeSection === 'agencies' && (
+        <div className="mb-4">
+          <AgencyConfigManager />
+        </div>
+      )}
+      
       {/* Success/Error Message */}
       {saveMessage.text && (
-        <div className={`mt-4 p-3 rounded-md ${
+        <div className={`mt-4 p-3 rounded-lg text-sm ${
           saveMessage.type === 'success' 
-            ? 'bg-green-500 text-green-100 border border-green-400' 
-            : 'bg-red-500 text-red-100 border border-red-400'
+            ? 'bg-green-50 text-green-800 border border-green-200' 
+            : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
           {saveMessage.text}
         </div>

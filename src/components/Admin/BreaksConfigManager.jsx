@@ -51,7 +51,6 @@ export default function BreaksConfigManager() {
           }
         }
       } catch (error) {
-        console.error('Error fetching settings:', error);
         toast.error('Failed to load settings');
       } finally {
         setIsLoading(false);
@@ -90,10 +89,9 @@ export default function BreaksConfigManager() {
       }
       
       // Show success message
-      toast.success('Breaks configuration settings saved successfully');
+      toast.success('Configuration saved successfully');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      toast.error('Failed to save settings: ' + error.message);
+      toast.error('Failed to save settings');
     } finally {
       setIsSaving(false);
     }
@@ -102,100 +100,97 @@ export default function BreaksConfigManager() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
       </div>
     );
   }
   
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20 shadow-xl w-full max-w-full overflow-hidden">
-      <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-        <h3 className="text-lg font-semibold text-charcoal mb-4">Breaks Configuration</h3>
-        
-        <div className="mb-4">
-          <label className="block text-charcoal text-sm font-medium mb-2">
-            Working Hours
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="time"
-              value={workHoursStart}
-              onChange={(e) => setWorkHoursStart(e.target.value)}
-              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
-            />
-            <span className="text-charcoal">to</span>
-            <input
-              type="time"
-              value={workHoursEnd}
-              onChange={(e) => setWorkHoursEnd(e.target.value)}
-              className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-charcoal text-sm font-medium mb-2">
-            Week Start Day
-          </label>
-          <select
-            value={weekStartDay}
-            onChange={(e) => setWeekStartDay(e.target.value)}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
-          >
-            <option value="monday">Monday</option>
-            <option value="saturday">Saturday</option>
-            <option value="sunday">Sunday</option>
-          </select>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-charcoal text-sm font-medium mb-2">
-            Default Shift Length (hours)
-          </label>
+    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Breaks Configuration</h3>
+      
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-medium mb-2">
+          Working Hours
+        </label>
+        <div className="flex items-center gap-2">
           <input
-            type="number"
-            min="1"
-            max="24"
-            value={defaultShiftLength}
-            onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+            type="time"
+            value={workHoursStart}
+            onChange={(e) => setWorkHoursStart(e.target.value)}
+            className="px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+          />
+          <span className="text-gray-600">to</span>
+          <input
+            type="time"
+            value={workHoursEnd}
+            onChange={(e) => setWorkHoursEnd(e.target.value)}
+            className="px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
           />
         </div>
-        
-        <div className="mb-4">
-          <label className="block text-charcoal text-sm font-medium mb-2">
-            Minimum Break Between Shifts (hours)
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="24"
-            step="0.25"
-            value={minBreakHours}
-            onChange={(e) => {
-              const hours = Number(e.target.value);
-              setMinBreakHours(hours);
-              // Convert hours to minutes for DB storage
-              setMinBreakBetweenSlots(Math.round(hours * 60));
-            }}
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
-          />
-          <p className="text-charcoal/60 text-xs mt-1">
-            Minimum time required between consecutive shifts for an employee
-          </p>
-        </div>
-        
-        <button
-          type="button"
-          onClick={saveSettings}
-          disabled={isSaving}
-          className={`mt-4 px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal transition-colors ${
-            isSaving ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {isSaving ? 'Saving...' : 'Save Breaks Configuration'}
-        </button>
       </div>
+      
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-medium mb-2">
+          Week Start Day
+        </label>
+        <select
+          value={weekStartDay}
+          onChange={(e) => setWeekStartDay(e.target.value)}
+          className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+        >
+          <option value="monday">Monday</option>
+          <option value="saturday">Saturday</option>
+          <option value="sunday">Sunday</option>
+        </select>
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-medium mb-2">
+          Default Shift Length (hours)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="24"
+          value={defaultShiftLength}
+          onChange={(e) => setDefaultShiftLength(Number(e.target.value))}
+          className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+        />
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-medium mb-2">
+          Minimum Break Between Shifts (hours)
+        </label>
+        <input
+          type="number"
+          min="0"
+          max="24"
+          step="0.25"
+          value={minBreakHours}
+          onChange={(e) => {
+            const hours = Number(e.target.value);
+            setMinBreakHours(hours);
+            setMinBreakBetweenSlots(Math.round(hours * 60));
+          }}
+          className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+        />
+        <p className="text-gray-500 text-xs mt-1">
+          Minimum time required between consecutive shifts for an employee
+        </p>
+      </div>
+      
+      <button
+        type="button"
+        onClick={saveSettings}
+        disabled={isSaving}
+        className={`mt-4 px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
+          isSaving ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {isSaving ? 'Saving...' : 'Save Breaks Configuration'}
+      </button>
     </div>
   );
 } 

@@ -36,23 +36,17 @@ export default function LocationManager() {
   const fetchLocations = async () => {
     try {
       setLoading(true);
-      console.log("Fetching locations...");
       
       const { data, error } = await supabase
         .from('locations')
         .select('*')
         .order('created_at', { ascending: true });
         
-      if (error) {
-        console.error("Error fetching locations:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log("Locations loaded:", data);
       setLocations(data || []);
     } catch (error) {
-      console.error('Error fetching locations:', error);
-      showNotification('Failed to load locations: ' + (error.message || 'Unknown error'), 'error');
+      showNotification('Failed to load locations', 'error');
     } finally {
       setLoading(false);
     }
@@ -65,30 +59,22 @@ export default function LocationManager() {
     }
 
     try {
-      console.log("Adding new location:", newLocation);
       setLoading(true);
       
       const { error } = await supabase
         .from('locations')
         .insert([{ name: newLocation.trim() }]);
         
-      if (error) {
-        console.error("Error inserting location:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log("Location added successfully");
       setNewLocation('');
       await fetchLocations();
-      
       showNotification('Location added successfully');
     } catch (error) {
-      console.error('Error adding location:', error);
-      
       if (error.code === '23505') {
         showNotification('This location name already exists', 'error');
       } else {
-        showNotification('Failed to add location: ' + (error.message || 'Unknown error'), 'error');
+        showNotification('Failed to add location', 'error');
       }
     } finally {
       setLoading(false);
@@ -124,15 +110,12 @@ export default function LocationManager() {
       setEditLocationId(null);
       setEditLocationName('');
       await fetchLocations();
-      
       showNotification('Location updated successfully');
     } catch (error) {
-      console.error('Error updating location:', error);
-      
       if (error.code === '23505') {
         showNotification('This location name already exists', 'error');
       } else {
-        showNotification('Failed to update location: ' + (error.message || 'Unknown error'), 'error');
+        showNotification('Failed to update location', 'error');
       }
     } finally {
       setLoading(false);
@@ -164,11 +147,9 @@ export default function LocationManager() {
       if (error) throw error;
       
       await fetchLocations();
-      
       showNotification(`Location ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
-      console.error('Error toggling location status:', error);
-      showNotification('Failed to update location status: ' + (error.message || 'Unknown error'), 'error');
+      showNotification('Failed to update location status', 'error');
     } finally {
       setLoading(false);
     }
@@ -198,11 +179,9 @@ export default function LocationManager() {
       if (error) throw error;
       
       await fetchLocations();
-      
       showNotification('Location deleted successfully');
     } catch (error) {
-      console.error('Error deleting location:', error);
-      showNotification('Failed to delete location: ' + (error.message || 'Unknown error'), 'error');
+      showNotification('Failed to delete location', 'error');
     } finally {
       setLoading(false);
     }
@@ -216,13 +195,13 @@ export default function LocationManager() {
   };
 
   return (
-    <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/10">
-      <h3 className="text-lg font-semibold text-charcoal mb-4">Location Management</h3>
+    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Management</h3>
       
       {/* Add new location */}
-      <div className="mb-6 flex items-end space-x-2">
+      <div className="mb-5 flex items-end gap-2">
         <div className="flex-grow">
-          <label className="block text-charcoal text-sm font-medium mb-2" htmlFor="new-location">
+          <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="new-location">
             Add New Location
           </label>
           <input
@@ -237,7 +216,7 @@ export default function LocationManager() {
               }
             }}
             placeholder="Enter location name"
-            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-charcoal focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
             disabled={loading}
             ref={newLocationInputRef}
           />
@@ -246,7 +225,7 @@ export default function LocationManager() {
           type="button"
           onClick={handleAddLocation}
           disabled={loading || !newLocation.trim()}
-          className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-lg text-charcoal transition-colors ${
+          className={`px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
             loading || !newLocation.trim() ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -255,22 +234,22 @@ export default function LocationManager() {
       </div>
       
       {/* Locations list */}
-      <div className="mb-4">
-        <h4 className="text-md font-medium text-charcoal mb-2">Existing Locations</h4>
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Existing Locations</h4>
         
         {loading && locations.length === 0 ? (
-          <div className="text-charcoal text-center py-4">Loading locations...</div>
+          <div className="text-gray-600 text-center py-4 text-sm">Loading locations...</div>
         ) : locations.length === 0 ? (
-          <div className="text-charcoal/70 text-center py-4">No locations found</div>
+          <div className="text-gray-500 text-center py-4 text-sm">No locations found</div>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+          <div className="space-y-2">
             {locations.map(location => (
               <div 
                 key={location.id} 
-                className={`flex items-center justify-between p-3 rounded-md border ${
+                className={`flex items-center justify-between p-3 rounded-lg border ${
                   location.is_active 
                     ? 'bg-white border-gray-200' 
-                    : 'bg-gray-50 border-gray-200 text-charcoal/60'
+                    : 'bg-white border-gray-200 opacity-60'
                 }`}
               >
                 {editLocationId === location.id ? (
@@ -279,42 +258,40 @@ export default function LocationManager() {
                       type="text"
                       value={editLocationName}
                       onChange={(e) => setEditLocationName(e.target.value)}
-                      className="w-full px-2 py-1 bg-white/20 border border-white/30 rounded text-charcoal focus:outline-none focus:border-blue-500"
+                      className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
                       disabled={loading}
                     />
                   </div>
                 ) : (
-                  <span className={`flex-grow ${!location.is_active ? 'line-through' : ''}`}>
+                  <span className={`flex-grow text-gray-900 ${!location.is_active ? 'line-through text-gray-500' : ''}`}>
                     {location.name}
                   </span>
                 )}
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-1">
                   {editLocationId === location.id ? (
                     <>
                       <button
                         onClick={() => updateLocation(location.id)}
                         disabled={loading}
-                        className="text-green-400 hover:text-green-300 transition-colors p-2"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors p-1.5 rounded"
                         aria-label="Save location"
-                        title="Save location"
+                        title="Save"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span className="sr-only">Save</span>
                       </button>
                       <button
                         onClick={cancelEditing}
                         disabled={loading}
-                        className="text-red-400 hover:text-red-300 transition-colors p-2"
-                        aria-label="Cancel editing"
-                        title="Cancel editing"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
+                        aria-label="Cancel"
+                        title="Cancel"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        <span className="sr-only">Cancel</span>
                       </button>
                     </>
                   ) : (
@@ -322,48 +299,45 @@ export default function LocationManager() {
                       <button
                         onClick={() => startEditing(location)}
                         disabled={loading}
-                        className="text-blue-400 hover:text-blue-300 transition-colors p-2"
-                        aria-label="Edit location"
-                        title="Edit location"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors p-1.5 rounded"
+                        aria-label="Edit"
+                        title="Edit"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        <span className="sr-only">Edit</span>
                       </button>
                       <button
                         onClick={() => confirmToggleLocationStatus(location.id, location.name, location.is_active)}
                         disabled={loading}
                         className={`${
                           location.is_active 
-                            ? 'text-red-400 hover:text-red-300' 
-                            : 'text-green-400 hover:text-green-300'
-                        } transition-colors p-2`}
-                        aria-label={location.is_active ? 'Deactivate location' : 'Activate location'}
-                        title={location.is_active ? 'Deactivate location' : 'Activate location'}
+                            ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                            : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                        } transition-colors p-1.5 rounded`}
+                        aria-label={location.is_active ? 'Deactivate' : 'Activate'}
+                        title={location.is_active ? 'Deactivate' : 'Activate'}
                       >
                         {location.is_active ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                           </svg>
                         ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         )}
-                        <span className="sr-only">{location.is_active ? 'Deactivate' : 'Activate'}</span>
                       </button>
                       <button
                         onClick={() => confirmDeleteLocation(location.id, location.name)}
                         disabled={loading}
-                        className="text-red-500 hover:text-red-400 transition-colors p-2"
-                        aria-label="Delete location"
-                        title="Delete location"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
+                        aria-label="Delete"
+                        title="Delete"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        <span className="sr-only">Delete</span>
                       </button>
                     </>
                   )}

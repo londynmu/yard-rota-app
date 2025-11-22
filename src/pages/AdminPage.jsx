@@ -7,9 +7,6 @@ import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
 import UserApprovalPage from './UserApprovalPage';
 import LoginStats from '../components/Admin/LoginStats';
-import BreaksConfigManager from '../components/Admin/BreaksConfigManager';
-import AgencyConfigManager from '../components/Admin/AgencyConfigManager';
-import LocationConfigManager from '../components/Admin/LocationConfigManager';
 import PerformanceImport from '../components/Admin/PerformanceImport';
 
 export default function AdminPage() {
@@ -38,9 +35,6 @@ export default function AdminPage() {
         'users': 'Users',
         'approvals': 'Approvals',
         'availability': 'Availability',
-        'breaks': 'Breaks Config',
-        'locations': 'Locations',
-        'agencies': 'Agencies',
         'performance': 'Performance',
         'stats': 'Statistics',
         'settings': 'Settings'
@@ -245,12 +239,9 @@ export default function AdminPage() {
     { id: 'users', label: 'Users', icon: '👥', description: 'Manage users' },
     { id: 'approvals', label: 'Approvals', icon: '✓', description: 'Pending approvals', badge: pendingApprovals },
     { id: 'availability', label: 'Availability', icon: '📅', description: 'User availability' },
-    { id: 'breaks', label: 'Breaks Config', icon: '⏸️', description: 'Break settings' },
-    { id: 'locations', label: 'Locations', icon: '📍', description: 'Location management' },
-    { id: 'agencies', label: 'Agencies', icon: '🏢', description: 'Agency settings' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'System settings' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Breaks, Locations & Agencies' },
   ];
 
   // Dashboard Component - pokazywany jako główny widok
@@ -351,12 +342,6 @@ export default function AdminPage() {
         return <AvailabilityManager />;
       case 'settings':
         return <SettingsManager />;
-      case 'breaks':
-        return <BreaksConfigManager />;
-      case 'locations':
-        return <LocationConfigManager />;
-      case 'agencies':
-        return <AgencyConfigManager />;
       case 'performance':
         return <PerformanceImport />;
       case 'stats':
