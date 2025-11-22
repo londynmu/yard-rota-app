@@ -486,30 +486,33 @@ const PerformanceLeaderboard = () => {
 
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Total Moves</p>
+            <p className="text-2xl font-bold text-charcoal">{user.totalMoves.toLocaleString()}</p>
+          </div>
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
             <p className="text-xs uppercase text-gray-500">Moves / day</p>
             <p className="text-2xl font-bold text-charcoal">{movesPerDay}</p>
-            <p className="text-xs text-gray-500">{user.daysWorked} logged days</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Days worked</p>
+            <p className="text-2xl font-bold text-charcoal">{user.daysWorked}</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Avg collect</p>
+            <p className="text-2xl font-bold text-charcoal">{user.avgCollectTime}</p>
+            <p className="text-[10px] text-gray-500">Target: &lt; 02:00</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-xs uppercase text-gray-500">Avg travel</p>
+            <p className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</p>
           </div>
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
             <p className="text-xs uppercase text-gray-500">Full locations</p>
             <p className="text-2xl font-bold text-charcoal">
               {(user.totalFullLocations || 0).toLocaleString()}
             </p>
-            <p className="text-xs text-gray-500">All time in range</p>
-          </div>
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-            <p className="text-xs uppercase text-gray-500">Avg collect</p>
-            <p className="text-2xl font-bold text-charcoal">{user.avgCollectTime}</p>
-            <p className="text-xs text-gray-500">
-              Target: &lt; 02:00
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-            <p className="text-xs uppercase text-gray-500">Avg travel</p>
-            <p className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</p>
-            <p className="text-xs text-gray-500">Lower = faster transfers</p>
           </div>
         </div>
         <div className="mt-4">
@@ -660,107 +663,161 @@ const PerformanceLeaderboard = () => {
                 </svg>
               </button>
             </div>
-            <div className="p-4 space-y-4 overflow-y-auto bg-offwhite">
+            <div className="p-4 space-y-4 overflow-y-auto bg-gradient-to-b from-blue-50 to-purple-50">
               {myStatsLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="h-10 w-10 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                </div>
+                <motion.div 
+                  className="flex justify-center py-10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <div className="h-10 w-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                </motion.div>
               ) : myStatsError ? (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-red-50 border-2 border-red-300 text-red-700 rounded-xl p-4 text-sm"
+                >
                   {myStatsError}
-                </div>
+                </motion.div>
               ) : !myStatsData ? (
-                <div className="text-center text-gray-600 text-sm py-8">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center text-gray-600 text-sm py-8"
+                >
                   Brak zapisanych dziennych raportów dla Twojego konta.
-                </div>
+                </motion.div>
               ) : (
                 <>
-                  <section className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Latest day</p>
+                  <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-4 shadow-md"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-orange-700 font-bold mb-1">Latest day</p>
                     <p className="text-sm font-semibold text-charcoal">
                       {myStatsData.latestDate
                         ? formatDate(parseISO(myStatsData.latestDate), 'EEEE, dd MMM')
                         : '—'}
                     </p>
                     <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Moves</p>
-                        <p className="text-2xl font-bold text-charcoal">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-orange-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-orange-600 font-semibold">Moves</p>
+                        <p className="text-2xl font-bold text-orange-600">
                           {(myStatsData.lastDay?.moves || 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-gray-500">Last recorded day</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-1">
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-orange-300 bg-white p-3 space-y-1 shadow-sm"
+                      >
                         <div>
-                          <p className="text-[11px] uppercase text-gray-500">Avg Collect</p>
-                          <p className="text-lg font-semibold text-charcoal">
+                          <p className="text-[11px] uppercase text-orange-600 font-semibold">Avg Collect</p>
+                          <p className="text-lg font-bold text-charcoal">
                             {getAverageTime(myStatsData.lastDay, 'collect')}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[11px] uppercase text-gray-500">Avg Travel</p>
-                          <p className="text-lg font-semibold text-charcoal">
+                          <p className="text-[11px] uppercase text-orange-600 font-semibold">Avg Travel</p>
+                          <p className="text-lg font-bold text-charcoal">
                             {getAverageTime(myStatsData.lastDay, 'travel')}
                           </p>
                         </div>
-                      </div>
+                      </motion.div>
                     </div>
-                  </section>
+                  </motion.section>
 
-                  <section className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+                  <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-4 shadow-md"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-blue-700 font-bold mb-3">
                       Rolling totals
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Last 7 days</p>
-                        <p className="text-2xl font-bold text-charcoal">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-blue-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-blue-600 font-semibold">Last 7 days</p>
+                        <p className="text-2xl font-bold text-blue-600">
                           {(myStatsData.last7?.moves || 0).toLocaleString()}
                         </p>
-                        <p className="text-xs text-gray-500">Moves moved</p>
-                      </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Last 30 days</p>
-                        <p className="text-2xl font-bold text-charcoal">
+                        <p className="text-xs text-gray-500">Moves</p>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-blue-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-blue-600 font-semibold">Last 30 days</p>
+                        <p className="text-2xl font-bold text-blue-600">
                           {(myStatsData.last30?.moves || 0).toLocaleString()}
                         </p>
-                        <p className="text-xs text-gray-500">Moves moved</p>
-                      </div>
+                        <p className="text-xs text-gray-500">Moves</p>
+                      </motion.div>
                     </div>
-                  </section>
+                  </motion.section>
 
-                  <section className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">All time</p>
+                  <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-2xl p-4 shadow-md space-y-3"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-purple-700 font-bold">All time</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Total moves</p>
-                        <p className="text-2xl font-bold text-charcoal">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-purple-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Total moves</p>
+                        <p className="text-2xl font-bold text-purple-600">
                           {(myStatsData.overall?.moves || 0).toLocaleString()}
                         </p>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Full locations</p>
-                        <p className="text-2xl font-bold text-charcoal">
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-purple-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Full locations</p>
+                        <p className="text-2xl font-bold text-purple-600">
                           {(myStatsData.overall?.fullLocations || 0).toLocaleString()}
                         </p>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Avg collect</p>
-                        <p className="text-xl font-semibold text-charcoal">
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-purple-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Avg collect</p>
+                        <p className="text-xl font-bold text-charcoal">
                           {getAverageTime(myStatsData.overall, 'collect')}
                         </p>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <p className="text-xs uppercase text-gray-500">Avg travel</p>
-                        <p className="text-xl font-semibold text-charcoal">
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="rounded-xl border-2 border-purple-300 bg-white p-3 shadow-sm"
+                      >
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Avg travel</p>
+                        <p className="text-xl font-bold text-charcoal">
                           {getAverageTime(myStatsData.overall, 'travel')}
                         </p>
-                      </div>
+                      </motion.div>
                     </div>
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-between">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="rounded-xl border-2 border-purple-300 bg-white p-3 flex items-center justify-between shadow-sm"
+                    >
                       <div>
-                        <p className="text-xs uppercase text-gray-500">Best day</p>
-                        <p className="text-lg font-semibold text-charcoal">
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Best day</p>
+                        <p className="text-lg font-bold text-purple-600">
                           {myStatsData.bestDay.moves.toLocaleString()} moves
                         </p>
                         {myStatsData.bestDay.date && (
@@ -770,13 +827,13 @@ const PerformanceLeaderboard = () => {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-xs uppercase text-gray-500">Days logged</p>
-                        <p className="text-lg font-semibold text-charcoal">
+                        <p className="text-xs uppercase text-purple-600 font-semibold">Days logged</p>
+                        <p className="text-lg font-bold text-charcoal">
                           {myStatsData.daysLogged}
                         </p>
                       </div>
-                    </div>
-                  </section>
+                    </motion.div>
+                  </motion.section>
                 </>
               )}
             </div>
@@ -861,25 +918,25 @@ const PerformanceLeaderboard = () => {
                     >
                       <div className="px-4 pb-4 space-y-2 pointer-events-none">
                         <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Active shunters</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.activeShunters}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
+                          <span className="text-sm text-gray-700">Total moves</span>
+                          <span className="text-lg font-bold text-charcoal">{teamHighlights.totalMoves.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
                           <span className="text-sm text-gray-700">Avg moves / day</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Full locations</span>
+                          <span className="text-sm text-gray-700">Total full locations</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.totalFullLocations.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Fastest collect</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.fastestCollect?.avgCollectTime || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Fastest travel</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.fastestTravel?.avgTravelTime || '—'}</span>
-                        </div>
                         <div className="flex items-center justify-between py-2">
-                          <span className="text-sm text-gray-700">Most consistent</span>
+                          <span className="text-sm text-gray-700">Top performer</span>
                           <span className="text-lg font-bold text-charcoal">
-                            {teamHighlights.reliabilityLeader ? `${teamHighlights.reliabilityLeader.daysWorked} days` : '—'}
+                            {leaderboardData[0] ? formatShunterName(leaderboardData[0]) : '—'}
                           </span>
                         </div>
                       </div>
@@ -918,7 +975,7 @@ const PerformanceLeaderboard = () => {
                       className={`${cardBgClass} rounded-2xl border-2 p-4 shadow-md cursor-pointer transition-all`}
                     >
                       {/* Header Row */}
-                      <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-3">
                         <div className="scale-90">
                           {getRankBadge(rank)}
                         </div>
@@ -941,28 +998,24 @@ const PerformanceLeaderboard = () => {
                           <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-charcoal">{user.totalMoves}</div>
-                          <div className="text-xs text-gray-600">moves</div>
-                        </div>
-                      </div>
-
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <div className="bg-white/70 rounded-lg p-2 text-center">
-                          <div className="text-sm font-bold text-charcoal">{user.avgCollectTime}</div>
-                          <div className="text-xs text-gray-600">Collect</div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-2 text-center">
-                          <div className="text-sm font-bold text-charcoal">{user.avgTravelTime}</div>
-                          <div className="text-xs text-gray-600">Travel</div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-2 text-center">
-                          <div className="text-sm font-bold text-charcoal">{(user.totalFullLocations || 0).toLocaleString()}</div>
-                          <div className="text-xs text-gray-600">Full Loc.</div>
-                        </div>
-                        <div className="bg-white/70 rounded-lg p-2 text-center">
-                          <div className="text-sm font-bold text-charcoal">{user.daysWorked}</div>
-                          <div className="text-xs text-gray-600">Days</div>
+                          {sortOption === 'moves' && (
+                            <>
+                              <div className="text-2xl font-bold text-charcoal">{user.totalMoves}</div>
+                              <div className="text-xs text-gray-600">moves</div>
+                            </>
+                          )}
+                          {sortOption === 'collect' && (
+                            <>
+                              <div className="text-2xl font-bold text-charcoal">{user.avgCollectTime}</div>
+                              <div className="text-xs text-gray-600">collect</div>
+                            </>
+                          )}
+                          {sortOption === 'travel' && (
+                            <>
+                              <div className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</div>
+                              <div className="text-xs text-gray-600">travel</div>
+                            </>
+                          )}
                         </div>
                       </div>
 
