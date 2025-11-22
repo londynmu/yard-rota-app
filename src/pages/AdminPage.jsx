@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import UserList from '../components/Admin/UserList';
 import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
 import UserApprovalPage from './UserApprovalPage';
 import LoginStats from '../components/Admin/LoginStats';
 import PerformanceImport from '../components/Admin/PerformanceImport';
+import RotaPlannerPage from './RotaPlannerPage';
+import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
   const { user, loading: authLoading } = useAuth(); 
-  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   // Stan ładowania teraz dla całej strony (auth + profil + dane userów)
   const [pageLoading, setPageLoading] = useState(true); 
@@ -35,6 +35,8 @@ export default function AdminPage() {
         'users': 'Users',
         'approvals': 'Approvals',
         'availability': 'Availability',
+        'rota-planner': 'Rota Planner',
+        'breaks': 'Breaks',
         'performance': 'Performance',
         'stats': 'Statistics',
         'settings': 'Settings'
@@ -61,16 +63,16 @@ export default function AdminPage() {
     };
   }, []);
 
-  // Check if we need to redirect to the new Rota Planner page
+  // Check if we need to migrate old rota tab
   useEffect(() => {
     const savedTab = localStorage.getItem('adminActiveTab');
     if (savedTab === 'rota') {
-      // Update the saved tab to prevent future redirects
-      localStorage.setItem('adminActiveTab', 'users');
-      // Redirect to the new Rota Planner page
-      navigate('/rota-planner');
+      // Update to use new rota-planner section
+      localStorage.setItem('adminActiveSection', 'rota-planner');
+      localStorage.removeItem('adminActiveTab');
+      setActiveSection('rota-planner');
     }
-  }, [navigate]);
+  }, []);
 
   // Efekt do zapisywania aktywnej sekcji w localStorage
   useEffect(() => {
@@ -239,9 +241,11 @@ export default function AdminPage() {
     { id: 'users', label: 'Users', icon: '👥', description: 'Manage users' },
     { id: 'approvals', label: 'Approvals', icon: '✓', description: 'Pending approvals', badge: pendingApprovals },
     { id: 'availability', label: 'Availability', icon: '📅', description: 'User availability' },
+    { id: 'rota-planner', label: 'Rota Planner', icon: '📋', description: 'Plan work schedules' },
+    { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Breaks, Locations & Agencies' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Locations & Agencies' },
   ];
 
   // Dashboard Component - pokazywany jako główny widok
@@ -340,6 +344,10 @@ export default function AdminPage() {
         return <UserApprovalPage />;
       case 'availability':
         return <AvailabilityManager />;
+      case 'rota-planner':
+        return <RotaPlannerPage />;
+      case 'breaks':
+        return <BrakesManager />;
       case 'settings':
         return <SettingsManager />;
       case 'performance':

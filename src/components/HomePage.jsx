@@ -4,7 +4,6 @@ import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
 import CalendarPage from '../pages/CalendarPage';
 import ProfilePage from '../pages/ProfilePage';
 import AdminPage from '../pages/AdminPage';
-import RotaPlannerPage from '../pages/RotaPlannerPage';
 import WeeklyRotaPage from '../pages/WeeklyRotaPage';
 import UserApprovalPage from '../pages/UserApprovalPage';
 import BrakesPage from '../pages/BrakesPage';
@@ -127,7 +126,6 @@ export default function HomePage() {
     if (path === '/my-rota') return 'My Rota';
     if (path === '/admin') return 'Admin Dashboard';
     if (path === '/profile') return 'Your Profile';
-    if (path === '/rota-planner') return 'Rota Planner';
     if (path === '/brakes') return 'Breaks';
     if (path === '/performance') return 'Performance';
     
@@ -197,7 +195,7 @@ export default function HomePage() {
           path === '/brakes' || 
           path === '/calendar' ||
           path === '/performance';
-        const isAdminPage = path === '/admin' || path === '/rota-planner';
+        const isAdminPage = path === '/admin';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
 
@@ -276,16 +274,6 @@ export default function HomePage() {
                       >
                         Admin Panel
                       </Link>
-                      <Link
-                        to="/rota-planner"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          location.pathname === '/rota-planner' 
-                            ? 'bg-black text-white' 
-                            : 'text-charcoal hover:bg-gray-100'
-                        }`}
-                      >
-                        Rota Planner
-                      </Link>
                     </>
                   )}
                 </nav>
@@ -329,7 +317,6 @@ export default function HomePage() {
         <Routes>
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/rota-planner" element={<RotaPlannerPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
           <Route path="/performance" element={<PerformanceLeaderboard />} />
@@ -401,7 +388,7 @@ export default function HomePage() {
               <Link
                 to="/admin"
                 className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/admin' || location.pathname === '/rota-planner' ? 'active' : ''
+                  location.pathname === '/admin' ? 'active' : ''
                 }`}
               >
                 <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

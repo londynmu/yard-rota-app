@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
-import BreaksConfigManager from './BreaksConfigManager';
 import LocationConfigManager from './LocationConfigManager';
 import AgencyConfigManager from './AgencyConfigManager';
 
@@ -181,16 +180,6 @@ export default function SettingsManager() {
         </button>
         <button
           className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
-            activeSection === 'breaks' 
-              ? 'bg-charcoal text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-          onClick={() => setActiveSection('breaks')}
-        >
-          Breaks Config
-        </button>
-        <button
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
             activeSection === 'locations' 
               ? 'bg-charcoal text-white' 
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -300,13 +289,6 @@ export default function SettingsManager() {
           >
             {isSaving ? 'Saving...' : 'Save Team Settings'}
           </button>
-        </div>
-      )}
-      
-      {/* Breaks Configuration */}
-      {activeSection === 'breaks' && (
-        <div className="mb-4">
-          <BreaksConfigManager />
         </div>
       )}
       
