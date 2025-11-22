@@ -401,11 +401,17 @@ const PerformanceLeaderboard = () => {
       return acc;
     }, {});
 
-    return Object.entries(totalsByDate)
+    const sortedEntries = Object.entries(totalsByDate)
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-      .map(([date, totalMoves]) => ({ date, totalMoves }))
-      .slice(-10); // show last 10 days for readability
-  }, [rawPerformance]);
+      .map(([date, totalMoves]) => ({ date, totalMoves }));
+
+    const rangeLimit = RANGE_LOOKUP[selectedRange]?.durationDays || 30;
+    const maxPoints = selectedRange === 'all'
+      ? Math.min(sortedEntries.length, 60)
+      : rangeLimit;
+
+    return sortedEntries.slice(-maxPoints);
+  }, [rawPerformance, selectedRange]);
 
   const toggleExpandedUser = (userId) => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
@@ -997,6 +1003,18 @@ function TrendChart({ data }) {
     );
   }
 
+  const [showBarLabels, setShowBarLabels] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleResize = () => {
+      setShowBarLabels(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Format data for Recharts
   const chartData = data.map((point) => {
     const dateObj = parseISO(point.date);
@@ -1014,10 +1032,10 @@ function TrendChart({ data }) {
     const dateLabel = payload?.payload?.dateLabel || '';
     return (
       <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={-2} textAnchor="middle" fill="#ea580c" fontSize={11} fontWeight={700}>
+        <text x={0} y={0} dy={-6} textAnchor="middle" fill="#ea580c" fontSize={11} fontWeight={700}>
           {dayLabel}
         </text>
-        <text x={0} y={0} dy={12} textAnchor="middle" fill="#2D2D2D" fontSize={11}>
+        <text x={0} y={0} dy={10} textAnchor="middle" fill="#2D2D2D" fontSize={11}>
           {dateLabel}
         </text>
       </g>
@@ -1055,11 +1073,11 @@ function TrendChart({ data }) {
       <div className="mb-4">
         <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
       </div>
-      <div className="h-72 -mx-2">
+      <div className="relative h-56 -mx-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 20, right: 15, left: 15, bottom: 5 }}
+            margin={{ top: 20, right: 15, left: 15, bottom: 0 }}
           >
             <defs>
               <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
@@ -1069,28 +1087,35 @@ function TrendChart({ data }) {
             </defs>
             <XAxis
               dataKey="dateLabel"
-              height={50}
+              height={40}
               tickLine={false}
               axisLine={false}
               interval={0}
               tick={renderDateTick}
             />
             <YAxis hide />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(234, 88, 12, 0.1)' }} />
             <Bar
               dataKey="moves"
               fill="url(#colorMoves)"
               maxBarSize={48}
               radius={[12, 12, 0, 0]}
-              label={{
-                position: 'top',
-                fill: '#2D2D2D',
-                fontSize: 11,
-                fontWeight: 700,
-              }}
+              label={
+                showBarLabels
+                  ? {
+                      position: 'top',
+                      fill: '#2D2D2D',
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }
+                  : false
+              }
             />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+      <div className="mt-2 text-center">
+        <p className="text-xs text-gray-500 italic">Tap bar to see moves</p>
       </div>
     </div>
   );
