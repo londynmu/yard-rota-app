@@ -189,7 +189,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-offwhite flex flex-col">
-      {/* Hide header on mobile for My Rota, Breaks, and Calendar pages - bottom nav provides navigation */}
+      {/* Top bar - always visible */}
       {(() => {
         const path = location.pathname;
         const hideHeaderOnMobile = 
@@ -197,18 +197,40 @@ export default function HomePage() {
           path === '/brakes' || 
           path === '/calendar' ||
           path === '/performance';
+        const isAdminPage = path === '/admin' || path === '/rota-planner';
+        
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
 
         return (
-          <header className={`bg-white shadow-sm border-b border-gray-200 relative z-10 ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-            <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
+          <header className={`bg-white shadow-sm border-b border-gray-200 ${isAdminPage ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className={`${isAdminPage ? 'w-full' : 'max-w-7xl mx-auto'} px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center`}>
+              {/* Ukryj tytuł strony dla admin - ma własny sidebar */}
+              {!isAdminPage && (
+                <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
+              )}
+              {isAdminPage && (
+                <div className="flex items-center gap-3">
+                  {/* Hamburger for admin sidebar - teraz na mobile i desktop */}
+                  <button
+                    onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Open menu"
+                  >
+                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  {/* Na mobile pokazujemy napis */}
+                  <span className="md:hidden text-lg font-semibold text-charcoal">Admin Panel</span>
+                </div>
+              )}
               
               <div className="flex items-center space-x-4">
-                <nav className="hidden md:flex space-x-2">
+                {/* Nawigacja - mniejsze przyciski na stronie admin */}
+                <nav className={`hidden md:flex ${isAdminPage ? 'space-x-1' : 'space-x-2'}`}>
                   <Link
                     to="/calendar"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                       location.pathname === '/calendar' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -218,7 +240,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     to="/my-rota"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                       location.pathname === '/my-rota' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -228,7 +250,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     to="/performance"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                       location.pathname === '/performance' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -240,7 +262,7 @@ export default function HomePage() {
                     <>
                       <Link
                         to="/brakes"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                           location.pathname === '/brakes' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
@@ -250,7 +272,7 @@ export default function HomePage() {
                       </Link>
                       <Link
                         to="/admin"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                           location.pathname === '/admin' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
@@ -260,7 +282,7 @@ export default function HomePage() {
                       </Link>
                       <Link
                         to="/rota-planner"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
                           location.pathname === '/rota-planner' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
