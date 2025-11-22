@@ -28,6 +28,26 @@ export default function AdminPage() {
   // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Aktualizuj tytuł strony w top barze
+  useEffect(() => {
+    const titleElement = document.getElementById('page-title');
+    if (titleElement) {
+      const titles = {
+        'dashboard': 'Dashboard',
+        'users': 'Users',
+        'approvals': 'Approvals',
+        'availability': 'Availability',
+        'breaks': 'Breaks Config',
+        'locations': 'Locations',
+        'agencies': 'Agencies',
+        'performance': 'Performance',
+        'stats': 'Statistics',
+        'settings': 'Settings'
+      };
+      titleElement.textContent = titles[activeSection] || 'Admin Panel';
+    }
+  }, [activeSection]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
 
@@ -236,11 +256,6 @@ export default function AdminPage() {
   // Dashboard Component - pokazywany jako główny widok
   const DashboardView = () => (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-charcoal">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome to the admin panel</p>
-      </div>
-
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
@@ -290,7 +305,7 @@ export default function AdminPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-xl font-bold text-charcoal mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-semibold text-charcoal mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {menuItems.filter(item => item.id !== 'dashboard').map((item) => (
             <button
@@ -357,7 +372,8 @@ export default function AdminPage() {
       {/* Mobile Overlay - tylko na mobile */}
       {mobileSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          className="fixed bg-black bg-opacity-50 z-20 md:hidden"
+          style={{ top: '64px', bottom: 0, left: 0, right: 0 }}
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
@@ -369,22 +385,12 @@ export default function AdminPage() {
         className={`
           ${sidebarHovered ? 'w-72' : 'w-20'}
           bg-white border-r border-gray-200 flex flex-col shadow-lg
-          fixed inset-y-0 left-0 z-50
+          fixed left-0 z-30
           ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           transition-all duration-200 ease-out
         `}
+        style={{ top: '64px', bottom: 0 }}
       >
-        {/* Sidebar Header - wyrównany z top barem */}
-        <div className="px-4 py-5 flex items-center justify-center min-h-[73px] overflow-hidden">
-          {sidebarHovered ? (
-            <div className="flex-1 animate-fadeIn" style={{ animationDelay: '150ms' }}>
-              <h2 className="text-lg font-bold text-charcoal whitespace-nowrap">Admin Panel</h2>
-            </div>
-          ) : (
-            <div className="text-2xl">⚙️</div>
-          )}
-        </div>
-
         {/* Sidebar Menu */}
         <nav className="flex-1 overflow-y-auto py-2 px-2">
           {menuItems.map((item) => {
@@ -396,16 +402,18 @@ export default function AdminPage() {
                   setActiveSection(item.id);
                   setMobileSidebarOpen(false);
                 }}
-                className={`relative w-full flex items-center ${sidebarHovered ? 'gap-3 px-4' : 'justify-center px-2'} py-2 mb-0.5 rounded-lg ${
+                className={`relative w-full flex items-center py-2 mb-0.5 rounded-lg ${
                   isActive
                     ? 'bg-charcoal text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                } ${sidebarHovered ? 'px-3' : 'justify-center px-2'}`}
                 title={!sidebarHovered ? item.label : ''}
               >
-                <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                <div className="w-8 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">{item.icon}</span>
+                </div>
                 {sidebarHovered && (
-                  <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
+                  <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn ml-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                     {item.label}
                     {item.badge > 0 && (
                       <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">

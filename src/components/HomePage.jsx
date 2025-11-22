@@ -203,14 +203,11 @@ export default function HomePage() {
 
         return (
           <header className={`bg-white shadow-sm border-b border-gray-200 ${isAdminPage ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-            <div className={`${isAdminPage ? 'w-full' : 'max-w-7xl mx-auto'} px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center`}>
-              {/* Ukryj tytuł strony dla admin - ma własny sidebar */}
-              {!isAdminPage && (
-                <h1 className="text-2xl font-bold text-charcoal">{getPageTitle()}</h1>
-              )}
-              {isAdminPage && (
-                <div className="flex items-center gap-3">
-                  {/* Hamburger for admin sidebar - TYLKO na mobile */}
+            <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
+              {/* Tytuł strony - zawsze widoczny */}
+              <div className="flex items-center gap-3">
+                {/* Hamburger for admin sidebar - TYLKO na mobile gdy jesteśmy na admin */}
+                {isAdminPage && (
                   <button
                     onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
                     className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -220,17 +217,16 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   </button>
-                  {/* Na mobile pokazujemy napis */}
-                  <span className="md:hidden text-lg font-semibold text-charcoal">Admin Panel</span>
-                </div>
-              )}
+                )}
+                <h1 className="text-xl font-semibold text-charcoal" id="page-title">{getPageTitle()}</h1>
+              </div>
               
               <div className="flex items-center space-x-4">
-                {/* Nawigacja - mniejsze przyciski na stronie admin */}
-                <nav className={`hidden md:flex ${isAdminPage ? 'space-x-1' : 'space-x-2'}`}>
+                {/* Nawigacja - jednakowe rozmiary na wszystkich stronach */}
+                <nav className="hidden md:flex space-x-2">
                   <Link
                     to="/calendar"
-                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === '/calendar' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -240,7 +236,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     to="/my-rota"
-                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === '/my-rota' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -250,7 +246,7 @@ export default function HomePage() {
                   </Link>
                   <Link
                     to="/performance"
-                    className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       location.pathname === '/performance' 
                         ? 'bg-black text-white' 
                         : 'text-charcoal hover:bg-gray-100'
@@ -262,7 +258,7 @@ export default function HomePage() {
                     <>
                       <Link
                         to="/brakes"
-                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           location.pathname === '/brakes' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
@@ -272,7 +268,7 @@ export default function HomePage() {
                       </Link>
                       <Link
                         to="/admin"
-                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           location.pathname === '/admin' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
@@ -282,7 +278,7 @@ export default function HomePage() {
                       </Link>
                       <Link
                         to="/rota-planner"
-                        className={`${isAdminPage ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} font-medium rounded-lg transition-colors ${
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           location.pathname === '/rota-planner' 
                             ? 'bg-black text-white' 
                             : 'text-charcoal hover:bg-gray-100'
