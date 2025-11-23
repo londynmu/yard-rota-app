@@ -568,7 +568,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
                     formErrors.firstName ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Michal"
+                  placeholder="Your first name"
                 />
                 {formErrors.firstName && (
                   <p className="text-sm text-red-500 mt-1">{formErrors.firstName}</p>
@@ -587,7 +587,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
                     formErrors.lastName ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Warda"
+                  placeholder="Your last name"
                 />
                 {formErrors.lastName && (
                   <p className="text-sm text-red-500 mt-1">{formErrors.lastName}</p>
