@@ -265,7 +265,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
   
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10000]" 
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] px-3" 
       onClick={handleClose}
       style={{ 
         position: 'fixed', 
@@ -282,22 +282,18 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     >
       <div 
         ref={modalRef}
-        className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-300" 
+        className="bg-white rounded-3xl md:rounded-xl shadow-2xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border-2 border-gray-400" 
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-blue-500/30 px-6 py-4 border-b border-white/10 sticky top-0 z-10">
+        <div className="bg-black px-5 py-4 border-b border-gray-900 sticky top-0 z-10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-lg font-medium text-white">
-                  Edit User Profile
-                </h3>
-              </div>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <h3 className="text-lg font-bold text-white">
+                Edit User Profile
+              </h3>
             </div>
             <button
               type="button"
@@ -305,34 +301,32 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                 e.stopPropagation();
                 handleClose();
               }}
-              className="text-white hover:text-white/70 transition-colors"
+              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
               aria-label="Close"
             >
-              <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Done
             </button>
           </div>
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-4">
+          <div className="px-5 py-4">
             {/* Avatar Upload */}
             <div className="mb-4">
-              <label className="block text-charcoal font-medium mb-2" htmlFor="admin-edit-avatar">
+              <label className="block text-charcoal font-semibold mb-2 text-sm" htmlFor="admin-edit-avatar">
                 Profile Picture
               </label>
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-black/20 backdrop-blur-sm flex items-center justify-center border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <svg className="w-8 h-8 text-white/70" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="w-7 h-7 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
                     </svg>
                   )}
                 </div>
-                <label className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 cursor-pointer rounded-md border border-gray-300 text-white transition-colors">
+                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">
                   <span>Upload new</span>
                   <input
                     id="admin-edit-avatar"
@@ -346,9 +340,9 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
             </div>
             
             {/* Basic Info */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
                   First Name
                 </label>
                 <input
@@ -356,7 +350,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
                     formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   placeholder="First name"
@@ -368,7 +362,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               </div>
               
               <div>
-                <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
                   Last Name
                 </label>
                 <input
@@ -376,7 +370,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
                     formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   placeholder="Last name"
@@ -388,7 +382,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               </div>
               
               <div>
-                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
                   Yard System ID
                 </label>
                 <input
@@ -397,10 +391,10 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   value={yardSystemId}
                   onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
                   style={{ textTransform: 'uppercase' }}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
                     formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
                   }`}
-                  placeholder="e.g., AG10, AK2024"
+                  placeholder="E.G., AG10, AK2024"
                   disabled={loading}
                 />
                 <p className="mt-1 text-xs text-gray-600">
@@ -412,14 +406,14 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               </div>
               
               <div>
-                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
                   Shift Preference
                 </label>
                 <select
                   id="admin-edit-shiftPreference"
                   value={shiftPreference}
                   onChange={(e) => setShiftPreference(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
                     formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   disabled={loading}
@@ -436,14 +430,14 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               
               {/* Agency Selection */}
               <div>
-                <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
                   Agency
                 </label>
                 <select
                   id="admin-edit-agency"
                   value={agencyId || ''}
                   onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
                   disabled={loading}
                 >
                   <option value="">None (Direct Employment)</option>
@@ -451,13 +445,13 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     <option key={agency.id} value={agency.id}>{agency.name}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-white/60">
+                <p className="mt-1 text-xs text-gray-600">
                   Select the agency through which this worker is employed
                 </p>
               </div>
               
               <div>
-                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-2">
+                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
                   Performance Score (1-99)
                 </label>
                 <input
@@ -467,7 +461,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   max="99"
                   value={performanceScore}
                   onChange={(e) => setPerformanceScore(e.target.value)}
-                  className={`w-full px-3 py-2 bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
                     formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   disabled={loading}
@@ -483,22 +477,22 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="checkbox"
                   checked={isActive}
                   onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-white/30 bg-white/10 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                  className="h-4 w-4 rounded border-gray-300 bg-white text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                   disabled={loading}
                 />
-                <label htmlFor="admin-edit-isActive" className="ml-2 block text-white">
+                <label htmlFor="admin-edit-isActive" className="ml-2 block text-charcoal font-medium">
                   Active Account
                 </label>
               </div>
             </div>
             
             {/* Rota Planning Section */}
-            <div className="mt-6 border-t border-white/10 pt-4">
-              <h4 className="text-lg font-medium text-white mb-3">Rota Planning Settings</h4>
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <h4 className="text-sm font-semibold text-charcoal mb-3">Rota Planning Settings</h4>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label htmlFor="admin-edit-startTime" className="block text-charcoal font-medium mb-2">
+                  <label htmlFor="admin-edit-startTime" className="block text-charcoal font-medium mb-1.5 text-sm">
                     Preferred Start Time
                   </label>
                   <input
@@ -506,23 +500,23 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     type="time"
                     value={customStartTime}
                     onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
                     disabled={loading}
                   />
-                  <p className="mt-1 text-xs text-white/60">
+                  <p className="mt-1 text-xs text-gray-600">
                     Preferred starting time for this staff member
                   </p>
                 </div>
                 
                 <div>
-                  <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-2">
+                  <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-1.5 text-sm">
                     Preferred Location
                   </label>
                   <select
                     id="admin-edit-location"
                     value={preferredLocation || ''}
                     onChange={(e) => setPreferredLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
                     disabled={loading}
                   >
                     <option value="">No preference</option>
@@ -530,7 +524,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                       <option key={location.id} value={location.name}>{location.name}</option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-white/60">
+                  <p className="mt-1 text-xs text-gray-600">
                     Staff will be preferentially assigned to this location when possible
                   </p>
                 </div>
@@ -538,19 +532,19 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
             </div>
             
             {/* Form Actions */}
-            <div className="mt-6 flex space-x-3 justify-end">
+            <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={loading}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-md text-white transition-colors"
+                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg text-charcoal font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-4 py-2 bg-blue-500/60 hover:bg-blue-600/60 border border-blue-400/30 rounded-md text-white transition-colors ${
+                className={`px-4 py-2 text-sm bg-black hover:bg-gray-900 rounded-lg text-white font-semibold transition-colors shadow-md ${
                   loading ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >

@@ -9,6 +9,7 @@ import { supabase } from './lib/supabaseClient';
 import ResetPassword from './pages/ResetPassword';
 import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
+import { usePageTracking } from './hooks/usePageTracking';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -19,6 +20,9 @@ const isRecoveryLink = () => {
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
+  
+  // Track page visits for analytics
+  usePageTracking();
   const [isCheckingProfile, setIsCheckingProfile] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);

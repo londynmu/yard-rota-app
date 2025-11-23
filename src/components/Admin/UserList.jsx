@@ -444,6 +444,17 @@ export default function UserList({ users, onRefresh }) {
         }
       }
       
+      // Delete user's notifications first (to avoid foreign key constraint)
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', userToDelete.id);
+        
+      if (notificationsError) {
+        console.error('Error deleting notifications:', notificationsError);
+        // Continue with user deletion even if notification deletion fails
+      }
+      
       // Delete from profiles table - this will cascade to other tables due to foreign key constraints
       const { error: profileError } = await supabase
         .from('profiles')
@@ -697,207 +708,160 @@ export default function UserList({ users, onRefresh }) {
         </div>
       </div>
 
-      {/* Mobile card view (visible on small screens) */}
-      <div className="md:hidden space-y-3">
+      {/* Mobile card view (visible on small screens) - Notion Style */}
+      <div className="md:hidden space-y-2">
         {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="p-3 flex items-center justify-between border-b border-gray-200">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 h-10 w-10 mr-3">
+          <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all">
+            {/* Header: Avatar, Name, Status dot, Score */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex-shrink-0 h-9 w-9 relative">
                   {user.avatar_url ? (
-                    <img className="h-10 w-10 rounded-full border-2 border-gray-300 shadow-sm" src={user.avatar_url} alt="" />
+                    <img className="h-9 w-9 rounded-full" src={user.avatar_url} alt="" />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300 shadow-sm">
-                      <span className="text-charcoal font-medium">
+                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-charcoal text-sm font-medium">
                         {user.first_name?.charAt(0) || '?'}
                       </span>
                     </div>
                   )}
+                  {/* Status dot on avatar */}
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
                 </div>
-                <div>
-                  <div className="text-charcoal font-medium">
+                <div className="flex-1 min-w-0">
+                  <div className="text-charcoal font-semibold text-base truncate">
                     {user.first_name || ''} {user.last_name || ''}
                   </div>
                 </div>
               </div>
               
-              <div 
-                className="text-center py-1 px-3 rounded-md text-base font-bold w-12 h-8 flex items-center justify-center"
-                style={{
-                  backgroundColor: getScoreBackgroundColor(user.performance_score),
-                  color: getScoreTextColor(user.performance_score),
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)'
-                }}
-              >
-                {user.performance_score || '–'}
+              {/* Score - subtle style */}
+              <div className="flex-shrink-0 ml-3 px-2.5 py-1 bg-gray-50 rounded-md">
+                <span className="text-charcoal text-sm font-semibold">
+                  {user.performance_score || '–'}
+                </span>
               </div>
             </div>
             
-            <div className="p-3 flex flex-wrap gap-2 justify-between items-center">
-              <div className="flex gap-2 flex-wrap">
-                <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                  ${user.shift_preference === 'day' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 
-                  user.shift_preference === 'afternoon' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 
-                  user.shift_preference === 'night' ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 
-                  'bg-gray-100 text-gray-600 border border-gray-300'}`}>
-                  {user.shift_preference || 'Not set'}
-                </span>
-                
-                <span 
-                  className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                    ${user.is_active === false ? 'bg-red-100 text-red-700 border border-red-300' : 
-                    'bg-green-100 text-green-700 border border-green-300'}`}
-                >
-                  {user.is_active === false ? 'Inactive' : 'Active'}
-                </span>
-              </div>
-              
-              <div className="flex gap-2 mt-2 sm:mt-0">
-                <button 
-                  type="button"
-                  className="w-16 h-8 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center justify-center"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openInfoModal(user);
-                  }}
-                >
-                  Info
-                </button>
-                <button 
-                  type="button"
-                  className="w-16 h-8 rounded-md bg-black text-white hover:opacity-90 transition-colors flex items-center justify-center"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openEditModal(user);
-                  }}
-                >
-                  Edit
-                </button>
-                <button 
-                  type="button"
-                  className="w-16 h-8 rounded-md border border-red-300 text-red-700 hover:bg-red-50 transition-colors flex items-center justify-center"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openDeleteModal(user);
-                  }}
-                  disabled={processingUser === user.id}
-                >
-                  {processingUser === user.id ? '...' : 'Delete'}
-                </button>
-              </div>
+            {/* Actions - ghost style buttons */}
+            <div className="flex gap-2 pt-2 border-t border-gray-100">
+              <button 
+                type="button"
+                className="flex-1 h-8 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openInfoModal(user);
+                }}
+              >
+                Info
+              </button>
+              <button 
+                type="button"
+                className="flex-1 h-8 rounded-lg text-xs font-medium bg-charcoal text-white hover:bg-black transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openEditModal(user);
+                }}
+              >
+                Edit
+              </button>
+              <button 
+                type="button"
+                className="flex-1 h-8 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDeleteModal(user);
+                }}
+                disabled={processingUser === user.id}
+              >
+                {processingUser === user.id ? '...' : 'Delete'}
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Desktop table view (hidden on small screens) */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Team Member</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider">Shift</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider">Score</th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-charcoal uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-3 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      {user.avatar_url ? (
-                        <img className="h-10 w-10 rounded-full border-2 border-gray-300 shadow-sm" src={user.avatar_url} alt="" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300 shadow-sm">
-                          <span className="text-charcoal font-medium">
-                            {user.first_name?.charAt(0) || '?'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-charcoal">
-                        {user.first_name || ''} {user.last_name || ''}
-                      </div>
-                    </div>
+      {/* Desktop grid view (hidden on small screens) - 4 cards per row */}
+      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredUsers.map((user) => (
+          <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-md transition-all">
+            {/* Header: Avatar, Name, Status dot */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 h-12 w-12 relative">
+                {user.avatar_url ? (
+                  <img className="h-12 w-12 rounded-full" src={user.avatar_url} alt="" />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                    <span className="text-charcoal text-base font-medium">
+                      {user.first_name?.charAt(0) || '?'}
+                    </span>
                   </div>
-                </td>
-                <td className="px-6 py-3 whitespace-nowrap">
-                  <span className={`w-20 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md
-                    ${user.shift_preference === 'day' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' : 
-                    user.shift_preference === 'afternoon' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 
-                    user.shift_preference === 'night' ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 
-                    'bg-gray-100 text-gray-600 border border-gray-300'}`}>
-                    {user.shift_preference || 'Not set'}
-                  </span>
-                </td>
-                <td className="px-6 py-3 whitespace-nowrap text-center">
-                  <span 
-                    className={`w-16 h-7 inline-flex items-center justify-center text-xs font-semibold rounded-md border
-                      ${user.is_active === false ? 'bg-red-100 text-red-700 border-red-300' : 
-                      'bg-green-100 text-green-700 border-green-300'}`}
-                  >
-                    {user.is_active === false ? 'Inactive' : 'Active'}
-                  </span>
-                </td>
-                <td className="px-6 py-3 whitespace-nowrap text-center">
-                  <div 
-                    className="w-12 h-8 inline-flex items-center justify-center rounded-md text-base font-bold" 
-                    style={{
-                      backgroundColor: getScoreBackgroundColor(user.performance_score),
-                      color: getScoreTextColor(user.performance_score),
-                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)'
-                    }}
-                  >
-                    {user.performance_score || '–'}
-                  </div>
-                </td>
-                <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-right">
-                  <button 
-                    type="button"
-                    className="w-16 h-8 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100 transition-colors flex items-center justify-center mr-2 inline-flex"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openInfoModal(user);
-                    }}
-                  >
-                    Info
-                  </button>
-                  <button 
-                    type="button"
-                    className="w-16 h-8 rounded-md bg-black text-white hover:opacity-90 transition-colors flex items-center justify-center mr-2 inline-flex"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openEditModal(user);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    type="button"
-                    className="w-16 h-8 rounded-md border border-red-300 text-red-700 hover:bg-red-50 transition-colors flex items-center justify-center inline-flex"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openDeleteModal(user);
-                    }}
-                    disabled={processingUser === user.id}
-                  >
-                    {processingUser === user.id ? '...' : 'Delete'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                )}
+                {/* Status dot on avatar */}
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-charcoal font-semibold text-sm truncate mb-1">
+                  {user.first_name || ''} {user.last_name || ''}
+                </div>
+                <div className="text-gray-500 text-xs">
+                  {user.shift_preference || 'not set'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Score - centered */}
+            <div className="flex justify-center mb-4">
+              <div className="px-4 py-2 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-0.5">Score</div>
+                <div className="text-charcoal text-xl font-bold text-center">
+                  {user.performance_score || '–'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Actions - full width buttons */}
+            <div className="flex flex-col gap-2">
+              <button 
+                type="button"
+                className="w-full h-8 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openInfoModal(user);
+                }}
+              >
+                Info
+              </button>
+              <button 
+                type="button"
+                className="w-full h-8 rounded-lg text-xs font-medium bg-charcoal text-white hover:bg-black transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openEditModal(user);
+                }}
+              >
+                Edit
+              </button>
+              <button 
+                type="button"
+                className="w-full h-8 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDeleteModal(user);
+                }}
+                disabled={processingUser === user.id}
+              >
+                {processingUser === user.id ? '...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
       
       {/* Delete Confirmation Modal (portal) */}
@@ -937,21 +901,53 @@ export default function UserList({ users, onRefresh }) {
       {/* Info Modal */}
       {infoModalOpen && (
         <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
-            <div className="px-6 py-4">
-              <h3 className="text-xl font-bold text-charcoal mb-4">User Information</h3>
+            <div className="bg-black px-5 py-4 border-b border-gray-900">
+              <h3 className="text-lg font-bold text-white">User Information</h3>
+            </div>
+            <div className="px-5 py-5">
               {infoUser && (
-                <>
-                  <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Name:</span> {infoUser.first_name} {infoUser.last_name}</p>
-                  <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Email:</span> {infoUser.email}</p>
-                  {lastLogin ? (
-                    <p className="text-gray-700 mb-2"><span className="font-semibold text-charcoal">Last login:</span> {new Date(lastLogin).toLocaleString()} ({formatDistanceToNow(new Date(lastLogin), { addSuffix: true })})</p>
-                  ) : (
-                    <p className="text-gray-600 mb-2">Last login information not available</p>
+                <div className="space-y-3">
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">Name:</span>
+                    <span className="text-charcoal font-medium">{infoUser.first_name} {infoUser.last_name}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">Email:</span>
+                    <span className="text-charcoal">{infoUser.email}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">User ID:</span>
+                    <span className="text-charcoal font-mono text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">{infoUser.id}</span>
+                  </div>
+                  {infoUser.yard_system_id && (
+                    <div className="flex items-start">
+                      <span className="font-semibold text-gray-600 w-24 text-sm">Yard ID:</span>
+                      <span className="text-charcoal font-semibold">{infoUser.yard_system_id}</span>
+                    </div>
                   )}
-                </>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">Shift:</span>
+                    <span className="text-charcoal">{infoUser.shift_preference || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">Score:</span>
+                    <span className="text-charcoal font-semibold">{infoUser.performance_score || '–'}</span>
+                  </div>
+                  {lastLogin ? (
+                    <div className="flex items-start pt-2 border-t border-gray-100">
+                      <span className="font-semibold text-gray-600 w-24 text-sm">Last login:</span>
+                      <div className="flex-1">
+                        <div className="text-charcoal">{new Date(lastLogin).toLocaleString()}</div>
+                        <div className="text-gray-500 text-xs mt-1">{formatDistanceToNow(new Date(lastLogin), { addSuffix: true })}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm pt-2 border-t border-gray-100">Last login information not available</p>
+                  )}
+                </div>
               )}
-              <div className="text-right mt-4">
-                <button onClick={closeInfoModal} className="px-4 py-2 rounded-md border border-gray-300 text-charcoal hover:bg-gray-100">Close</button>
+              <div className="text-right mt-5 pt-4 border-t border-gray-200">
+                <button onClick={closeInfoModal} className="px-5 py-2.5 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 transition-colors">Close</button>
               </div>
             </div>
         </Modal>

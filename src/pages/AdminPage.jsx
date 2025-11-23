@@ -139,35 +139,62 @@ export default function AdminPage() {
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
-    console.log('[AdminPage] Fetching users...');
+    console.log('[AdminPage] Fetching users with ALL fields including yard_system_id...');
     setPageLoading(true); // Show loading state
     try {
-      // Fetch regular profiles with emails using complete RPC function
-      const { data: usersWithEmail, error: rpcError } = await supabase.rpc('get_complete_profiles_with_emails');
-      if (rpcError) {
-        console.error('[AdminPage] Error fetching users with complete profiles:', rpcError);
-        // Fallback to original function if the new one doesn't exist yet
-        const { data: fallbackUsers, error: fallbackError } = await supabase.rpc('get_profiles_with_emails');
-        if (fallbackError) throw new Error('Could not fetch users via RPC.');
-        
-        // Process fetched users from fallback
-        const processedUsers = fallbackUsers?.map(u => ({ 
-          ...u, 
-          performance_score: u.performance_score ?? 50, 
-          is_active: u.is_active !== false 
-        })) || [];
-        
-        setUsers(processedUsers);
-      } else {
-        // Process fetched users from complete function
-        const processedUsers = usersWithEmail?.map(u => ({ 
-          ...u, 
-          performance_score: u.performance_score ?? 50, 
-          is_active: u.is_active !== false 
-        })) || [];
-        
-        setUsers(processedUsers);
+      // Direct query to get ALL fields from profiles including yard_system_id
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (profilesError) throw profilesError;
+      
+      // Try to get emails using RPC function first, then fallback to admin API
+      let usersWithEmails = [];
+      
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_complete_profiles_with_emails');
+        if (!rpcError && rpcData) {
+          // Merge RPC email data with profile data
+          usersWithEmails = (profilesData || []).map(profile => {
+            const rpcUser = rpcData.find(u => u.id === profile.id);
+            return {
+              ...profile,
+              email: rpcUser?.email || 'N/A',
+              performance_score: profile.performance_score ?? 50,
+              is_active: profile.is_active !== false
+            };
+          });
+        } else {
+          throw new Error('RPC function failed');
+        }
+      } catch (rpcErr) {
+        console.warn('[AdminPage] RPC failed, fetching emails individually:', rpcErr);
+        // Fallback: get emails individually
+        usersWithEmails = await Promise.all(
+          (profilesData || []).map(async (profile) => {
+            try {
+              const { data: { user: authUser } } = await supabase.auth.admin.getUserById(profile.id);
+              return {
+                ...profile,
+                email: authUser?.email || 'N/A',
+                performance_score: profile.performance_score ?? 50,
+                is_active: profile.is_active !== false
+              };
+            } catch (err) {
+              return {
+                ...profile,
+                email: 'N/A',
+                performance_score: profile.performance_score ?? 50,
+                is_active: profile.is_active !== false
+              };
+            }
+          })
+        );
       }
+      
+      console.log('[AdminPage] Fetched users sample:', usersWithEmails[0]);
+      setUsers(usersWithEmails);
     } catch (err) {
       console.error('[AdminPage] General error fetching users:', err);
       setError('Error loading users.');
@@ -339,7 +366,7 @@ export default function AdminPage() {
       case 'dashboard':
         return <DashboardView />;
       case 'users':
-        return <UserList users={users} refreshData={fetchUsers} />;
+        return <UserList users={users} onRefresh={fetchUsers} />;
       case 'approvals':
         return <UserApprovalPage />;
       case 'availability':

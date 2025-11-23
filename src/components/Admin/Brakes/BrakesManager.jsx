@@ -1119,39 +1119,7 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="bg-gray-100 text-charcoal min-h-screen pb-32 md:pb-20">
-      {/* Sticky Controls in one line (badges) */}
-      <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-2">
-            {/* Date badge */}
-            <button
-              onClick={() => { 
-                setShowDateModal(true); 
-                setShowLocationModal(false); 
-                setShowShiftModal(false);
-              }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
-            >
-              {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
-            </button>
-            {/* Location badge */}
-            <button
-              onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
-            >
-              {selectedLocation || 'Hub'}
-            </button>
-            {/* Shift badge */}
-            <button
-              onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
-            >
-              {selectedShift}
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="bg-offwhite text-charcoal min-h-screen pb-32 md:pb-20">
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
@@ -1452,18 +1420,47 @@ const BrakesManager = () => {
       {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
 
 
-      {/* Break Slots Display */}
-      <div className="container mx-auto p-4">
+      {/* Break Slots Display - bez kontenera, floating cards */}
+      <div className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
+        {/* Floating Pills - filters */}
+        <div className="mb-4 flex items-center gap-1 flex-wrap">
+          {/* Date pill - pastelowy niebieski */}
+          <button
+            onClick={() => { 
+              setShowDateModal(true); 
+              setShowLocationModal(false); 
+              setShowShiftModal(false);
+            }}
+            className="flex items-center justify-center px-4 py-1 rounded-full bg-blue-50 text-blue-700 text-sm md:text-base font-medium border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
+          >
+            📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
+          </button>
+          {/* Location pill - pastelowy zielony */}
+          <button
+            onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
+            className="flex items-center justify-center px-4 py-1 rounded-full bg-green-50 text-green-700 text-sm md:text-base font-medium border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
+          >
+            📍 {selectedLocation || 'Hub'}
+          </button>
+          {/* Shift pill - pastelowy fioletowy */}
+          <button
+            onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+            className="flex items-center justify-center px-4 py-1 rounded-full bg-purple-50 text-purple-700 text-sm md:text-base font-medium border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
+          >
+            🌙 {selectedShift}
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="text-center py-10">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
-            <p className="mt-2 text-gray-900 font-semibold">Loading breaks...</p>
+            <p className="mt-2 text-charcoal font-semibold">Loading breaks...</p>
           </div>
         ) : (
-          <div className="space-y-4 md:space-y-8">
+          <div className="space-y-6 md:space-y-8">
           {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
             <div key={groupName}>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 {slotsInGroup.map(slot => (
                   <SlotCard 
                     key={slot.id} 

@@ -417,11 +417,6 @@ export default function AvailabilityManager() {
                           ? `${user.first_name} ${user.last_name}`
                           : user.name || user.email}
                       </span>
-                      {user.shift_preference && (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getShiftTypeColor(user.shift_preference)} uppercase inline-block w-fit`}>
-                          {user.shift_preference}
-                        </span>
-                      )}
                     </div>
                   </td>
                   {daysInWeek.map((day, i) => {
