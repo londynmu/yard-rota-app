@@ -920,14 +920,21 @@ const ExportRota = () => {
               >
                 Cancel
               </button>
-              <a 
-                href={downloadInfo.url}
-                download={downloadInfo.fileName}
-                onClick={() => setShowDownloadModal(false)}
+              <button
+                onClick={() => {
+                  // Programmatically trigger download - works better on mobile
+                  const link = document.createElement('a');
+                  link.href = downloadInfo.url;
+                  link.download = downloadInfo.fileName;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  setShowDownloadModal(false);
+                }}
                 className="rounded-md bg-black px-4 py-2 text-center text-white transition hover:bg-gray-800"
               >
                 Download {downloadInfo.type}
-              </a>
+              </button>
             </div>
           </div>
         </div>, document.body)}
