@@ -9,6 +9,7 @@ import LoginStats from '../components/Admin/LoginStats';
 import PerformanceImport from '../components/Admin/PerformanceImport';
 import RotaPlannerPage from './RotaPlannerPage';
 import BrakesManager from '../components/Admin/Brakes/BrakesManager';
+import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManager';
 
 export default function AdminPage() {
   // Pobierz tylko user i loading z AuthContext
@@ -39,6 +40,7 @@ export default function AdminPage() {
         'breaks': 'Breaks',
         'performance': 'Performance',
         'stats': 'Statistics',
+        'shunter-month': 'Shunter of the Month',
         'settings': 'Settings'
       };
       titleElement.textContent = titles[activeSection] || 'Admin Panel';
@@ -136,6 +138,34 @@ export default function AdminPage() {
     }
 
   }, [user, authLoading]); // Zależność od user i authLoading
+
+  // --- Monthly Shunter reminder banner ---
+  const [showShunterReminder, setShowShunterReminder] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin || pageLoading) return;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const monthKey = `${year}-${month}`;
+    const storageKey = `shunterReminderDismissed-${monthKey}`;
+    const dismissed = localStorage.getItem(storageKey) === 'true';
+
+    if (!dismissed) {
+      setShowShunterReminder(true);
+    }
+  }, [isAdmin, pageLoading]);
+
+  const handleDismissShunterReminder = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const monthKey = `${year}-${month}`;
+    const storageKey = `shunterReminderDismissed-${monthKey}`;
+    localStorage.setItem(storageKey, 'true');
+    setShowShunterReminder(false);
+  };
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
@@ -272,6 +302,7 @@ export default function AdminPage() {
     { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
+    { id: 'shunter-month', label: 'Shunter of the Month', icon: '🏆', description: 'Monthly Day & Night awards' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Locations & Agencies' },
   ];
 
@@ -375,6 +406,8 @@ export default function AdminPage() {
         return <RotaPlannerPage />;
       case 'breaks':
         return <BrakesManager />;
+      case 'shunter-month':
+        return <ShunterOfTheMonthManager users={users} />;
       case 'settings':
         return <SettingsManager />;
       case 'performance':
@@ -463,6 +496,35 @@ export default function AdminPage() {
       {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
       <main className="min-h-screen overflow-y-auto md:ml-20">
         <div className="p-4 md:p-6 lg:p-8">
+          {showShunterReminder && (
+            <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-charcoal">
+                  Time to pick your Shunter of the Month
+                </p>
+                <p className="text-xs text-gray-600 mt-1">
+                  One Day and one Night shunter for the whole company. Open the &quot;Shunter of the Month&quot; section to choose winners.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('shunter-month')}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-black text-white hover:bg-gray-900"
+                >
+                  Go to Shunter of the Month
+                </button>
+                <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-3 w-3 rounded border-gray-300 text-black focus:ring-black"
+                    onChange={handleDismissShunterReminder}
+                  />
+                  <span>Don&apos;t remind me again this month</span>
+                </label>
+              </div>
+            </div>
+          )}
           {renderContent()}
         </div>
       </main>

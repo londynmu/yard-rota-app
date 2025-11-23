@@ -11,6 +11,7 @@ import PerformanceLeaderboard from '../pages/PerformanceLeaderboard';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
+import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
@@ -303,7 +304,15 @@ export default function HomePage() {
       
       <main className="flex-1 relative z-0 mb-16 md:mb-0">
         <Routes>
-          <Route path="/calendar" element={<CalendarPage />} />
+          <Route
+            path="/calendar"
+            element={
+              <>
+                <ShunterOfTheMonthCard />
+                <CalendarPage />
+              </>
+            }
+          />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
