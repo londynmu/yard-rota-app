@@ -71,3 +71,4 @@ BEGIN
     RAISE NOTICE 'Successfully updated get_complete_profiles_with_emails() to include yard_system_id';
 END $$;
 
+

@@ -218,3 +218,4 @@ GRANT EXECUTE ON FUNCTION public.get_active_users_by_timerange() TO authenticate
 -- Grant table permissions
 GRANT SELECT, INSERT ON public.page_visits TO authenticated;
 
+
