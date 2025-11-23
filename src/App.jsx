@@ -10,6 +10,7 @@ import ResetPassword from './pages/ResetPassword';
 import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
 import { usePageTracking } from './hooks/usePageTracking';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -251,6 +252,7 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <PWAInstallPrompt />
         <AppContent />
       </NotificationProvider>
     </AuthProvider>
