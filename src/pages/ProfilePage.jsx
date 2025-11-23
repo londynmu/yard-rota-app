@@ -3,7 +3,6 @@ import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
-import PerformanceStats from '../components/User/PerformanceStats';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -117,7 +116,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     } finally {
       setLoading(false);
     }
-  }, [user, supabaseClient]);
+  }, [user, supabaseClient, toast]);
 
   // Load user profile data
   useEffect(() => {
@@ -478,7 +477,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-offwhite">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black animate-spin"></div>
       </div>
     );
   }
@@ -487,7 +486,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   if (isRequired && !profileLoaded) {
     return (
       <div className="min-h-screen bg-offwhite flex justify-center items-center">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black animate-spin"></div>
       </div>
     );
   }
@@ -495,8 +494,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Simplified view - full screen form focused on required fields
   if (simplifiedView) {
     return (
-      <div className="min-h-screen bg-cream flex justify-center items-center">
-        <div className="w-full max-w-full p-4">
+      <div className="min-h-screen bg-offwhite flex justify-center items-center p-4">
+        <div className="w-full max-w-md">
           {message.text && (
             <div className={`mb-4 p-3 rounded-lg ${
               message.type === 'error' 
@@ -515,57 +514,97 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            {/* First Name */}
-            <div>
-              <label className="block text-charcoal font-medium mb-2" htmlFor="firstName">
-                First Name {isRequired && <span className="text-red-500">*</span>}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Avatar Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+              <label className="block text-charcoal font-medium mb-3 text-sm">
+                Profile Picture <span className="text-xs text-gray-600">(Optional)</span>
               </label>
-              <input
-                type="text"
-                id="firstName"
-                value={firstName}
-                onChange={handleFirstNameChange}
-                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
-                  formErrors.firstName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Your first name"
-              />
-              {formErrors.firstName && (
-                <p className="text-sm text-red-500 mt-1">{formErrors.firstName}</p>
-              )}
+              <div className="flex items-center space-x-4">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    id="avatar"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                  <label 
+                    htmlFor="avatar"
+                    className="inline-block px-4 py-2 bg-white hover:bg-gray-50 text-charcoal rounded-lg cursor-pointer border border-gray-300 text-sm font-medium transition-colors"
+                  >
+                    Choose Image
+                  </label>
+                  <p className="text-xs text-gray-600 mt-2">Maximum file size: 7MB</p>
+                  {avatar && (
+                    <p className="text-xs text-charcoal mt-1 font-medium">✓ {avatar.name}</p>
+                  )}
+                </div>
+              </div>
             </div>
-            
-            {/* Last Name */}
-            <div>
-              <label className="block text-charcoal font-medium mb-2" htmlFor="lastName">
-                Last Name {isRequired && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                value={lastName}
-                onChange={handleLastNameChange}
-                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
-                  formErrors.lastName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Your last name"
-              />
-              {formErrors.lastName && (
-                <p className="text-sm text-red-500 mt-1">{formErrors.lastName}</p>
-              )}
+
+            {/* Personal Info Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+              <h3 className="text-charcoal font-semibold text-base mb-4">Personal Information</h3>
+              
+              <div>
+                <label className="block text-charcoal font-medium mb-2 text-sm" htmlFor="firstName">
+                  First Name {isRequired && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  id="firstName"
+                  value={firstName}
+                  onChange={handleFirstNameChange}
+                  className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
+                    formErrors.firstName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Michal"
+                />
+                {formErrors.firstName && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.firstName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-charcoal font-medium mb-2 text-sm" htmlFor="lastName">
+                  Last Name {isRequired && <span className="text-red-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  value={lastName}
+                  onChange={handleLastNameChange}
+                  className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
+                    formErrors.lastName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Warda"
+                />
+                {formErrors.lastName && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.lastName}</p>
+                )}
+              </div>
             </div>
-            
-            {/* Shift Preference */}
-            <div>
-              <label className="block text-charcoal font-medium mb-2" id="shift-preference-label">
+
+            {/* Shift Preference Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+              <label className="block text-charcoal font-semibold mb-3 text-base" id="shift-preference-label">
                 Shift Preference {isRequired && <span className="text-red-500">*</span>}
               </label>
-              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="shift-preference-label">
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
+              <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-labelledby="shift-preference-label">
+                <label className={`flex items-center justify-center py-3 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
                   shiftPreference === 'day' 
                     ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
+                    : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
                 }`} htmlFor="shift-day">
                   <input
                     type="radio"
@@ -580,10 +619,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   <span>Day</span>
                 </label>
                 
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
+                <label className={`flex items-center justify-center py-3 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
                   shiftPreference === 'afternoon' 
                     ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
+                    : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
                 }`} htmlFor="shift-afternoon">
                   <input
                     type="radio"
@@ -598,10 +637,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   <span>Afternoon</span>
                 </label>
                 
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
+                <label className={`flex items-center justify-center py-3 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
                   shiftPreference === 'night' 
                     ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
+                    : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
                 }`} htmlFor="shift-night">
                   <input
                     type="radio"
@@ -617,18 +656,17 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 </label>
               </div>
               {formErrors.shiftPreference && (
-                <p className="text-sm text-red-500 mt-1">{formErrors.shiftPreference}</p>
+                <p className="text-sm text-red-500 mt-2">{formErrors.shiftPreference}</p>
               )}
             </div>
             
-            {/* Rota Planner Section */}
-            <div className="mt-8 border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-charcoal mb-4">Rota Planner Preferences</h3>
+            {/* Rota Planner Preferences Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+              <h3 className="text-charcoal font-semibold text-base mb-4">Rota Planner Preferences</h3>
               
-              {/* Custom Start Time */}
-              <div className="mb-4">
-                <label className="block text-charcoal font-medium mb-2" htmlFor="customStartTime">
-                  Preferred Start Time {isRequired && <span className="text-red-500">*</span>}
+              <div>
+                <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="customStartTime">
+                  Preferred Start Time {isRequired && <span className="text-red-500 ml-1">*</span>}
                   <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
                 <input
@@ -636,7 +674,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   id="customStartTime"
                   value={customStartTime}
                   onChange={handleCustomStartTimeChange}
-                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
                     formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
@@ -645,17 +683,16 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 )}
               </div>
               
-              {/* Preferred Location */}
-              <div className="mb-4">
-                <label className="block text-charcoal font-medium mb-2" htmlFor="preferredLocation">
-                  Preferred Location {isRequired && <span className="text-red-500">*</span>}
+              <div>
+                <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="preferredLocation">
+                  Preferred Location {isRequired && <span className="text-red-500 ml-1">*</span>}
                   <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
                 <select
                   id="preferredLocation"
                   value={preferredLocation}
                   onChange={handlePreferredLocationChange}
-                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                  className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
                     formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -679,36 +716,36 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               </div>
             </div>
             
-            {/* Agency Selection */}
-            <div className="mb-4">
-              <label htmlFor="agency" className="block text-charcoal font-medium mb-2">
+            {/* Agency Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+              <label htmlFor="agency" className="block text-charcoal font-medium mb-2 text-sm">
                 Agency <span className="text-xs text-gray-600">(Optional)</span>
               </label>
               <select
                 id="agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="w-full px-3 py-2 bg-white rounded-lg focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/20"
+                className="w-full px-4 py-3 bg-white rounded-xl focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/10"
               >
                 <option value="">None (Direct Employment)</option>
                 {agencies.map(agency => (
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-600">
+              <p className="mt-2 text-xs text-gray-600">
                 If you work through a recruitment agency, please select it here
               </p>
             </div>
             
-            {/* Submit Button */}
-            <div>
+            {/* Submit Button - Floating at bottom */}
+            <div className="sticky bottom-4 pt-2">
               <button
                 type="submit"
                 id="submit-profile"
                 name="submit-profile"
                 disabled={loading}
-                className={`w-full py-2 px-4 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200 ${
-                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                className={`w-full py-4 px-4 bg-black hover:bg-gray-800 text-white rounded-2xl font-semibold text-base shadow-lg transition-all ${
+                  loading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl'
                 }`}
               >
                 {loading ? 'Saving...' : 'Complete Profile'}
@@ -720,100 +757,105 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     );
   }
 
-  // Standard view with more details and styling
+  // Standard view - Card-Based Layout (NEW DESIGN)
   return (
-    <div className="min-h-screen bg-offwhite py-8 px-8 sm:px-12 overflow-hidden relative flex justify-center">
-      <div className="w-full max-w-6xl relative">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
-          {isOffline && (
-            <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700 rounded-lg">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm">You appear to be offline. Some features may not work properly.</p>
-                  <button 
-                    onClick={handleRetry}
-                    className="mt-2 px-3 py-1 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-sm text-white"
-                  >
-                    Try Again
-                  </button>
-                </div>
+    <div className="min-h-screen bg-offwhite pb-24">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* Offline Warning */}
+        {isOffline && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
               </div>
-            </div>
-          )}
-          
-          {isRequired && (
-            <div className="mb-6 p-4 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
-              <p className="font-medium">Welcome to Shunters.net!</p>
-              <p className="mt-2">Please complete your profile information before continuing. Fields marked with * are required.</p>
-            </div>
-          )}
-          
-          {message.text && (
-            <div className={`mb-4 p-3 rounded-lg ${
-              message.type === 'error' 
-                ? 'bg-red-50 text-red-600 border border-red-200' 
-                : 'bg-green-50 text-green-600 border border-green-200'
-            }`}>
-              {message.text}
-              {message.type === 'error' && (
+              <div className="ml-3">
+                <p className="text-sm text-yellow-800">You appear to be offline. Some features may not work properly.</p>
                 <button 
                   onClick={handleRetry}
-                  className="mt-2 px-3 py-1 bg-red-500 hover:bg-red-600 rounded-lg text-sm text-white"
-                  id="retry-button"
-                  name="retry-button"
+                  className="mt-2 px-3 py-1 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-sm text-white font-medium"
                 >
-                  Retry
+                  Try Again
                 </button>
-              )}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Avatar Upload */}
-            <div>
-              <label className="block text-charcoal font-medium mb-2" htmlFor="avatar">
-                Profile Picture <span className="text-xs text-gray-600">(Optional)</span>
-              </label>
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-300">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <input
-                    type="file"
-                    id="avatar"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
-                  <label 
-                    htmlFor="avatar"
-                    className="px-3 py-1.5 bg-transparent hover:bg-gray-100 text-charcoal rounded-lg cursor-pointer border-2 border-black"
-                  >
-                    Choose Image
-                  </label>
-                  <p className="text-xs text-gray-600 mt-1">Maximum file size: 7MB</p>
-                  {avatar && (
-                    <p className="text-sm text-charcoal mt-1">Selected: {avatar.name}</p>
-                  )}
-                </div>
               </div>
             </div>
+          </div>
+        )}
+        
+        {/* Required Notice */}
+        {isRequired && (
+          <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-2xl border border-blue-200 shadow-sm">
+            <p className="font-semibold">Welcome to Shunters.net!</p>
+            <p className="mt-1 text-sm">Please complete your profile information before continuing. Fields marked with * are required.</p>
+          </div>
+        )}
+        
+        {/* Status Message */}
+        {message.text && (
+          <div className={`mb-4 p-4 rounded-2xl shadow-sm ${
+            message.type === 'error' 
+              ? 'bg-red-50 text-red-600 border border-red-200' 
+              : 'bg-green-50 text-green-600 border border-green-200'
+          }`}>
+            {message.text}
+            {message.type === 'error' && (
+              <button 
+                onClick={handleRetry}
+                className="mt-2 px-3 py-1 bg-red-500 hover:bg-red-600 rounded-lg text-sm text-white font-medium"
+                id="retry-button"
+                name="retry-button"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Picture Card */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+            <label className="block text-charcoal font-medium mb-3 text-sm">
+              Profile Picture <span className="text-xs text-gray-600">(Optional)</span>
+            </label>
+            <div className="flex items-center space-x-4">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200 flex-shrink-0">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <svg className="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="avatar"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <label 
+                  htmlFor="avatar"
+                  className="inline-block px-4 py-2.5 bg-white hover:bg-gray-50 text-charcoal rounded-xl cursor-pointer border-2 border-gray-300 text-sm font-medium transition-colors"
+                >
+                  Choose Image
+                </label>
+                <p className="text-xs text-gray-600 mt-2">Maximum file size: 7MB</p>
+                {avatar && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">✓ {avatar.name}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Information Card */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+            <h3 className="text-charcoal font-semibold text-base mb-4">Personal Information</h3>
             
-            {/* First Name */}
             <div>
-              <label className="block text-charcoal font-medium mb-2" htmlFor="firstName">
+              <label className="block text-charcoal font-medium mb-2 text-sm" htmlFor="firstName">
                 First Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -821,7 +863,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="firstName"
                 value={firstName}
                 onChange={handleFirstNameChange}
-                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
                   formErrors.firstName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your first name"
@@ -831,9 +873,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               )}
             </div>
             
-            {/* Last Name */}
             <div>
-              <label className="block text-charcoal font-medium mb-2" htmlFor="lastName">
+              <label className="block text-charcoal font-medium mb-2 text-sm" htmlFor="lastName">
                 Last Name {isRequired && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -841,7 +882,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 id="lastName"
                 value={lastName}
                 onChange={handleLastNameChange}
-                className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
+                className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
                   formErrors.lastName ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="Your last name"
@@ -850,174 +891,167 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 <p className="text-sm text-red-500 mt-1">{formErrors.lastName}</p>
               )}
             </div>
-            
-            {/* Shift Preference */}
-            <div>
-              <label className="block text-charcoal font-medium mb-2" id="shift-preference-label">
-                Shift Preference {isRequired && <span className="text-red-500">*</span>}
+          </div>
+
+          {/* Shift Preference Card */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+            <label className="block text-charcoal font-semibold mb-3 text-base" id="shift-preference-label">
+              Shift Preference {isRequired && <span className="text-red-500">*</span>}
+            </label>
+            <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-labelledby="shift-preference-label">
+              <label className={`flex items-center justify-center py-4 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
+                shiftPreference === 'day' 
+                  ? 'bg-black text-white border-black shadow-md' 
+                  : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
+              }`} htmlFor="shift-day">
+                <input
+                  type="radio"
+                  id="shift-day"
+                  name="shiftPreference"
+                  value="day"
+                  checked={shiftPreference === 'day'}
+                  onChange={() => setShiftPreference('day')}
+                  className="sr-only"
+                  aria-labelledby="shift-preference-label"
+                />
+                <span>Day</span>
               </label>
-              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="shift-preference-label">
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
-                  shiftPreference === 'day' 
-                    ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
-                }`} htmlFor="shift-day">
-                  <input
-                    type="radio"
-                    id="shift-day"
-                    name="shiftPreference"
-                    value="day"
-                    checked={shiftPreference === 'day'}
-                    onChange={() => setShiftPreference('day')}
-                    className="sr-only"
-                    aria-labelledby="shift-preference-label"
-                  />
-                  <span>Day</span>
-                </label>
-                
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
-                  shiftPreference === 'afternoon' 
-                    ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
-                }`} htmlFor="shift-afternoon">
-                  <input
-                    type="radio"
-                    id="shift-afternoon"
-                    name="shiftPreference"
-                    value="afternoon"
-                    checked={shiftPreference === 'afternoon'}
-                    onChange={() => setShiftPreference('afternoon')}
-                    className="sr-only"
-                    aria-labelledby="shift-preference-label"
-                  />
-                  <span>Afternoon</span>
-                </label>
-                
-                <label className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer ${
-                  shiftPreference === 'night' 
-                    ? 'bg-black text-white border-black' 
-                    : 'border-gray-300 text-charcoal hover:bg-gray-100'
-                }`} htmlFor="shift-night">
-                  <input
-                    type="radio"
-                    id="shift-night"
-                    name="shiftPreference"
-                    value="night"
-                    checked={shiftPreference === 'night'}
-                    onChange={() => setShiftPreference('night')}
-                    className="sr-only"
-                    aria-labelledby="shift-preference-label"
-                  />
-                  <span>Night</span>
-                </label>
-              </div>
-              {formErrors.shiftPreference && (
-                <p className="text-sm text-red-500 mt-1">{formErrors.shiftPreference}</p>
+              
+              <label className={`flex items-center justify-center py-4 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
+                shiftPreference === 'afternoon' 
+                  ? 'bg-black text-white border-black shadow-md' 
+                  : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
+              }`} htmlFor="shift-afternoon">
+                <input
+                  type="radio"
+                  id="shift-afternoon"
+                  name="shiftPreference"
+                  value="afternoon"
+                  checked={shiftPreference === 'afternoon'}
+                  onChange={() => setShiftPreference('afternoon')}
+                  className="sr-only"
+                  aria-labelledby="shift-preference-label"
+                />
+                <span>Afternoon</span>
+              </label>
+              
+              <label className={`flex items-center justify-center py-4 px-2 border-2 rounded-xl cursor-pointer font-medium transition-all ${
+                shiftPreference === 'night' 
+                  ? 'bg-black text-white border-black shadow-md' 
+                  : 'border-gray-300 text-charcoal hover:bg-gray-50 hover:border-gray-400'
+              }`} htmlFor="shift-night">
+                <input
+                  type="radio"
+                  id="shift-night"
+                  name="shiftPreference"
+                  value="night"
+                  checked={shiftPreference === 'night'}
+                  onChange={() => setShiftPreference('night')}
+                  className="sr-only"
+                  aria-labelledby="shift-preference-label"
+                />
+                <span>Night</span>
+              </label>
+            </div>
+            {formErrors.shiftPreference && (
+              <p className="text-sm text-red-500 mt-2">{formErrors.shiftPreference}</p>
+            )}
+          </div>
+
+          {/* Rota Planner Preferences Card */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
+            <h3 className="text-charcoal font-semibold text-base mb-4">Rota Planner Preferences</h3>
+            
+            <div>
+              <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="customStartTime">
+                Preferred Start Time {isRequired && <span className="text-red-500 ml-1">*</span>}
+                <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
+              </label>
+              <input
+                type="time"
+                id="customStartTime"
+                value={customStartTime}
+                onChange={handleCustomStartTimeChange}
+                className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
+                  formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+              {formErrors.customStartTime && (
+                <p className="text-sm text-red-500 mt-1">{formErrors.customStartTime}</p>
               )}
             </div>
-
-            {/* Rota Planner Section */}
-            <div className="mt-8 border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-charcoal mb-4">Rota Planner Preferences</h3>
-              
-              {/* Custom Start Time */}
-              <div className="mb-4">
-                <label className="block text-charcoal font-medium mb-2" htmlFor="customStartTime">
-                  Preferred Start Time {isRequired && <span className="text-red-500">*</span>}
-                  <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
-                </label>
-                <input
-                  type="time"
-                  id="customStartTime"
-                  value={customStartTime}
-                  onChange={handleCustomStartTimeChange}
-                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
-                    formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {formErrors.customStartTime && (
-                  <p className="text-sm text-red-500 mt-1">{formErrors.customStartTime}</p>
-                )}
-              </div>
-              
-              {/* Preferred Location */}
-              <div className="mb-4">
-                <label className="block text-charcoal font-medium mb-2" htmlFor="preferredLocation">
-                  Preferred Location {isRequired && <span className="text-red-500">*</span>}
-                  <Tooltip message="Select your preferred working location. This helps with shift planning." />
-                </label>
-                <select
-                  id="preferredLocation"
-                  value={preferredLocation}
-                  onChange={handlePreferredLocationChange}
-                  className={`w-full px-3 py-2 bg-white rounded-lg focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/20 ${
-                    formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="" disabled className="text-gray-800">Select location...</option>
-                  {locations && locations.length > 0 ? (
-                    locations.map(location => (
-                      <option key={location.id} value={location.name} className="text-gray-800">
-                        {location.name}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Main Hub" className="text-gray-800">Main Hub</option>
-                      <option value="NRC" className="text-gray-800">NRC</option>
-                    </>
-                  )}
-                </select>
-                {formErrors.preferredLocation && (
-                  <p className="text-sm text-red-500 mt-1">{formErrors.preferredLocation}</p>
-                )}
-              </div>
-            </div>
             
-            {/* Agency Selection */}
-            <div className="mb-4">
-              <label htmlFor="agency" className="block text-charcoal font-medium mb-2">
-                Agency <span className="text-xs text-gray-600">(Optional)</span>
+            <div>
+              <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="preferredLocation">
+                Preferred Location {isRequired && <span className="text-red-500 ml-1">*</span>}
+                <Tooltip message="Select your preferred working location. This helps with shift planning." />
               </label>
               <select
-                id="agency"
-                value={agencyId || ''}
-                onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="w-full px-3 py-2 bg-white rounded-lg focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/20"
+                id="preferredLocation"
+                value={preferredLocation}
+                onChange={handlePreferredLocationChange}
+                className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
+                  formErrors.preferredLocation ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
-                <option value="">None (Direct Employment)</option>
-                {agencies.map(agency => (
-                  <option key={agency.id} value={agency.id}>{agency.name}</option>
-                ))}
+                <option value="" disabled className="text-gray-800">Select location...</option>
+                {locations && locations.length > 0 ? (
+                  locations.map(location => (
+                    <option key={location.id} value={location.name} className="text-gray-800">
+                      {location.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Main Hub" className="text-gray-800">Main Hub</option>
+                    <option value="NRC" className="text-gray-800">NRC</option>
+                  </>
+                )}
               </select>
-              <p className="mt-1 text-xs text-gray-600">
-                If you work through a recruitment agency, please select it here
-              </p>
+              {formErrors.preferredLocation && (
+                <p className="text-sm text-red-500 mt-1">{formErrors.preferredLocation}</p>
+              )}
             </div>
-            
-            {/* Submit Button */}
-            <div>
+          </div>
+          
+          {/* Agency Card */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+            <label htmlFor="agency" className="block text-charcoal font-medium mb-2 text-sm">
+              Agency <span className="text-xs text-gray-600">(Optional)</span>
+            </label>
+            <select
+              id="agency"
+              value={agencyId || ''}
+              onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+              className="w-full px-4 py-3 bg-white rounded-xl focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+            >
+              <option value="">None (Direct Employment)</option>
+              {agencies.map(agency => (
+                <option key={agency.id} value={agency.id}>{agency.name}</option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-gray-600">
+              If you work through a recruitment agency, please select it here
+            </p>
+          </div>
+          
+          {/* Submit Button - Fixed at bottom on mobile */}
+          <div className="fixed md:sticky bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto p-4 md:p-0 md:pt-2 bg-offwhite md:bg-transparent">
+            <div className="max-w-2xl mx-auto">
               <button
                 type="submit"
                 id="submit-profile"
                 name="submit-profile"
                 disabled={loading}
-                className={`w-full py-2 px-4 bg-black hover:bg-gray-800 text-white rounded-lg font-medium transition-colors duration-200 ${
-                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                className={`w-full py-4 px-4 bg-black hover:bg-gray-800 text-white rounded-2xl font-semibold text-base shadow-lg transition-all ${
+                  loading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl active:scale-[0.98]'
                 }`}
               >
                 {loading ? 'Saving...' : isRequired ? 'Complete Profile' : 'Save Profile'}
               </button>
             </div>
-          </form>
-        </div>
-
-        {/* Performance Stats Section */}
-        {!isRequired && !simplifiedView && (
-          <div className="max-w-4xl mx-auto mt-6">
-            <PerformanceStats period="month" />
           </div>
-        )}
+        </form>
       </div>
     </div>
   );
@@ -1027,4 +1061,4 @@ ProfilePage.propTypes = {
   isRequired: PropTypes.bool,
   supabaseClient: PropTypes.object.isRequired,
   simplifiedView: PropTypes.bool
-}; 
+};

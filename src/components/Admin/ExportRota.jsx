@@ -327,15 +327,18 @@ const ExportRota = () => {
       
       // Create blob and download
       const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
       const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.csv`;
+      
+      // For mobile compatibility, use data URI instead of Blob URL
+      const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+      const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + csvContent);
       
       // Show download modal instead of auto-downloading
       setDownloadInfo({
-        url,
+        url: dataUri,
         fileName,
-        type: 'CSV'
+        type: 'CSV',
+        csvContent // Store content for fallback
       });
       setShowDownloadModal(true);
       
@@ -503,14 +506,13 @@ const ExportRota = () => {
         }
       });
       
-      // Get the PDF as blob URL instead of saving directly
+      // Get the PDF as data URI for better mobile compatibility
       const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.pdf`;
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
+      const dataUri = doc.output('datauristring');
       
       // Show download modal
       setDownloadInfo({
-        url,
+        url: dataUri,
         fileName,
         type: 'PDF'
       });
@@ -922,14 +924,35 @@ const ExportRota = () => {
               </button>
               <button
                 onClick={() => {
-                  // Programmatically trigger download - works better on mobile
-                  const link = document.createElement('a');
-                  link.href = downloadInfo.url;
-                  link.download = downloadInfo.fileName;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  setShowDownloadModal(false);
+                  try {
+                    // Detect if mobile device
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    
+                    if (isMobile) {
+                      // For mobile: open in new window (allows user to save)
+                      const newWindow = window.open(downloadInfo.url, '_blank');
+                      if (!newWindow) {
+                        // If popup blocked, try direct navigation
+                        window.location.href = downloadInfo.url;
+                      }
+                    } else {
+                      // For desktop: programmatic download
+                      const link = document.createElement('a');
+                      link.href = downloadInfo.url;
+                      link.download = downloadInfo.fileName;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }
+                    
+                    // Small delay before closing modal on mobile
+                    setTimeout(() => {
+                      setShowDownloadModal(false);
+                    }, isMobile ? 500 : 0);
+                  } catch (error) {
+                    console.error('Download error:', error);
+                    alert('Failed to download file. Please try again.');
+                  }
                 }}
                 className="rounded-md bg-black px-4 py-2 text-center text-white transition hover:bg-gray-800"
               >
