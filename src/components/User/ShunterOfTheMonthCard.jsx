@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getCurrentMonthAwards, getMonthlyAwards } from '../../utils/shunterAwardsApi';
+import { getMonthlyAwards } from '../../utils/shunterAwardsApi';
 
 const getMonthLabel = (monthKey) => {
   if (!monthKey) return '';
@@ -26,9 +26,6 @@ export default function ShunterOfTheMonthCard() {
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
         const currentKey = `${year}-${String(month).padStart(2, '0')}`;
-
-        // Current month
-        const current = await getCurrentMonthAwards(now);
 
         // Few previous months (3 total including current)
         const previousStart = new Date(year, month - 3, 1);
@@ -126,10 +123,10 @@ export default function ShunterOfTheMonthCard() {
                   </p>
                   <div className="flex flex-col md:items-end md:text-right">
                     <p className="text-[13px] text-gray-600">
-                       {row.day || '—'}
+                      {row.day ? `${row.day} +50£` : '—'}
                     </p>
                     <p className="text-[13px] text-gray-600">
-                       {row.night || '—'}
+                      {row.night ? `${row.night} +50£` : '—'}
                     </p>
                   </div>
                 </div>
