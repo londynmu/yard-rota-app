@@ -378,7 +378,7 @@ export default function AdminPage() {
       {/* Mobile Overlay - tylko na mobile */}
       {mobileSidebarOpen && (
         <div 
-          className="fixed bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed bg-black bg-opacity-50 z-40 md:hidden"
           style={{ top: '64px', bottom: 0, left: 0, right: 0 }}
           onClick={() => setMobileSidebarOpen(false)}
         />
@@ -391,7 +391,7 @@ export default function AdminPage() {
         className={`
           ${sidebarHovered ? 'w-72' : 'w-20'}
           bg-white border-r border-gray-200 flex flex-col shadow-lg
-          fixed left-0 z-30
+          fixed left-0 z-50
           ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           transition-all duration-200 ease-out
         `}

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import ExportRota from './ExportRota';
 import { createPortal } from 'react-dom';
+import PropTypes from 'prop-types';
 
-const ExportRotaButton = () => {
+const ExportRotaButton = ({ iconOnly = false }) => {
   const [showModal, setShowModal] = useState(false);
 
   const openExportModal = () => {
@@ -35,31 +36,58 @@ const ExportRotaButton = () => {
 
   return (
     <>
-      <button
-        onClick={openExportModal}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-charcoal transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 sm:w-auto"
-        title="Export Schedule"
-      >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className="h-4 w-4" 
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
+      {iconOnly ? (
+        <button
+          onClick={openExportModal}
+          className="h-full w-full flex items-center justify-center text-black hover:opacity-70 transition-opacity"
+          title="Export Schedule"
         >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-          />
-        </svg>
-        <span className="text-sm">Export</span>
-      </button>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-4 w-4" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+            />
+          </svg>
+        </button>
+      ) : (
+        <button
+          onClick={openExportModal}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-charcoal transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 sm:w-auto"
+          title="Export Schedule"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-4 w-4" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+            />
+          </svg>
+          <span className="text-sm">Export</span>
+        </button>
+      )}
 
       {showModal && createPortal(<ModalContent />, document.body)}
     </>
   );
+};
+
+ExportRotaButton.propTypes = {
+  iconOnly: PropTypes.bool
 };
 
 export default ExportRotaButton; 

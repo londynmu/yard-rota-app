@@ -38,7 +38,7 @@ const RotaManager = () => {
   const [selectedLocation, setSelectedLocation] = useState(() => {
     // Próbujemy odczytać ostatnio wybraną lokalizację z localStorage
     const savedLocation = localStorage.getItem('selected_rota_location_view');
-    return savedLocation || 'all';
+    return savedLocation || null; // Will be set to first location after loading
   });
 
   // Auto-navigate to today's date when entering Rota Planner page
@@ -136,14 +136,12 @@ const RotaManager = () => {
           }));
           
           // Check if the selected location view is still valid (active)
-          const selectedLocationValid = 
-            selectedLocation === 'all' || 
-            data.some(loc => loc.name === selectedLocation);
+          const selectedLocationValid = selectedLocation && data.some(loc => loc.name === selectedLocation);
             
-          if (!selectedLocationValid) {
-            // Reset to 'all' if the previously selected location is no longer active
-            setSelectedLocation('all');
-            localStorage.setItem('selected_rota_location_view', 'all');
+          if (!selectedLocationValid && data.length > 0) {
+            // Set to first location if the previously selected location is no longer active or null
+            setSelectedLocation(data[0].name);
+            localStorage.setItem('selected_rota_location_view', data[0].name);
           }
         }
       } catch (error) {
@@ -176,8 +174,8 @@ const RotaManager = () => {
           `)
           .eq('date', currentDate);
         
-        // Add location filter if a specific location is selected
-        if (selectedLocation !== 'all') {
+        // Add location filter - always filter by selected location
+        if (selectedLocation) {
           query = query.eq('location', selectedLocation);
         }
 
@@ -1007,126 +1005,109 @@ const RotaManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        {/* Location Tabs - replacing dropdown */}
-        <div className="w-full overflow-x-auto">
-          <div className="flex min-w-max gap-2 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
-            <button
-              onClick={() => handleLocationTabClick('all')}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                selectedLocation === 'all'
-                  ? 'bg-black text-white'
-                  : 'text-charcoal hover:bg-gray-100'
-              }`}
-            >
-              All Locations
-            </button>
-            {locations.map(location => (
+      {/* Responsive Toolbar - 3 sekcje */}
+      <div className="sticky top-0 z-40 bg-offwhite py-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
+          {/* LEWA - Lokalizacje (mobile: center, desktop: left) */}
+          <div className="flex items-center gap-3 justify-center lg:justify-start">
+            {locations.map((location) => (
               <button
                 key={location.id}
                 onClick={() => handleLocationTabClick(location.name)}
-                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 h-10 px-4 text-sm font-semibold rounded-lg border-2 transition-all ${
                   selectedLocation === location.name
-                    ? 'bg-black text-white'
-                    : 'text-charcoal hover:bg-gray-100'
+                    ? 'bg-black text-white border-black shadow-md'
+                    : 'bg-white text-black border-gray-300 hover:border-black'
                 }`}
               >
                 {location.name}
               </button>
             ))}
           </div>
-        </div>
-        
-        <div className="w-full">
-          <div className="relative flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <button 
-              onClick={goToPreviousDay}
-              className="px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100"
-              aria-label="Previous day"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </button>
-            
-            <div className="flex flex-1 items-center justify-center px-4 py-3 text-charcoal">
-              <div className="flex flex-row items-center gap-2">
+          
+          {/* ŚRODEK - Date Picker (zawsze wyśrodkowany) */}
+          <div className="flex justify-center">
+            <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+              <button 
+                onClick={goToPreviousDay}
+                className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
+                aria-label="Previous day"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+              
+              <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300">
                 <span>{formatDisplayDate(currentDate)}</span>
-                <span className="text-sm text-gray-600">
-                  <span className="hidden sm:inline-block">{getDayName(currentDate)}</span>
-                  <span className="inline-block sm:hidden">{getDayShort(currentDate)}</span>
-                </span>
+                <span>{getDayShort(currentDate)}</span>
                 <button 
                   onClick={() => document.getElementById('date-select').showPicker()}
-                  className="ml-2 text-gray-600 transition-colors hover:text-charcoal focus:outline-none"
+                  className="text-black hover:opacity-70 transition-opacity"
                   aria-label="Open calendar"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                   </svg>
                 </button>
+                <input
+                  id="date-select"
+                  type="date"
+                  value={currentDate}
+                  onChange={handleDateChange}
+                  className="sr-only"
+                />
               </div>
-              <input
-                id="date-select"
-                type="date"
-                value={currentDate}
-                onChange={handleDateChange}
-                className="sr-only"
-              />
+              
+              <button 
+                onClick={goToNextDay}
+                className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
+                aria-label="Next day"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
-            
-            <button 
-              onClick={goToNextDay}
-              className="px-3 py-2 text-gray-600 transition-colors hover:bg-gray-100"
-              aria-label="Next day"
+          </div>
+          
+          {/* PRAWA - Akcje (mobile: center, desktop: right) */}
+          <div className="flex items-center gap-2 justify-center lg:justify-end">
+            <button
+              onClick={openAddSlotModal}
+              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-black text-white border-2 border-black hover:bg-gray-800 transition-all"
+              title="Add Slot"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
             </button>
-          </div>
-        </div>
-        
-        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-          <button
-            onClick={openAddSlotModal}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black/20 sm:w-auto"
-            title="Add Slot"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            <span className="text-sm">Add Slot</span>
-          </button>
-          
-          <button
-            onClick={handleCopyFromPreviousWeek}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-charcoal transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 sm:w-auto"
-            title="Copy Last Week"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-              <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-            </svg>
-            <span className="text-sm hidden sm:inline">Copy Last Week</span>
-            <span className="text-sm inline sm:hidden">Copy</span>
-          </button>
-          
-          <button
-            onClick={openTemplateModal}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-charcoal transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 sm:w-auto"
-            title="Templates"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-            </svg>
-            <span className="text-sm hidden sm:inline">Templates</span>
-            <span className="text-sm inline sm:hidden">Templates</span>
-          </button>
-          
-          <div className="flex w-full items-center justify-center sm:ml-auto sm:w-auto">
-            <ExportRotaButton />
+            
+            <button
+              onClick={handleCopyFromPreviousWeek}
+              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all"
+              title="Copy Last Week"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+              </svg>
+            </button>
+            
+            <button
+              onClick={openTemplateModal}
+              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all"
+              title="Templates"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all">
+              <ExportRotaButton iconOnly={true} />
+            </div>
           </div>
         </div>
       </div>
