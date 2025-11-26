@@ -144,120 +144,96 @@ const SlotCard = ({
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
-      className={`relative overflow-hidden rounded-lg border bg-white p-4 shadow-sm transition hover:shadow-md cursor-pointer ${stateStyles.borderClass}`}
+      className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition hover:shadow-lg cursor-pointer ${stateStyles.borderClass}`}
     >
       {/* Delete confirmation modal */}
       <DeleteConfirmationModal />
       
-      {/* Status badge in top right corner */}
-      <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold ${stateStyles.statusBadge}`}>
-        {statusInfo.text}
-      </div>
-
       {/* Pionowy pasek oznaczający typ zmiany */}
-      <div className={`absolute top-0 left-0 h-full w-1 ${getShiftIndicatorColor(slot.shift_type)}`}></div>
+      <div className={`absolute top-0 left-0 h-full w-1.5 ${getShiftIndicatorColor(slot.shift_type)}`}></div>
       
-      {/* Pasek wypełnienia */}
-      <div
-        className={`absolute top-0 left-0 h-1 ${stateStyles.progressBar}`}
-        style={{ width: `${Math.min(100, fillPercentage)}%` }}
-      ></div>
-      
-      <div className="flex justify-between items-start mb-3 pl-2">
-        <div>
-          <h3 className="text-charcoal font-bold">{slot.location}</h3>
-          <div className="flex items-center mt-1">
-            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-charcoal">
-              {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between pl-2">
-        <div className="flex flex-wrap items-center gap-1 mt-1">
-          {/* Shift type and capacity icons */}
-          <span className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {slot.shift_type.charAt(0).toUpperCase() + slot.shift_type.slice(1)}
-          </span>
-          
-          <div className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stateStyles.capacityBadge}`}>
-            <span className="font-medium">{assignedCount}</span>
-            <span className="mx-1">/</span>
-            <span>{slot.capacity}</span>
-          </div>
-        </div>
+      {/* HEADER: Czas + Capacity */}
+      <div className="flex items-center justify-between px-4 py-3 pl-5 border-b border-gray-100">
+        {/* Time - duży i wyraźny */}
+        <span className="text-lg font-black text-charcoal">
+          {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+        </span>
         
-        <div className="flex items-center space-x-2">
-          {/* Action buttons - only show if user is admin */}
-          {isAdmin && (
-            <div className="flex space-x-2 opacity-100 transition-opacity duration-200">
-              {/* Edit button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('[SlotCard] Edit button clicked, slot data:', slot);
-                  console.log('[SlotCard] typeof handleOpenEditModal:', typeof handleOpenEditModal, handleOpenEditModal);
-                  if (typeof handleOpenEditModal === 'function') {
-                    handleOpenEditModal(slot);
-                  } else {
-                    console.error('[SlotCard] handleOpenEditModal is NOT a function!');
-                  }
-                }}
-                className="rounded-full border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-100 hover:text-charcoal"
-                title="Edit shift"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </button>
-              
-              {/* Delete button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDeleteConfirm(true);
-                }}
-                className="rounded-full border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
-                title="Delete shift"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Capacity - po prawej */}
+        <span className={`text-lg font-black ${
+          isSlotFull ? 'text-green-600' :
+          fillPercentage === 0 ? 'text-red-600' :
+          'text-yellow-600'
+        }`}>
+          {assignedCount}/{slot.capacity}
+        </span>
       </div>
       
-      {/* Assigned employees section */}
-      <div className="mt-3 pl-2">
-        <div className="flex flex-col space-y-2">
-          {loading ? (
-            <div className="h-6 animate-pulse rounded bg-gray-200"></div>
-          ) : assignedUsers.length > 0 ? (
-            assignedUsers.map(user => (
-              <div key={user.id} className="flex items-center space-x-2 rounded border border-gray-200 bg-gray-50 py-1 px-2">
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={`${user.first_name} ${user.last_name}`} className="h-6 w-6 rounded-full" />
-                ) : (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
-                    {user.first_name?.[0]}{user.last_name?.[0]}
-                  </div>
-                )}
-                <span className="text-sm text-charcoal">{user.first_name} {user.last_name}</span>
+      {/* BODY: Employees list */}
+      <div className="px-4 py-3 pl-5">
+        {loading ? (
+          <div className="h-5 animate-pulse rounded bg-gray-200 w-32"></div>
+        ) : assignedUsers.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {assignedUsers.map(user => (
+              <div key={user.id} className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${
+                  isSlotFull ? 'bg-green-500' :
+                  fillPercentage === 0 ? 'bg-red-500' :
+                  'bg-yellow-500'
+                }`}></span>
+                <span className="text-sm font-medium text-gray-800">
+                  {user.first_name} {user.last_name}
+                </span>
               </div>
-            ))
-          ) : (
-            <div className="flex items-center rounded border border-red-200 bg-red-50 py-1.5 px-3 text-sm font-medium text-red-700">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              No employees assigned
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-red-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="text-sm font-medium">No employees assigned</span>
+          </div>
+        )}
       </div>
+      
+      {/* FOOTER: Action buttons */}
+      {isAdmin && (
+        <div className="flex items-center justify-end gap-2 px-4 py-2 pl-5 border-t border-gray-100 bg-gray-50/50">
+          {/* Edit button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (typeof handleOpenEditModal === 'function') {
+                handleOpenEditModal(slot);
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all"
+            title="Edit shift"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Edit
+          </button>
+          
+          {/* Delete button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteConfirm(true);
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-400 transition-all"
+            title="Delete shift"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 };
