@@ -144,7 +144,7 @@ const SlotCard = ({
   return (
     <div
       onClick={() => handleOpenAssignModal(slot)}
-      className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition hover:shadow-lg cursor-pointer ${stateStyles.borderClass}`}
+      className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition hover:shadow-lg cursor-pointer h-full flex flex-col ${stateStyles.borderClass}`}
     >
       {/* Delete confirmation modal */}
       <DeleteConfirmationModal />
@@ -169,8 +169,8 @@ const SlotCard = ({
         </span>
       </div>
       
-      {/* BODY: Employees list */}
-      <div className="px-4 py-3 pl-5">
+      {/* BODY: Employees list - flex-grow wypycha footer na dół */}
+      <div className="px-4 py-3 pl-5 flex-grow">
         {loading ? (
           <div className="h-5 animate-pulse rounded bg-gray-200 w-32"></div>
         ) : assignedUsers.length > 0 ? (
@@ -198,9 +198,9 @@ const SlotCard = ({
         )}
       </div>
       
-      {/* FOOTER: Action buttons */}
+      {/* FOOTER: Action buttons - zawsze na dole */}
       {isAdmin && (
-        <div className="flex items-center justify-end gap-2 px-4 py-2 pl-5 border-t border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-end gap-2 px-4 py-2 pl-5 border-t border-gray-100 bg-gray-50/50 mt-auto">
           {/* Edit button */}
           <button
             onClick={(e) => {
