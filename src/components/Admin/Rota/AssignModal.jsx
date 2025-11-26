@@ -816,74 +816,19 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               <p className="text-sm text-gray-600">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
-            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {getFilteredEmployees().map(employee => (
                 <li 
                   key={employee.id} 
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 shadow-sm hover:shadow-md transition-shadow"
+                  className={`flex items-center justify-between rounded-full border-2 px-4 py-2.5 transition-all ${
+                    employee.isAssigned 
+                      ? 'border-green-400 bg-gradient-to-r from-green-100 to-emerald-100 shadow-md' 
+                      : 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:border-blue-400 hover:shadow-lg'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white">
-                      {employee.avatar_url ? (
-                        <img 
-                          src={employee.avatar_url} 
-                          alt={employee.first_name} 
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-base font-medium text-gray-600">
-                          {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-charcoal">
-                        {employee.first_name} {employee.last_name}
-                        {typeof employee.weeklyShifts === 'number' && (
-                          <span className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-xs font-bold text-gray-700">
-                            {employee.weeklyShifts}
-                          </span>
-                        )}
-                        {employee.performance_score && (
-                          <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-bold text-green-700">
-                            {employee.performance_score}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                        <span className={`rounded-full px-2 py-0.5 ${getAvailabilityClass(employee.availabilityStatus)}`}>
-                          {employee.availabilityStatus}
-                        </span>
-                        
-                        <div className="flex items-center gap-1 text-gray-400">
-                          <span className={employee.shift_preference === slot.shift_type ? 'text-blue-500' : ''} title="Preferred shift">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          </span>
-                          <span className={(employee.preferred_location === slot.location || employee.preferred_location === 'Both') ? 'text-purple-500' : ''} title="Preferred location">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                            </svg>
-                          </span>
-                          {employee.custom_start_time && employee.custom_end_time && (
-                            <span className="text-teal-500" title={`Preferred time: ${employee.custom_start_time} - ${employee.custom_end_time}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                              </svg>
-                            </span>
-                          )}
-                          {employee.hasBreakConflict && (
-                            <span className="text-orange-500" title="Break time conflict">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-gray-800 truncate">
+                      {employee.first_name} {employee.last_name}
                     </div>
                   </div>
                   
@@ -892,25 +837,39 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       e.stopPropagation();
                       handleAssignEmployee(employee.id, employee.isAssigned, task);
                     }}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`ml-2 flex-shrink-0 flex items-center justify-center rounded-full w-8 h-8 transition-all ${
                       employee.isAssigned
-                        ? 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                        ? 'bg-red-500 text-white hover:bg-red-600 shadow-sm hover:scale-110'
                         : employee.hasBreakConflict || employee.hasOverlappingConflict
-                          ? 'cursor-not-allowed border border-orange-200 bg-orange-50 text-orange-600'
+                          ? 'cursor-not-allowed bg-orange-300 text-orange-700'
                           : localAssignedCount >= slot.capacity
-                            ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
-                            : 'border border-black bg-black text-white hover:bg-gray-800'
+                            ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                            : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:scale-110'
                     }`}
                     disabled={(!employee.isAssigned && localAssignedCount >= slot.capacity) || (!employee.isAssigned && (employee.hasBreakConflict || employee.hasOverlappingConflict))}
                     title={
-                      employee.hasOverlappingConflict 
-                        ? `This staff member has a scheduling conflict - already assigned to an overlapping shift` 
+                      employee.isAssigned
+                        ? 'Remove from shift'
+                        : employee.hasOverlappingConflict 
+                        ? `Scheduling conflict - already assigned to overlapping shift` 
                         : employee.hasBreakTimeConflict
-                        ? `This staff member needs at least ${formatMinutesToHours(minBreakMinutes)} time off between shifts`
-                        : ''
+                        ? `Needs at least ${formatMinutesToHours(minBreakMinutes)} break`
+                        : 'Assign to shift'
                     }
                   >
-                    {employee.isAssigned ? 'Remove' : employee.hasOverlappingConflict ? 'Overlap' : employee.hasBreakTimeConflict ? 'Break' : 'Assign'}
+                    {employee.isAssigned ? (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : employee.hasOverlappingConflict || employee.hasBreakTimeConflict ? (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    )}
                   </button>
                 </li>
               ))}
