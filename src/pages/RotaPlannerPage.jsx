@@ -100,12 +100,8 @@ export default function RotaPlannerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-8 overflow-hidden relative">
-      <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-        <div className="p-6">
-          <RotaManager />
-        </div>
-      </div>
+    <div className="min-h-screen bg-offwhite overflow-hidden relative">
+      <RotaManager />
     </div>
   );
 } 

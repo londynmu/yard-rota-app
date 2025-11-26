@@ -309,53 +309,6 @@ export default function AdminPage() {
   // Dashboard Component - pokazywany jako główny widok
   const DashboardView = () => (
     <div className="space-y-6">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Total Users</p>
-              <p className="text-3xl font-bold text-charcoal mt-2">{users.length}</p>
-            </div>
-            <div className="text-4xl">👥</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Pending Approvals</p>
-              <p className="text-3xl font-bold text-orange-600 mt-2">{pendingApprovals}</p>
-            </div>
-            <div className="text-4xl">⏳</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Active Users</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">
-                {users.filter(u => u.is_active).length}
-              </p>
-            </div>
-            <div className="text-4xl">✓</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Inactive Users</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">
-                {users.filter(u => !u.is_active).length}
-              </p>
-            </div>
-            <div className="text-4xl">💤</div>
-          </div>
-        </div>
-      </div>
-
       {/* Quick Actions */}
       <div>
         <h2 className="text-lg font-semibold text-charcoal mb-4">Quick Actions</h2>

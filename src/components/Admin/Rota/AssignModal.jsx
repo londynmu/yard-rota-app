@@ -617,7 +617,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
       <div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-2">
           <div>
             <h3 className="text-base font-semibold text-charcoal">
               {slot.location}
@@ -681,20 +681,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               </div>
             )}
           </div>
-
-          {minBreakMinutes > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-              <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 011 1v4a1 1 0 11-2 0v-4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              <div>
-                <p className="font-medium">Scheduling checks enabled</p>
-                <p className="text-xs text-blue-600">
-                  We will prevent overlapping shifts and enforce a minimum break of {formatMinutesToHours(minBreakMinutes)}.
-                </p>
-              </div>
-            </div>
-          )}
 
           {showCapacityAlert && (
             <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
