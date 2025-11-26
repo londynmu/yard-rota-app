@@ -622,17 +622,17 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <h3 className="text-lg font-bold text-charcoal">
+                <h3 className="text-sm font-bold text-charcoal">
                   {slot.location}
                 </h3>
               </div>
               <div className="hidden md:block h-8 w-px bg-gray-300"></div>
               <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <div className="flex flex-col md:flex-row md:items-center md:gap-2">
@@ -640,7 +640,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     {getFormattedDate(slot.date)}
                   </span>
                   <span className="hidden md:inline text-gray-400">•</span>
-                  <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                     <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -650,29 +650,36 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Capacity Badge */}
+              <div className={`flex items-center gap-2 rounded-full px-4 py-1.5 shadow-sm border-2 ${
+                localAssignedCount >= slot.capacity 
+                  ? 'bg-red-100 border-red-400 text-red-700' 
+                  : capacityPercentage >= 75 
+                    ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                    : 'bg-green-100 border-green-400 text-green-700'
+              }`}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="font-bold text-sm">
+                  {localAssignedCount}/{slot.capacity}
+                </span>
+              </div>
+
               <button
                 onClick={() => setIsTaskSectionExpanded(!isTaskSectionExpanded)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition shadow-sm ${
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition shadow-sm border-2 ${
                   isTaskSectionExpanded 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 <span className="hidden sm:inline">Task</span>
-                <svg className={`h-3 w-3 transition-transform ${isTaskSectionExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`h-4 w-4 transition-transform ${isTaskSectionExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <button 
-                onClick={onClose} 
-                className="rounded-lg p-1.5 text-gray-500 transition hover:bg-red-50 hover:text-red-600"
-              >
-                <span className="sr-only">Close</span>
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
@@ -784,24 +791,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                 </button>
               ))}
             </div>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
-                <span className="font-medium text-charcoal">Staff Capacity</span>
-                <span className={localAssignedCount >= slot.capacity ? 'font-semibold text-red-600' : 'text-gray-600'}>
-                  {localAssignedCount}/{slot.capacity}
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
-                <div
-                  className={`${capacityColorClass} h-2 rounded-full transition-all duration-300`}
-                  style={{ width: `${Math.min(100, capacityPercentage)}%` }}
-                ></div>
-              </div>
-              {localAssignedCount >= slot.capacity && (
-                <p className="mt-1 text-xs text-red-600">Full capacity reached.</p>
-              )}
-            </div>
           </div>
         </div>
 
@@ -832,7 +821,24 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     </div>
                   </div>
                   
-                  <button
+                  <div className="flex items-center gap-1.5">
+                    {selectedTab === 'unavailable' && (
+                      <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                        employee.availabilityStatus?.toLowerCase() === 'unavailable' 
+                          ? 'bg-red-200 text-red-800'
+                          : employee.availabilityStatus?.toLowerCase() === 'holiday'
+                          ? 'bg-purple-200 text-purple-800'
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {employee.availabilityStatus?.toLowerCase() === 'unavailable' 
+                          ? 'Unavail' 
+                          : employee.availabilityStatus?.toLowerCase() === 'holiday'
+                          ? 'Holiday'
+                          : 'Unknown'}
+                      </span>
+                    )}
+                    
+                    <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAssignEmployee(employee.id, employee.isAssigned, task);
@@ -871,6 +877,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       </svg>
                     )}
                   </button>
+                  </div>
                 </li>
               ))}
             </ul>
