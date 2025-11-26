@@ -17,6 +17,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [showTaskSuggestions, setShowTaskSuggestions] = useState(false);
   const [showUserNoteModal, setShowUserNoteModal] = useState(false);
   const [userNoteData, setUserNoteData] = useState(null);
+  const [isTaskSectionExpanded, setIsTaskSectionExpanded] = useState(false);
 
   const normalizedSlotLocation = slot?.location?.trim().toLowerCase() || '';
   const normalizedSlotShift = slot?.shift_type?.trim().toLowerCase() || '';
@@ -615,73 +616,121 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     'bg-green-500';
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-2">
-          <div>
-            <h3 className="text-base font-semibold text-charcoal">
-              {slot.location}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {getFormattedDate(slot.date)}, {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
-            </p>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-2 md:p-4">
+      <div className="flex w-full max-w-[95vw] md:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between px-5 py-3">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h3 className="text-lg font-bold text-charcoal">
+                  {slot.location}
+                </h3>
+              </div>
+              <div className="hidden md:block h-8 w-px bg-gray-300"></div>
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div className="flex flex-col md:flex-row md:items-center md:gap-2">
+                  <span className="text-sm font-semibold text-charcoal">
+                    {getFormattedDate(slot.date)}
+                  </span>
+                  <span className="hidden md:inline text-gray-400">•</span>
+                  <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsTaskSectionExpanded(!isTaskSectionExpanded)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition shadow-sm ${
+                  isTaskSectionExpanded 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="hidden sm:inline">Task</span>
+                <svg className={`h-3 w-3 transition-transform ${isTaskSectionExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <button 
+                onClick={onClose} 
+                className="rounded-lg p-1.5 text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="text-gray-500 transition hover:text-charcoal"
-          >
-            <span className="sr-only">Close</span>
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+
+          {isTaskSectionExpanded && (
+            <div className="border-t border-gray-200 bg-blue-50/30 px-5 py-3">
+              <div className="relative">
+                <label htmlFor="task-input" className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-gray-700">
+                  <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
+                  Assign Task <span className="text-xs font-normal text-gray-500">(optional)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="task-input"
+                    value={task}
+                    onChange={handleTaskChange}
+                    placeholder="e.g. VMU cover"
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                  {task && (
+                    <button 
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-charcoal"
+                      onClick={() => setTask('')}
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {showTaskSuggestions && (
+                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                    <ul className="py-1">
+                      {taskSuggestions
+                        .filter(suggestion => suggestion.toLowerCase().includes(task.toLowerCase()))
+                        .map((suggestion, index) => (
+                          <li 
+                            key={index} 
+                            className="cursor-pointer px-3 py-2 text-sm text-charcoal hover:bg-gray-100"
+                            onClick={() => handleTaskSuggestionClick(suggestion)}
+                          >
+                            {suggestion}
+                          </li>
+                        ))
+                      }
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-4 border-b border-gray-200 px-5 py-4">
-          <div className="relative">
-            <label htmlFor="task-input" className="mb-1 block text-sm font-medium text-charcoal">
-              Assign Task <span className="text-xs text-gray-500">(optional)</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                id="task-input"
-                value={task}
-                onChange={handleTaskChange}
-                placeholder="e.g. VMU cover"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
-              />
-              {task && (
-                <button 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-charcoal"
-                  onClick={() => setTask('')}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            {showTaskSuggestions && (
-              <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                <ul className="py-1">
-                  {taskSuggestions
-                    .filter(suggestion => suggestion.toLowerCase().includes(task.toLowerCase()))
-                    .map((suggestion, index) => (
-                      <li 
-                        key={index} 
-                        className="cursor-pointer px-3 py-2 text-sm text-charcoal hover:bg-gray-100"
-                        onClick={() => handleTaskSuggestionClick(suggestion)}
-                      >
-                        {suggestion}
-                      </li>
-                    ))
-                  }
-                </ul>
-              </div>
-            )}
-          </div>
-
+        <div className="space-y-3 border-b border-gray-200 px-5 py-3">
           {showCapacityAlert && (
             <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
