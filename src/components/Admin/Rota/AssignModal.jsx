@@ -816,11 +816,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               <p className="text-sm text-gray-600">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
-            <ul className="space-y-3">
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {getFilteredEmployees().map(employee => (
                 <li 
                   key={employee.id} 
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 shadow-sm"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white">
