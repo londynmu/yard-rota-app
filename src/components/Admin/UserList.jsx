@@ -51,6 +51,60 @@ Modal.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
+// Bottom Sheet component for mobile user details
+const BottomSheet = ({ isOpen, onClose, children }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black/50 z-[10000]"
+      onClick={onClose}
+    >
+      {/* Bottom Sheet Container */}
+      <div
+        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto animate-slide-up"
+        style={{
+          animation: 'slideUp 0.3s ease-out'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle bar */}
+        <div className="sticky top-0 bg-white pt-3 pb-2 flex justify-center rounded-t-2xl">
+          <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+        </div>
+        {children}
+      </div>
+      <style>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>,
+    document.body
+  );
+};
+
+// Add propTypes for BottomSheet
+BottomSheet.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired,
+};
+
 // Filter Modal Component
 const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilters }) => {
   const [shiftFilter, setShiftFilter] = useState(filters.shift || 'all');
@@ -316,6 +370,33 @@ export default function UserList({ users, onRefresh }) {
   const [infoUser, setInfoUser] = useState(null);
   const [lastLogin, setLastLogin] = useState(null);
   
+  // Bottom sheet state for mobile user selection
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [bottomSheetLastLogin, setBottomSheetLastLogin] = useState(null);
+  const [loadingLastLogin, setLoadingLastLogin] = useState(false);
+  
+  // Desktop dropdown menu state
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const dropdownRef = useRef(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdownId(null);
+      }
+    };
+    
+    if (openDropdownId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdownId]);
+  
   // Log when users data changes
   useEffect(() => {
     console.log('UserList received updated users data:', users);
@@ -526,29 +607,23 @@ export default function UserList({ users, onRefresh }) {
     localStorage.removeItem('userListFilters');
   };
   
-  // Get background color based on performance score
-  const getScoreBackgroundColor = (score) => {
-    if (!score) return 'rgba(75, 85, 99, 0.6)'; // Default gray for no score
+  // Get shift badge style
+  const getShiftBadge = (shift) => {
+    const shiftLower = (shift || '').toLowerCase();
+    const shiftCapitalized = shift ? shift.charAt(0).toUpperCase() + shift.slice(1) : null;
     
-    // Create a color scheme based on score
-    if (score >= 90) return 'rgba(16, 185, 129, 0.7)'; // Emerald green (90-99)
-    if (score >= 80) return 'rgba(52, 211, 153, 0.7)'; // Light green (80-89)
-    if (score >= 70) return 'rgba(167, 243, 208, 0.8)'; // Mint green (70-79)
-    if (score >= 60) return 'rgba(250, 204, 21, 0.7)'; // Yellow (60-69)
-    if (score >= 50) return 'rgba(251, 146, 60, 0.7)'; // Orange (50-59)
-    if (score >= 40) return 'rgba(251, 113, 133, 0.7)'; // Pink/salmon (40-49)
-    if (score >= 30) return 'rgba(244, 63, 94, 0.7)'; // Rose/light red (30-39)
-    if (score >= 20) return 'rgba(225, 29, 72, 0.7)'; // Medium red (20-29)
-    return 'rgba(185, 28, 28, 0.7)'; // Dark red (1-19)
+    switch (shiftLower) {
+      case 'day':
+        return { label: shiftCapitalized, className: 'bg-amber-100 text-amber-700 rounded-full' };
+      case 'afternoon':
+        return { label: shiftCapitalized, className: 'bg-blue-100 text-blue-700 rounded-full' };
+      case 'night':
+        return { label: shiftCapitalized, className: 'bg-indigo-100 text-indigo-700 rounded-full' };
+      default:
+        return null;
+    }
   };
-  
-  // Get text color for score (to ensure readability)
-  const getScoreTextColor = (score) => {
-    if (!score) return 'rgba(255, 255, 255, 0.9)';
-    if (score >= 60) return 'rgba(0, 0, 0, 0.8)';
-    return 'rgba(255, 255, 255, 0.9)';
-  };
-  
+
   const openInfoModal = async (user) => {
     setInfoUser(user);
     setInfoModalOpen(true);
@@ -566,6 +641,51 @@ export default function UserList({ users, onRefresh }) {
     setInfoModalOpen(false);
     setInfoUser(null);
     setLastLogin(null);
+  };
+  
+  // Bottom sheet handlers
+  const openBottomSheet = async (user) => {
+    setSelectedUser(user);
+    setShowBottomSheet(true);
+    setLoadingLastLogin(true);
+    try {
+      const { data, error } = await supabase.rpc('get_user_last_login', { uid: user.id });
+      if (error) throw error;
+      setBottomSheetLastLogin(data);
+    } catch (err) {
+      console.error('Error fetching last login:', err);
+      setBottomSheetLastLogin(null);
+    } finally {
+      setLoadingLastLogin(false);
+    }
+  };
+  
+  const closeBottomSheet = () => {
+    setShowBottomSheet(false);
+    setSelectedUser(null);
+    setBottomSheetLastLogin(null);
+  };
+  
+  // Handle actions from bottom sheet
+  const handleBottomSheetInfo = () => {
+    if (selectedUser) {
+      closeBottomSheet();
+      openInfoModal(selectedUser);
+    }
+  };
+  
+  const handleBottomSheetEdit = () => {
+    if (selectedUser) {
+      closeBottomSheet();
+      openEditModal(selectedUser);
+    }
+  };
+  
+  const handleBottomSheetDelete = () => {
+    if (selectedUser) {
+      closeBottomSheet();
+      openDeleteModal(selectedUser);
+    }
   };
   
   if (error) {
@@ -708,168 +828,207 @@ export default function UserList({ users, onRefresh }) {
         </div>
       </div>
 
-      {/* Mobile card view (visible on small screens) - Notion Style */}
-      <div className="md:hidden space-y-2">
-        {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all">
-            {/* Header: Avatar, Name, Status dot, Score */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="flex-shrink-0 h-9 w-9 relative">
-                  {user.avatar_url ? (
-                    <img className="h-9 w-9 rounded-full" src={user.avatar_url} alt="" />
-                  ) : (
-                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center">
-                      <span className="text-charcoal text-sm font-medium">
-                        {user.first_name?.charAt(0) || '?'}
-                      </span>
-                    </div>
-                  )}
-                  {/* Status dot on avatar */}
-                  <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+      {/* Mobile list view (visible on small screens) - WhatsApp Style */}
+      <div className="md:hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {filteredUsers.map((user, index) => (
+          <button
+            key={user.id}
+            type="button"
+            onClick={() => openBottomSheet(user)}
+            className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
+              index !== filteredUsers.length - 1 ? 'border-b border-gray-100' : ''
+            }`}
+          >
+            {/* Avatar with status dot */}
+            <div className="flex-shrink-0 h-11 w-11 relative">
+              {user.avatar_url ? (
+                <img className="h-11 w-11 rounded-full object-cover" src={user.avatar_url} alt="" />
+              ) : (
+                <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-charcoal text-base font-semibold">
+                    {user.first_name?.charAt(0) || '?'}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-charcoal font-semibold text-base truncate">
-                    {user.first_name || ''} {user.last_name || ''}
-                  </div>
-                  {user.agency_name && (
-                    <div className="text-xs text-gray-500 truncate">
-                      {user.agency_name}
-                    </div>
-                  )}
-                </div>
+              )}
+              {/* Status dot */}
+              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+            </div>
+            
+            {/* Name and details */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-charcoal font-semibold text-[15px] truncate">
+                  {user.first_name || ''} {user.last_name || ''}
+                </span>
+                {getShiftBadge(user.shift_preference) && (
+                  <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold ${getShiftBadge(user.shift_preference).className}`}>
+                    {getShiftBadge(user.shift_preference).label}
+                  </span>
+                )}
+                {user.agency_name && (
+                  <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full">
+                    {user.agency_name}
+                  </span>
+                )}
               </div>
-              
-              {/* Score - subtle style */}
-              <div className="flex-shrink-0 ml-3 px-2.5 py-1 bg-gray-50 rounded-md">
-                <span className="text-charcoal text-sm font-semibold">
+            </div>
+            
+            {/* Score badge */}
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <div className="px-2.5 py-1 bg-gray-100 rounded-md">
+                <span className="text-charcoal text-sm font-bold">
                   {user.performance_score || '–'}
                 </span>
               </div>
+              {/* Chevron */}
+              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-            
-            {/* Actions - ghost style buttons */}
-            <div className="flex gap-2 pt-2 border-t border-gray-100">
-              <button 
-                type="button"
-                className="flex-1 h-8 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openInfoModal(user);
-                }}
-              >
-                Info
-              </button>
-              <button 
-                type="button"
-                className="flex-1 h-8 rounded-lg text-xs font-medium bg-charcoal text-white hover:bg-black transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openEditModal(user);
-                }}
-              >
-                Edit
-              </button>
-              <button 
-                type="button"
-                className="flex-1 h-8 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openDeleteModal(user);
-                }}
-                disabled={processingUser === user.id}
-              >
-                {processingUser === user.id ? '...' : 'Delete'}
-              </button>
-            </div>
-          </div>
+          </button>
         ))}
+        
+        {filteredUsers.length === 0 && (
+          <div className="px-4 py-8 text-center text-gray-500">
+            No users found
+          </div>
+        )}
       </div>
 
-      {/* Desktop grid view (hidden on small screens) - 4 cards per row */}
-      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredUsers.map((user) => (
-          <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-md transition-all">
-            {/* Header: Avatar, Name, Status dot */}
-            <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 h-12 w-12 relative">
-                {user.avatar_url ? (
-                  <img className="h-12 w-12 rounded-full" src={user.avatar_url} alt="" />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-charcoal text-base font-medium">
-                      {user.first_name?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
-                {/* Status dot on avatar */}
-                <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-charcoal font-semibold text-sm truncate mb-1">
-                  {user.first_name || ''} {user.last_name || ''}
+      {/* Desktop list view (hidden on small screens) - Table style with columns */}
+      <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Header row */}
+        <div className="flex items-center gap-4 px-5 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
+          <div className="w-10"></div>
+          <div className="w-44">Name</div>
+          <div className="w-24">Shift</div>
+          <div className="w-28">Agency</div>
+          <div className="w-16 text-center">Score</div>
+          <div className="flex-1"></div>
+        </div>
+        
+        {/* Data rows */}
+        {filteredUsers.map((user, index) => (
+          <div
+            key={user.id}
+            className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
+              index !== filteredUsers.length - 1 ? 'border-b border-gray-100' : ''
+            }`}
+          >
+            {/* Avatar */}
+            <div className="w-10 flex-shrink-0 relative">
+              {user.avatar_url ? (
+                <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-charcoal text-sm font-semibold">
+                    {user.first_name?.charAt(0) || '?'}
+                  </span>
                 </div>
-                <div className="text-gray-500 text-xs">
-                  {user.shift_preference || 'not set'}
-                  {user.agency_name && (
-                    <span className="ml-1.5 text-blue-600">• {user.agency_name}</span>
-                  )}
-                </div>
-              </div>
+              )}
+              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
             </div>
             
-            {/* Score - centered */}
-            <div className="flex justify-center mb-4">
-              <div className="px-4 py-2 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-0.5">Score</div>
-                <div className="text-charcoal text-xl font-bold text-center">
-                  {user.performance_score || '–'}
-                </div>
-              </div>
+            {/* Name */}
+            <div className="w-44 min-w-0">
+              <span className="text-charcoal font-semibold text-sm truncate block">
+                {user.first_name || ''} {user.last_name || ''}
+              </span>
             </div>
             
-            {/* Actions - full width buttons */}
-            <div className="flex flex-col gap-2">
-              <button 
+            {/* Shift */}
+            <div className="w-24">
+              {getShiftBadge(user.shift_preference) ? (
+                <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold ${getShiftBadge(user.shift_preference).className}`}>
+                  {getShiftBadge(user.shift_preference).label}
+                </span>
+              ) : (
+                <span className="text-gray-300 text-sm">–</span>
+              )}
+            </div>
+            
+            {/* Agency */}
+            <div className="w-28">
+              {user.agency_name ? (
+                <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full">
+                  {user.agency_name}
+                </span>
+              ) : (
+                <span className="text-gray-300 text-sm">–</span>
+              )}
+            </div>
+            
+            {/* Score */}
+            <div className="w-16 text-center">
+              <span className="inline-block px-3 py-1 bg-gray-100 rounded-md text-charcoal text-sm font-bold">
+                {user.performance_score || '–'}
+              </span>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex-1 flex items-center justify-end gap-2">
+              <button
                 type="button"
-                className="w-full h-8 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openInfoModal(user);
-                }}
-              >
-                Info
-              </button>
-              <button 
-                type="button"
-                className="w-full h-8 rounded-lg text-xs font-medium bg-charcoal text-white hover:bg-black transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openEditModal(user);
-                }}
+                onClick={() => openEditModal(user)}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-charcoal text-white hover:bg-black transition-colors"
               >
                 Edit
               </button>
-              <button 
-                type="button"
-                className="w-full h-8 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openDeleteModal(user);
-                }}
-                disabled={processingUser === user.id}
-              >
-                {processingUser === user.id ? '...' : 'Delete'}
-              </button>
+              
+              {/* Dropdown menu */}
+              <div className="relative" ref={openDropdownId === user.id ? dropdownRef : null}>
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                </button>
+                
+                {/* Dropdown content */}
+                {openDropdownId === user.id && (
+                  <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenDropdownId(null);
+                        openInfoModal(user);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Info
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenDropdownId(null);
+                        openDeleteModal(user);
+                      }}
+                      disabled={processingUser === user.id}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      {processingUser === user.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}
+        
+        {filteredUsers.length === 0 && (
+          <div className="px-5 py-8 text-center text-gray-500">
+            No users found
+          </div>
+        )}
       </div>
       
       {/* Delete Confirmation Modal (portal) */}
@@ -935,7 +1094,13 @@ export default function UserList({ users, onRefresh }) {
                   )}
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">Shift:</span>
-                    <span className="text-charcoal">{infoUser.shift_preference || 'Not set'}</span>
+                    {getShiftBadge(infoUser.shift_preference) ? (
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded ${getShiftBadge(infoUser.shift_preference).className}`}>
+                        {getShiftBadge(infoUser.shift_preference).label}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">Not set</span>
+                    )}
                   </div>
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">Agency:</span>
@@ -964,6 +1129,110 @@ export default function UserList({ users, onRefresh }) {
             </div>
         </Modal>
       )}
+      
+      {/* Mobile Bottom Sheet for user actions */}
+      <BottomSheet isOpen={showBottomSheet} onClose={closeBottomSheet}>
+        {selectedUser && (
+          <div className="px-5 pb-8">
+            {/* User Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-shrink-0 h-16 w-16 relative">
+                {selectedUser.avatar_url ? (
+                  <img className="h-16 w-16 rounded-full object-cover" src={selectedUser.avatar_url} alt="" />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center">
+                    <span className="text-charcoal text-2xl font-semibold">
+                      {selectedUser.first_name?.charAt(0) || '?'}
+                    </span>
+                  </div>
+                )}
+                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${selectedUser.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-charcoal font-bold text-xl truncate">
+                    {selectedUser.first_name || ''} {selectedUser.last_name || ''}
+                  </span>
+                  {getShiftBadge(selectedUser.shift_preference) && (
+                    <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded ${getShiftBadge(selectedUser.shift_preference).className}`}>
+                      {getShiftBadge(selectedUser.shift_preference).label}
+                    </span>
+                  )}
+                </div>
+                {selectedUser.agency_name && (
+                  <div className="text-gray-500 text-sm">
+                    {selectedUser.agency_name}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Quick Info */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Score</div>
+                  <div className="text-charcoal text-2xl font-bold">{selectedUser.performance_score || '–'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Last Login</div>
+                  <div className="text-charcoal text-sm font-medium">
+                    {loadingLastLogin ? (
+                      <span className="text-gray-400">Loading...</span>
+                    ) : bottomSheetLastLogin ? (
+                      formatDistanceToNow(new Date(bottomSheetLastLogin), { addSuffix: true })
+                    ) : (
+                      <span className="text-gray-400">Never</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {selectedUser.email && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Email</div>
+                  <div className="text-charcoal text-sm truncate">{selectedUser.email}</div>
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleBottomSheetInfo}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium bg-gray-100 text-charcoal hover:bg-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                View Full Details
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleBottomSheetEdit}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium bg-charcoal text-white hover:bg-black transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit User
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleBottomSheetDelete}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete User
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </>
   );
 }

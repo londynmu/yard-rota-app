@@ -282,7 +282,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     >
       <div 
         ref={modalRef}
-        className="bg-white rounded-3xl md:rounded-xl shadow-2xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border-2 border-gray-400" 
+        className="bg-white rounded-3xl md:rounded-xl shadow-2xl w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border-2 border-gray-400" 
         onClick={e => e.stopPropagation()}
       >
         <div className="bg-black px-5 py-4 border-b border-gray-900 sticky top-0 z-10">
@@ -311,11 +311,8 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         
         <form onSubmit={handleSubmit}>
           <div className="px-5 py-4">
-            {/* Avatar Upload */}
-            <div className="mb-4">
-              <label className="block text-charcoal font-semibold mb-2 text-sm" htmlFor="admin-edit-avatar">
-                Profile Picture
-              </label>
+            {/* Avatar Upload & Active Status */}
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
                   {avatarUrl ? (
@@ -327,7 +324,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   )}
                 </div>
                 <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">
-                  <span>Upload new</span>
+                  <span>Upload</span>
                   <input
                     id="admin-edit-avatar"
                     type="file"
@@ -337,163 +334,166 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   />
                 </label>
               </div>
+              
+              {/* Active Account Toggle */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="admin-edit-isActive" className="text-sm text-gray-600">
+                  Active
+                </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isActive}
+                  onClick={() => !loading && setIsActive(!isActive)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isActive ? 'bg-green-500' : 'bg-gray-300'
+                  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                      isActive ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
             
             {/* Basic Info */}
             <div className="space-y-3">
-              <div>
-                <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  First Name
-                </label>
-                <input
-                  id="admin-edit-firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                    formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  placeholder="First name"
-                  disabled={loading}
-                />
-                {formErrors.firstName && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
-                )}
+              {/* First Name & Last Name - side by side on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    First Name
+                  </label>
+                  <input
+                    id="admin-edit-firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                      formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
+                    }`}
+                    placeholder="First name"
+                    disabled={loading}
+                  />
+                  {formErrors.firstName && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Last Name
+                  </label>
+                  <input
+                    id="admin-edit-lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                      formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
+                    }`}
+                    placeholder="Last name"
+                    disabled={loading}
+                  />
+                  {formErrors.lastName && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
+                  )}
+                </div>
               </div>
               
-              <div>
-                <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Last Name
-                </label>
-                <input
-                  id="admin-edit-lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                    formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  placeholder="Last name"
-                  disabled={loading}
-                />
-                {formErrors.lastName && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
-                )}
+              {/* Yard System ID, Shift Preference, Agency - side by side on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Yard System ID
+                  </label>
+                  <input
+                    id="admin-edit-yardSystemId"
+                    type="text"
+                    value={yardSystemId}
+                    onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
+                    style={{ textTransform: 'uppercase' }}
+                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                      formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
+                    }`}
+                    placeholder="E.G., AG10"
+                    disabled={loading}
+                  />
+                  {formErrors.yardSystemId && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Shift
+                  </label>
+                  <select
+                    id="admin-edit-shiftPreference"
+                    value={shiftPreference}
+                    onChange={(e) => setShiftPreference(e.target.value)}
+                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                      formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
+                    }`}
+                    disabled={loading}
+                  >
+                    <option value="">Select</option>
+                    <option value="day">Day</option>
+                    <option value="night">Night</option>
+                    <option value="afternoon">Afternoon</option>
+                  </select>
+                  {formErrors.shiftPreference && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Agency
+                  </label>
+                  <select
+                    id="admin-edit-agency"
+                    value={agencyId || ''}
+                    onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                    disabled={loading}
+                  >
+                    <option value="">None</option>
+                    {agencies.map(agency => (
+                      <option key={agency.id} value={agency.id}>{agency.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               
-              <div>
-                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Yard System ID
-                </label>
-                <input
-                  id="admin-edit-yardSystemId"
-                  type="text"
-                  value={yardSystemId}
-                  onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
-                  style={{ textTransform: 'uppercase' }}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                    formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  placeholder="E.G., AG10, AK2024"
-                  disabled={loading}
-                />
-                <p className="mt-1 text-xs text-gray-600">
-                  Enter ID from daily report (e.g., AG10, AK2024). Required for performance tracking.
-                </p>
-                {formErrors.yardSystemId && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Shift Preference
-                </label>
-                <select
-                  id="admin-edit-shiftPreference"
-                  value={shiftPreference}
-                  onChange={(e) => setShiftPreference(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  disabled={loading}
-                >
-                  <option value="">Select shift preference</option>
-                  <option value="day">Day</option>
-                  <option value="night">Night</option>
-                  <option value="afternoon">Afternoon</option>
-                </select>
-                {formErrors.shiftPreference && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
-                )}
-              </div>
-              
-              {/* Agency Selection */}
-              <div>
-                <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Agency
-                </label>
-                <select
-                  id="admin-edit-agency"
-                  value={agencyId || ''}
-                  onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
-                  disabled={loading}
-                >
-                  <option value="">None (Direct Employment)</option>
-                  {agencies.map(agency => (
-                    <option key={agency.id} value={agency.id}>{agency.name}</option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-600">
-                  Select the agency through which this worker is employed
-                </p>
-              </div>
-              
-              <div>
-                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Performance Score (1-99)
-                </label>
-                <input
-                  id="admin-edit-performanceScore"
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={performanceScore}
-                  onChange={(e) => setPerformanceScore(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                    formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  disabled={loading}
-                />
-                {formErrors.performanceScore && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
-                )}
-              </div>
-              
-              <div className="flex items-center">
-                <input
-                  id="admin-edit-isActive"
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 bg-white text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
-                  disabled={loading}
-                />
-                <label htmlFor="admin-edit-isActive" className="ml-2 block text-charcoal font-medium">
-                  Active Account
-                </label>
-              </div>
-            </div>
-            
-            {/* Rota Planning Section */}
-            <div className="mt-4 border-t border-gray-200 pt-4">
-              <h4 className="text-sm font-semibold text-charcoal mb-3">Rota Planning Settings</h4>
-              
-              <div className="space-y-3">
+              {/* Performance Score, Start Time, Location - side by side on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Score (1-99)
+                  </label>
+                  <input
+                    id="admin-edit-performanceScore"
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={performanceScore}
+                    onChange={(e) => setPerformanceScore(e.target.value)}
+                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                      formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
+                    }`}
+                    disabled={loading}
+                  />
+                  {formErrors.performanceScore && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
+                  )}
+                </div>
+                
                 <div>
                   <label htmlFor="admin-edit-startTime" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Preferred Start Time
+                    Start Time
                   </label>
                   <input
                     id="admin-edit-startTime"
@@ -503,14 +503,11 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
                     disabled={loading}
                   />
-                  <p className="mt-1 text-xs text-gray-600">
-                    Preferred starting time for this staff member
-                  </p>
                 </div>
                 
                 <div>
                   <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Preferred Location
+                    Location
                   </label>
                   <select
                     id="admin-edit-location"
@@ -524,11 +521,9 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                       <option key={location.id} value={location.name}>{location.name}</option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-600">
-                    Staff will be preferentially assigned to this location when possible
-                  </p>
                 </div>
               </div>
+              
             </div>
             
             {/* Form Actions */}
