@@ -667,17 +667,24 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               <div>
                 <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="customStartTime">
                   Preferred Start Time {isRequired && <span className="text-red-500 ml-1">*</span>}
-                  <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
                 </label>
-                <input
-                  type="time"
+                <select
                   id="customStartTime"
-                  value={customStartTime}
+                  value={customStartTime ? customStartTime.slice(0, 5) : ''}
                   onChange={handleCustomStartTimeChange}
                   className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
                     formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
                   }`}
-                />
+                >
+                  <option value="">Select time</option>
+                  {Array.from({ length: 96 }, (_, i) => {
+                    const hours = Math.floor(i / 4).toString().padStart(2, '0');
+                    const minutes = ((i % 4) * 15).toString().padStart(2, '0');
+                    return `${hours}:${minutes}`;
+                  }).map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
                 {formErrors.customStartTime && (
                   <p className="text-sm text-red-500 mt-1">{formErrors.customStartTime}</p>
                 )}
@@ -686,7 +693,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               <div>
                 <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="preferredLocation">
                   Preferred Location {isRequired && <span className="text-red-500 ml-1">*</span>}
-                  <Tooltip message="Select your preferred working location. This helps with shift planning." />
                 </label>
                 <select
                   id="preferredLocation"
@@ -732,9 +738,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
-              <p className="mt-2 text-xs text-gray-600">
-                If you work through a recruitment agency, please select it here
-              </p>
             </div>
             
             {/* Submit Button - Floating at bottom */}
@@ -965,17 +968,24 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             <div>
               <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="customStartTime">
                 Preferred Start Time {isRequired && <span className="text-red-500 ml-1">*</span>}
-                <Tooltip message="Time from which you can start working. Helps to better match you to slots in the schedule." />
               </label>
-              <input
-                type="time"
+              <select
                 id="customStartTime"
-                value={customStartTime}
+                value={customStartTime ? customStartTime.slice(0, 5) : ''}
                 onChange={handleCustomStartTimeChange}
                 className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
                   formErrors.customStartTime ? 'border-red-500' : 'border-gray-300'
                 }`}
-              />
+              >
+                <option value="">Select time</option>
+                {Array.from({ length: 96 }, (_, i) => {
+                  const hours = Math.floor(i / 4).toString().padStart(2, '0');
+                  const minutes = ((i % 4) * 15).toString().padStart(2, '0');
+                  return `${hours}:${minutes}`;
+                }).map(time => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
               {formErrors.customStartTime && (
                 <p className="text-sm text-red-500 mt-1">{formErrors.customStartTime}</p>
               )}
@@ -984,7 +994,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             <div>
               <label className="flex items-center text-charcoal font-medium mb-2 text-sm" htmlFor="preferredLocation">
                 Preferred Location {isRequired && <span className="text-red-500 ml-1">*</span>}
-                <Tooltip message="Select your preferred working location. This helps with shift planning." />
               </label>
               <select
                 id="preferredLocation"
@@ -1030,9 +1039,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                 <option key={agency.id} value={agency.id}>{agency.name}</option>
               ))}
             </select>
-            <p className="mt-2 text-xs text-gray-600">
-              If you work through a recruitment agency, please select it here
-            </p>
           </div>
           
           {/* Submit Button - Fixed at bottom on mobile */}

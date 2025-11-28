@@ -623,7 +623,7 @@ export default function UserList({ users, onRefresh }) {
         return null;
     }
   };
-
+  
   const openInfoModal = async (user) => {
     setInfoUser(user);
     setInfoModalOpen(true);
@@ -828,7 +828,7 @@ export default function UserList({ users, onRefresh }) {
         </div>
       </div>
 
-      {/* Mobile list view (visible on small screens) - WhatsApp Style */}
+      {/* Mobile list view (visible on small screens) - Clean minimal style */}
       <div className="md:hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
         {filteredUsers.map((user, index) => (
           <button
@@ -840,51 +840,31 @@ export default function UserList({ users, onRefresh }) {
             }`}
           >
             {/* Avatar with status dot */}
-            <div className="flex-shrink-0 h-11 w-11 relative">
+            <div className="flex-shrink-0 h-10 w-10 relative">
               {user.avatar_url ? (
-                <img className="h-11 w-11 rounded-full object-cover" src={user.avatar_url} alt="" />
+                <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
               ) : (
-                <div className="h-11 w-11 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-charcoal text-base font-semibold">
+                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-charcoal text-sm font-semibold">
                     {user.first_name?.charAt(0) || '?'}
                   </span>
                 </div>
               )}
               {/* Status dot */}
-              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+              <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
             </div>
             
-            {/* Name and details */}
+            {/* Name only */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-charcoal font-semibold text-[15px] truncate">
-                  {user.first_name || ''} {user.last_name || ''}
-                </span>
-                {getShiftBadge(user.shift_preference) && (
-                  <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold ${getShiftBadge(user.shift_preference).className}`}>
-                    {getShiftBadge(user.shift_preference).label}
-                  </span>
-                )}
-                {user.agency_name && (
-                  <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full">
-                    {user.agency_name}
-                  </span>
-                )}
-              </div>
+              <span className="text-charcoal font-semibold text-[15px] truncate block">
+                {user.first_name || ''} {user.last_name || ''}
+              </span>
             </div>
             
-            {/* Score badge */}
-            <div className="flex-shrink-0 flex items-center gap-2">
-              <div className="px-2.5 py-1 bg-gray-100 rounded-md">
-                <span className="text-charcoal text-sm font-bold">
-                  {user.performance_score || '–'}
-                </span>
-              </div>
-              {/* Chevron */}
-              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
+            {/* Chevron */}
+            <svg className="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         ))}
         
@@ -907,8 +887,8 @@ export default function UserList({ users, onRefresh }) {
           <div className="hidden xl:block w-24">Location</div>
           <div className="w-16 text-center">Score</div>
           <div className="flex-1"></div>
-        </div>
-        
+      </div>
+
         {/* Data rows */}
         {filteredUsers.map((user, index) => (
           <div
@@ -919,24 +899,24 @@ export default function UserList({ users, onRefresh }) {
           >
             {/* Avatar */}
             <div className="w-10 flex-shrink-0 relative">
-              {user.avatar_url ? (
+                {user.avatar_url ? (
                 <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
-              ) : (
+                ) : (
                 <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
                   <span className="text-charcoal text-sm font-semibold">
-                    {user.first_name?.charAt(0) || '?'}
-                  </span>
-                </div>
-              )}
+                      {user.first_name?.charAt(0) || '?'}
+                    </span>
+                  </div>
+                )}
               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
-            </div>
+              </div>
             
             {/* Name */}
             <div className="w-44 min-w-0">
               <span className="text-charcoal font-semibold text-sm truncate block">
-                {user.first_name || ''} {user.last_name || ''}
+                  {user.first_name || ''} {user.last_name || ''}
               </span>
-            </div>
+                </div>
             
             {/* Shift */}
             <div className="w-24">
@@ -946,8 +926,8 @@ export default function UserList({ users, onRefresh }) {
                 </span>
               ) : (
                 <span className="text-gray-300 text-sm">–</span>
-              )}
-            </div>
+                  )}
+                </div>
             
             {/* Agency */}
             <div className="w-28">
@@ -958,7 +938,7 @@ export default function UserList({ users, onRefresh }) {
               ) : (
                 <span className="text-gray-300 text-sm">–</span>
               )}
-            </div>
+              </div>
             
             {/* Start Time - visible on lg+ */}
             <div className="hidden lg:block w-20">
@@ -981,13 +961,13 @@ export default function UserList({ users, onRefresh }) {
             {/* Score */}
             <div className="w-16 text-center">
               <span className="inline-block px-3 py-1 bg-gray-100 rounded-md text-charcoal text-sm font-bold">
-                {user.performance_score || '–'}
+                  {user.performance_score || '–'}
               </span>
             </div>
             
             {/* Actions */}
             <div className="flex-1 flex items-center justify-end gap-2">
-              <button
+              <button 
                 type="button"
                 onClick={() => openEditModal(user)}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg bg-charcoal text-white hover:bg-black transition-colors"
@@ -997,8 +977,8 @@ export default function UserList({ users, onRefresh }) {
               
               {/* Dropdown menu */}
               <div className="relative" ref={openDropdownId === user.id ? dropdownRef : null}>
-                <button
-                  type="button"
+              <button 
+                type="button"
                   onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
                 >
@@ -1015,28 +995,28 @@ export default function UserList({ users, onRefresh }) {
                       onClick={() => {
                         setOpenDropdownId(null);
                         openInfoModal(user);
-                      }}
+                }}
                       className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Info
-                    </button>
-                    <button
-                      type="button"
+              </button>
+              <button 
+                type="button"
                       onClick={() => {
                         setOpenDropdownId(null);
-                        openDeleteModal(user);
-                      }}
-                      disabled={processingUser === user.id}
+                  openDeleteModal(user);
+                }}
+                disabled={processingUser === user.id}
                       className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                    >
+              >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                       {processingUser === user.id ? 'Deleting...' : 'Delete'}
-                    </button>
+              </button>
                   </div>
                 )}
               </div>
@@ -1154,80 +1134,39 @@ export default function UserList({ users, onRefresh }) {
       <BottomSheet isOpen={showBottomSheet} onClose={closeBottomSheet}>
         {selectedUser && (
           <div className="px-5 pb-8">
-            {/* User Header */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-shrink-0 h-16 w-16 relative">
+            {/* User Header - Centered */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="h-20 w-20 relative mb-3">
                 {selectedUser.avatar_url ? (
-                  <img className="h-16 w-16 rounded-full object-cover" src={selectedUser.avatar_url} alt="" />
+                  <img className="h-20 w-20 rounded-full object-cover" src={selectedUser.avatar_url} alt="" />
                 ) : (
-                  <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center">
+                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center">
                     <span className="text-charcoal text-2xl font-semibold">
                       {selectedUser.first_name?.charAt(0) || '?'}
                     </span>
                   </div>
                 )}
-                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${selectedUser.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
+                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-white ${selectedUser.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-charcoal font-bold text-xl truncate">
-                    {selectedUser.first_name || ''} {selectedUser.last_name || ''}
-                  </span>
-                  {getShiftBadge(selectedUser.shift_preference) && (
-                    <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded ${getShiftBadge(selectedUser.shift_preference).className}`}>
-                      {getShiftBadge(selectedUser.shift_preference).label}
-                    </span>
-                  )}
+              {/* Show in one line if short, two lines if long */}
+              {((selectedUser.first_name || '').length + (selectedUser.last_name || '').length) <= 20 ? (
+                <div className="text-charcoal font-bold text-2xl">
+                  {selectedUser.first_name || ''} {selectedUser.last_name || ''}
                 </div>
-                {selectedUser.agency_name && (
-                  <div className="text-gray-500 text-sm">
-                    {selectedUser.agency_name}
+              ) : (
+                <>
+                  <div className="text-charcoal font-bold text-2xl">
+                    {selectedUser.first_name || ''}
                   </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Quick Info */}
-            <div className="bg-gray-50 rounded-xl p-4 mb-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Score</div>
-                  <div className="text-charcoal text-2xl font-bold">{selectedUser.performance_score || '–'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Last Login</div>
-                  <div className="text-charcoal text-sm font-medium">
-                    {loadingLastLogin ? (
-                      <span className="text-gray-400">Loading...</span>
-                    ) : bottomSheetLastLogin ? (
-                      formatDistanceToNow(new Date(bottomSheetLastLogin), { addSuffix: true })
-                    ) : (
-                      <span className="text-gray-400">Never</span>
-                    )}
+                  <div className="text-charcoal font-bold text-2xl">
+                    {selectedUser.last_name || ''}
                   </div>
-                </div>
-              </div>
-              {selectedUser.email && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-gray-500 text-xs uppercase tracking-wide mb-1">Email</div>
-                  <div className="text-charcoal text-sm truncate">{selectedUser.email}</div>
-                </div>
+                </>
               )}
             </div>
             
             {/* Action Buttons */}
             <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleBottomSheetInfo}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium bg-gray-100 text-charcoal hover:bg-gray-200 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                View Full Details
-              </button>
-              
               <button
                 type="button"
                 onClick={handleBottomSheetEdit}

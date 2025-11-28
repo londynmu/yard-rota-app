@@ -286,13 +286,13 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="bg-black px-5 py-4 border-b border-gray-900 sticky top-0 z-10">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <h3 className="text-lg font-bold text-white">
-              Edit User Profile
-            </h3>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <h3 className="text-lg font-bold text-white">
+                Edit User Profile
+              </h3>
           </div>
         </div>
         
@@ -349,147 +349,155 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
             <div className="space-y-3">
               {/* First Name & Last Name - side by side on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    First Name
-                  </label>
-                  <input
-                    id="admin-edit-firstName"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                      formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
-                    }`}
-                    placeholder="First name"
-                    disabled={loading}
-                  />
-                  {formErrors.firstName && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Last Name
-                  </label>
-                  <input
-                    id="admin-edit-lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                      formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
-                    }`}
-                    placeholder="Last name"
-                    disabled={loading}
-                  />
-                  {formErrors.lastName && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
-                  )}
+              <div>
+                <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
+                  First Name
+                </label>
+                <input
+                  id="admin-edit-firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
+                  placeholder="First name"
+                  disabled={loading}
+                />
+                {formErrors.firstName && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
+                  Last Name
+                </label>
+                <input
+                  id="admin-edit-lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
+                  placeholder="Last name"
+                  disabled={loading}
+                />
+                {formErrors.lastName && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
+                )}
                 </div>
               </div>
               
               {/* Yard System ID, Shift Preference, Agency - side by side on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Yard System ID
-                  </label>
-                  <input
-                    id="admin-edit-yardSystemId"
-                    type="text"
-                    value={yardSystemId}
-                    onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
-                    style={{ textTransform: 'uppercase' }}
-                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                      formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
-                    }`}
+              <div>
+                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
+                  Yard System ID
+                </label>
+                <input
+                  id="admin-edit-yardSystemId"
+                  type="text"
+                  value={yardSystemId}
+                  onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
+                  style={{ textTransform: 'uppercase' }}
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
                     placeholder="E.G., AG10"
-                    disabled={loading}
-                  />
-                  {formErrors.yardSystemId && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
+                  disabled={loading}
+                />
+                {formErrors.yardSystemId && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
                     Shift
-                  </label>
-                  <select
-                    id="admin-edit-shiftPreference"
-                    value={shiftPreference}
-                    onChange={(e) => setShiftPreference(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                      formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
-                    }`}
-                    disabled={loading}
-                  >
+                </label>
+                <select
+                  id="admin-edit-shiftPreference"
+                  value={shiftPreference}
+                  onChange={(e) => setShiftPreference(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
+                  disabled={loading}
+                >
                     <option value="">Select</option>
-                    <option value="day">Day</option>
-                    <option value="night">Night</option>
-                    <option value="afternoon">Afternoon</option>
-                  </select>
-                  {formErrors.shiftPreference && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Agency
-                  </label>
-                  <select
-                    id="admin-edit-agency"
-                    value={agencyId || ''}
-                    onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
-                    disabled={loading}
-                  >
+                  <option value="day">Day</option>
+                  <option value="night">Night</option>
+                  <option value="afternoon">Afternoon</option>
+                </select>
+                {formErrors.shiftPreference && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
+                )}
+              </div>
+              
+              <div>
+                <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
+                  Agency
+                </label>
+                <select
+                  id="admin-edit-agency"
+                  value={agencyId || ''}
+                  onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                  disabled={loading}
+                >
                     <option value="">None</option>
-                    {agencies.map(agency => (
-                      <option key={agency.id} value={agency.id}>{agency.name}</option>
-                    ))}
-                  </select>
+                  {agencies.map(agency => (
+                    <option key={agency.id} value={agency.id}>{agency.name}</option>
+                  ))}
+                </select>
                 </div>
               </div>
               
               {/* Performance Score, Start Time, Location - side by side on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
+              <div>
+                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
                     Score (1-99)
-                  </label>
-                  <input
-                    id="admin-edit-performanceScore"
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={performanceScore}
-                    onChange={(e) => setPerformanceScore(e.target.value)}
-                    className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
-                      formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
-                    }`}
-                    disabled={loading}
-                  />
-                  {formErrors.performanceScore && (
-                    <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
-                  )}
-                </div>
-                
+                </label>
+                <input
+                  id="admin-edit-performanceScore"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={performanceScore}
+                  onChange={(e) => setPerformanceScore(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                    formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
+                  }`}
+                  disabled={loading}
+                />
+                {formErrors.performanceScore && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
+                )}
+              </div>
+              
                 <div>
                   <label htmlFor="admin-edit-startTime" className="block text-charcoal font-medium mb-1.5 text-sm">
                     Start Time
                   </label>
-                  <input
+                  <select
                     id="admin-edit-startTime"
-                    type="time"
-                    value={customStartTime}
+                    value={customStartTime ? customStartTime.slice(0, 5) : ''}
                     onChange={(e) => setCustomStartTime(e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
                     disabled={loading}
-                  />
+                  >
+                    <option value="">No preference</option>
+                    {Array.from({ length: 96 }, (_, i) => {
+                      const hours = Math.floor(i / 4).toString().padStart(2, '0');
+                      const minutes = ((i % 4) * 15).toString().padStart(2, '0');
+                      return `${hours}:${minutes}`;
+                    }).map(time => (
+                      <option key={time} value={time}>{time}</option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
