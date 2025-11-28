@@ -215,6 +215,11 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       errors.shiftPreference = 'Please select your preferred shift';
     }
     
+    // Make agency required
+    if (!agencyId) {
+      errors.agency = 'Please select your agency';
+    }
+    
     // Make preferred location required
     if (!preferredLocation) {
       errors.preferredLocation = 'Preferred location is required';
@@ -725,19 +730,24 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             {/* Agency Card */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <label htmlFor="agency" className="block text-charcoal font-medium mb-2 text-sm">
-                Agency <span className="text-xs text-gray-600">(Optional)</span>
+                Agency {isRequired && <span className="text-red-500 ml-1">*</span>}
               </label>
               <select
                 id="agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="w-full px-4 py-3 bg-white rounded-xl focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/10"
+                className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 ${
+                  formErrors.agency ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
-                <option value="">None (Direct Employment)</option>
+                <option value="">Select agency</option>
                 {agencies.map(agency => (
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
+              {formErrors.agency && (
+                <p className="text-sm text-red-500 mt-1">{formErrors.agency}</p>
+              )}
             </div>
             
             {/* Submit Button - Floating at bottom */}
@@ -1026,19 +1036,24 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           {/* Agency Card */}
           <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
             <label htmlFor="agency" className="block text-charcoal font-medium mb-2 text-sm">
-              Agency <span className="text-xs text-gray-600">(Optional)</span>
+              Agency {isRequired && <span className="text-red-500 ml-1">*</span>}
             </label>
             <select
               id="agency"
               value={agencyId || ''}
               onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-              className="w-full px-4 py-3 bg-white rounded-xl focus:outline-none border border-gray-300 text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all"
+              className={`w-full px-4 py-3 bg-white rounded-xl focus:outline-none border text-charcoal focus:border-black focus:ring-2 focus:ring-black/10 transition-all ${
+                formErrors.agency ? 'border-red-500' : 'border-gray-300'
+              }`}
             >
-              <option value="">None (Direct Employment)</option>
+              <option value="">Select agency</option>
               {agencies.map(agency => (
                 <option key={agency.id} value={agency.id}>{agency.name}</option>
               ))}
             </select>
+            {formErrors.agency && (
+              <p className="text-sm text-red-500 mt-1">{formErrors.agency}</p>
+            )}
           </div>
           
           {/* Submit Button - Fixed at bottom on mobile */}
