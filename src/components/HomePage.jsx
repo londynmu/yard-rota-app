@@ -21,6 +21,7 @@ export default function HomePage() {
   const [profileName, setProfileName] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
   const dropdownRef = useRef(null);
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -47,6 +48,10 @@ export default function HomePage() {
       
       console.log('[HomePage] Fetched profile data:', data);
       if (data) {
+        // Reset avatar loaded state when URL changes
+        if (data.avatar_url !== avatarUrl) {
+          setAvatarLoaded(false);
+        }
         setAvatarUrl(data.avatar_url || '');
         
         if (data.first_name || data.last_name) {
@@ -56,6 +61,7 @@ export default function HomePage() {
         console.log('[HomePage] Profile not found.');
         setProfileName('');
         setAvatarUrl('');
+        setAvatarLoaded(false);
       }
     } catch (error) {
       console.error('[HomePage] Error fetching profile:', error);
@@ -277,14 +283,16 @@ export default function HomePage() {
                     aria-label="User menu"
                     aria-haspopup="true"
                   >
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm">
-                      {avatarUrl ? (
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm bg-gray-200 flex-shrink-0">
+                      {avatarUrl && (
                         <img 
                           src={avatarUrl} 
                           alt="Profile" 
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
+                          onLoad={() => setAvatarLoaded(true)}
                         />
-                      ) : (
+                      )}
+                      {(!avatarUrl || !avatarLoaded) && (
                         <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                           <span className="text-charcoal font-medium text-sm">
                             {user?.email?.charAt(0).toUpperCase() || '?'}

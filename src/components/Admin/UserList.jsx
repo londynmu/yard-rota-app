@@ -903,6 +903,8 @@ export default function UserList({ users, onRefresh }) {
           <div className="w-44">Name</div>
           <div className="w-24">Shift</div>
           <div className="w-28">Agency</div>
+          <div className="hidden lg:block w-20">Start</div>
+          <div className="hidden xl:block w-24">Location</div>
           <div className="w-16 text-center">Score</div>
           <div className="flex-1"></div>
         </div>
@@ -953,6 +955,24 @@ export default function UserList({ users, onRefresh }) {
                 <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full">
                   {user.agency_name}
                 </span>
+              ) : (
+                <span className="text-gray-300 text-sm">–</span>
+              )}
+            </div>
+            
+            {/* Start Time - visible on lg+ */}
+            <div className="hidden lg:block w-20">
+              {user.custom_start_time ? (
+                <span className="text-gray-600 text-sm">{user.custom_start_time.slice(0, 5)}</span>
+              ) : (
+                <span className="text-gray-300 text-sm">–</span>
+              )}
+            </div>
+            
+            {/* Location - visible on xl+ */}
+            <div className="hidden xl:block w-24">
+              {user.preferred_location ? (
+                <span className="text-gray-600 text-sm truncate block">{user.preferred_location}</span>
               ) : (
                 <span className="text-gray-300 text-sm">–</span>
               )}
