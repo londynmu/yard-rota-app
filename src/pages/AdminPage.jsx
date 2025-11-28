@@ -169,13 +169,13 @@ export default function AdminPage() {
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
-    console.log('[AdminPage] Fetching users with ALL fields including yard_system_id...');
+    console.log('[AdminPage] Fetching users with ALL fields including yard_system_id and agency...');
     setPageLoading(true); // Show loading state
     try {
-      // Direct query to get ALL fields from profiles including yard_system_id
+      // Direct query to get ALL fields from profiles including yard_system_id and agency
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*, agencies(id, name)');
       
       if (profilesError) throw profilesError;
       
@@ -192,7 +192,8 @@ export default function AdminPage() {
               ...profile,
               email: rpcUser?.email || 'N/A',
               performance_score: profile.performance_score ?? 50,
-              is_active: profile.is_active !== false
+              is_active: profile.is_active !== false,
+              agency_name: profile.agencies?.name || null
             };
           });
         } else {
@@ -209,14 +210,16 @@ export default function AdminPage() {
                 ...profile,
                 email: authUser?.email || 'N/A',
                 performance_score: profile.performance_score ?? 50,
-                is_active: profile.is_active !== false
+                is_active: profile.is_active !== false,
+                agency_name: profile.agencies?.name || null
               };
             } catch (err) {
               return {
                 ...profile,
                 email: 'N/A',
                 performance_score: profile.performance_score ?? 50,
-                is_active: profile.is_active !== false
+                is_active: profile.is_active !== false,
+                agency_name: profile.agencies?.name || null
               };
             }
           })

@@ -908,7 +908,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         <div className="flex justify-end border-t border-gray-200 bg-gray-50 px-5 py-3">
           <button
             onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-charcoal hover:bg-gray-100"
+            className="rounded-full bg-black px-6 py-2 text-sm font-medium text-white hover:bg-gray-800"
           >
             Done
           </button>

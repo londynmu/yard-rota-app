@@ -732,6 +732,11 @@ export default function UserList({ users, onRefresh }) {
                   <div className="text-charcoal font-semibold text-base truncate">
                     {user.first_name || ''} {user.last_name || ''}
                   </div>
+                  {user.agency_name && (
+                    <div className="text-xs text-gray-500 truncate">
+                      {user.agency_name}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -809,6 +814,9 @@ export default function UserList({ users, onRefresh }) {
                 </div>
                 <div className="text-gray-500 text-xs">
                   {user.shift_preference || 'not set'}
+                  {user.agency_name && (
+                    <span className="ml-1.5 text-blue-600">• {user.agency_name}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -928,6 +936,10 @@ export default function UserList({ users, onRefresh }) {
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">Shift:</span>
                     <span className="text-charcoal">{infoUser.shift_preference || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="font-semibold text-gray-600 w-24 text-sm">Agency:</span>
+                    <span className="text-charcoal">{infoUser.agency_name || 'Direct'}</span>
                   </div>
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">Score:</span>
