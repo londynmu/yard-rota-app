@@ -7,6 +7,7 @@ import { format as formatDate } from 'date-fns';
 import {
   parseShunterCSV,
   validateCSVData,
+  dedupeIdenticalEntries,
   aggregateShiftData,
   matchUsersWithCSV,
   importPerformanceData
@@ -151,8 +152,18 @@ const PerformanceImport = () => {
         validation.warnings.forEach(warning => toast.warning(warning));
       }
       
+      // Deduplicate identical entries before aggregation (handles buggy YMS exports)
+      const deduped = dedupeIdenticalEntries(parsed);
+      const duplicateCount = parsed.length - deduped.length;
+
+      if (duplicateCount > 0) {
+        toast.warning(
+          `Ignored ${duplicateCount} duplicated entr${duplicateCount === 1 ? 'y' : 'ies'} with identical metrics`
+        );
+      }
+
       // Aggregate shift data (sum moves from multiple shifts)
-      const aggregated = aggregateShiftData(parsed);
+      const aggregated = aggregateShiftData(deduped);
       
       // Match with user profiles
       const { matched, unmatched } = matchUsersWithCSV(aggregated, profiles);

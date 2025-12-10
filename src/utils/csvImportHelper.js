@@ -118,6 +118,42 @@ export function parseShunterCSV(fileContent) {
 }
 
 /**
+ * Deduplicates identical entries that share the same yard ID and metrics.
+ * This protects against YMS exports that repeat the same row with minor name variations.
+ * @param {Array<Object>} parsedData
+ * @returns {Array<Object>} Deduplicated dataset
+ */
+export function dedupeIdenticalEntries(parsedData) {
+  if (!Array.isArray(parsedData)) return [];
+
+  const uniqueMap = new Map();
+
+  parsedData.forEach((entry) => {
+    const key = [
+      entry.yardSystemId || '',
+      entry.numberOfMoves ?? '',
+      entry.avgTimeToCollect || '',
+      entry.avgTimeToTravel || '',
+      entry.numberOfFullLocations ?? ''
+    ].join('|');
+
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, entry);
+    } else {
+      // Prefer entry with a longer / non-empty name if duplicates exist
+      const current = uniqueMap.get(key);
+      const currentNameLength = current.fullName?.length || 0;
+      const newNameLength = entry.fullName?.length || 0;
+      if (newNameLength > currentNameLength) {
+        uniqueMap.set(key, entry);
+      }
+    }
+  });
+
+  return Array.from(uniqueMap.values());
+}
+
+/**
  * Validates parsed CSV data
  * @param {Array<Object>} parsedData
  * @returns {Object} Validation result with { isValid, errors }
