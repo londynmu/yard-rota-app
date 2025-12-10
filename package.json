@@ -19,6 +19,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "framer-motion": "^12.23.24",
+    "googleapis": "^168.0.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "prop-types": "^15.8.1",
@@ -47,10 +48,24 @@
     "globals": "^16.0.0",
     "postcss": "^8.4.31",
     "react-devtools": "^1.0.5",
+    "supabase": "^2.65.7",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.9.3",
     "vite": "^6.3.1",
     "vite-plugin-pwa": "^1.1.0",
     "workbox-window": "^7.4.0"
-  }
+  },
+  "description": "## Overview Mobile-friendly application for managing employee shift schedules, designed with simplicity and efficiency in mind.",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/londynmu/yard-rota-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/londynmu/yard-rota-app/issues"
+  },
+  "homepage": "https://github.com/londynmu/yard-rota-app#readme"
 }

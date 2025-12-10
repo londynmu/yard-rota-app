@@ -1,0 +1,4 @@
+curl -L -X POST "https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/gmail-import" ^
+  -H "Authorization: Bearer <eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw>" ^
+  -H "Content-Type: application/json" ^
+  --data "{\"name\":\"Functions\"}"
