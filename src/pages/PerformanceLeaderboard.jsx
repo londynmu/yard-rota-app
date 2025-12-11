@@ -405,12 +405,12 @@ const PerformanceLeaderboard = () => {
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
       .map(([date, totalMoves]) => ({ date, totalMoves }));
 
-    const rangeLimit = RANGE_LOOKUP[selectedRange]?.durationDays || 30;
-    const maxPoints = selectedRange === 'all'
-      ? Math.min(sortedEntries.length, 60)
-      : rangeLimit;
+    if (selectedRange === 'all') {
+      return sortedEntries;
+    }
 
-    return sortedEntries.slice(-maxPoints);
+    const rangeLimit = RANGE_LOOKUP[selectedRange]?.durationDays || 30;
+    return sortedEntries.slice(-rangeLimit);
   }, [rawPerformance, selectedRange]);
 
   const toggleExpandedUser = (userId) => {
@@ -948,7 +948,7 @@ const PerformanceLeaderboard = () => {
 
             {/* Trend */}
             <section className="mb-8">
-              <TrendChart data={trendSeries} />
+              <TrendChart data={trendSeries} isAllTime={selectedRange === 'all'} />
             </section>
 
             {/* Detailed list - Floating cards */}
@@ -1047,7 +1047,7 @@ const PerformanceLeaderboard = () => {
 
 export default PerformanceLeaderboard;
 
-function TrendChart({ data }) {
+function TrendChart({ data, isAllTime = false }) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
@@ -1121,13 +1121,35 @@ function TrendChart({ data }) {
     })),
   };
 
+  const chartWidth = isAllTime
+    ? Math.max(chartData.length * 28, 360)
+    : undefined;
+
+  const firstEntry = isAllTime && chartData.length ? chartData[0] : null;
+  const lastEntry = isAllTime && chartData.length ? chartData[chartData.length - 1] : null;
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="mb-4">
+      <div className="mb-2 md:mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
+        {isAllTime && firstEntry && lastEntry && (
+          <p className="text-xs text-gray-500">
+            Tracking from {formatDate(parseISO(firstEntry.date), 'dd MMM yyyy')} to{' '}
+            {formatDate(parseISO(lastEntry.date), 'dd MMM yyyy')} • {chartData.length} logged days
+          </p>
+        )}
       </div>
-      <div className="relative h-56 -mx-2">
-        <ResponsiveContainer width="100%" height="100%">
+      <div
+        className={`relative h-56 ${isAllTime ? '-mx-4 px-1 overflow-x-auto' : '-mx-2'}`}
+      >
+        <div
+          className="h-full"
+          style={{
+            width: isAllTime ? `${chartWidth}px` : '100%',
+            minWidth: isAllTime ? '600px' : 'auto',
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             margin={{ top: 20, right: 15, left: 15, bottom: 0 }}
@@ -1165,7 +1187,8 @@ function TrendChart({ data }) {
               }
             />
           </BarChart>
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
       </div>
       <div className="mt-2 text-center">
         <p className="text-xs text-gray-500 italic">Tap bar to see moves</p>
@@ -1179,6 +1202,7 @@ TrendChart.propTypes = {
     date: PropTypes.string.isRequired,
     totalMoves: PropTypes.number.isRequired,
   })),
+  isAllTime: PropTypes.bool,
 };
 
 
