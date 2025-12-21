@@ -101,12 +101,15 @@ CREATE POLICY "Admins can delete performance data"
 -- 4. Create function for automatic timestamp updates
 -- ============================================
 CREATE OR REPLACE FUNCTION update_shunter_performance_timestamp()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create trigger for automatic timestamp updates
 DROP TRIGGER IF EXISTS set_timestamp_shunter_performance ON public.shunter_performance;

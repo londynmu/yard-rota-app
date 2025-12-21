@@ -66,6 +66,60 @@ BEGIN
 
     COMMENT ON COLUMN public.monthly_shunter_awards.awarded_by IS
       'Admin user (auth.users.id) who granted the award. Used only for logs, never exposed in UI.';
+
+    -- Enable Row Level Security
+    ALTER TABLE public.monthly_shunter_awards ENABLE ROW LEVEL SECURITY;
+
+    -- Policy: All authenticated users can view all awards (public leaderboard)
+    CREATE POLICY "Anyone can view monthly awards"
+        ON public.monthly_shunter_awards
+        FOR SELECT
+        TO authenticated
+        USING (true);
+
+    -- Policy: Only admins can insert awards
+    CREATE POLICY "Admins can insert monthly awards"
+        ON public.monthly_shunter_awards
+        FOR INSERT
+        TO authenticated
+        WITH CHECK (
+            EXISTS (
+                SELECT 1 FROM public.profiles
+                WHERE profiles.id = auth.uid()
+                AND profiles.role = 'admin'
+            )
+        );
+
+    -- Policy: Only admins can update awards
+    CREATE POLICY "Admins can update monthly awards"
+        ON public.monthly_shunter_awards
+        FOR UPDATE
+        TO authenticated
+        USING (
+            EXISTS (
+                SELECT 1 FROM public.profiles
+                WHERE profiles.id = auth.uid()
+                AND profiles.role = 'admin'
+            )
+        );
+
+    -- Policy: Only admins can delete awards
+    CREATE POLICY "Admins can delete monthly awards"
+        ON public.monthly_shunter_awards
+        FOR DELETE
+        TO authenticated
+        USING (
+            EXISTS (
+                SELECT 1 FROM public.profiles
+                WHERE profiles.id = auth.uid()
+                AND profiles.role = 'admin'
+            )
+        );
+
+    -- Grant permissions
+    GRANT SELECT ON public.monthly_shunter_awards TO authenticated;
+
+    RAISE NOTICE 'Table monthly_shunter_awards created with RLS policies';
   END IF;
 END $$;
 

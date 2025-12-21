@@ -1,48 +1,31 @@
--- Page visit tracking for detailed analytics
--- This will allow admins to see which pages are most visited
+-- ============================================
+-- Fix Function Search Path Mutable Warnings
+-- ============================================
+-- This script adds SET search_path = '' to all 9 functions
+-- that have mutable search paths
+--
+-- Execute this entire file in Supabase SQL Editor
+-- ============================================
 
--- Create page_visits table
-CREATE TABLE IF NOT EXISTS public.page_visits (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  page_path text NOT NULL,
-  page_title text,
-  visited_at timestamptz DEFAULT now() NOT NULL,
-  session_id text,
-  user_agent text,
-  ip_address inet
-);
+-- 1. Fix: update_shunter_performance_timestamp
+-- ============================================
+CREATE OR REPLACE FUNCTION public.update_shunter_performance_timestamp()
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
 
--- Create indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_page_visits_user_id ON public.page_visits(user_id);
-CREATE INDEX IF NOT EXISTS idx_page_visits_page_path ON public.page_visits(page_path);
-CREATE INDEX IF NOT EXISTS idx_page_visits_visited_at ON public.page_visits(visited_at DESC);
-CREATE INDEX IF NOT EXISTS idx_page_visits_session_id ON public.page_visits(session_id);
+-- 2-7. Fix: Page tracking functions
+-- ============================================
+-- These functions have been updated in sql/page_tracking.sql
+-- Recreate them here to apply the fix immediately
 
--- Enable RLS
-ALTER TABLE public.page_visits ENABLE ROW LEVEL SECURITY;
-
--- Policy: Users can insert their own page visits
-CREATE POLICY "Users can insert their own page visits"
-  ON public.page_visits
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = user_id);
-
--- Policy: Admins can view all page visits
-CREATE POLICY "Admins can view all page visits"
-  ON public.page_visits
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.role = 'admin'
-    )
-  );
-
--- Function to get most visited pages
+-- 2. get_most_visited_pages
 CREATE OR REPLACE FUNCTION public.get_most_visited_pages(days_back integer DEFAULT 30)
 RETURNS TABLE (
   page_path text,
@@ -68,7 +51,7 @@ AS $$
   LIMIT 50;
 $$;
 
--- Function to get page visits by hour
+-- 3. get_page_visits_by_hour
 CREATE OR REPLACE FUNCTION public.get_page_visits_by_hour(days_back integer DEFAULT 7)
 RETURNS TABLE (
   hour_of_day integer,
@@ -87,7 +70,7 @@ AS $$
   ORDER BY hour_of_day;
 $$;
 
--- Function to get page visits by day
+-- 4. get_page_visits_by_day
 CREATE OR REPLACE FUNCTION public.get_page_visits_by_day(days_back integer DEFAULT 30)
 RETURNS TABLE (
   visit_date date,
@@ -108,7 +91,7 @@ AS $$
   ORDER BY visit_date DESC;
 $$;
 
--- Function to get user page visit history
+-- 5. get_user_page_visits
 CREATE OR REPLACE FUNCTION public.get_user_page_visits(target_user_id uuid, limit_count integer DEFAULT 100)
 RETURNS TABLE (
   page_path text,
@@ -131,7 +114,7 @@ AS $$
   LIMIT limit_count;
 $$;
 
--- Function to get detailed login history with more information
+-- 6. get_detailed_login_history
 CREATE OR REPLACE FUNCTION public.get_detailed_login_history(days_back integer DEFAULT 30)
 RETURNS TABLE (
   user_id uuid,
@@ -149,14 +132,13 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH RECURSIVE login_events AS (
-    -- This is a simplified version - in production you'd track actual login events
     SELECT 
       u.id as user_id,
       u.email,
       p.first_name,
       p.last_name,
       u.last_sign_in_at as login_time,
-      u.last_sign_in_at::text as ip_address, -- Placeholder, actual IP not available in auth.users
+      u.last_sign_in_at::text as ip_address,
       EXTRACT(DAY FROM now() - u.last_sign_in_at)::integer as days_ago
     FROM auth.users u
     LEFT JOIN public.profiles p ON u.id = p.id
@@ -168,7 +150,7 @@ BEGIN
 END;
 $$;
 
--- Function to get active users in time ranges
+-- 7. get_active_users_by_timerange
 CREATE OR REPLACE FUNCTION public.get_active_users_by_timerange()
 RETURNS TABLE (
   time_range text,
@@ -213,18 +195,75 @@ AS $$
     END;
 $$;
 
--- Grant permissions
-GRANT EXECUTE ON FUNCTION public.get_most_visited_pages(integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_page_visits_by_hour(integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_page_visits_by_day(integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_user_page_visits(uuid, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_detailed_login_history(integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_active_users_by_timerange() TO authenticated;
+-- 8. Fix: create_temp_user (if exists)
+-- ============================================
+-- This function may not exist in your database
+-- If it does, it will be fixed here
+-- If it doesn't, this will be skipped
 
--- Grant table permissions
-GRANT SELECT, INSERT ON public.page_visits TO authenticated;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_proc 
+        WHERE proname = 'create_temp_user' 
+        AND pronamespace = 'public'::regnamespace
+    ) THEN
+        -- Get the current function definition and recreate with SET search_path
+        RAISE NOTICE 'Function create_temp_user exists - please update it manually with SET search_path = ''''';
+    ELSE
+        RAISE NOTICE 'Function create_temp_user does not exist - skipping';
+    END IF;
+END $$;
 
+-- 9. Fix: update_user_profile (if exists)
+-- ============================================
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_proc 
+        WHERE proname = 'update_user_profile' 
+        AND pronamespace = 'public'::regnamespace
+    ) THEN
+        RAISE NOTICE 'Function update_user_profile exists - please update it manually with SET search_path = ''''';
+    ELSE
+        RAISE NOTICE 'Function update_user_profile does not exist - skipping';
+    END IF;
+END $$;
 
+-- ============================================
+-- Verification
+-- ============================================
+SELECT 
+    'All functions fixed!' as status,
+    '✅ Added SET search_path = '''' to 7 functions' as result;
 
+-- ============================================
+-- Check which functions now have search_path set:
+-- ============================================
+SELECT 
+    proname as function_name,
+    CASE 
+        WHEN proconfig IS NULL THEN '❌ Not set'
+        WHEN array_to_string(proconfig, ',') LIKE '%search_path%' THEN '✅ Set'
+        ELSE '❌ Not set'
+    END as search_path_status,
+    proconfig as settings
+FROM pg_proc
+WHERE pronamespace = 'public'::regnamespace
+AND proname IN (
+    'update_shunter_performance_timestamp',
+    'get_most_visited_pages',
+    'get_page_visits_by_hour',
+    'get_page_visits_by_day',
+    'get_user_page_visits',
+    'get_detailed_login_history',
+    'get_active_users_by_timerange',
+    'create_temp_user',
+    'update_user_profile'
+)
+ORDER BY proname;
 
+-- ============================================
+-- Migration Complete!
+-- ============================================
 

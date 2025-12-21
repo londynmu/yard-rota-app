@@ -13,15 +13,20 @@ const LoginStats = () => {
   const [timeStats, setTimeStats] = useState([]);
   const [monthlyStats, setMonthlyStats] = useState([]);
   const [inactiveStats, setInactiveStats] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activitySummary, setActivitySummary] = useState([]);
+  const [mostVisitedPages, setMostVisitedPages] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [sortConfig, setSortConfig] = useState({ key: 'last_sign_in_at', direction: 'desc' });
+  const [activityDaysBack, setActivityDaysBack] = useState(7);
+  const [expandedUsers, setExpandedUsers] = useState(new Set());
   
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#FF6384'];
   
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [activityDaysBack]);
   
   const fetchAllData = async () => {
     setLoading(true);
@@ -45,6 +50,28 @@ const LoginStats = () => {
       const { data: inactiveData, error: inactiveError } = await supabase.rpc('get_inactive_users_stats');
       if (inactiveError) throw inactiveError;
       setInactiveStats(inactiveData || []);
+      
+      // Fetch full activity logs
+      const { data: activityData, error: activityError } = await supabase.rpc('get_full_activity_logs', { 
+        days_back: activityDaysBack,
+        limit_count: 500 
+      });
+      if (activityError) throw activityError;
+      setActivityLogs(activityData || []);
+      
+      // Fetch user activity summary
+      const { data: summaryData, error: summaryError } = await supabase.rpc('get_user_activity_summary', {
+        days_back: activityDaysBack
+      });
+      if (summaryError) throw summaryError;
+      setActivitySummary(summaryData || []);
+      
+      // Fetch most visited pages
+      const { data: pagesData, error: pagesError } = await supabase.rpc('get_most_visited_pages', {
+        days_back: activityDaysBack
+      });
+      if (pagesError) throw pagesError;
+      setMostVisitedPages(pagesData || []);
       
     } catch (error) {
       console.error('Error fetching login statistics:', error);
@@ -95,12 +122,12 @@ const LoginStats = () => {
   
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 shadow-sm rounded-xl border border-red-500/30 text-center">
-        <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
-        <p className="text-charcoal/80">{error}</p>
+      <div className="p-4 bg-red-50 shadow-sm rounded-xl border border-red-200 text-center">
+        <h3 className="text-lg font-semibold mb-2 text-red-900">Error</h3>
+        <p className="text-red-700">{error}</p>
         <button
           onClick={() => fetchAllData()}
-          className="mt-4 bg-red-700/40 hover:bg-red-700/60 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-charcoal"
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           Retry
         </button>
@@ -116,84 +143,96 @@ const LoginStats = () => {
   };
   
   return (
-    <div className="bg-white shadow-sm rounded-xl overflow-hidden p-4">
-      <h2 className="text-xl font-bold text-charcoal mb-4">User Login Statistics</h2>
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-charcoal">User Login Statistics</h2>
       
       {/* Tab navigation */}
-      <div className="flex mb-4 space-x-2 overflow-x-auto pb-2">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-2 mb-4">
+        <div className="flex space-x-2 overflow-x-auto">
         <button
-          className={`px-4 py-2 rounded-lg font-medium ${
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
             activeTab === 'overview' 
-              ? 'bg-blue-600/60 text-charcoal' 
-              : 'bg-white/10 text-charcoal/80 hover:bg-white/20 hover:text-charcoal'
+              ? 'bg-charcoal text-white' 
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </button>
         <button
-          className={`px-4 py-2 rounded-lg font-medium ${
-            activeTab === 'users' 
-              ? 'bg-blue-600/60 text-charcoal' 
-              : 'bg-white/10 text-charcoal/80 hover:bg-white/20 hover:text-charcoal'
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeTab === 'activity-logs' 
+              ? 'bg-charcoal text-white' 
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
-          onClick={() => setActiveTab('users')}
+          onClick={() => setActiveTab('activity-logs')}
         >
-          User List
+          Activity Logs
         </button>
         <button
-          className={`px-4 py-2 rounded-lg font-medium ${
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
             activeTab === 'activity' 
-              ? 'bg-blue-600/60 text-charcoal' 
-              : 'bg-white/10 text-charcoal/80 hover:bg-white/20 hover:text-charcoal'
+              ? 'bg-charcoal text-white' 
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
           onClick={() => setActiveTab('activity')}
         >
-          Activity Patterns
+          Login Patterns
         </button>
         <button
-          className={`px-4 py-2 rounded-lg font-medium ${
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
+            activeTab === 'user-summary' 
+              ? 'bg-charcoal text-white' 
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          onClick={() => setActiveTab('user-summary')}
+        >
+          User Summary
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
             activeTab === 'retention' 
-              ? 'bg-blue-600/60 text-charcoal' 
-              : 'bg-white/10 text-charcoal/80 hover:bg-white/20 hover:text-charcoal'
+              ? 'bg-charcoal text-white' 
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
           onClick={() => setActiveTab('retention')}
         >
           Retention
         </button>
+        </div>
       </div>
       
       {/* Overview Tab */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal/70 text-sm font-medium">Total Users</h3>
-              <p className="text-charcoal text-2xl font-bold">{allUsers.length}</p>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-gray-600 text-sm font-medium">Total Users</h3>
+              <p className="text-charcoal text-2xl font-bold mt-1">{allUsers.length}</p>
             </div>
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal/70 text-sm font-medium">Active Users (7 days)</h3>
-              <p className="text-charcoal text-2xl font-bold">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-gray-600 text-sm font-medium">Active Users (7 days)</h3>
+              <p className="text-charcoal text-2xl font-bold mt-1">
                 {inactiveStats.find(s => s.inactive_range === 'Active (last 7 days)')?.count || 0}
               </p>
             </div>
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal/70 text-sm font-medium">Never Logged In</h3>
-              <p className="text-charcoal text-2xl font-bold">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-gray-600 text-sm font-medium">Never Logged In</h3>
+              <p className="text-charcoal text-2xl font-bold mt-1">
                 {inactiveStats.find(s => s.inactive_range === 'Never logged in')?.count || 0}
               </p>
             </div>
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal/70 text-sm font-medium">Inactive &gt;30 days</h3>
-              <p className="text-charcoal text-2xl font-bold">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-gray-600 text-sm font-medium">Inactive &gt;30 days</h3>
+              <p className="text-charcoal text-2xl font-bold mt-1">
                 {(inactiveStats.find(s => s.inactive_range === 'Inactive >90 days')?.count || 0) + 
                  (inactiveStats.find(s => s.inactive_range === 'Inactive 30-90 days')?.count || 0)}
               </p>
             </div>
           </div>
           
-          <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-charcoal font-medium mb-3">User Activity Distribution</h3>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">User Activity Distribution</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -215,7 +254,9 @@ const LoginStats = () => {
                   <Tooltip 
                     // eslint-disable-next-line react/prop-types
                     formatter={(value, name, props) => [value, props.payload.inactive_range]}
-                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    itemStyle={{ color: '#6b7280' }}
                   />
                   <Legend />
                 </PieChart>
@@ -223,8 +264,8 @@ const LoginStats = () => {
             </div>
           </div>
           
-          <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-charcoal font-medium mb-3">Monthly Registration Trends</h3>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">Monthly Registration Trends</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -235,7 +276,9 @@ const LoginStats = () => {
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    itemStyle={{ color: '#6b7280' }}
                   />
                   <Legend />
                   <Bar dataKey="new_registrations" name="New Registrations" fill="#0088FE" />
@@ -247,107 +290,156 @@ const LoginStats = () => {
         </div>
       )}
       
-      {/* Users List Tab */}
-      {activeTab === 'users' && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 border border-white/20 rounded-lg overflow-hidden">
-            <thead className="bg-gray-50 shadow-xl sticky top-0 z-10 shadow-md">
-              <tr>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('email')}
+      {/* Activity Logs Tab - Grouped by User */}
+      {activeTab === 'activity-logs' && (
+        <div className="space-y-4">
+          {/* Time range selector */}
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold">Time Range</h3>
+            <div className="flex space-x-2">
+              {[1, 3, 7, 14, 30].map(days => (
+                <button
+                  key={days}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    activityDaysBack === days
+                      ? 'bg-charcoal text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setActivityDaysBack(days)}
                 >
-                  User
-                  {sortConfig.key === 'email' && (
-                    <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('created_at')}
-                >
-                  Registered
-                  {sortConfig.key === 'created_at' && (
-                    <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-bold text-charcoal uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('last_sign_in_at')}
-                >
-                  Last Login
-                  {sortConfig.key === 'last_sign_in_at' && (
-                    <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('days_since_last_login')}
-                >
-                  Days Inactive
-                  {sortConfig.key === 'days_since_last_login' && (
-                    <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-center text-xs font-bold text-charcoal uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort('login_count')}
-                >
-                  Login Count
-                  {sortConfig.key === 'login_count' && (
-                    <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white shadow-md">
-              {getSortedUsers().map((user) => (
-                <tr key={user.user_id} className="hover:bg-white/10 transition-colors">
-                  <td className="px-6 py-3 whitespace-nowrap">
-                    <div className="text-sm font-medium text-charcoal">
-                      {user.first_name} {user.last_name}
-                    </div>
-                    <div className="text-xs text-charcoal/70">
-                      {user.email}
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-charcoal/80">
-                    {formatDateForDisplay(user.created_at)}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm text-charcoal/80">
-                    {formatDateForDisplay(user.last_sign_in_at)}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-center">
-                    {user.days_since_last_login === null ? (
-                      <span className="bg-red-500/40 text-red-100 px-2 py-1 rounded-md text-xs">Never</span>
-                    ) : user.days_since_last_login > 30 ? (
-                      <span className="bg-orange-500/40 text-orange-100 px-2 py-1 rounded-md text-xs">{user.days_since_last_login}</span>
-                    ) : user.days_since_last_login > 7 ? (
-                      <span className="bg-yellow-500/40 text-yellow-100 px-2 py-1 rounded-md text-xs">{user.days_since_last_login}</span>
-                    ) : (
-                      <span className="bg-green-500/40 text-green-100 px-2 py-1 rounded-md text-xs">{user.days_since_last_login}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-center text-sm text-charcoal/80">
-                    {user.login_count || 0}
-                  </td>
-                </tr>
+                  {days === 1 ? '24h' : `${days}d`}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Grouped Activity Logs */}
+          <div className="space-y-3">
+            {(() => {
+              // Group logs by user
+              const groupedLogs = activityLogs.reduce((acc, log) => {
+                const key = log.user_id;
+                if (!acc[key]) {
+                  acc[key] = {
+                    user_id: log.user_id,
+                    email: log.email,
+                    first_name: log.first_name,
+                    last_name: log.last_name,
+                    logs: []
+                  };
+                }
+                acc[key].logs.push(log);
+                return acc;
+              }, {});
+
+              const userGroups = Object.values(groupedLogs);
+
+              if (userGroups.length === 0) {
+                return (
+                  <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
+                    <p className="text-gray-500">No activity logs found for the selected time period.</p>
+                  </div>
+                );
+              }
+
+              return userGroups.map((userGroup) => {
+                const isExpanded = expandedUsers.has(userGroup.user_id);
+                const latestActivity = userGroup.logs[0];
+
+                return (
+                  <div key={userGroup.user_id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    {/* User Header - Clickable */}
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedUsers);
+                        if (isExpanded) {
+                          newExpanded.delete(userGroup.user_id);
+                        } else {
+                          newExpanded.add(userGroup.user_id);
+                        }
+                        setExpandedUsers(newExpanded);
+                      }}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        {/* User Info */}
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-charcoal">
+                            {userGroup.first_name} {userGroup.last_name}
+                          </div>
+                          <div className="text-xs text-gray-500">{userGroup.email}</div>
+                        </div>
+
+                        {/* Activity Count Badge */}
+                        <div className="flex items-center gap-3">
+                          <span className="bg-charcoal text-white px-3 py-1 rounded-full text-xs font-medium">
+                            {userGroup.logs.length} {userGroup.logs.length === 1 ? 'activity' : 'activities'}
+                          </span>
+
+                          {/* Latest Activity */}
+                          <div className="text-xs text-gray-500 hidden md:block">
+                            Last: {latestActivity.page_title} • {latestActivity.time_ago}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expand Icon */}
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ml-3 ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Page Visited</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Time</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase hidden md:table-cell">Session</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 bg-white">
+                            {userGroup.logs.map((log) => (
+                              <tr key={log.visit_id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2">
+                                  <div className="text-sm font-medium text-charcoal">{log.page_title || log.page_path}</div>
+                                  <div className="text-xs text-gray-500">{log.page_path}</div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="text-sm text-charcoal">
+                                    {new Date(log.visited_at).toLocaleString()}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{log.time_ago}</div>
+                                </td>
+                                <td className="px-4 py-2 text-xs text-gray-500 font-mono hidden md:table-cell">
+                                  {log.session_id?.substring(0, 12)}...
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
       )}
       
       {/* Activity Patterns Tab */}
       {activeTab === 'activity' && (
-        <div className="space-y-6">
-          <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-charcoal font-medium mb-3">Login Activity by Hour of Day</h3>
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">Login Activity by Hour of Day</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -367,7 +459,9 @@ const LoginStats = () => {
                   <XAxis dataKey="hour_label" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    itemStyle={{ color: '#6b7280' }}
                   />
                   <Bar dataKey="login_count" name="Logins" fill="#8884d8" />
                 </BarChart>
@@ -375,8 +469,8 @@ const LoginStats = () => {
             </div>
           </div>
           
-          <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-charcoal font-medium mb-3">Login Activity by Day of Week</h3>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">Login Activity by Day of Week</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -397,7 +491,9 @@ const LoginStats = () => {
                   <XAxis dataKey="day_name" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    itemStyle={{ color: '#6b7280' }}
                   />
                   <Bar dataKey="login_count" name="Logins" fill="#00C49F" />
                 </BarChart>
@@ -407,11 +503,81 @@ const LoginStats = () => {
         </div>
       )}
       
+
+      {/* User Activity Summary Tab */}
+      {activeTab === 'user-summary' && (
+        <div className="space-y-4">
+          {/* Time range selector */}
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold">Time Range</h3>
+            <div className="flex space-x-2">
+              {[1, 3, 7, 14, 30].map(days => (
+                <button
+                  key={days}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    activityDaysBack === days
+                      ? 'bg-charcoal text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setActivityDaysBack(days)}
+                >
+                  {days === 1 ? '24h' : `${days}d`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* User Activity Summary */}
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">User Activity Summary (Most Active Users)</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">User</th>
+                    <th className="px-4 py-2 text-right text-xs font-bold text-charcoal uppercase">Total Views</th>
+                    <th className="px-4 py-2 text-right text-xs font-bold text-charcoal uppercase">Unique Pages</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">Most Visited Page</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">Last Activity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {activitySummary.map((user) => (
+                    <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <div className="text-sm font-medium text-charcoal">
+                          {user.first_name} {user.last_name}
+                        </div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <span className="bg-charcoal text-white px-2 py-1 rounded-md text-sm font-medium">
+                          {user.total_page_views}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right text-sm text-charcoal">
+                        {user.unique_pages_visited}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-charcoal">
+                        {user.most_visited_page || 'N/A'}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                        {formatDateForDisplay(user.last_activity)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Retention Tab */}
       {activeTab === 'retention' && (
-        <div className="space-y-6">
-          <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-            <h3 className="text-charcoal font-medium mb-3">Monthly Retention Rate</h3>
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-charcoal font-semibold mb-3">Monthly Retention Rate</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -422,7 +588,9 @@ const LoginStats = () => {
                   <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
                   <YAxis stroke="rgba(255,255,255,0.7)" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    labelStyle={{ color: '#374151', fontWeight: '600' }}
+                    itemStyle={{ color: '#6b7280' }}
                   />
                   <Bar dataKey="retention_rate" name="Retention Rate (%)" fill="#FF8042" />
                 </BarChart>
@@ -431,14 +599,14 @@ const LoginStats = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal font-medium mb-3">Inactive Users Breakdown</h3>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-charcoal font-semibold mb-3">Inactive Users Breakdown</h3>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-charcoal/70 uppercase">Status</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-charcoal/70 uppercase">Count</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-charcoal/70 uppercase">Percentage</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase">Status</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-600 uppercase">Count</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-600 uppercase">Percentage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -453,31 +621,31 @@ const LoginStats = () => {
               </table>
             </div>
             
-            <div className="bg-black/30 p-4 rounded-lg border border-white/10">
-              <h3 className="text-charcoal font-medium mb-3">User Engagement Summary</h3>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-charcoal font-semibold mb-3">User Engagement Summary</h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-charcoal/70 text-sm">Average logins per user</p>
-                  <p className="text-charcoal text-lg font-medium">
+                  <p className="text-gray-600 text-sm">Average logins per user</p>
+                  <p className="text-charcoal text-lg font-semibold mt-1">
                     {(allUsers.reduce((sum, user) => sum + (user.login_count || 0), 0) / allUsers.length).toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-charcoal/70 text-sm">Average days since last login</p>
-                  <p className="text-charcoal text-lg font-medium">
+                  <p className="text-gray-600 text-sm">Average days since last login</p>
+                  <p className="text-charcoal text-lg font-semibold mt-1">
                     {(allUsers.filter(u => u.days_since_last_login !== null).reduce((sum, user) => sum + user.days_since_last_login, 0) / 
                       allUsers.filter(u => u.days_since_last_login !== null).length).toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-charcoal/70 text-sm">Users with multiple logins</p>
-                  <p className="text-charcoal text-lg font-medium">
+                  <p className="text-gray-600 text-sm">Users with multiple logins</p>
+                  <p className="text-charcoal text-lg font-semibold mt-1">
                     {allUsers.filter(u => u.login_count > 1).length} ({Math.round(allUsers.filter(u => u.login_count > 1).length / allUsers.length * 100)}%)
                   </p>
                 </div>
                 <div>
-                  <p className="text-charcoal/70 text-sm">Users never logged in</p>
-                  <p className="text-charcoal text-lg font-medium">
+                  <p className="text-gray-600 text-sm">Users never logged in</p>
+                  <p className="text-charcoal text-lg font-semibold mt-1">
                     {allUsers.filter(u => u.login_count === 0 || u.login_count === null).length} ({Math.round(allUsers.filter(u => u.login_count === 0 || u.login_count === null).length / allUsers.length * 100)}%)
                   </p>
                 </div>
