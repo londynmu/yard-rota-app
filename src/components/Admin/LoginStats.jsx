@@ -245,7 +245,7 @@ const LoginStats = () => {
                     fill="#8884d8"
                     dataKey="count"
                     nameKey="inactive_range"
-                    label={({ inactive_range, percentage }) => `${inactive_range}: ${percentage}%`}
+                    label={({ inactive_range, count, percentage }) => `${inactive_range}: ${count} users (${percentage}%)`}
                   >
                     {inactiveStats.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -253,7 +253,10 @@ const LoginStats = () => {
                   </Pie>
                   <Tooltip 
                     // eslint-disable-next-line react/prop-types
-                    formatter={(value, name, props) => [value, props.payload.inactive_range]}
+                    formatter={(value, name, props) => {
+                      const { count, percentage } = props.payload;
+                      return [`${count} users (${percentage}%)`, props.payload.inactive_range];
+                    }}
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ color: '#374151', fontWeight: '600' }}
                     itemStyle={{ color: '#6b7280' }}
@@ -272,9 +275,9 @@ const LoginStats = () => {
                   data={monthlyStats.slice(0, 12).reverse()}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
-                  <YAxis stroke="rgba(255,255,255,0.7)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="month" stroke="#6b7280" />
+                  <YAxis stroke="#6b7280" />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ color: '#374151', fontWeight: '600' }}
@@ -455,9 +458,9 @@ const LoginStats = () => {
                   }
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="hour_label" stroke="rgba(255,255,255,0.7)" />
-                  <YAxis stroke="rgba(255,255,255,0.7)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="hour_label" stroke="#6b7280" />
+                  <YAxis stroke="#6b7280" />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ color: '#374151', fontWeight: '600' }}
@@ -487,9 +490,9 @@ const LoginStats = () => {
                   }
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="day_name" stroke="rgba(255,255,255,0.7)" />
-                  <YAxis stroke="rgba(255,255,255,0.7)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="day_name" stroke="#6b7280" />
+                  <YAxis stroke="#6b7280" />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ color: '#374151', fontWeight: '600' }}
@@ -584,9 +587,9 @@ const LoginStats = () => {
                   data={monthlyStats.slice(0, 12).reverse()}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" />
-                  <YAxis stroke="rgba(255,255,255,0.7)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="month" stroke="#6b7280" />
+                  <YAxis stroke="#6b7280" />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                     labelStyle={{ color: '#374151', fontWeight: '600' }}
