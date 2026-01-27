@@ -237,3 +237,4 @@ A: Tak! Ostrzeżenia o funkcjach i auth znikną. Pozostaną tylko pg_net i postg
 
 
 
+
