@@ -98,26 +98,26 @@ export default function AdminPage() {
       try {
         const { data: userProfile, error: profileError } = await supabase
           .from('profiles')
-          .select('role') // Pobierz tylko rolę
+          .select('role') // Fetch only the role
           .eq('id', user.id)
           .single();
 
         if (profileError) {
-          // Jeśli błąd inny niż brak profilu (kod 406)
+          // If error other than missing profile (code 406)
           if (profileError.code !== 'PGRST116') { 
-            throw profileError; // Rzuć błąd dalej
+            throw profileError; // Throw error forward
           }
-          // Jeśli profil nie istnieje (PGRST116)
+          // If profile does not exist (PGRST116)
           console.warn('[AdminPage] Profile not found for user.');
           setError('Admin permissions require a user profile.');
           setIsAdmin(false);
         } else if (userProfile && userProfile.role === 'admin') {
-          // Profil znaleziony i rola to admin
+          // Profile found and role is admin
           console.log('[AdminPage] Admin role confirmed.');
           setIsAdmin(true);
-          setError(null); // Wyczyść błąd, jeśli jest adminem
+          setError(null); // Clear error if user is admin
         } else {
-          // Profil znaleziony, ale rola inna niż admin
+          // Profile found but role is not admin
           console.log('[AdminPage] User is not admin. Role:', userProfile?.role);
           setError('You do not have permission to access this page.');
           setIsAdmin(false);
@@ -272,7 +272,7 @@ export default function AdminPage() {
     );
   }
   
-  // Pokaż błąd, jeśli wystąpił (np. brak uprawnień)
+  // Show error if it occurred (e.g. lack of permissions)
   if (error) {
     return (
       <div className="min-h-screen p-4 bg-offwhite">

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -313,7 +313,7 @@ const PerformanceLeaderboard = () => {
       });
     } catch (err) {
       console.error('Error fetching personal stats:', err);
-      setMyStatsError('Nie udało się wczytać Twoich statystyk.');
+      setMyStatsError('Failed to load your statistics.');
     } finally {
       setMyStatsLoading(false);
     }
@@ -553,7 +553,7 @@ const PerformanceLeaderboard = () => {
             <button
               onClick={() => {
                 if (!user) {
-                  toast.error('Zaloguj się, aby zobaczyć swoje statystyki');
+                  toast.error('Please log in to view your statistics');
                   return;
                 }
                 setShowMyStatsModal(true);
@@ -686,7 +686,7 @@ const PerformanceLeaderboard = () => {
                   animate={{ opacity: 1 }}
                   className="text-center text-gray-600 text-sm py-8"
                 >
-                  Brak zapisanych dziennych raportów dla Twojego konta.
+                  No daily performance reports found for your account.
                 </motion.div>
               ) : (
                 <>
@@ -1057,6 +1057,8 @@ function TrendChart({ data, isAllTime = false }) {
   }
 
   const [showBarLabels, setShowBarLabels] = useState(true);
+  const [brushStartIndex, setBrushStartIndex] = useState(0);
+  const [brushEndIndex, setBrushEndIndex] = useState(undefined);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -1067,6 +1069,17 @@ function TrendChart({ data, isAllTime = false }) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Initialize brush to show last 30 days for All Time view
+  useEffect(() => {
+    if (isAllTime && data.length > 30) {
+      setBrushStartIndex(data.length - 30);
+      setBrushEndIndex(data.length - 1);
+    } else {
+      setBrushStartIndex(0);
+      setBrushEndIndex(undefined);
+    }
+  }, [data.length, isAllTime]);
 
   // Format data for Recharts
   const chartData = data.map((point) => {
@@ -1111,48 +1124,35 @@ function TrendChart({ data, isAllTime = false }) {
     return null;
   };
 
-  CustomTooltip.propTypes = {
-    active: PropTypes.bool,
-    payload: PropTypes.arrayOf(PropTypes.shape({
-      payload: PropTypes.shape({
-        formattedDate: PropTypes.string,
-        moves: PropTypes.number,
-      }),
-    })),
+  // Show brush only when there are more than 14 days of data
+  const shouldShowBrush = chartData.length > 14;
+  
+  const firstEntry = chartData.length ? chartData[0] : null;
+  const lastEntry = chartData.length ? chartData[chartData.length - 1] : null;
+  
+  const handleBrushChange = (brushData) => {
+    if (brushData && brushData.startIndex !== undefined && brushData.endIndex !== undefined) {
+      setBrushStartIndex(brushData.startIndex);
+      setBrushEndIndex(brushData.endIndex);
+    }
   };
-
-  const chartWidth = isAllTime
-    ? Math.max(chartData.length * 28, 360)
-    : undefined;
-
-  const firstEntry = isAllTime && chartData.length ? chartData[0] : null;
-  const lastEntry = isAllTime && chartData.length ? chartData[chartData.length - 1] : null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
       <div className="mb-2 md:mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
-        {isAllTime && firstEntry && lastEntry && (
+        {firstEntry && lastEntry && (
           <p className="text-xs text-gray-500">
-            Tracking from {formatDate(parseISO(firstEntry.date), 'dd MMM yyyy')} to{' '}
+            {isAllTime ? 'Tracking from' : 'Period'}: {formatDate(parseISO(firstEntry.date), 'dd MMM yyyy')} to{' '}
             {formatDate(parseISO(lastEntry.date), 'dd MMM yyyy')} • {chartData.length} logged days
           </p>
         )}
       </div>
-      <div
-        className={`relative h-56 ${isAllTime ? '-mx-4 px-1 overflow-x-auto' : '-mx-2'}`}
-      >
-        <div
-          className="h-full"
-          style={{
-            width: isAllTime ? `${chartWidth}px` : '100%',
-            minWidth: isAllTime ? '600px' : 'auto',
-          }}
-        >
-          <ResponsiveContainer width="100%" height="100%">
+      <div className="relative -mx-2" style={{ height: shouldShowBrush ? '320px' : '240px' }}>
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 20, right: 15, left: 15, bottom: 0 }}
+            margin={{ top: 20, right: 15, left: 15, bottom: shouldShowBrush ? 60 : 0 }}
           >
             <defs>
               <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
@@ -1186,12 +1186,32 @@ function TrendChart({ data, isAllTime = false }) {
                   : false
               }
             />
+            {shouldShowBrush && (
+              <Brush
+                dataKey="dateLabel"
+                height={40}
+                stroke="#ea580c"
+                fill="#fff5f0"
+                startIndex={brushStartIndex}
+                endIndex={brushEndIndex}
+                onChange={handleBrushChange}
+                travellerWidth={10}
+                gap={2}
+              >
+                <BarChart>
+                  <Bar dataKey="moves" fill="#fed7aa" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </Brush>
+            )}
           </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ResponsiveContainer>
       </div>
       <div className="mt-2 text-center">
-        <p className="text-xs text-gray-500 italic">Tap bar to see moves</p>
+        <p className="text-xs text-gray-500 italic">
+          {shouldShowBrush 
+            ? '👆 Drag the slider below chart to zoom into specific date range' 
+            : 'Tap bar to see details'}
+        </p>
       </div>
     </div>
   );
@@ -1204,6 +1224,8 @@ TrendChart.propTypes = {
   })),
   isAllTime: PropTypes.bool,
 };
+
+// PropTypes for CustomTooltip component is validated inline
 
 
 
