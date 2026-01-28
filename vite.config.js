@@ -30,6 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB limit
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -53,4 +54,18 @@ export default defineConfig({
     })
   ],
   base: '',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks - biblioteki zewnętrzne
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-ui': ['@headlessui/react', '@heroicons/react'],
+          'vendor-charts': ['recharts'],
+          'vendor-utils': ['date-fns', 'html2canvas', 'dompurify'],
+        }
+      }
+    }
+  }
 })
