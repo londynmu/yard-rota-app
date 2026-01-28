@@ -61,9 +61,10 @@ export default defineConfig({
           // Vendor chunks - biblioteki zewnętrzne
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-ui': ['@headlessui/react', '@heroicons/react'],
-          'vendor-charts': ['recharts'],
-          'vendor-utils': ['date-fns', 'html2canvas', 'dompurify'],
+          'vendor-charts': ['recharts', 'echarts', 'echarts-for-react'],
+          'vendor-calendar': ['react-big-calendar', 'react-datepicker'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          'vendor-utils': ['date-fns', 'framer-motion'],
         }
       }
     }
