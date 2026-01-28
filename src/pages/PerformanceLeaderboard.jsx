@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Brush } from 'recharts';
+import PerformanceChart from '../components/PerformanceChart';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -39,6 +39,28 @@ const normalizePerformanceRecords = (records) => {
       actual_date: formatDate(actualDateObj, 'yyyy-MM-dd'),
     };
   });
+};
+
+// Helper functions - defined at module level for use in callbacks
+const timeToSeconds = (timeStr) => {
+  if (!timeStr) return 0;
+  // Handle if it's already a number
+  if (typeof timeStr === 'number') return timeStr;
+  // Handle string format
+  if (typeof timeStr !== 'string') return 0;
+  const parts = timeStr.split(':');
+  if (parts.length !== 2) return 0;
+  const minutes = parseInt(parts[0], 10);
+  const seconds = parseInt(parts[1], 10);
+  if (isNaN(minutes) || isNaN(seconds)) return 0;
+  return minutes * 60 + seconds;
+};
+
+const secondsToTime = (totalSeconds) => {
+  if (!totalSeconds || totalSeconds <= 0) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 const PerformanceLeaderboard = () => {
@@ -92,7 +114,7 @@ const PerformanceLeaderboard = () => {
     const today = new Date();
     if (selectedRange === 'all') {
       return {
-        startDate: '2020-01-01',
+        startDate: '2000-01-01', // Extended to capture all historical data
         endDate: formatDate(today, 'yyyy-MM-dd'),
       };
     }
@@ -105,37 +127,61 @@ const PerformanceLeaderboard = () => {
     return { startDate, endDate };
   }, [selectedRange]);
 
-  // Fetch leaderboard data
+  // Fetch ALL leaderboard data with pagination (Supabase has 1000 row limit)
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
-      const dateRange = getDateRange();
-      if (!dateRange) {
-        toast.error('Please select a valid date range');
-        setLoading(false);
-        return;
+      let allPerformanceData = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+
+      // Fetch all data in batches
+      while (hasMore) {
+        let query = supabase
+          .from('shunter_performance')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              first_name,
+              last_name,
+              avatar_url,
+              yard_system_id
+            )
+          `);
+
+        // Apply date filters only if not "all time"
+        if (selectedRange !== 'all') {
+          const dateRange = getDateRange();
+          if (!dateRange) {
+            toast.error('Please select a valid date range');
+            setLoading(false);
+            return;
+          }
+          const { startDate, endDate } = dateRange;
+          query = query
+            .gte('report_date', startDate)
+            .lte('report_date', endDate);
+        }
+
+        const { data: batch, error } = await query
+          .order('report_date', { ascending: true })
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+
+        if (batch && batch.length > 0) {
+          allPerformanceData = [...allPerformanceData, ...batch];
+          from += batchSize;
+          hasMore = batch.length === batchSize; // Continue if we got full batch
+        } else {
+          hasMore = false;
+        }
       }
 
-      const { startDate, endDate } = dateRange;
-
-      // Fetch performance data with user profiles
-      const { data: performanceData, error } = await supabase
-        .from('shunter_performance')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            first_name,
-            last_name,
-            avatar_url,
-            yard_system_id
-          )
-        `)
-        .gte('report_date', startDate)
-        .lte('report_date', endDate)
-        .order('report_date', { ascending: false });
-
-      if (error) throw error;
+      const performanceData = allPerformanceData;
+      console.log('[Performance] Fetched ALL records:', performanceData?.length, 'First date:', performanceData?.[0]?.report_date, 'Last date:', performanceData?.[performanceData?.length - 1]?.report_date);
 
       const normalizedPerformance = normalizePerformanceRecords(performanceData);
       setRawPerformance(normalizedPerformance);
@@ -234,7 +280,7 @@ const PerformanceLeaderboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [getDateRange, toast, sortOption]);
+  }, [selectedRange, getDateRange, toast, sortOption]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -266,17 +312,31 @@ const PerformanceLeaderboard = () => {
       }
 
       const aggregate = (records) => {
-        return records.reduce(
+        // Debug: log first record to see data structure
+        if (records.length > 0) {
+          console.log('[MyStats] First record sample:', {
+            report_date: records[0].report_date,
+            number_of_moves: records[0].number_of_moves,
+            avg_time_to_collect: records[0].avg_time_to_collect,
+            avg_time_to_travel: records[0].avg_time_to_travel,
+          });
+        }
+        
+        const result = records.reduce(
           (acc, record) => {
             const moves = record.number_of_moves || 0;
+            const collectSec = timeToSeconds(record.avg_time_to_collect);
+            const travelSec = timeToSeconds(record.avg_time_to_travel);
             acc.moves += moves;
-            acc.collectSeconds += timeToSeconds(record.avg_time_to_collect) * moves;
-            acc.travelSeconds += timeToSeconds(record.avg_time_to_travel) * moves;
+            acc.collectSeconds += collectSec * moves;
+            acc.travelSeconds += travelSec * moves;
             acc.fullLocations += record.number_of_full_locations || 0;
             return acc;
           },
           { moves: 0, collectSeconds: 0, travelSeconds: 0, fullLocations: 0 }
         );
+        console.log('[MyStats] Aggregated:', result, 'from', records.length, 'records');
+        return result;
       };
 
       const latestDate = normalizedData[0].actual_date;
@@ -323,31 +383,21 @@ const PerformanceLeaderboard = () => {
     fetchMyStats();
   }, [fetchMyStats]);
 
-  // Helper functions
-  const timeToSeconds = (timeStr) => {
-    if (!timeStr || typeof timeStr !== 'string') return 0;
-    const parts = timeStr.split(':');
-    if (parts.length !== 2) return 0;
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-  };
-
-  const secondsToTime = (totalSeconds) => {
-    if (!totalSeconds || totalSeconds <= 0) return '0:00';
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.round(totalSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
+  // Helper functions are defined at module level (timeToSeconds, secondsToTime)
 
   const getRangeLabel = (range) => {
     return RANGE_LOOKUP[range]?.label || RANGE_LOOKUP.last_day.label;
   };
 
   const getAverageTime = (stat, type) => {
-    if (!stat || !stat.moves) return '0:00';
+    if (!stat) return '—';
     const totalSeconds = type === 'collect' ? stat.collectSeconds : stat.travelSeconds;
-    if (!totalSeconds) return '0:00';
-    return secondsToTime(Math.round(totalSeconds / stat.moves));
+    const moves = stat.moves || 0;
+    
+    // If no moves or no time data, show dash
+    if (moves === 0 || !totalSeconds || totalSeconds === 0) return '—';
+    
+    return secondsToTime(Math.round(totalSeconds / moves));
   };
 
 
@@ -948,7 +998,7 @@ const PerformanceLeaderboard = () => {
 
             {/* Trend */}
             <section className="mb-8">
-              <TrendChart data={trendSeries} isAllTime={selectedRange === 'all'} />
+              <PerformanceChart data={trendSeries} isAllTime={selectedRange === 'all'} />
             </section>
 
             {/* Detailed list - Floating cards */}
@@ -1046,186 +1096,6 @@ const PerformanceLeaderboard = () => {
 };
 
 export default PerformanceLeaderboard;
-
-function TrendChart({ data, isAllTime = false }) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-        <p className="text-sm text-gray-500">No trend data for the selected period yet.</p>
-      </div>
-    );
-  }
-
-  const [showBarLabels, setShowBarLabels] = useState(true);
-  const [brushStartIndex, setBrushStartIndex] = useState(0);
-  const [brushEndIndex, setBrushEndIndex] = useState(undefined);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handleResize = () => {
-      setShowBarLabels(window.innerWidth >= 768);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Initialize brush to show last 30 days for All Time view
-  useEffect(() => {
-    if (isAllTime && data.length > 30) {
-      setBrushStartIndex(data.length - 30);
-      setBrushEndIndex(data.length - 1);
-    } else {
-      setBrushStartIndex(0);
-      setBrushEndIndex(undefined);
-    }
-  }, [data.length, isAllTime]);
-
-  // Format data for Recharts
-  const chartData = data.map((point) => {
-    const dateObj = parseISO(point.date);
-    return {
-      date: point.date,
-      moves: point.totalMoves,
-      formattedDate: formatDate(dateObj, 'EEE dd MMM'),
-      dayLabel: formatDate(dateObj, 'EEE'),
-      dateLabel: formatDate(dateObj, 'dd MMM'),
-    };
-  });
-
-  const renderDateTick = ({ x, y, payload }) => {
-    const dayLabel = payload?.payload?.dayLabel || '';
-    const dateLabel = payload?.payload?.dateLabel || '';
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={-6} textAnchor="middle" fill="#ea580c" fontSize={11} fontWeight={700}>
-          {dayLabel}
-        </text>
-        <text x={0} y={0} dy={10} textAnchor="middle" fill="#2D2D2D" fontSize={11}>
-          {dateLabel}
-        </text>
-      </g>
-    );
-  };
-
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const dataPoint = payload[0].payload;
-      return (
-        <div className="bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-          <p className="text-xs font-semibold text-gray-600 mb-1">{dataPoint.formattedDate}</p>
-          <p className="text-lg font-bold text-orange-600">
-            {dataPoint.moves.toLocaleString()} moves
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  // Show brush only when there are more than 14 days of data
-  const shouldShowBrush = chartData.length > 14;
-  
-  const firstEntry = chartData.length ? chartData[0] : null;
-  const lastEntry = chartData.length ? chartData[chartData.length - 1] : null;
-  
-  const handleBrushChange = (brushData) => {
-    if (brushData && brushData.startIndex !== undefined && brushData.endIndex !== undefined) {
-      setBrushStartIndex(brushData.startIndex);
-      setBrushEndIndex(brushData.endIndex);
-    }
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="mb-2 md:mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <h3 className="text-xl font-bold text-charcoal">Daily moves trend</h3>
-        {firstEntry && lastEntry && (
-          <p className="text-xs text-gray-500">
-            {isAllTime ? 'Tracking from' : 'Period'}: {formatDate(parseISO(firstEntry.date), 'dd MMM yyyy')} to{' '}
-            {formatDate(parseISO(lastEntry.date), 'dd MMM yyyy')} • {chartData.length} logged days
-          </p>
-        )}
-      </div>
-      <div className="relative -mx-2" style={{ height: shouldShowBrush ? '320px' : '240px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ top: 20, right: 15, left: 15, bottom: shouldShowBrush ? 60 : 0 }}
-          >
-            <defs>
-              <linearGradient id="colorMoves" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.75} />
-                <stop offset="95%" stopColor="#ea580c" stopOpacity={0.15} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="dateLabel"
-              height={40}
-              tickLine={false}
-              axisLine={false}
-              interval={0}
-              tick={renderDateTick}
-            />
-            <YAxis hide />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(234, 88, 12, 0.1)' }} />
-            <Bar
-              dataKey="moves"
-              fill="url(#colorMoves)"
-              maxBarSize={48}
-              radius={[12, 12, 0, 0]}
-              label={
-                showBarLabels
-                  ? {
-                      position: 'top',
-                      fill: '#2D2D2D',
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }
-                  : false
-              }
-            />
-            {shouldShowBrush && (
-              <Brush
-                dataKey="dateLabel"
-                height={40}
-                stroke="#ea580c"
-                fill="#fff5f0"
-                startIndex={brushStartIndex}
-                endIndex={brushEndIndex}
-                onChange={handleBrushChange}
-                travellerWidth={10}
-                gap={2}
-              >
-                <BarChart>
-                  <Bar dataKey="moves" fill="#fed7aa" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </Brush>
-            )}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="mt-2 text-center">
-        <p className="text-xs text-gray-500 italic">
-          {shouldShowBrush 
-            ? '👆 Drag the slider below chart to zoom into specific date range' 
-            : 'Tap bar to see details'}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-TrendChart.propTypes = {
-  data: PropTypes.arrayOf(PropTypes.shape({
-    date: PropTypes.string.isRequired,
-    totalMoves: PropTypes.number.isRequired,
-  })),
-  isAllTime: PropTypes.bool,
-};
-
-// PropTypes for CustomTooltip component is validated inline
 
 
 
