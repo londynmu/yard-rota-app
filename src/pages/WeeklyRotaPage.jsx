@@ -109,7 +109,7 @@ const WeeklyRotaPage = () => {
     };
 
     fetchLocations();
-  }, []);
+  }, [selectedLocation]);
 
   // Save selected location when it changes
   useEffect(() => {
@@ -162,7 +162,7 @@ const WeeklyRotaPage = () => {
         if (userIds.length) {
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, first_name, last_name, avatar_url')
+            .select('id, first_name, last_name')
             .in('id', userIds);
           if (profilesError) throw profilesError;
 
@@ -232,23 +232,9 @@ const WeeklyRotaPage = () => {
     fetchFullRota();
   }, [weekStart, user, selectedLocation, selectedShiftType]);
 
-  // Week navigation handled via dropdown menu actions
-
   // Format time from HH:MM:SS to HH:MM
   const fmtTime = (t) => (t ? t.slice(0, 5) : '');
-  // Start time badge styling per shift type (mobile-first)
-  const getStartBadgeStyle = (shiftType) => {
-    switch (shiftType) {
-      case 'day':
-        return { container: 'bg-amber-50 border-amber-300 text-amber-800', icon: 'text-amber-600' };
-      case 'afternoon':
-        return { container: 'bg-orange-50 border-orange-300 text-orange-800', icon: 'text-orange-600' };
-      case 'night':
-        return { container: 'bg-blue-50 border-blue-300 text-blue-800', icon: 'text-blue-600' };
-      default:
-        return { container: 'bg-white border-gray-300 text-charcoal', icon: 'text-gray-600' };
-    }
-  };
+  
   // All buttons are black like on Breaks page
   const getShiftTriggerClasses = () => {
     return 'bg-gray-800 border-gray-900 text-white hover:bg-gray-900';
@@ -299,7 +285,6 @@ const WeeklyRotaPage = () => {
               title: "DAY SHIFT",
               bgColor: "bg-amber-100",
               textColor: "text-amber-800",
-              borderColor: "border-amber-200",
               icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
@@ -310,7 +295,6 @@ const WeeklyRotaPage = () => {
               title: "AFTERNOON SHIFT",
               bgColor: "bg-orange-100",
               textColor: "text-orange-800",
-              borderColor: "border-orange-200",
               icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
@@ -321,7 +305,6 @@ const WeeklyRotaPage = () => {
               title: "NIGHT SHIFT",
               bgColor: "bg-blue-100",
               textColor: "text-blue-800",
-              borderColor: "border-blue-200",
               icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
@@ -331,6 +314,19 @@ const WeeklyRotaPage = () => {
           };
 
           const config = shiftConfig[shiftType];
+          
+          // Group slots by start time
+          const slotsByStartTime = {};
+          slots.forEach(slot => {
+            const startTime = fmtTime(slot.start_time);
+            if (!slotsByStartTime[startTime]) {
+              slotsByStartTime[startTime] = [];
+            }
+            slotsByStartTime[startTime].push(slot);
+          });
+          
+          // Sort start times
+          const sortedStartTimes = Object.keys(slotsByStartTime).sort();
           
           return (
             <div key={shiftType} className="mt-3 first:mt-0">
@@ -342,58 +338,58 @@ const WeeklyRotaPage = () => {
                 <span className="bg-white text-charcoal text-xs px-2 py-0.5 rounded-full border border-gray-300">{slots.length}</span>
               </div>
               
-              <ul className="divide-y divide-gray-200 bg-white rounded-md">
-                {slots.map((slot) => {
-                  const isCurrentUser = slot.user_id === user?.id;
+              <div className="bg-white rounded-md">
+                {sortedStartTimes.map((startTime, timeIndex) => {
+                  const timeSlots = slotsByStartTime[startTime];
+                  // Get end time from first slot (all slots with same start time should have same end time)
+                  const endTime = fmtTime(timeSlots[0].end_time);
+                  
                   return (
-                    <li 
-                      key={slot.id}
-                      className={`p-2 md:p-2 transition-colors ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-                          <div className="text-wrap break-words max-w-full">
-                            <span className={`text-[15px] md:text-base font-bold ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
-                              {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
-                            </span>
-                            {isCurrentUser && (
-                              <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
-                                You
-                              </span>
-                            )}
-                          </div>
-                          
-                          {(() => {
-                            const style = getStartBadgeStyle(slot.shift_type);
-                            return (
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold border ${style.container}`}>
-                                {slot.shift_type === 'day' ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1.5 ${style.icon}`} viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                                  </svg>
-                                ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1.5 ${style.icon}`} viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                                  </svg>
+                    <div key={startTime} className={timeIndex > 0 ? 'border-t-2 border-gray-300' : ''}>
+                      {/* Time Header */}
+                      <div className={`${config.bgColor} ${config.textColor} px-3 py-2 text-center`}>
+                        <span className="text-sm md:text-base font-bold">
+                          {startTime} - {endTime}
+                        </span>
+                      </div>
+                      
+                      {/* List of employees for this start time */}
+                      <ul className="divide-y divide-gray-200">
+                        {timeSlots.map((slot) => {
+                          const isCurrentUser = slot.user_id === user?.id;
+                          return (
+                            <li 
+                              key={slot.id}
+                              className={`p-2 md:p-2 transition-colors ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
+                            >
+                              <div className="flex flex-col items-center">
+                                <div className="text-center">
+                                  <span className={`text-[15px] md:text-base font-bold ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
+                                    {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                                  </span>
+                                  {isCurrentUser && (
+                                    <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
+                                      You
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Task Indicator */}
+                                {slot.task && (
+                                  <span className="inline-flex items-center text-xs text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full mt-1">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                                    {slot.task}
+                                  </span>
                                 )}
-                                <span className="leading-none">{fmtTime(slot.start_time)}</span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-                        
-                          {/* Task Indicator */}
-                          {slot.task && (
-                            <span className="inline-flex items-center text-xs text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full">
-                              <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                              {slot.task}
-                            </span>
-                          )}
-                        </div>
-                    </li>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             </div>
           );
         })}
@@ -405,12 +401,64 @@ const WeeklyRotaPage = () => {
     dateStr: PropTypes.string.isRequired,
   };
 
+  // Skeleton loading component
+  const SkeletonDay = () => (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-300 animate-pulse">
+      {/* Header skeleton */}
+      <div className="p-3 md:p-2 border-b-2 border-gray-300 bg-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 md:space-x-2">
+            {/* Date circle skeleton */}
+            <div className="w-11 h-11 md:w-9 md:h-9 rounded-full bg-gray-300" />
+            {/* Day name skeleton */}
+            <div className="h-5 w-24 bg-gray-300 rounded" />
+          </div>
+          {/* Badge skeleton */}
+          <div className="flex flex-col gap-1">
+            <div className="h-6 w-12 bg-gray-300 rounded-full" />
+          </div>
+        </div>
+      </div>
+      
+      {/* Content skeleton - visible on desktop, hidden on mobile */}
+      <div className="hidden md:block p-3 md:p-2 space-y-3">
+        {/* Shift type badge skeleton */}
+        <div className="h-8 bg-gray-200 rounded-md" />
+        
+        {/* Time group skeleton */}
+        <div className="space-y-2">
+          <div className="h-10 bg-gray-100 rounded" />
+          <div className="space-y-2">
+            <div className="h-12 bg-gray-50 rounded" />
+            <div className="h-12 bg-gray-50 rounded" />
+            <div className="h-12 bg-gray-50 rounded" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black mb-4" />
-          <p className="text-gray-900 text-lg font-semibold">Loading your schedule...</p>
+      <div className="min-h-screen bg-gray-100">
+        {/* Navigation skeleton */}
+        <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+          <div className="container mx-auto px-4 py-3 md:py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto p-4">
+          {/* Skeleton grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-2 mt-2">
+            {Array.from({ length: 7 }).map((_, index) => (
+              <SkeletonDay key={index} />
+            ))}
+          </div>
         </div>
       </div>
     );

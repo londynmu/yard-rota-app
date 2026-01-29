@@ -316,8 +316,18 @@ export default function HomePage() {
       
       <main className="flex-1 relative z-0 mb-16 md:mb-0">
         <Suspense fallback={
-          <div className="flex justify-center items-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+          <div className="min-h-screen bg-gray-100 p-4">
+            <div className="container mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl shadow-lg p-6 space-y-4">
+                    <div className="h-8 bg-gray-200 rounded w-3/4" />
+                    <div className="h-24 bg-gray-100 rounded" />
+                    <div className="h-4 bg-gray-200 rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         }>
           <Routes>
