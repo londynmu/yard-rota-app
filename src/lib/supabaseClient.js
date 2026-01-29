@@ -1,16 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Load configuration from environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Load configuration from environment variables with fallback to hardcoded values
+// This ensures the app works in production even if env vars are not set
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jkjvtvwedjiupxoibpld.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw';
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
-
-// Validate required environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing required environment variables. Please check your .env file.'
-  );
-}
 
 // Singleton pattern to ensure only one client instance is created
 let supabaseInstance = null;
