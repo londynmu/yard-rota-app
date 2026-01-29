@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
 import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
 import ShiftDashboard from '../components/User/ShiftDashboard';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useAvailabilityData } from '../hooks/useAvailabilityData';
 
 export default function CalendarPage() {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [dayData, setDayData] = useState({});
-  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
@@ -18,65 +17,45 @@ export default function CalendarPage() {
   const [selectedShifts, setSelectedShifts] = useState(['day', 'afternoon', 'night']);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   
-  // Function to show popup
-  const showPopup = (type, message, duration = 3000) => {
-    setPopup({ show: true, type, message });
-    setTimeout(() => {
-        setPopup({ show: false, type: '', message: '' });
-    }, duration);
-  };
+  // Use custom hook for availability data fetching
+  const { dayData, loading, refetchAvailability } = useAvailabilityData(currentDate, user);
   
-  // Fetch availability data from Supabase
-  useEffect(() => {
-    async function fetchAvailability() {
-      if (!user) return;
-      
-      setLoading(true);
-      
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
-      // Add some buffer to get days from previous/next month that might appear in the grid
-      const startDate = new Date(startOfMonth);
-      startDate.setDate(startDate.getDate() - 7);
-      const endDate = new Date(endOfMonth);
-      endDate.setDate(endDate.getDate() + 7);
-      
-      try {
-        const { data, error } = await supabase
-          .from('availability')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('date', startDate.toISOString().split('T')[0])
-          .lte('date', endDate.toISOString().split('T')[0]);
-        
-        if (error) throw error;
-        
-        // Transform data into a map for easy lookup by date
-        const dataMap = {};
-        data.forEach(item => {
-          dataMap[item.date] = item;
-        });
-        
-        setDayData(dataMap);
-      } catch (error) {
-        console.error('Error fetching availability:', error);
-      } finally {
-        setLoading(false);
-      }
+  // Ref to track popup timeout for cleanup
+  const popupTimeoutRef = useRef(null);
+  
+  // Function to show popup with proper cleanup
+  const showPopup = useCallback((type, message, duration = 3000) => {
+    // Clear any existing timeout
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
     }
     
-    fetchAvailability();
-  }, [currentDate, user]);
+    setPopup({ show: true, type, message });
+    popupTimeoutRef.current = setTimeout(() => {
+      setPopup({ show: false, type: '', message: '' });
+    }, duration);
+  }, []);
   
-  const handlePreviousMonth = () => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  const handlePreviousMonth = useCallback(() => {
     // Always allow navigation to previous months for viewing purposes
     setCurrentDate(prevDate => subMonths(prevDate, 1));
-  };
+  }, []);
   
-  const handleNextMonth = () => {
+  const handleNextMonth = useCallback(() => {
     setCurrentDate(prevDate => addMonths(prevDate, 1));
-  };
+  }, []);
+  
+  // Ref to track error message timeout for cleanup
+  const errorTimeoutRef = useRef(null);
   
   const handleDayClick = (date) => {
     // Prevent setting availability for past dates
@@ -84,8 +63,14 @@ export default function CalendarPage() {
     
     if (isBefore(date, today)) {
       setErrorMessage("You cannot set availability for dates in the past.");
+      
+      // Clear any existing error timeout
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+      
       // Clear the error message after 3 seconds
-      setTimeout(() => setErrorMessage(''), 3000);
+      errorTimeoutRef.current = setTimeout(() => setErrorMessage(''), 3000);
       return;
     }
     
@@ -94,19 +79,43 @@ export default function CalendarPage() {
     setSelectedDate(date);
   };
   
-  const handleCloseDialog = () => {
-    setSelectedDate(null);
-  };
+  // Cleanup error timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
+  }, []);
   
-  const handleSaveAvailability = async (data) => {
+  const handleCloseDialog = useCallback(() => {
+    setSelectedDate(null);
+  }, []);
+  
+  // Handler for location toggle
+  const handleLocationToggle = useCallback(() => {
+    const locations = ['Rugby', 'NRC', 'Nuneaton'];
+    const currentIndex = locations.indexOf(selectedLocation);
+    const nextIndex = (currentIndex + 1) % locations.length;
+    setSelectedLocation(locations[nextIndex]);
+  }, [selectedLocation]);
+  
+  // Handler for shift filter toggle
+  const handleShiftToggle = useCallback((shiftType) => {
+    setSelectedShifts(prev => 
+      prev.includes(shiftType) 
+        ? prev.filter(s => s !== shiftType)
+        : [...prev, shiftType]
+    );
+  }, []);
+  
+  const handleSaveAvailability = useCallback(async (data) => {
     if (!user) {
       alert('You must be logged in to save availability');
       return;
     }
     
     try {
-      setLoading(true);
-      
       // Check if we're updating an existing record
       const existingData = dayData[data.date];
       
@@ -135,38 +144,13 @@ export default function CalendarPage() {
         if (error) throw error;
       }
       
-      // Refetch data to update the calendar
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
-      const startDate = new Date(startOfMonth);
-      startDate.setDate(startDate.getDate() - 7);
-      const endDate = new Date(endOfMonth);
-      endDate.setDate(endDate.getDate() + 7);
-      
-      const { data: refreshedData, error: fetchError } = await supabase
-        .from('availability')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0]);
-      
-      if (fetchError) throw fetchError;
-      
-      // Update local state
-      const dataMap = {};
-      refreshedData.forEach(item => {
-        dataMap[item.date] = item;
-      });
-      
-      setDayData(dataMap);
+      // Refetch data using the hook's refetch function
+      await refetchAvailability();
     } catch (error) {
       console.error('Error saving availability:', error);
       showPopup('error', 'Failed to save availability. Please try again.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [user, dayData, refetchAvailability, showPopup]);
   
   return (
     <>
@@ -255,12 +239,7 @@ export default function CalendarPage() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Location Badge */}
               <button
-                onClick={() => {
-                  const locations = ['Rugby', 'NRC', 'Nuneaton'];
-                  const currentIndex = locations.indexOf(selectedLocation);
-                  const nextIndex = (currentIndex + 1) % locations.length;
-                  setSelectedLocation(locations[nextIndex]);
-                }}
+                onClick={handleLocationToggle}
                 className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
               >
                 {selectedLocation}
@@ -268,13 +247,7 @@ export default function CalendarPage() {
               
               {/* Shift Badges - Clickable filters */}
               <button
-                onClick={() => {
-                  setSelectedShifts(prev => 
-                    prev.includes('day') 
-                      ? prev.filter(s => s !== 'day')
-                      : [...prev, 'day']
-                  );
-                }}
+                onClick={() => handleShiftToggle('day')}
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                   selectedShifts.includes('day')
                     ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
@@ -285,13 +258,7 @@ export default function CalendarPage() {
               </button>
               
               <button
-                onClick={() => {
-                  setSelectedShifts(prev => 
-                    prev.includes('afternoon') 
-                      ? prev.filter(s => s !== 'afternoon')
-                      : [...prev, 'afternoon']
-                  );
-                }}
+                onClick={() => handleShiftToggle('afternoon')}
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                   selectedShifts.includes('afternoon')
                     ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
@@ -302,13 +269,7 @@ export default function CalendarPage() {
               </button>
               
               <button
-                onClick={() => {
-                  setSelectedShifts(prev => 
-                    prev.includes('night') 
-                      ? prev.filter(s => s !== 'night')
-                      : [...prev, 'night']
-                  );
-                }}
+                onClick={() => handleShiftToggle('night')}
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                   selectedShifts.includes('night')
                     ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'

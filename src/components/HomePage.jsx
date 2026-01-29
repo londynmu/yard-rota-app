@@ -1,18 +1,20 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
 import CalendarPage from '../pages/CalendarPage';
 import ProfilePage from '../pages/ProfilePage';
-import AdminPage from '../pages/AdminPage';
-import WeeklyRotaPage from '../pages/WeeklyRotaPage';
-import UserApprovalPage from '../pages/UserApprovalPage';
-import BrakesPage from '../pages/BrakesPage';
-import PerformanceLeaderboard from '../pages/PerformanceLeaderboard';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
+
+// Lazy load admin and non-essential pages for better initial load performance
+const AdminPage = lazy(() => import('../pages/AdminPage'));
+const WeeklyRotaPage = lazy(() => import('../pages/WeeklyRotaPage'));
+const UserApprovalPage = lazy(() => import('../pages/UserApprovalPage'));
+const BrakesPage = lazy(() => import('../pages/BrakesPage'));
+const PerformanceLeaderboard = lazy(() => import('../pages/PerformanceLeaderboard'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
@@ -27,56 +29,61 @@ export default function HomePage() {
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
 
-  const fetchProfileAndCheckAdmin = useCallback(async () => {
-    if (!user) {
-      setProfileLoading(false);
-      return;
-    }
-    
-    setProfileLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, avatar_url')
-        .eq('id', user.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('[HomePage] Error fetching profile:', error);
-        return;
-      }
-      
-      if (data) {
-        // Reset avatar loaded state when URL changes
-        if (data.avatar_url !== avatarUrl) {
-          setAvatarLoaded(false);
-        }
-        setAvatarUrl(data.avatar_url || '');
-        
-        if (data.first_name || data.last_name) {
-          setProfileName(`${data.first_name || ''} ${data.last_name || ''}`);
-        }
-      } else {
-        setProfileName('');
-        setAvatarUrl('');
-        setAvatarLoaded(false);
-      }
-    } catch (error) {
-      console.error('[HomePage] Error fetching profile:', error);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [user]);
-
+  // Fetch profile data when user changes
   useEffect(() => {
-    if (user) {
-      fetchProfileAndCheckAdmin();
-    } else {
+    if (!user) {
       setProfileLoading(false);
       setAvatarUrl('');
       setProfileName('');
+      return;
     }
-  }, [user, fetchProfileAndCheckAdmin]);
+    
+    let cancelled = false;
+    setProfileLoading(true);
+    
+    supabase
+      .from('profiles')
+      .select('first_name, last_name, avatar_url')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('[HomePage] Error fetching profile:', error);
+          setProfileLoading(false);
+          return;
+        }
+        
+        if (data) {
+          // Reset avatar loaded state when URL changes
+          if (data.avatar_url !== avatarUrl) {
+            setAvatarLoaded(false);
+          }
+          setAvatarUrl(data.avatar_url || '');
+          
+          if (data.first_name || data.last_name) {
+            setProfileName(`${data.first_name || ''} ${data.last_name || ''}`);
+          }
+        } else {
+          setProfileName('');
+          setAvatarUrl('');
+          setAvatarLoaded(false);
+        }
+        
+        setProfileLoading(false);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('[HomePage] Error fetching profile:', error);
+          setProfileLoading(false);
+        }
+      });
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -120,11 +127,12 @@ export default function HomePage() {
     }
   };
 
-  const toggleDropdown = () => {
+  const toggleDropdown = useCallback(() => {
     setShowDropdown(prev => !prev);
-  };
+  }, []);
 
-  const getPageTitle = () => {
+  // Memoize page title to avoid recalculation on every render
+  const pageTitle = useMemo(() => {
     const path = location.pathname;
     
     if (path === '/' || path === '/calendar') return 'Main Page';
@@ -135,7 +143,7 @@ export default function HomePage() {
     if (path === '/performance') return 'Performance';
     
     return 'My Rota';
-  };
+  }, [location.pathname]);
 
   if (location.pathname === '/' || location.pathname === '') {
     return <Navigate to="/calendar" replace />;
@@ -221,7 +229,7 @@ export default function HomePage() {
                     </svg>
                   </button>
                 )}
-                <h1 className="text-xl font-semibold text-charcoal" id="page-title">{getPageTitle()}</h1>
+                <h1 className="text-xl font-semibold text-charcoal" id="page-title">{pageTitle}</h1>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -309,45 +317,51 @@ export default function HomePage() {
       {renderDropdownMenu()}
       
       <main className="flex-1 relative z-0 mb-16 md:mb-0">
-        <Routes>
-          <Route
-            path="/calendar"
-            element={
-              <>
-                <ShunterOfTheMonthCard />
-                <CalendarPage />
-              </>
-            }
-          />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedAdminRoute>
-                <AdminPage />
-              </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/admin/approvals" 
-            element={
-              <ProtectedAdminRoute>
-                <UserApprovalPage />
-              </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/brakes" 
-            element={
-              <ProtectedAdminRoute>
-                <BrakesPage />
-              </ProtectedAdminRoute>
-            } 
-          />
-          <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
-          <Route path="/my-rota" element={<WeeklyRotaPage />} />
-          <Route path="/performance" element={<PerformanceLeaderboard />} />
-          <Route path="*" element={<Navigate to="/calendar" replace />} />
-        </Routes>
+        <Suspense fallback={
+          <div className="flex justify-center items-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+          </div>
+        }>
+          <Routes>
+            <Route
+              path="/calendar"
+              element={
+                <>
+                  <ShunterOfTheMonthCard />
+                  <CalendarPage />
+                </>
+              }
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedAdminRoute>
+                  <AdminPage />
+                </ProtectedAdminRoute>
+              } 
+            />
+            <Route 
+              path="/admin/approvals" 
+              element={
+                <ProtectedAdminRoute>
+                  <UserApprovalPage />
+                </ProtectedAdminRoute>
+              } 
+            />
+            <Route 
+              path="/brakes" 
+              element={
+                <ProtectedAdminRoute>
+                  <BrakesPage />
+                </ProtectedAdminRoute>
+              } 
+            />
+            <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
+            <Route path="/my-rota" element={<WeeklyRotaPage />} />
+            <Route path="/performance" element={<PerformanceLeaderboard />} />
+            <Route path="*" element={<Navigate to="/calendar" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* iOS-Style Bottom Navigation - Mobile Only with safe area */}

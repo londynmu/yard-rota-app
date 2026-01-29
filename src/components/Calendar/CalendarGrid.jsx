@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isBefore, startOfDay, isToday } from 'date-fns';
 
-export default function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
+function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
   // Get today's date for comparing with past dates
   const today = startOfDay(new Date());
 
@@ -136,4 +136,7 @@ CalendarGrid.propTypes = {
 CalendarGrid.defaultProps = {
   dayData: {},
   isLoading: false
-}; 
+};
+
+// Memoize component to prevent unnecessary re-renders
+export default React.memo(CalendarGrid); 

@@ -13,7 +13,7 @@ const getMonthLabel = (monthKey) => {
   }
 };
 
-export default function ShunterOfTheMonthCard() {
+function ShunterOfTheMonthCard() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
@@ -139,4 +139,6 @@ export default function ShunterOfTheMonthCard() {
   );
 }
 
-
+// Memoize component to prevent unnecessary re-renders when parent re-renders
+// Component has no props, so it will only re-render when its own state changes
+export default React.memo(ShunterOfTheMonthCard);

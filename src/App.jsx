@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Auth from './components/Auth/Auth';
@@ -11,6 +11,7 @@ import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -30,7 +31,13 @@ function AppContent() {
   const [error, setError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const hasAuthHash = window.location.hash.includes('access_token'); // Check for auth hash
+  
+  // Memoize auth hash check - only calculate once on mount
+  const hasAuthHash = useMemo(() => 
+    window.location.hash.includes('access_token'), 
+    [] // Empty deps = calculate only once
+  );
+  
   const profileCheckRef = useRef(false); // Ref to prevent multiple profile checks
   
   // Dodajemy hook dla opóźnionego loadera
@@ -207,12 +214,14 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <PWAInstallPrompt />
-        <AppContent />
-      </NotificationProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <PWAInstallPrompt />
+          <AppContent />
+        </NotificationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

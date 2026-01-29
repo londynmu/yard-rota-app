@@ -1,9 +1,8 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 
-export default function AvailabilityDialog({ date, initialData, onSave, onClose }) {
+function AvailabilityDialog({ date, initialData, onSave, onClose }) {
   const [status, setStatus] = useState('available');
   const [comment, setComment] = useState('');
   
@@ -140,4 +139,15 @@ AvailabilityDialog.propTypes = {
   }),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired
-}; 
+};
+
+// Memoize component to prevent unnecessary re-renders
+// Uses custom comparison to handle Date objects properly
+export default React.memo(AvailabilityDialog, (prevProps, nextProps) => {
+  return (
+    prevProps.date?.getTime() === nextProps.date?.getTime() &&
+    prevProps.initialData === nextProps.initialData &&
+    prevProps.onSave === nextProps.onSave &&
+    prevProps.onClose === nextProps.onClose
+  );
+}); 

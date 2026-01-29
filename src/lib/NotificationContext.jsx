@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
@@ -17,8 +17,8 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Add a new notification
-  const addNotification = (message, type = 'info') => {
+  // Add a new notification - memoized to prevent re-creation
+  const addNotification = useCallback((message, type = 'info') => {
     const newNotification = {
       id: Date.now(),
       message,
@@ -29,7 +29,7 @@ export const NotificationProvider = ({ children }) => {
     
     setNotifications(prev => [newNotification, ...prev]);
     setUnreadCount(prev => prev + 1);
-  };
+  }, []);
 
   // Check if user is admin
   useEffect(() => {
@@ -88,8 +88,8 @@ export const NotificationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isAdmin]);
 
-  // Mark notifications as read
-  const markAllAsRead = async () => {
+  // Mark notifications as read - memoized to prevent re-creation
+  const markAllAsRead = useCallback(async () => {
     try {
       // Update notifications to mark them as read
       setNotifications(prev => 
@@ -99,11 +99,12 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Error marking notifications as read:', error);
     }
-  };
+  }, []);
 
   // No real-time subscriptions since this version of Supabase doesn't support it
 
-  const value = {
+  // Memoize value object to prevent unnecessary re-renders of consumers
+  const value = useMemo(() => ({
     notifications,
     unreadCount,
     pendingApprovals,
@@ -111,7 +112,7 @@ export const NotificationProvider = ({ children }) => {
     addNotification,
     markAllAsRead,
     loading
-  };
+  }), [notifications, unreadCount, pendingApprovals, isAdmin, addNotification, markAllAsRead, loading]);
 
   return (
     <NotificationContext.Provider value={value}>
