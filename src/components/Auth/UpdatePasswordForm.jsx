@@ -20,20 +20,16 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
         const hash = window.location.hash;
         const url = window.location.href;
         
-        console.log('UpdatePasswordForm: Processing URL for tokens:', { hash });
-        
         // First try to get existing session
         const { data: sessionData } = await supabase.auth.getSession();
         
         if (sessionData.session) {
-          console.log('UpdatePasswordForm: Active session already exists');
           setSessionChecked(true);
           return;
         }
         
         // Check provided recovery hash prop
         if (recoveryHash) {
-          console.log('UpdatePasswordForm: Using provided recovery hash');
           window.location.hash = recoveryHash;
           
           // Try to establish session with recovery hash
@@ -47,7 +43,6 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
           }
           
           if (data.session) {
-            console.log('UpdatePasswordForm: Session established from provided hash');
             setSessionChecked(true);
             return;
           }
@@ -55,15 +50,12 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
         
         // No existing session, check if we have tokens in URL
         if (!hash || (!hash.includes('access_token') && !url.includes('access_token'))) {
-          console.log('UpdatePasswordForm: No access token found in URL');
           setError('No authentication token found. Please use a valid password reset link.');
           setSessionChecked(true);
           return;
         }
         
         // We have a hash with access token, process it
-        console.log('UpdatePasswordForm: Found access token in URL, setting session...');
-        
         // This will parse the hash and set the session
         const { data, error } = await supabase.auth.getSession();
         
@@ -74,7 +66,6 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
           return;
         }
         
-        console.log('UpdatePasswordForm: Session established successfully:', !!data.session);
         setSessionChecked(true);
       } catch (err) {
         console.error('UpdatePasswordForm: Unexpected error processing tokens:', err);
@@ -99,16 +90,14 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
       return;
     }
     
     try {
       setLoading(true);
       setError('');
-      
-      console.log('UpdatePasswordForm: Attempting to update password...');
       
       // Get current session to ensure we have one before updating
       const { data: sessionData } = await supabase.auth.getSession();
@@ -123,8 +112,6 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
       });
       
       if (error) throw error;
-      
-      console.log('UpdatePasswordForm: Password updated successfully:', data);
       
       setSuccess('Your password has been updated successfully.');
       

@@ -98,10 +98,13 @@ export function AuthProvider({ children }) {
         // Log the error but proceed with client-side cleanup
       }
       
-      // 3. Aggressively clear all client-side storage
-      // This is crucial to prevent the listener from picking up old tokens
-      localStorage.clear();
-      sessionStorage.clear();
+      // 3. Clear only auth-related storage (preserve user preferences)
+      // Remove Supabase auth token
+      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      localStorage.removeItem('recoveryHash');
+      
+      // Remove session tracking
+      sessionStorage.removeItem('page_tracking_session_id');
       
       // 4. Add a slightly longer delay to ensure cleanup completes before redirect
       await new Promise(resolve => setTimeout(resolve, 200)); 
@@ -124,8 +127,9 @@ export function AuthProvider({ children }) {
       
       // Fallback cleanup just in case
       setUser(null);
-      localStorage.clear();
-      sessionStorage.clear();
+      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      localStorage.removeItem('recoveryHash');
+      sessionStorage.removeItem('page_tracking_session_id');
       
       // Fallback redirect
       const isLocalhost = window.location.hostname === 'localhost' || 

@@ -29,12 +29,9 @@ export default function ResetPassword() {
     const processRecoveryToken = async () => {
       try {
         setLoading(true);
-        console.log('ResetPassword: Checking for auth recovery token...');
         
         // Check if token is in URL hash
         if (hash && hash.includes('access_token') && hash.includes('type=recovery')) {
-          console.log('ResetPassword: Found recovery token in URL hash');
-          
           // Store recovery hash in localStorage before any potential redirects
           localStorage.setItem('recoveryHash', hash);
           
@@ -48,7 +45,6 @@ export default function ResetPassword() {
             return;
           }
           
-          console.log('Session established with token in URL:', !!data.session);
           setLoading(false);
           return;
         }
@@ -56,8 +52,6 @@ export default function ResetPassword() {
         // If no token in URL, check localStorage as fallback
         const storedHash = localStorage.getItem('recoveryHash');
         if (storedHash) {
-          console.log('ResetPassword: Using stored recovery hash');
-          
           // Apply the hash to the URL without navigating
           window.location.hash = storedHash;
           
@@ -67,15 +61,10 @@ export default function ResetPassword() {
           if (error) {
             console.error('Session error with stored hash:', error);
             setErrorMessage(`Authentication error: ${error.message}`);
-          } else {
-            console.log('Session established with stored hash:', !!data.session);
           }
           
           // Clear it after using
           localStorage.removeItem('recoveryHash');
-        } else {
-          // No token found anywhere
-          console.log('ResetPassword: No recovery token found');
         }
         
         setLoading(false);
@@ -126,10 +115,12 @@ export default function ResetPassword() {
               <span>{errorMessage}</span>
             </div>
             
-            <div className="bg-gray-100 p-3 rounded-lg mb-4 text-xs font-mono text-charcoal overflow-auto max-h-40">
-              <h3 className="font-bold mb-1">Debug Information:</h3>
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-gray-100 p-3 rounded-lg mb-4 text-xs font-mono text-charcoal overflow-auto max-h-40">
+                <h3 className="font-bold mb-1">Debug Information (Development Only):</h3>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+              </div>
+            )}
             
             <div className="text-center mt-4">
               <button

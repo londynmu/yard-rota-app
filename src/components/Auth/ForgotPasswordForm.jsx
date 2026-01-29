@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import PropTypes from 'prop-types';
+import { getSecureResetPasswordErrorMessage } from '../../utils/authErrorMessages';
 
 export default function ForgotPasswordForm({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -24,11 +25,16 @@ export default function ForgotPasswordForm({ onLogin }) {
       
       const { error } = await resetPassword(email);
       
-      if (error) throw error;
+      // Always show success message (security - don't reveal if email exists)
+      setSuccess('If an account exists with this email, you will receive reset instructions shortly.');
       
-      setSuccess('Password reset instructions sent to your email.');
+      // Don't throw error to prevent revealing if email exists
+      if (error) {
+        console.error('Password reset error:', error);
+      }
     } catch (error) {
-      setError(error.message || 'Failed to send reset instructions');
+      // Generic message - don't reveal if email exists or not
+      setSuccess('If an account exists with this email, you will receive reset instructions shortly.');
     } finally {
       setLoading(false);
     }

@@ -15,14 +15,10 @@ export default function RedirectHandler() {
     const pathname = window.location.pathname;
     const fullUrl = window.location.href;
     
-    // Log all information for debugging
-    console.log('RedirectHandler Debug Info:');
-    console.log('- URL:', fullUrl);
-    console.log('- Pathname:', pathname);
-    console.log('- Hash:', hash);
-    console.log('- Search:', search);
-    
-    setDebugInfo({ hash, search, pathname, fullUrl });
+    // Store debug info only in development
+    if (process.env.NODE_ENV === 'development') {
+      setDebugInfo({ hash, search, pathname, fullUrl });
+    }
 
     // Check for specific errors in the URL
     const isExpiredLink = 
@@ -34,7 +30,6 @@ export default function RedirectHandler() {
       search.includes('link+is+invalid+or+has+expired');
 
     if (isExpiredLink) {
-      console.log('Expired or invalid password reset link detected');
       setMessage('Password reset link has expired or is invalid');
       setErrorDetails('Please request a new password reset link from the login page.');
       return;
@@ -54,14 +49,11 @@ export default function RedirectHandler() {
         fullUrl.includes('reset-password') || 
         hash.includes('recovery');
       
-      console.log('Is password reset?', isPasswordReset);
-      
       if (hasAccessToken || hasErrorParam) {
         setMessage('Processing authentication...');
         
         // Let Supabase handle the auth callback
         const { data, error } = await supabase.auth.getSession();
-        console.log('Session data:', data);
         
         if (error) {
           console.error('Auth callback error:', error);
@@ -121,11 +113,13 @@ export default function RedirectHandler() {
               </button>
             </div>
             
-            {/* Debug information */}
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
-              <div className="font-bold mb-1">Debug Info:</div>
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
+            {/* Debug information - only in development */}
+            {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
+              <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
+                <div className="font-bold mb-1">Debug Info (Development Only):</div>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -135,11 +129,13 @@ export default function RedirectHandler() {
             <h2 className="text-xl font-medium text-charcoal mb-2">{message}</h2>
             <p className="text-gray-600 mb-4">You will be redirected automatically.</p>
             
-            {/* Debug information */}
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
-              <div className="font-bold mb-1">Debug Info:</div>
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
+            {/* Debug information - only in development */}
+            {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
+              <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
+                <div className="font-bold mb-1">Debug Info (Development Only):</div>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+              </div>
+            )}
             
             <div className="mt-4">
               <button
