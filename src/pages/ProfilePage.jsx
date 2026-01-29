@@ -138,9 +138,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       if (!supabaseClient) return;
       
       try {
-        // Log the fetch attempt
-        console.log('Fetching locations from database...');
-        
         const { data, error } = await supabaseClient
           .from('locations')
           .select('id, name')
@@ -149,13 +146,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           
         if (error) throw error;
         
-        console.log('Locations data received:', data);
-        
         if (data && data.length > 0) {
           setLocations(data);
         } else {
           // Fallback to default locations if none found
-          console.log('No locations found, using fallback values');
           setLocations([
             { id: '1', name: 'Main Hub' },
             { id: '2', name: 'NRC' }
