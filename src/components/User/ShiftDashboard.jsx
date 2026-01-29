@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+// Removed framer-motion import to reduce layout shifts and improve performance
 
 // Helper to calculate end time for breaks
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -1052,11 +1052,8 @@ export default function ShiftDashboard({
                     };
 
                     return (
-                      <motion.div 
+                      <div 
                         key={shiftType}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4 }}
                       >
                         {!renderShiftBadges && (
                           <h3 className={`text-xs font-bold uppercase mb-3 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
@@ -1084,13 +1081,9 @@ export default function ShiftDashboard({
                             }
 
                             return (
-                              <motion.div
+                              <div
                                 key={b.id}
                                 className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.2, delay: index * 0.03 }}
-                                whileTap={{ scale: 0.98 }}
                               >
                                 <div className="flex justify-between items-start gap-2">
                                   <div>
@@ -1122,20 +1115,18 @@ export default function ShiftDashboard({
                                       <span>{br.pct}%</span>
                                     </div>
                                     <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-green-200">
-                                      <motion.div
-                                        className="h-full bg-green-500 rounded-full"
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${br.pct}%` }}
-                                        transition={{ duration: 0.4 }}
+                                      <div
+                                        className="h-full bg-green-500 rounded-full transition-all duration-300"
+                                        style={{ width: `${br.pct}%` }}
                                       />
                                     </div>
                                   </div>
                                 )}
-                              </motion.div>
+                              </div>
                             );
                           })}
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   });
                 })()}

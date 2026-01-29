@@ -74,9 +74,14 @@ function ShunterOfTheMonthCard() {
   if (loading) {
     return (
       <div className="mb-3 px-4 mt-2">
-        <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm p-3">
-          <div className="h-4 w-32 bg-gray-100 rounded mb-2 animate-pulse" />
-          <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+        <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm px-3 py-2 min-h-[60px] flex items-center">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="h-7 w-7 bg-gray-100 rounded-full animate-pulse" />
+            <div className="flex-1">
+              <div className="h-4 w-32 bg-gray-100 rounded mb-1 animate-pulse" />
+              <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
     );
