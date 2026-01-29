@@ -60,8 +60,31 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
 
   if (isLoading) {
     return (
-      <div className="w-full min-h-[400px] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <div className="w-full animate-pulse">
+        {/* Weekday headers skeleton */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {weekdays.map((day) => (
+            <div key={day} className="p-1 sm:p-1 text-center">
+              <div className="h-4 bg-gray-300 rounded w-12 mx-auto" />
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid skeleton */}
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+          {Array.from({ length: 35 }).map((_, index) => (
+            <div
+              key={index}
+              className="relative aspect-square bg-white border-2 border-gray-200 rounded-lg p-1 sm:p-2"
+            >
+              <div className="h-5 w-5 bg-gray-300 rounded mb-1" />
+              <div className="space-y-1">
+                <div className="h-2 bg-gray-200 rounded w-3/4" />
+                <div className="h-2 bg-gray-200 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

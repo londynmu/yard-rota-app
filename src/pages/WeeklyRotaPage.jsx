@@ -234,11 +234,6 @@ const WeeklyRotaPage = () => {
 
   // Format time from HH:MM:SS to HH:MM
   const fmtTime = (t) => (t ? t.slice(0, 5) : '');
-  
-  // All buttons are black like on Breaks page
-  const getShiftTriggerClasses = () => {
-    return 'bg-gray-800 border-gray-900 text-white hover:bg-gray-900';
-  };
 
   // Component to render the details for an expanded day
   const DayDetails = ({ dateStr }) => {
@@ -494,13 +489,13 @@ const WeeklyRotaPage = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Week Navigation - Same style as Breaks */}
-      <div id="weekly-top-nav" className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+      <div id="weekly-top-nav" className="bg-gray-100 sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Week Button */}
             <button
               onClick={() => setShowWeekModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               Week {getWeek(weekStart)}
             </button>
@@ -508,7 +503,7 @@ const WeeklyRotaPage = () => {
             {/* Location Button */}
             <button
               onClick={() => setShowLocationModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedLocation || 'Hub'}
             </button>
@@ -516,7 +511,7 @@ const WeeklyRotaPage = () => {
             {/* Shift Button */}
             <button
               onClick={() => setShowShiftModal(true)}
-              className={`flex items-center justify-center px-2 py-1.5 rounded-full border-2 text-sm font-semibold shadow-lg transition-colors whitespace-nowrap w-full active:scale-95 ${getShiftTriggerClasses()}`}
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedShiftType === 'all' ? 'All'
                 : selectedShiftType === 'day' ? 'Day'

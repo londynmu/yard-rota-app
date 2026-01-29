@@ -585,18 +585,18 @@ const PerformanceLeaderboard = () => {
   return (
     <div className="min-h-screen bg-offwhite pb-20">
       {/* Sticky Badge Header (jak w My Rota) */}
-      <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+      <div className="bg-offwhite sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => setShowRangeModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full"
             >
               {getRangeLabel(selectedRange)}
             </button>
             <button
               onClick={() => setShowSortModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full"
             >
               Sort
             </button>
@@ -608,7 +608,7 @@ const PerformanceLeaderboard = () => {
                 }
                 setShowMyStatsModal(true);
               }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-gray-800 text-white text-sm font-semibold shadow-lg hover:bg-gray-900 transition-colors whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full"
             >
               My Stats
             </button>
