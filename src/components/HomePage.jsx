@@ -56,10 +56,8 @@ export default function HomePage() {
         }
         
         if (data) {
-          // Reset avatar loaded state when URL changes
-          if (data.avatar_url !== avatarUrl) {
-            setAvatarLoaded(false);
-          }
+          // Reset avatar loaded state for new image
+          setAvatarLoaded(false);
           setAvatarUrl(data.avatar_url || '');
           
           if (data.first_name || data.last_name) {
@@ -83,7 +81,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user ID to prevent unnecessary re-fetches
 
   useEffect(() => {
     function handleClickOutside(event) {
