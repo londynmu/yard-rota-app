@@ -12,6 +12,7 @@ import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
+import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
@@ -34,7 +35,6 @@ export default function HomePage() {
     
     setProfileLoading(true);
     try {
-      console.log('[HomePage] Fetching profile for avatar/name data...');
       const { data, error } = await supabase
         .from('profiles')
         .select('first_name, last_name, avatar_url')
@@ -46,7 +46,6 @@ export default function HomePage() {
         return;
       }
       
-      console.log('[HomePage] Fetched profile data:', data);
       if (data) {
         // Reset avatar loaded state when URL changes
         if (data.avatar_url !== avatarUrl) {
@@ -58,7 +57,6 @@ export default function HomePage() {
           setProfileName(`${data.first_name || ''} ${data.last_name || ''}`);
         }
       } else {
-        console.log('[HomePage] Profile not found.');
         setProfileName('');
         setAvatarUrl('');
         setAvatarLoaded(false);
@@ -321,12 +319,33 @@ export default function HomePage() {
               </>
             }
           />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedAdminRoute>
+                <AdminPage />
+              </ProtectedAdminRoute>
+            } 
+          />
+          <Route 
+            path="/admin/approvals" 
+            element={
+              <ProtectedAdminRoute>
+                <UserApprovalPage />
+              </ProtectedAdminRoute>
+            } 
+          />
+          <Route 
+            path="/brakes" 
+            element={
+              <ProtectedAdminRoute>
+                <BrakesPage />
+              </ProtectedAdminRoute>
+            } 
+          />
           <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
           <Route path="/my-rota" element={<WeeklyRotaPage />} />
           <Route path="/performance" element={<PerformanceLeaderboard />} />
-          <Route path="/brakes" element={isAdmin ? <BrakesPage /> : <Navigate to="/calendar" replace />} />
-          <Route path="/admin/approvals" element={<UserApprovalPage />} />
           <Route path="*" element={<Navigate to="/calendar" replace />} />
         </Routes>
       </main>

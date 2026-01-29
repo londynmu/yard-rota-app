@@ -63,7 +63,6 @@ export const usePageTracking = () => {
         if (error) {
           console.warn('Error tracking page visit:', error);
         } else {
-          console.log(`Tracked visit to: ${pageTitle} (${location.pathname})`);
           lastTrackedPath.current = location.pathname;
         }
       } catch (err) {

@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
 
-// Site URL for redirects
-const siteUrl = 'https://shunters.net';
+// Site URL for redirects - load from environment variables
+const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
 
 const AuthContext = createContext();
 
@@ -23,16 +23,11 @@ export function AuthProvider({ children }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[AuthContext] onAuthStateChange Event:', _event);
-      console.log('[AuthContext] onAuthStateChange Session:', session);
-      
       // Directly set the user state without delays or processing flag
       setUser(session?.user || null);
-      console.log('[AuthContext] User state updated to:', session?.user || null);
     });
 
     return () => {
-      console.log('[AuthContext] Unsubscribing from auth changes.');
       subscription.unsubscribe();
     }
   }, []);
@@ -63,8 +58,6 @@ export function AuthProvider({ children }) {
   };
 
   const resetPassword = async (email) => {
-    console.log(`AuthContext: Sending password reset for ${email}`);
-    
     try {
       // Check if we're in development or production
       const isLocalhost = window.location.hostname === 'localhost' || 
@@ -76,8 +69,6 @@ export function AuthProvider({ children }) {
       // Use the full path to reset-password
       const redirectURL = `${baseUrl}/reset-password`;
       
-      console.log(`AuthContext: Using redirect URL: ${redirectURL}`);
-      
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectURL,
       });
@@ -86,8 +77,6 @@ export function AuthProvider({ children }) {
         console.error('AuthContext: Reset password error:', error);
         return { error };
       }
-      
-      console.log('AuthContext: Password reset email sent successfully');
       
       return { data, error: null };
     } catch (err) {

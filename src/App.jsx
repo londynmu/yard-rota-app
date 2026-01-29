@@ -37,17 +37,6 @@ function AppContent() {
   const [showLoader, setShowLoader] = useState(false);
   const isLoading = authLoading || (hasAuthHash && !user);
 
-  // Log state on every render
-  console.log('[AppContent Render] State:', {
-    authLoading,
-    user: !!user,
-    isCheckingProfile,
-    isProfileComplete,
-    accountStatus,
-    pathname: location.pathname,
-    hasAuthHash // Log the hash check
-  });
-
   // Hook na najwyższym poziomie komponentu
   useEffect(() => {
     if (isLoading) {
@@ -64,20 +53,10 @@ function AppContent() {
   // Handle URL detection on mount and URL changes
   useEffect(() => {
     const checkUrlAndRedirect = async () => {
-      // Log all URL information for debugging
-      console.log('URL CHECK:');
-      console.log('- Path:', location.pathname);
-      console.log('- Hash:', window.location.hash);
-      console.log('- Search:', window.location.search);
-      console.log('- Full URL:', window.location.href);
-
       // If recovery link is detected, redirect to reset-password
       if (isRecoveryLink() && location.pathname !== '/reset-password') {
-        console.log('RECOVERY LINK DETECTED - redirecting to reset-password');
-        
         // Save the hash to localStorage before navigating
         if (window.location.hash && window.location.hash.includes('access_token')) {
-          console.log('Saving recovery hash to localStorage');
           localStorage.setItem('recoveryHash', window.location.hash);
         }
         
@@ -102,19 +81,11 @@ function AppContent() {
 
     const checkProfileCompletion = async () => {
       profileCheckRef.current = true; // Mark that we're checking
-      
-      // Specjalny przypadek dla administratora - omijamy sprawdzanie profilu
-      if (user.email === 'tideend@gmail.com' || user.role === 'service_role') {
-        setIsProfileComplete(true);
-        setAccountStatus('approved'); // Admins are always approved
-        setIsCheckingProfile(false);
-        return;
-      }
 
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('profile_completed, account_status')
+          .select('profile_completed, account_status, role')
           .eq('id', user.id)
           .single();
 
@@ -127,16 +98,21 @@ function AppContent() {
             setError(error.message);
           }
         } else {
-          const complete = !!data?.profile_completed;
-          setIsProfileComplete(complete);
-          setAccountStatus(data?.account_status || 'approved'); // Default to approved for existing users
+          // Admin users bypass profile completion and approval checks
+          if (data?.role === 'admin') {
+            setIsProfileComplete(true);
+            setAccountStatus('approved');
+          } else {
+            const complete = !!data?.profile_completed;
+            setIsProfileComplete(complete);
+            setAccountStatus(data?.account_status || 'approved');
+          }
         }
       } catch (error) {
         console.error('Error in profile check:', error);
         setError(error.message);
       } finally {
         setIsCheckingProfile(false);
-        // Reset the ref reliably in the finally block
         profileCheckRef.current = false;
       }
     };
@@ -153,8 +129,6 @@ function AppContent() {
   // 1. AuthProvider is still loading (initial getSession)
   // OR 2. There's an auth hash in the URL, BUT we don't have a user yet (waiting for onAuthStateChange)
   if (isLoading) {
-    console.log('[AppContent Decision] Rendering Combined Loading (Auth or Hash Wait)...');
-    
     // Nie pokazuj nic przez pierwsze 500ms
     if (!showLoader) {
       return null;
@@ -170,7 +144,6 @@ function AppContent() {
 
   // Error state
   if (error) {
-    console.log('[AppContent Decision] Rendering Error State...');
     return (
       <div className="min-h-screen flex justify-center items-center bg-offwhite">
         <div className="bg-red-50 text-red-600 p-4 rounded-lg max-w-md border border-red-200">
@@ -189,23 +162,14 @@ function AppContent() {
 
   // If user exists, but we are still checking profile OR we know profile is not complete
   if (user && (isCheckingProfile || !isProfileComplete)) {
-    // Specjalny przypadek dla administratora próbującego wejść na stronę /admin lub /rota-planner
-    if ((user.email === 'tideend@gmail.com' || user.role === 'service_role') && 
-        (location.pathname === '/admin' || location.pathname === '/rota-planner')) {
-      console.log('[AppContent Decision] Admin user accessing protected route - skipping profile check');
-      return <HomePage />;
-    }
-    
     // If still checking profile
     if (isCheckingProfile) {
-      console.log('[AppContent Decision] Rendering Profile Checking Loader...');
       return (
         <div className="min-h-screen flex justify-center items-center bg-offwhite">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
         </div>
       );
     } else {
-      console.log('[AppContent Decision] Rendering Full Profile Form...');
       return (
         <ProfilePage isRequired={true} supabaseClient={supabase} simplifiedView={true} />
       );
@@ -214,12 +178,6 @@ function AppContent() {
 
   // If user has a complete profile but is pending approval or rejected
   if (user && isProfileComplete && accountStatus && accountStatus !== 'approved') {
-    // Special case for admin paths - always allow access for admins
-    if ((user.email === 'tideend@gmail.com' || user.role === 'service_role') && 
-        (location.pathname === '/admin' || location.pathname === '/rota-planner')) {
-      return <HomePage />;
-    }
-  
     // Redirect to waiting for approval page if user is pending approval or rejected
     // but trying to access a different page
     if (location.pathname !== '/waiting-for-approval') {
@@ -228,7 +186,6 @@ function AppContent() {
   }
 
   // Main routing
-  console.log('[AppContent Decision] Evaluating Main Routing...');
   return (
     <Routes>
       <Route path="/login" element={!user ? <Auth /> : <Navigate to="/" replace />} />

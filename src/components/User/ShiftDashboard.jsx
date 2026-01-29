@@ -226,23 +226,17 @@ export default function ShiftDashboard({
           
           // Filter out null user_ids before fetching
           const userIds = [...new Set(selectedShiftsRaw.map(s => s.user_id).filter(id => id !== null))];
-          console.log('[Team Schedule] User IDs to fetch:', userIds);
           
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', userIds);
           
-          console.log('[Team Schedule] Profiles fetched:', profilesData);
-          console.log('[Team Schedule] Profiles error:', profilesError);
-          
           // Map profiles to shifts
           const profilesMap = {};
           profilesData?.forEach(p => {
             profilesMap[p.id] = p;
           });
-          
-          console.log('[Team Schedule] Profiles map:', profilesMap);
           
           // Only include shifts where we found a profile
           // Sort to prefer night shifts before day/afternoon before 06:00, else day/afternoon first
@@ -258,8 +252,6 @@ export default function ShiftDashboard({
               profiles: profilesMap[s.user_id]
             }));
           
-          console.log('[Team Schedule] Final shifts with profiles:', shiftsWithProfiles.slice(0, 3));
-          
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple shifts, show only once
           const uniqueShifts = [];
           const seenUserIds = new Set();
@@ -270,8 +262,6 @@ export default function ShiftDashboard({
               uniqueShifts.push(shift);
             }
           });
-          
-          console.log('[Team Schedule] Shifts after deduplication:', uniqueShifts.length);
           
           setAllShifts(uniqueShifts);
         } else {
@@ -291,15 +281,11 @@ export default function ShiftDashboard({
         if (breaksData && breaksData.length > 0) {
           // Filter out null user_ids before fetching
           const userIds = [...new Set(breaksData.map(b => b.user_id).filter(id => id !== null))];
-          console.log('[Team Breaks] User IDs to fetch:', userIds);
           
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', userIds);
-          
-          console.log('[Team Breaks] Profiles fetched:', profilesData);
-          console.log('[Team Breaks] Profiles error:', profilesError);
           
           const profilesMap = {};
           profilesData?.forEach(p => {

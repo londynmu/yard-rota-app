@@ -16,17 +16,10 @@ export default function ProfileRequiredCheck({ children }) {
         return;
       }
 
-      // Admin bypass for specific email or service role
-      if (user.email === 'tideend@gmail.com' || user.role === 'service_role') {
-        setIsProfileComplete(true);
-        setLoading(false);
-        return;
-      }
-
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('profile_completed')
+          .select('profile_completed, role')
           .eq('id', user.id)
           .single();
 
@@ -34,8 +27,13 @@ export default function ProfileRequiredCheck({ children }) {
           console.error('Error checking profile completion:', error);
           setIsProfileComplete(true); // Default to true on error to avoid blocking users
         } else {
-          const isComplete = !!data?.profile_completed;
-          setIsProfileComplete(isComplete);
+          // Admin users bypass profile completion check
+          if (data?.role === 'admin') {
+            setIsProfileComplete(true);
+          } else {
+            const isComplete = !!data?.profile_completed;
+            setIsProfileComplete(isComplete);
+          }
         }
       } catch (error) {
         console.error('Error in profile check:', error);

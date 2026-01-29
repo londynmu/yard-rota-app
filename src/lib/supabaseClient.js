@@ -1,10 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://jkjvtvwedjiupxoibpld.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw';
+// Load configuration from environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
 
-// Site URL for redirects
-const siteUrl = 'https://shunters.net';
+// Validate required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing required environment variables. Please check your .env file.'
+  );
+}
 
 // Singleton pattern to ensure only one client instance is created
 let supabaseInstance = null;
@@ -37,45 +43,6 @@ const originalSupabaseClient = createSupabaseClient();
 export const supabase = {
   ...originalSupabaseClient,
   storage: originalSupabaseClient.storage,
-  from: (table) => {
-    const originalFrom = originalSupabaseClient.from(table);
-    
-    return {
-      ...originalFrom,
-      update: (data) => {
-        console.log(`Supabase: Updating ${table} with:`, data);
-        const originalUpdate = originalFrom.update(data);
-        
-        return {
-          ...originalUpdate,
-          eq: (column, value) => {
-            console.log(`Supabase: Condition ${column} = ${value}`);
-            const originalEq = originalUpdate.eq(column, value);
-            
-            return originalEq; // Return the original result directly without modification
-          }
-        };
-      },
-      insert: (data) => {
-        console.log(`Supabase: Inserting into ${table}:`, data);
-        return originalFrom.insert(data);
-      },
-      select: (columns) => {
-        console.log(`Supabase: Selecting from ${table}:`, columns);
-        return originalFrom.select(columns);
-      },
-      upsert: (data, options) => {
-        console.log(`Supabase: Upserting into ${table}:`, data);
-        return originalFrom.upsert(data, options);
-      },
-      delete: () => {
-        console.log(`Supabase: Deleting from ${table}`);
-        return originalFrom.delete();
-      }
-    };
-  },
-  rpc: (functionName, params) => {
-    console.log(`Supabase: Calling RPC function ${functionName} with:`, params);
-    return originalSupabaseClient.rpc(functionName, params);
-  }
+  from: originalSupabaseClient.from.bind(originalSupabaseClient),
+  rpc: originalSupabaseClient.rpc.bind(originalSupabaseClient)
 }; 
