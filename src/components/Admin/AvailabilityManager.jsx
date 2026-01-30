@@ -314,8 +314,34 @@ export default function AvailabilityManager() {
 
   if (isLoading && users.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-charcoal"></div>
+      <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200 animate-pulse">
+        {/* Navigation skeleton */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+            <div className="h-6 w-48 bg-slate-200 rounded" />
+            <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+          </div>
+          <div className="h-10 w-32 bg-slate-200 rounded-lg" />
+        </div>
+        
+        {/* Table skeleton */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-4 gap-4 pb-2 border-b">
+            <div className="h-4 bg-slate-300 rounded w-20" />
+            <div className="h-4 bg-slate-300 rounded w-24" />
+            <div className="h-4 bg-slate-300 rounded w-28" />
+            <div className="h-4 bg-slate-300 rounded w-16" />
+          </div>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-4 gap-4 py-3 border-b border-gray-100">
+              <div className="h-5 bg-slate-200 rounded w-32" />
+              <div className="h-5 bg-slate-200 rounded w-40" />
+              <div className="h-5 bg-slate-200 rounded w-36" />
+              <div className="h-8 w-20 bg-slate-200 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

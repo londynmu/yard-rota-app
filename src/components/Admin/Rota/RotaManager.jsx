@@ -997,8 +997,41 @@ const RotaManager = () => {
 
   if (loading && !slots.length) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-black"></div>
+      <div className="space-y-6 animate-pulse">
+        {/* Toolbar skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="flex gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
+          <div className="h-10 bg-slate-200 rounded-lg" />
+          <div className="flex gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 w-20 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
+        </div>
+        
+        {/* Date range skeleton */}
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+          <div className="h-6 w-64 bg-slate-300 rounded" />
+          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+        </div>
+        
+        {/* Calendar grid skeleton */}
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border-2 border-slate-200 p-3 h-32">
+              <div className="h-5 w-8 bg-slate-300 rounded mb-2" />
+              <div className="space-y-1">
+                <div className="h-3 bg-slate-200 rounded w-full" />
+                <div className="h-3 bg-slate-200 rounded w-3/4" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

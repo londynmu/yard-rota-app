@@ -183,8 +183,37 @@ const UserProfile = () => {
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      <div className="min-h-screen p-6 animate-pulse" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)' }}>
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* Profile header skeleton */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+            <div className="flex flex-col items-center">
+              <div className="w-32 h-32 bg-white/30 rounded-full mb-4" />
+              <div className="h-8 w-48 bg-white/30 rounded mb-2" />
+              <div className="h-4 w-64 bg-white/20 rounded" />
+            </div>
+          </div>
+          
+          {/* Stats cards skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                <div className="h-4 w-20 bg-white/20 rounded mb-2" />
+                <div className="h-8 w-16 bg-white/30 rounded" />
+              </div>
+            ))}
+          </div>
+          
+          {/* Content sections skeleton */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+            <div className="h-6 w-40 bg-white/30 rounded mb-4" />
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-16 bg-white/10 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -320,8 +349,13 @@ const UserProfile = () => {
         {/* Notes List */}
         <div className="space-y-4">
           {loadingNotes ? (
-            <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+            <div className="space-y-3 animate-pulse">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white/10 rounded-xl p-4">
+                  <div className="h-4 w-24 bg-white/20 rounded mb-2" />
+                  <div className="h-6 bg-white/30 rounded" />
+                </div>
+              ))}
             </div>
           ) : notes.length === 0 ? (
             <div className="text-center py-8 text-white/50">

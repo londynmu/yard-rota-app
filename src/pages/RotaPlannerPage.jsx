@@ -67,8 +67,47 @@ export default function RotaPlannerPage() {
   // Main rendering logic
   if (pageLoading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite">
-        <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>
+      <div className="space-y-6 animate-pulse">
+        {/* Toolbar skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="flex gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
+          <div className="h-10 bg-slate-200 rounded-lg" />
+          <div className="flex gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 w-20 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
+        </div>
+        
+        {/* Date navigation skeleton */}
+        <div className="flex items-center justify-center gap-4">
+          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+          <div className="h-8 w-72 bg-slate-300 rounded" />
+          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+        </div>
+        
+        {/* Calendar grid skeleton */}
+        <div className="grid grid-cols-7 gap-2">
+          {/* Day headers */}
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={`header-${i}`} className="h-8 bg-slate-300 rounded text-center" />
+          ))}
+          {/* Calendar days */}
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border-2 border-slate-200 p-3 min-h-32">
+              <div className="h-6 w-8 bg-slate-300 rounded mb-3" />
+              <div className="space-y-2">
+                <div className="h-4 bg-slate-200 rounded" />
+                <div className="h-4 bg-slate-200 rounded w-4/5" />
+                <div className="h-4 bg-slate-200 rounded w-3/5" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

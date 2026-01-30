@@ -112,8 +112,25 @@ const UserApprovalPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black" />
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-64 bg-slate-300 rounded mb-6" />
+        
+        {/* Approval cards skeleton */}
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 bg-slate-300 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-6 bg-slate-300 rounded w-48" />
+                <div className="h-4 bg-slate-200 rounded w-64" />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <div className="h-10 w-24 bg-slate-200 rounded-lg" />
+              <div className="h-10 w-24 bg-slate-200 rounded-lg" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

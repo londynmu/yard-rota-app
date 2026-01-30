@@ -148,8 +148,27 @@ export default function SettingsManager() {
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <div className="w-full max-w-full animate-pulse">
+        {/* Tabs skeleton */}
+        <div className="flex mb-4 gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-10 w-32 bg-slate-200 rounded-lg" />
+          ))}
+        </div>
+        
+        {/* Content skeleton */}
+        <div className="space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+              <div className="h-6 w-40 bg-slate-300 rounded mb-4" />
+              <div className="space-y-3">
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

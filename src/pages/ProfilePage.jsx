@@ -475,8 +475,27 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Handle loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-offwhite">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black animate-spin"></div>
+      <div className="min-h-screen bg-offwhite p-6 animate-pulse">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Avatar skeleton */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-32 h-32 bg-slate-300 rounded-full mb-4" />
+            <div className="h-8 w-48 bg-slate-300 rounded" />
+          </div>
+          
+          {/* Form fields skeleton */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200 space-y-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-32 bg-slate-300 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+              </div>
+            ))}
+            
+            {/* Button skeleton */}
+            <div className="h-12 bg-slate-300 rounded-lg w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -484,8 +503,27 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // If the profile hasn't loaded yet and this is required, show loading state
   if (isRequired && !profileLoaded) {
     return (
-      <div className="min-h-screen bg-offwhite flex justify-center items-center">
-        <div className="rounded-full h-12 w-12 border-t-2 border-b-2 border-black animate-spin"></div>
+      <div className="min-h-screen bg-offwhite p-6 animate-pulse">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Avatar skeleton */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-32 h-32 bg-slate-300 rounded-full mb-4" />
+            <div className="h-8 w-48 bg-slate-300 rounded" />
+          </div>
+          
+          {/* Form fields skeleton */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200 space-y-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-32 bg-slate-300 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+              </div>
+            ))}
+            
+            {/* Button skeleton */}
+            <div className="h-12 bg-slate-300 rounded-lg w-full" />
+          </div>
+        </div>
       </div>
     );
   }

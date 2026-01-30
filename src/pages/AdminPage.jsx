@@ -21,7 +21,13 @@ export default function AdminPage() {
   // Aktywna sekcja - zmiana na sidebar navigation
   const [activeSection, setActiveSection] = useState(() => {
     const savedSection = localStorage.getItem('adminActiveSection');
-    return savedSection || 'dashboard';
+    // Validate saved section
+    const validSections = [
+      'dashboard', 'users', 'approvals', 'availability', 
+      'rota-planner', 'breaks', 'performance', 'stats', 
+      'shunter-month', 'settings'
+    ];
+    return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
   });
   // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -93,7 +99,6 @@ export default function AdminPage() {
       }
 
       // Jeśli jest użytkownik, spróbuj pobrać jego profil
-      console.log('[AdminPage] User detected. Fetching profile to check role...');
       setPageLoading(true); // Rozpocznij ładowanie (na wypadek, gdyby authLoading było false wcześniej)
       try {
         const { data: userProfile, error: profileError } = await supabase
@@ -108,17 +113,14 @@ export default function AdminPage() {
             throw profileError; // Throw error forward
           }
           // If profile does not exist (PGRST116)
-          console.warn('[AdminPage] Profile not found for user.');
           setError('Admin permissions require a user profile.');
           setIsAdmin(false);
         } else if (userProfile && userProfile.role === 'admin') {
           // Profile found and role is admin
-          console.log('[AdminPage] Admin role confirmed.');
           setIsAdmin(true);
           setError(null); // Clear error if user is admin
         } else {
           // Profile found but role is not admin
-          console.log('[AdminPage] User is not admin. Role:', userProfile?.role);
           setError('You do not have permission to access this page.');
           setIsAdmin(false);
         }
@@ -167,86 +169,6 @@ export default function AdminPage() {
     setShowShunterReminder(false);
   };
 
-  // Define fetchUsers function outside useEffect so it can be passed to components
-  const fetchUsers = async () => {
-    console.log('[AdminPage] Fetching users with ALL fields including yard_system_id and agency...');
-    setPageLoading(true); // Show loading state
-    try {
-      // Direct query to get ALL fields from profiles including yard_system_id and agency
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*, agencies(id, name)');
-      
-      if (profilesError) throw profilesError;
-      
-      // Try to get emails using RPC function first, then fallback to admin API
-      let usersWithEmails = [];
-      
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_complete_profiles_with_emails');
-        if (!rpcError && rpcData) {
-          // Merge RPC email data with profile data
-          usersWithEmails = (profilesData || []).map(profile => {
-            const rpcUser = rpcData.find(u => u.id === profile.id);
-            return {
-              ...profile,
-              email: rpcUser?.email || 'N/A',
-              performance_score: profile.performance_score ?? 50,
-              is_active: profile.is_active !== false,
-              agency_name: profile.agencies?.name || null
-            };
-          });
-        } else {
-          throw new Error('RPC function failed');
-        }
-      } catch (rpcErr) {
-        console.warn('[AdminPage] RPC failed, fetching emails individually:', rpcErr);
-        // Fallback: get emails individually
-        usersWithEmails = await Promise.all(
-          (profilesData || []).map(async (profile) => {
-            try {
-              const { data: { user: authUser } } = await supabase.auth.admin.getUserById(profile.id);
-              return {
-                ...profile,
-                email: authUser?.email || 'N/A',
-                performance_score: profile.performance_score ?? 50,
-                is_active: profile.is_active !== false,
-                agency_name: profile.agencies?.name || null
-              };
-            } catch (err) {
-              return {
-                ...profile,
-                email: 'N/A',
-                performance_score: profile.performance_score ?? 50,
-                is_active: profile.is_active !== false,
-                agency_name: profile.agencies?.name || null
-              };
-            }
-          })
-        );
-      }
-      
-      console.log('[AdminPage] Fetched users sample:', usersWithEmails[0]);
-      setUsers(usersWithEmails);
-    } catch (err) {
-      console.error('[AdminPage] General error fetching users:', err);
-      setError('Error loading users.');
-      setUsers([]); 
-    } finally {
-      setPageLoading(false); // End loading state
-    }
-  };
-
-  // Efekt do pobierania listy użytkowników (jeśli admin)
-  useEffect(() => {
-    // Use the fetchUsers defined outside this effect
-    if (isAdmin) { 
-      fetchUsers();
-      fetchPendingApprovals();
-    }
-    // Do not include fetchUsers in the dependency array since it's now defined outside
-  }, [isAdmin, user]); // Keep user dependency for the fallback email logic
-
   // Pobieranie liczby oczekujących zatwierdzeń
   const fetchPendingApprovals = async () => {
     try {
@@ -261,6 +183,91 @@ export default function AdminPage() {
       console.error('Error fetching pending approvals:', err);
     }
   };
+
+  // Define fetchUsers function outside useEffect so it can be passed to components
+  const fetchUsers = async () => {
+    setPageLoading(true); // Show loading state
+    try {
+      // Direct query to get ALL fields from profiles including yard_system_id and agency
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*, agencies(id, name)');
+      
+      if (profilesError) throw profilesError;
+      
+      // Validate profilesData
+      if (!Array.isArray(profilesData)) {
+        throw new Error('Invalid data format received from profiles table');
+      }
+      
+      // Try to get emails using RPC function
+      let usersWithEmails = [];
+      
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_complete_profiles_with_emails');
+        if (!rpcError && rpcData && Array.isArray(rpcData)) {
+          // Merge RPC email data with profile data
+          usersWithEmails = profilesData.map(profile => {
+            const rpcUser = rpcData.find(u => u.id === profile.id);
+            return {
+              ...profile,
+              email: rpcUser?.email || 'N/A',
+              performance_score: profile.performance_score ?? 50,
+              is_active: profile.is_active !== false,
+              agency_name: profile.agencies?.name || null
+            };
+          });
+        } else {
+          // If RPC fails, just use profiles without emails
+          usersWithEmails = profilesData.map(profile => ({
+            ...profile,
+            email: 'N/A',
+            performance_score: profile.performance_score ?? 50,
+            is_active: profile.is_active !== false,
+            agency_name: profile.agencies?.name || null
+          }));
+        }
+      } catch (rpcErr) {
+        // If any error, just use profiles without emails
+        usersWithEmails = profilesData.map(profile => ({
+          ...profile,
+          email: 'N/A',
+          performance_score: profile.performance_score ?? 50,
+          is_active: profile.is_active !== false,
+          agency_name: profile.agencies?.name || null
+        }));
+      }
+      
+      setUsers(usersWithEmails);
+    } catch (err) {
+      console.error('[AdminPage] General error fetching users:', err);
+      setError('Error loading users.');
+      setUsers([]); 
+    } finally {
+      setPageLoading(false); // End loading state
+    }
+  };
+
+  // Efekt do pobierania listy użytkowników (jeśli admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    
+    let cancelled = false;
+    
+    const loadData = async () => {
+      if (!cancelled) {
+        await fetchUsers();
+        await fetchPendingApprovals();
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, user]); // Keep user dependency for the fallback email logic
 
   // --- Renderowanie --- 
   // Użyj pageLoading do głównego wskaźnika ładowania

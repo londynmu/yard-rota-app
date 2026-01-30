@@ -1452,9 +1452,25 @@ const BrakesManager = () => {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-10">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black"></div>
-            <p className="mt-2 text-charcoal font-semibold">Loading breaks...</p>
+          <div className="space-y-4 animate-pulse">
+            {/* Filters skeleton */}
+            <div className="flex gap-3 mb-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
+              ))}
+            </div>
+            
+            {/* Slot cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-md p-4 border-2 border-slate-200">
+                  <div className="h-4 w-24 bg-slate-300 rounded mb-2" />
+                  <div className="h-6 w-32 bg-slate-300 rounded mb-3" />
+                  <div className="h-4 w-full bg-slate-200 rounded mb-2" />
+                  <div className="h-4 w-3/4 bg-slate-200 rounded" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-6 md:space-y-8">

@@ -231,11 +231,29 @@ export default function ShunterOfTheMonthManager({ users }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="h-4 w-40 bg-gray-100 rounded mb-3 animate-pulse" />
-        <div className="space-y-2">
-          <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
-          <div className="h-3 w-5/6 bg-gray-100 rounded animate-pulse" />
+      <div className="space-y-6 animate-pulse">
+        {/* History card skeleton */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="h-6 w-48 bg-slate-300 rounded mb-4" />
+          <div className="space-y-3">
+            <div className="h-4 w-full bg-slate-200 rounded" />
+            <div className="h-4 w-5/6 bg-slate-200 rounded" />
+            <div className="h-4 w-4/6 bg-slate-200 rounded" />
+          </div>
+        </div>
+        
+        {/* Award sections skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border-2 border-slate-200 p-6 shadow-lg">
+              <div className="h-6 w-40 bg-slate-300 rounded mb-4" />
+              <div className="space-y-3">
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-10 bg-slate-200 rounded" />
+                <div className="h-10 w-32 bg-slate-300 rounded-lg" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );

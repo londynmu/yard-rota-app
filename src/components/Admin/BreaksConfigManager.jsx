@@ -99,8 +99,22 @@ export default function BreaksConfigManager() {
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <div className="bg-gray-50 rounded-lg p-5 border border-gray-200 animate-pulse">
+        <div className="h-6 w-48 bg-slate-300 rounded mb-4" />
+        <div className="space-y-4">
+          <div>
+            <div className="h-4 w-32 bg-slate-200 rounded mb-2" />
+            <div className="h-10 bg-slate-200 rounded" />
+          </div>
+          <div>
+            <div className="h-4 w-40 bg-slate-200 rounded mb-2" />
+            <div className="h-10 bg-slate-200 rounded" />
+          </div>
+          <div>
+            <div className="h-4 w-36 bg-slate-200 rounded mb-2" />
+            <div className="h-10 bg-slate-200 rounded" />
+          </div>
+        </div>
       </div>
     );
   }
