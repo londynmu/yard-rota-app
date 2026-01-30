@@ -77,7 +77,7 @@ const RotaManager = () => {
       localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     };
 
-    window.addEventListener('scroll', saveScroll);
+    window.addEventListener('scroll', saveScroll, { passive: true });
 
     // Robust scroll restoration function with retries
     const restoreScroll = () => {

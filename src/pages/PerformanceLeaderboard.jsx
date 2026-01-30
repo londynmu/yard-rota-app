@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
@@ -68,10 +68,14 @@ const PerformanceLeaderboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
+  const lastFetchTime = useRef(0);
   const [selectedRange, setSelectedRange] = useState(() => {
     if (typeof window === 'undefined') return 'last_day';
     const stored = localStorage.getItem('performance_range');
-    if (stored) return stored;
+    // Validate stored value
+    const validRanges = ['last_day', 'last_week', 'last_month', 'all'];
+    if (stored && validRanges.includes(stored)) return stored;
+    
     const legacy = localStorage.getItem('performance_period');
     switch (legacy) {
       case 'today':
@@ -88,7 +92,10 @@ const PerformanceLeaderboard = () => {
   });
   const [sortOption, setSortOption] = useState(() => {
     if (typeof window === 'undefined') return 'moves';
-    return localStorage.getItem('performance_sort') || 'moves';
+    const stored = localStorage.getItem('performance_sort');
+    // Validate stored value
+    const validSorts = ['moves', 'collect', 'travel'];
+    return (stored && validSorts.includes(stored)) ? stored : 'moves';
   });
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
@@ -129,6 +136,13 @@ const PerformanceLeaderboard = () => {
 
   // Fetch ALL leaderboard data with pagination (Supabase has 1000 row limit)
   const fetchLeaderboard = useCallback(async () => {
+    // Rate limiting - minimum 2 seconds between requests
+    const now = Date.now();
+    if (now - lastFetchTime.current < 2000) {
+      return;
+    }
+    lastFetchTime.current = now;
+
     setLoading(true);
     try {
       let allPerformanceData = [];
@@ -146,7 +160,6 @@ const PerformanceLeaderboard = () => {
               id,
               first_name,
               last_name,
-              avatar_url,
               yard_system_id
             )
           `);
@@ -165,9 +178,20 @@ const PerformanceLeaderboard = () => {
             .lte('report_date', endDate);
         }
 
-        const { data: batch, error } = await query
-          .order('report_date', { ascending: true })
-          .range(from, from + batchSize - 1);
+        // Add timeout for long requests
+        const fetchWithTimeout = (promise, timeout = 30000) => {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout - please try again')), timeout)
+            )
+          ]);
+        };
+
+        const { data: batch, error } = await fetchWithTimeout(
+          query.order('report_date', { ascending: true }).range(from, from + batchSize - 1),
+          30000
+        );
 
         if (error) throw error;
 
@@ -181,7 +205,6 @@ const PerformanceLeaderboard = () => {
       }
 
       const performanceData = allPerformanceData;
-      console.log('[Performance] Fetched ALL records:', performanceData?.length, 'First date:', performanceData?.[0]?.report_date, 'Last date:', performanceData?.[performanceData?.length - 1]?.report_date);
 
       const normalizedPerformance = normalizePerformanceRecords(performanceData);
       setRawPerformance(normalizedPerformance);
@@ -190,8 +213,8 @@ const PerformanceLeaderboard = () => {
       const userStats = {};
       
       normalizedPerformance.forEach(record => {
-        if (!record.profiles || !record.profiles.yard_system_id) {
-          // Skip users without yard_system_id
+        // Validate record data
+        if (!record.profiles || !record.profiles.yard_system_id || !record.user_id) {
           return;
         }
 
@@ -219,19 +242,21 @@ const PerformanceLeaderboard = () => {
         userStats[userId].daysWorked += 1;
       });
 
-      // Convert to array and calculate weighted averages
-      const leaderboard = Object.values(userStats).map(user => ({
-        ...user,
-        avgCollectTime: user.totalMoves > 0
-          ? secondsToTime(Math.round(user.totalCollectSeconds / user.totalMoves))
-          : '0:00',
-        avgTravelTime: user.totalMoves > 0
-          ? secondsToTime(Math.round(user.totalTravelSeconds / user.totalMoves))
-          : '0:00',
-        avgCollectSeconds: user.totalMoves > 0
-          ? Math.round(user.totalCollectSeconds / user.totalMoves)
-          : 0
-      }));
+      // Convert to array and calculate weighted averages with safety checks
+      const leaderboard = Object.values(userStats)
+        .filter(user => user.userId && user.yardSystemId) // Ensure valid users
+        .map(user => ({
+          ...user,
+          avgCollectTime: user.totalMoves > 0
+            ? secondsToTime(Math.round(user.totalCollectSeconds / user.totalMoves))
+            : '0:00',
+          avgTravelTime: user.totalMoves > 0
+            ? secondsToTime(Math.round(user.totalTravelSeconds / user.totalMoves))
+            : '0:00',
+          avgCollectSeconds: user.totalMoves > 0
+            ? Math.round(user.totalCollectSeconds / user.totalMoves)
+            : 0
+        }));
 
       // Sort by total moves (descending), then by avg collect time (ascending)
       leaderboard.forEach(user => {
@@ -312,16 +337,6 @@ const PerformanceLeaderboard = () => {
       }
 
       const aggregate = (records) => {
-        // Debug: log first record to see data structure
-        if (records.length > 0) {
-          console.log('[MyStats] First record sample:', {
-            report_date: records[0].report_date,
-            number_of_moves: records[0].number_of_moves,
-            avg_time_to_collect: records[0].avg_time_to_collect,
-            avg_time_to_travel: records[0].avg_time_to_travel,
-          });
-        }
-        
         const result = records.reduce(
           (acc, record) => {
             const moves = record.number_of_moves || 0;
@@ -335,7 +350,6 @@ const PerformanceLeaderboard = () => {
           },
           { moves: 0, collectSeconds: 0, travelSeconds: 0, fullLocations: 0 }
         );
-        console.log('[MyStats] Aggregated:', result, 'from', records.length, 'records');
         return result;
       };
 
@@ -463,9 +477,17 @@ const PerformanceLeaderboard = () => {
     return sortedEntries.slice(-rangeLimit);
   }, [rawPerformance, selectedRange]);
 
-  const toggleExpandedUser = (userId) => {
+  const toggleExpandedUser = useCallback((userId) => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
-  };
+  }, []);
+
+  // Memoize ranked data to avoid recalculation on every render
+  const rankedLeaderboardData = useMemo(() => {
+    return leaderboardData.map((user, index) => ({
+      ...user,
+      rank: index + 1
+    }));
+  }, [leaderboardData]);
 
   const getRankBadge = (rank) => {
     return (
@@ -583,9 +605,9 @@ const PerformanceLeaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-offwhite pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20">
       {/* Sticky Badge Header (jak w My Rota) */}
-      <div className="sticky top-0 z-20 border-b border-gray-300 pt-safe" style={{ background: 'linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #CBD5E1 100%)' }}>
+      <div className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -716,11 +738,17 @@ const PerformanceLeaderboard = () => {
             <div className="p-4 space-y-4 overflow-y-auto bg-gradient-to-b from-blue-50 to-purple-50">
               {myStatsLoading ? (
                 <motion.div 
-                  className="flex justify-center py-10"
+                  className="space-y-4 animate-pulse py-4"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <div className="h-10 w-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                  {/* Stats cards skeleton */}
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-lg p-4 space-y-2">
+                      <div className="h-4 bg-slate-200 rounded w-32" />
+                      <div className="h-8 bg-slate-300 rounded w-24" />
+                    </div>
+                  ))}
                 </motion.div>
               ) : myStatsError ? (
                 <motion.div
@@ -895,8 +923,42 @@ const PerformanceLeaderboard = () => {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-4 md:py-6">
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>
+          <div className="space-y-4 animate-pulse">
+            {/* Team Overview Skeleton */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
+              <div className="flex justify-between items-center mb-4">
+                <div className="h-6 bg-slate-300 rounded w-40" />
+                <div className="h-8 w-8 bg-slate-300 rounded-full" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-100 rounded-lg p-4">
+                  <div className="h-4 bg-slate-300 rounded w-24 mb-2" />
+                  <div className="h-8 bg-slate-300 rounded w-16" />
+                </div>
+                <div className="bg-slate-100 rounded-lg p-4">
+                  <div className="h-4 bg-slate-300 rounded w-28 mb-2" />
+                  <div className="h-8 bg-slate-300 rounded w-20" />
+                </div>
+                <div className="bg-slate-100 rounded-lg p-4">
+                  <div className="h-4 bg-slate-300 rounded w-32 mb-2" />
+                  <div className="h-8 bg-slate-300 rounded w-20" />
+                </div>
+              </div>
+            </div>
+
+            {/* Leaderboard Items Skeleton */}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-lg p-4 border-2 border-slate-200">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-300 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 bg-slate-300 rounded w-40" />
+                    <div className="h-4 bg-slate-200 rounded w-60" />
+                  </div>
+                  <div className="h-8 w-8 bg-slate-300 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : leaderboardData.length === 0 ? (
           <div className="text-center py-20">
@@ -912,8 +974,8 @@ const PerformanceLeaderboard = () => {
                 layout
                 className={`overflow-hidden shadow-lg cursor-pointer ${
                   teamOverviewExpanded 
-                    ? 'rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 border-2 border-orange-200' 
-                    : 'rounded-full bg-gradient-to-r from-orange-400 to-orange-300'
+                    ? 'rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 border-2 border-slate-300' 
+                    : 'rounded-full bg-gradient-to-r from-slate-400 to-slate-300'
                 }`}
                 onClick={() => setTeamOverviewExpanded(!teamOverviewExpanded)}
                 whileTap={{ scale: teamOverviewExpanded ? 0.99 : 0.95 }}
@@ -929,7 +991,7 @@ const PerformanceLeaderboard = () => {
                       📊
                     </motion.span>
                     <div>
-                      <motion.p layout className="text-charcoal font-bold text-sm">
+                      <motion.p layout className={`font-bold text-sm ${teamOverviewExpanded ? 'text-charcoal' : 'text-white'}`}>
                         Team Overview
                       </motion.p>
                       {!teamOverviewExpanded && (
@@ -937,7 +999,7 @@ const PerformanceLeaderboard = () => {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="text-gray-700 text-xs"
+                          className="text-white text-xs"
                         >
                           {leaderboardData.length} active shunters
                         </motion.p>
@@ -945,7 +1007,7 @@ const PerformanceLeaderboard = () => {
                     </div>
                   </div>
                   <motion.svg 
-                    className="w-5 h-5 text-charcoal flex-shrink-0" 
+                    className={`w-5 h-5 flex-shrink-0 ${teamOverviewExpanded ? 'text-charcoal' : 'text-white'}`} 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -967,24 +1029,24 @@ const PerformanceLeaderboard = () => {
                       className="overflow-hidden"
                     >
                       <div className="px-4 pb-4 space-y-2 pointer-events-none">
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Active shunters</span>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                          <span className="text-sm text-slate-700">Active shunters</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.activeShunters}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Total moves</span>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                          <span className="text-sm text-slate-700">Total moves</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.totalMoves.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Avg moves / day</span>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                          <span className="text-sm text-slate-700">Avg moves / day</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-orange-200">
-                          <span className="text-sm text-gray-700">Total full locations</span>
+                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                          <span className="text-sm text-slate-700">Total full locations</span>
                           <span className="text-lg font-bold text-charcoal">{teamHighlights.totalFullLocations.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between py-2">
-                          <span className="text-sm text-gray-700">Top performer</span>
+                          <span className="text-sm text-slate-700">Top performer</span>
                           <span className="text-lg font-bold text-charcoal">
                             {leaderboardData[0] ? formatShunterName(leaderboardData[0]) : '—'}
                           </span>
@@ -1009,16 +1071,15 @@ const PerformanceLeaderboard = () => {
               </div>
               <div className="space-y-3">
                 {/* Floating Cards - Unified Design */}
-                {leaderboardData.map((user, index) => {
-                  const rank = index + 1;
+                {rankedLeaderboardData.map((user) => {
                   const isExpanded = expandedUserId === user.userId;
-                  const cardBgClass = getRowBackgroundClass(rank);
+                  const cardBgClass = getRowBackgroundClass(user.rank);
                   return (
                     <motion.div
                       key={user.userId}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.03 }}
+                      transition={{ duration: 0.3, delay: user.rank * 0.03 }}
                       whileHover={{ y: -2, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => toggleExpandedUser(user.userId)}
@@ -1027,7 +1088,7 @@ const PerformanceLeaderboard = () => {
                       {/* Header Row */}
                       <div className="flex items-center gap-3">
                         <div className="scale-90">
-                          {getRankBadge(rank)}
+                          {getRankBadge(user.rank)}
                         </div>
                         {user.avatarUrl ? (
                           <img

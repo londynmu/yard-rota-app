@@ -266,9 +266,49 @@ export default function AdminPage() {
   // Użyj pageLoading do głównego wskaźnika ładowania
   if (pageLoading) {
     return (
-        <div className="min-h-screen flex justify-center items-center bg-offwhite">
-            <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-black"></div>
-        </div>
+      <div className="min-h-screen bg-offwhite flex animate-pulse">
+        {/* Sidebar skeleton */}
+        <aside className="w-16 md:w-64 bg-slate-700 border-r border-slate-600 flex-shrink-0">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2">
+                <div className="w-8 h-8 bg-slate-600 rounded-lg" />
+                <div className="hidden md:block h-4 bg-slate-600 rounded flex-1" />
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        {/* Main content skeleton */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header skeleton */}
+            <div className="h-8 bg-slate-300 rounded w-48 mb-6" />
+            
+            {/* Stats cards skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
+                  <div className="h-4 bg-slate-300 rounded w-32 mb-4" />
+                  <div className="h-10 bg-slate-300 rounded w-20" />
+                </div>
+              ))}
+            </div>
+
+            {/* Content cards skeleton */}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
+                <div className="h-6 bg-slate-300 rounded w-40 mb-4" />
+                <div className="space-y-3">
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-5/6" />
+                  <div className="h-4 bg-slate-200 rounded w-4/6" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
     );
   }
   

@@ -435,14 +435,14 @@ const WeeklyRotaPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-slate-50">
         {/* Navigation skeleton */}
-        <div className="bg-white sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+        <div className="sticky top-0 z-20 bg-slate-200 border-b border-gray-300 pt-safe">
           <div className="container mx-auto px-4 py-3 md:py-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
-              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
-              <div className="h-8 bg-gray-300 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
             </div>
           </div>
         </div>
@@ -461,7 +461,7 @@ const WeeklyRotaPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="bg-white p-6 rounded-xl border-2 border-gray-300 max-w-md shadow-xl">
           <h3 className="text-xl font-semibold mb-4 flex items-center text-charcoal">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
@@ -487,9 +487,9 @@ const WeeklyRotaPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Week Navigation - Same style as Breaks */}
-      <div id="weekly-top-nav" className="sticky top-0 z-20 border-b border-gray-300 pt-safe" style={{ background: 'linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #CBD5E1 100%)' }}>
+      <div id="weekly-top-nav" className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Week Button */}

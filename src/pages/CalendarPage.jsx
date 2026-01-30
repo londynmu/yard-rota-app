@@ -163,7 +163,7 @@ export default function CalendarPage() {
       )}
       
       {/* Main scrollable container */}
-      <div className="h-full overflow-y-auto bg-offwhite px-4 py-6 md:px-6 pb-20 md:pb-6">
+      <div className="h-full overflow-y-auto bg-slate-50 px-4 py-6 md:px-6 pb-20 md:pb-6">
         <div className="max-w-4xl mx-auto space-y-6 min-h-screen">
           
           {/* Availability Calendar Section - No white container */}
