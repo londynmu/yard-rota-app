@@ -73,19 +73,25 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
   
-  /* Bottom navigation - always white with black icons */
+  /* Bottom navigation - CLOUD GRAY style */
   .bottom-nav-adaptive {
-    background-color: #FFFFFF;
-    border-top-color: #E5E7EB;
+    background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #CBD5E1 100%);
+    /* white → slate-200 → slate-300 */
+    border-top-color: #94A3B8;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   }
   
-  /* Bottom nav icons - always black (except active = orange) */
+  /* Bottom nav icons - średni szary nieaktywne */
   .bottom-nav-icon {
-    color: #000000;
+    color: #475569; /* slate-600 */
+    transition: all 0.2s ease;
   }
   
+  /* Bottom nav icons - aktywne ciemny szary */
   .bottom-nav-icon.active {
-    color: #EA580C;
+    color: #1E293B; /* slate-800 */
+    background-color: #F1F5F9; /* slate-100 - jasne tło */
+    border-radius: 0.75rem;
   }
   
   /* Fade in animation for sidebar */

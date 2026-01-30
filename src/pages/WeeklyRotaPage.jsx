@@ -489,13 +489,13 @@ const WeeklyRotaPage = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Week Navigation - Same style as Breaks */}
-      <div id="weekly-top-nav" className="bg-gray-100 sticky top-0 z-20 border-b border-gray-300 shadow-md pt-safe">
+      <div id="weekly-top-nav" className="sticky top-0 z-20 border-b border-gray-300 pt-safe" style={{ background: 'linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #CBD5E1 100%)' }}>
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Week Button */}
             <button
               onClick={() => setShowWeekModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               Week {getWeek(weekStart)}
             </button>
@@ -503,7 +503,7 @@ const WeeklyRotaPage = () => {
             {/* Location Button */}
             <button
               onClick={() => setShowLocationModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedLocation || 'Hub'}
             </button>
@@ -511,7 +511,7 @@ const WeeklyRotaPage = () => {
             {/* Shift Button */}
             <button
               onClick={() => setShowShiftModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-gray-900 bg-white text-charcoal text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedShiftType === 'all' ? 'All'
                 : selectedShiftType === 'day' ? 'Day'

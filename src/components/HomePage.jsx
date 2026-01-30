@@ -207,11 +207,13 @@ export default function HomePage() {
           path === '/calendar' ||
           path === '/performance';
         const isAdminPage = path === '/admin';
+        const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
+        const borderClass = hasFilterButtons ? 'border-b border-slate-300 md:border-b-0' : 'border-b border-slate-300';
 
         return (
-          <header className={`bg-white shadow-sm border-b border-gray-200 ${isAdminPage ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <header className={`${borderClass} ${isAdminPage ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)', background: 'linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 50%, #CBD5E1 100%)' }}>
             <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
               {/* Tytuł strony - zawsze widoczny */}
               <div className="flex items-center gap-3">
@@ -219,46 +221,46 @@ export default function HomePage() {
                 {isAdminPage && (
                   <button
                     onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
-                    className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Open menu"
                   >
-                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   </button>
                 )}
-                <h1 className="text-xl font-semibold text-charcoal" id="page-title">{pageTitle}</h1>
+                <h1 className="text-xl font-semibold text-slate-900" id="page-title">{pageTitle}</h1>
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Nawigacja - jednakowe rozmiary na wszystkich stronach */}
+                {/* Nawigacja - CLOUD GRAY style */}
                 <nav className="hidden md:flex space-x-2">
                   <Link
                     to="/calendar"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                       location.pathname === '/calendar' 
-                        ? 'bg-black text-white' 
-                        : 'text-charcoal hover:bg-gray-100'
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                     }`}
                   >
                     Main Page
                   </Link>
                   <Link
                     to="/my-rota"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                       location.pathname === '/my-rota' 
-                        ? 'bg-black text-white' 
-                        : 'text-charcoal hover:bg-gray-100'
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                     }`}
                   >
                     My Rota
                   </Link>
                   <Link
                     to="/performance"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                       location.pathname === '/performance' 
-                        ? 'bg-black text-white' 
-                        : 'text-charcoal hover:bg-gray-100'
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                     }`}
                   >
                     Performance
@@ -266,10 +268,10 @@ export default function HomePage() {
                   {isAdmin && (
                     <Link
                       to="/admin"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                         location.pathname === '/admin' 
-                          ? 'bg-black text-white' 
-                          : 'text-charcoal hover:bg-gray-100'
+                          ? 'bg-slate-100 text-slate-800' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                       }`}
                     >
                       Admin Panel
@@ -287,7 +289,7 @@ export default function HomePage() {
                     aria-label="User menu"
                     aria-haspopup="true"
                   >
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 shadow-sm bg-gray-200 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
                       {avatarUrl && (
                         <img 
                           src={avatarUrl} 
@@ -297,8 +299,8 @@ export default function HomePage() {
                         />
                       )}
                       {(!avatarUrl || !avatarLoaded) && (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                          <span className="text-charcoal font-medium text-sm">
+                        <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                          <span className="text-slate-700 font-medium text-sm">
                             {user?.email?.charAt(0).toUpperCase() || '?'}
                           </span>
                         </div>
