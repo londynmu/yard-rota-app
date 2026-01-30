@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
@@ -38,11 +38,13 @@ const WeeklyRotaPage = () => {
     // If closing expanded day (null), scroll to top
     if (!expandedDayMobile) {
       const timer = setTimeout(() => {
-        try {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+        requestAnimationFrame(() => {
+          try {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch {
+            window.scrollTo(0, 0);
+          }
+        });
       }, 360);
       return () => clearTimeout(timer);
     }
@@ -54,20 +56,22 @@ const WeeklyRotaPage = () => {
     const nav = document.getElementById('weekly-top-nav');
     const headerHeight = nav ? nav.getBoundingClientRect().height : 64;
     const scrollToTarget = () => {
-      const rect = el.getBoundingClientRect();
-      const extraGap = 8;
-      const targetY = Math.max(0, window.scrollY + rect.top - headerHeight - extraGap);
-      try {
-        window.scrollTo({ top: targetY, behavior: 'smooth' });
-      } catch {
-        window.scrollTo(0, targetY);
-      }
+      requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const extraGap = 8;
+        const targetY = Math.max(0, window.scrollY + rect.top - headerHeight - extraGap);
+        try {
+          window.scrollTo({ top: targetY, behavior: 'smooth' });
+        } catch {
+          window.scrollTo(0, targetY);
+        }
+      });
     };
     const timer = setTimeout(scrollToTarget, 360);
     return () => clearTimeout(timer);
   }, [expandedDayMobile]);
 
-  // Fetch available locations from database
+  // Fetch available locations from database - only once on mount
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -86,7 +90,7 @@ const WeeklyRotaPage = () => {
           const savedLocation = localStorage.getItem('weekly_rota_location');
           if (savedLocation && data.some(loc => loc.name === savedLocation)) {
             setSelectedLocation(savedLocation);
-          } else if (!selectedLocation || selectedLocation === 'Rugby') {
+          } else {
             setSelectedLocation(data[0].name);
           }
         } else {
@@ -109,17 +113,42 @@ const WeeklyRotaPage = () => {
     };
 
     fetchLocations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  // Save selected location when it changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem('weekly_rota_location', selectedLocation);
+    }, 100);
+    return () => clearTimeout(timer);
   }, [selectedLocation]);
 
-  // Save selected location when it changes
+  // Save selected shift type when it changes (debounced)
   useEffect(() => {
-    localStorage.setItem('weekly_rota_location', selectedLocation);
-  }, [selectedLocation]);
-
-  // Save selected shift type when it changes
-  useEffect(() => {
-    localStorage.setItem('weekly_rota_shift_type', selectedShiftType);
+    const timer = setTimeout(() => {
+      localStorage.setItem('weekly_rota_shift_type', selectedShiftType);
+    }, 100);
+    return () => clearTimeout(timer);
   }, [selectedShiftType]);
+
+  // Memoized sort function to avoid recreating it on every render
+  const sortSlots = useCallback((slots) => {
+    return slots.sort((a, b) => {
+      // First sort by start_time
+      const startTimeCompare = a.start_time.localeCompare(b.start_time);
+      if (startTimeCompare !== 0) return startTimeCompare;
+      
+      // If start_times are equal, sort by end_time
+      const endTimeCompare = a.end_time.localeCompare(b.end_time);
+      if (endTimeCompare !== 0) return endTimeCompare;
+      
+      // If both times are equal, sort alphabetically by name
+      const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
+      const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
+      return aName.localeCompare(bName);
+    });
+  }, []);
 
   useEffect(() => {
     const fetchFullRota = async () => {
@@ -199,25 +228,9 @@ const WeeklyRotaPage = () => {
           grouped[slot.date].push(slot);
         });
         
-        // Sort slots within each day with multiple sort criteria:
-        // 1. By start_time (earliest first)
-        // 2. By end_time (earliest first) if start_times are equal
-        // 3. Alphabetically by name if both times are equal
+        // Sort slots within each day - using callback to avoid recreation
         for (const date in grouped) {
-          grouped[date].sort((a, b) => {
-            // First sort by start_time
-            const startTimeCompare = a.start_time.localeCompare(b.start_time);
-            if (startTimeCompare !== 0) return startTimeCompare;
-            
-            // If start_times are equal, sort by end_time
-            const endTimeCompare = a.end_time.localeCompare(b.end_time);
-            if (endTimeCompare !== 0) return endTimeCompare;
-            
-            // If both times are equal, sort alphabetically by name
-            const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
-            const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
-            return aName.localeCompare(bName);
-          });
+          sortSlots(grouped[date]);
         }
         
         setDailyRotaData(grouped);
@@ -230,36 +243,67 @@ const WeeklyRotaPage = () => {
     };
 
     fetchFullRota();
-  }, [weekStart, user, selectedLocation, selectedShiftType]);
+  }, [weekStart, user, selectedLocation, selectedShiftType, sortSlots]);
 
-  // Format time from HH:MM:SS to HH:MM
-  const fmtTime = (t) => (t ? t.slice(0, 5) : '');
+  // Format time from HH:MM:SS to HH:MM - memoized
+  const fmtTime = useCallback((t) => (t ? t.slice(0, 5) : ''), []);
 
-  // Component to render the details for an expanded day
-  const DayDetails = ({ dateStr }) => {
-    const daySlots = (dailyRotaData[dateStr] || []).filter(slot => slot.profiles);
+  // Memoized handlers for modals
+  const handlePreviousWeek = useCallback(() => {
+    setWeekStart(prev => addDays(prev, -7));
+    setShowWeekModal(false);
+  }, []);
+
+  const handleCurrentWeek = useCallback(() => {
+    setWeekStart(getWeekStart(new Date()));
+    setShowWeekModal(false);
+  }, []);
+
+  const handleNextWeek = useCallback(() => {
+    setWeekStart(prev => addDays(prev, 7));
+    setShowWeekModal(false);
+  }, []);
+
+  const handleLocationChange = useCallback((locationName) => {
+    setSelectedLocation(locationName);
+    setShowLocationModal(false);
+  }, []);
+
+  const handleShiftTypeChange = useCallback((shiftType) => {
+    setSelectedShiftType(shiftType);
+    setShowShiftModal(false);
+  }, []);
+
+  // Component to render the details for an expanded day - Memoized for performance
+  const DayDetails = React.memo(({ dateStr }) => {
+    const daySlots = useMemo(() => 
+      (dailyRotaData[dateStr] || []).filter(slot => slot.profiles),
+      [dateStr]
+    );
     
-    // Apply sorting function to ensure employees are properly sorted
-    const sortedSlots = [...daySlots].sort((a, b) => {
-      // First sort by start_time
-      const startTimeCompare = a.start_time.localeCompare(b.start_time);
-      if (startTimeCompare !== 0) return startTimeCompare;
-      
-      // If start_times are equal, sort by end_time
-      const endTimeCompare = a.end_time.localeCompare(b.end_time);
-      if (endTimeCompare !== 0) return endTimeCompare;
-      
-      // If both times are equal, sort alphabetically by name
-      const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
-      const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
-      return aName.localeCompare(bName);
-    });
+    // Memoize sorted slots to avoid re-sorting on every render
+    const sortedSlots = useMemo(() => {
+      return [...daySlots].sort((a, b) => {
+        // First sort by start_time
+        const startTimeCompare = a.start_time.localeCompare(b.start_time);
+        if (startTimeCompare !== 0) return startTimeCompare;
+        
+        // If start_times are equal, sort by end_time
+        const endTimeCompare = a.end_time.localeCompare(b.end_time);
+        if (endTimeCompare !== 0) return endTimeCompare;
+        
+        // If both times are equal, sort alphabetically by name
+        const aName = a.profiles ? `${a.profiles.first_name} ${a.profiles.last_name}` : '';
+        const bName = b.profiles ? `${b.profiles.first_name} ${b.profiles.last_name}` : '';
+        return aName.localeCompare(bName);
+      });
+    }, [daySlots]);
     
-    const slotsByShiftType = {
+    const slotsByShiftType = useMemo(() => ({
       day: sortedSlots.filter(s => s.shift_type === 'day'),
       afternoon: sortedSlots.filter(s => s.shift_type === 'afternoon'),
       night: sortedSlots.filter(s => s.shift_type === 'night')
-    };
+    }), [sortedSlots]);
 
     if (daySlots.length === 0) {
       return (
@@ -310,18 +354,22 @@ const WeeklyRotaPage = () => {
 
           const config = shiftConfig[shiftType];
           
-          // Group slots by start time
-          const slotsByStartTime = {};
-          slots.forEach(slot => {
-            const startTime = fmtTime(slot.start_time);
-            if (!slotsByStartTime[startTime]) {
-              slotsByStartTime[startTime] = [];
-            }
-            slotsByStartTime[startTime].push(slot);
-          });
-          
-          // Sort start times
-          const sortedStartTimes = Object.keys(slotsByStartTime).sort();
+          // Group slots by start time - memoized
+          const { slotsByStartTime, sortedStartTimes } = useMemo(() => {
+            const grouped = {};
+            slots.forEach(slot => {
+              const startTime = fmtTime(slot.start_time);
+              if (!grouped[startTime]) {
+                grouped[startTime] = [];
+              }
+              grouped[startTime].push(slot);
+            });
+            
+            return {
+              slotsByStartTime: grouped,
+              sortedStartTimes: Object.keys(grouped).sort()
+            };
+          }, [slots]);
           
           return (
             <div key={shiftType} className="mt-3 first:mt-0">
@@ -390,10 +438,188 @@ const WeeklyRotaPage = () => {
         })}
       </div>
     );
-  };
+  });
 
+  DayDetails.displayName = 'DayDetails';
   DayDetails.propTypes = {
     dateStr: PropTypes.string.isRequired,
+  };
+
+  // Memoized Day Card Component
+  const DayCard = React.memo(({ 
+    dateObj, 
+    dateStr, 
+    isWeekend, 
+    isToday, 
+    dayData, 
+    userHasShift, 
+    isExpanded,
+    onHeaderClick,
+    setRef
+  }) => {
+    return (
+      <div
+        key={dateStr}
+        className={`
+          bg-white
+          rounded-xl 
+          shadow-lg
+          overflow-hidden
+          border-2 border-gray-300
+          ${isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''} 
+          ${isWeekend ? 'bg-gray-50' : ''}
+          ${userHasShift ? 'border-l-4 border-l-orange-600' : ''}
+          relative
+          scroll-mt-28 md:scroll-mt-32
+          transition-all hover:shadow-xl
+        `}
+        ref={setRef}
+      >
+        {/* Day Header - Sticky on mobile */}
+        <div 
+          className={`
+            relative
+            p-3 md:p-2
+            border-b-2 border-gray-300
+            bg-gray-100
+            cursor-pointer
+            flex items-center justify-between
+            sticky top-0 z-10
+            ${userHasShift ? 'bg-orange-50' : ''}
+            ${isToday ? 'bg-orange-100' : ''}
+          `}
+          onClick={onHeaderClick}
+        >
+          {/* Left side: Date circle + Day name */}
+          <div className="flex items-center space-x-3 md:space-x-2">
+            <div className={`
+              w-11 h-11 md:w-9 md:h-9
+              rounded-full 
+              flex-shrink-0 
+              flex flex-col items-center justify-center
+              border-2 border-gray-400
+              ${isToday ? 'bg-orange-600 border-orange-700 shadow-md' : 'bg-white'}
+            `}>
+              <span className={`text-base md:text-sm font-extrabold leading-none ${isToday ? '!text-white' : 'text-charcoal'}`}>{format(dateObj, 'dd')}</span>
+              <span className={`text-[8px] ${isToday ? '!text-white !opacity-90' : 'text-charcoal opacity-70'}`}>{format(dateObj, 'MMM')}</span>
+            </div>
+            
+            <h3 className="text-base md:text-sm font-bold text-charcoal leading-tight">
+              {format(dateObj, 'EEEE')}
+            </h3>
+          </div>
+          
+          {/* Right side: Shift badges stacked vertically + Expand button */}
+          <div className="flex items-center gap-2">
+            {/* Shift count badges - stacked vertically */}
+            {dayData.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                {(() => {
+                  // Filter out shifts without assigned profiles (like deleted users)
+                  const filteredDayData = dayData.filter(slot => slot.profiles);
+                  
+                  const shiftCounts = {
+                    day: filteredDayData.filter(s => s.shift_type === 'day').length,
+                    afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
+                    night: filteredDayData.filter(s => s.shift_type === 'night').length
+                  };
+                  
+                  return (
+                    <>
+                      {shiftCounts.day > 0 && (
+                        <span
+                          className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                          </svg>
+                          {shiftCounts.day}
+                        </span>
+                      )}
+                      
+                      {shiftCounts.afternoon > 0 && (
+                        <span
+                          className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                          </svg>
+                          {shiftCounts.afternoon}
+                        </span>
+                      )}
+                      
+                      {shiftCounts.night > 0 && (
+                        <span
+                          className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                          </svg>
+                          {shiftCounts.night}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            ) : null}
+            
+            {/* Expand/Collapse button - only on mobile */}
+            <div className="md:hidden">
+              <div
+                className={`
+                  w-8 h-8 
+                  flex items-center justify-center 
+                  rounded-full 
+                  bg-white
+                  border-2 border-gray-400
+                  transition-colors 
+                  hover:bg-gray-100
+                  shadow-sm
+                `}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Mobile: Conditionally visible details area with transition */}
+        {isExpanded && (
+          <div className="overflow-auto md:hidden transition-all duration-200">
+            <div className="p-3">
+              <DayDetails dateStr={dateStr} />
+            </div>
+          </div>
+        )}
+
+        {/* Desktop: Always visible details area */}
+        <div className="hidden md:block p-3 md:p-2">
+          <DayDetails dateStr={dateStr} />
+        </div>
+      </div>
+    );
+  });
+
+  DayCard.displayName = 'DayCard';
+  DayCard.propTypes = {
+    dateObj: PropTypes.instanceOf(Date).isRequired,
+    dateStr: PropTypes.string.isRequired,
+    isWeekend: PropTypes.bool.isRequired,
+    isToday: PropTypes.bool.isRequired,
+    dayData: PropTypes.array.isRequired,
+    userHasShift: PropTypes.bool.isRequired,
+    isExpanded: PropTypes.bool.isRequired,
+    onHeaderClick: PropTypes.func.isRequired,
+    setRef: PropTypes.func.isRequired,
   };
 
   // Skeleton loading component
@@ -549,154 +775,18 @@ const WeeklyRotaPage = () => {
             };
             
             return (
-              <div
+              <DayCard
                 key={dateStr}
-                className={`
-                  bg-white
-                  rounded-xl 
-                  shadow-lg
-                  overflow-hidden
-                  border-2 border-gray-300
-                  ${isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''} 
-                  ${isWeekend ? 'bg-gray-50' : ''}
-                  ${userHasShift ? 'border-l-4 border-l-orange-600' : ''}
-                  relative
-                  scroll-mt-28 md:scroll-mt-32
-                  transition-all hover:shadow-xl
-                `}
-                ref={(el) => { dayRefs.current[dateStr] = el; }}
-              >
-                {/* Day Header - Sticky on mobile */}
-                <div 
-                  className={`
-                    relative
-                    p-3 md:p-2
-                    border-b-2 border-gray-300
-                    bg-gray-100
-                    cursor-pointer
-                    flex items-center justify-between
-                    sticky top-0 z-10
-                    ${userHasShift ? 'bg-orange-50' : ''}
-                    ${isToday ? 'bg-orange-100' : ''}
-                  `}
-                  onClick={handleHeaderClick}
-                >
-                  {/* Left side: Date circle + Day name */}
-                  <div className="flex items-center space-x-3 md:space-x-2">
-                    <div className={`
-                      w-11 h-11 md:w-9 md:h-9
-                      rounded-full 
-                      flex-shrink-0 
-                      flex flex-col items-center justify-center
-                      border-2 border-gray-400
-                      ${isToday ? 'bg-orange-600 border-orange-700 shadow-md' : 'bg-white'}
-                    `}>
-                      <span className={`text-base md:text-sm font-extrabold leading-none ${isToday ? '!text-white' : 'text-charcoal'}`}>{format(dateObj, 'dd')}</span>
-                      <span className={`text-[8px] ${isToday ? '!text-white !opacity-90' : 'text-charcoal opacity-70'}`}>{format(dateObj, 'MMM')}</span>
-                    </div>
-                    
-                    <h3 className="text-base md:text-sm font-bold text-charcoal leading-tight">
-                      {format(dateObj, 'EEEE')}
-                    </h3>
-                  </div>
-                  
-                  {/* Right side: Shift badges stacked vertically + Expand button */}
-                  <div className="flex items-center gap-2">
-                    {/* Shift count badges - stacked vertically */}
-                    {dayData.length > 0 ? (
-                      <div className="flex flex-col gap-1">
-                        {(() => {
-                          // Filter out shifts without assigned profiles (like deleted users)
-                          const filteredDayData = dayData.filter(slot => slot.profiles);
-                          
-                          const shiftCounts = {
-                            day: filteredDayData.filter(s => s.shift_type === 'day').length,
-                            afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
-                            night: filteredDayData.filter(s => s.shift_type === 'night').length
-                          };
-                          
-                          return (
-                            <>
-                              {shiftCounts.day > 0 && (
-                                <span
-                                  className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                                  </svg>
-                                  {shiftCounts.day}
-                                </span>
-                              )}
-                              
-                              {shiftCounts.afternoon > 0 && (
-                                <span
-                                  className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                                  </svg>
-                                  {shiftCounts.afternoon}
-                                </span>
-                              )}
-                              
-                              {shiftCounts.night > 0 && (
-                                <span
-                                  className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                                  </svg>
-                                  {shiftCounts.night}
-                                </span>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    ) : null}
-                    
-                    {/* Expand/Collapse button - only on mobile */}
-                    <div className="md:hidden">
-                      <div
-                        className={`
-                          w-8 h-8 
-                          flex items-center justify-center 
-                          rounded-full 
-                          bg-white
-                          border-2 border-gray-400
-                          transition-colors 
-                          hover:bg-gray-100
-                          shadow-sm
-                        `}
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Mobile: Conditionally visible details area with transition */}
-                {isExpanded && (
-                  <div className="overflow-auto md:hidden transition-all duration-200">
-                    <div className="p-3">
-                      <DayDetails dateStr={dateStr} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Desktop: Always visible details area */}
-                <div className="hidden md:block p-3 md:p-2">
-                  <DayDetails dateStr={dateStr} />
-                </div>
-              </div>
+                dateObj={dateObj}
+                dateStr={dateStr}
+                isWeekend={isWeekend}
+                isToday={isToday}
+                dayData={dayData}
+                userHasShift={userHasShift}
+                isExpanded={isExpanded}
+                onHeaderClick={handleHeaderClick}
+                setRef={(el) => { dayRefs.current[dateStr] = el; }}
+              />
             );
           })}
         </div>
@@ -719,28 +809,19 @@ const WeeklyRotaPage = () => {
             </div>
             <div className="space-y-2">
               <button
-                onClick={() => {
-                  setWeekStart(addDays(weekStart, -7));
-                  setShowWeekModal(false);
-                }}
+                onClick={handlePreviousWeek}
                 className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
               >
                 Previous Week
               </button>
               <button
-                onClick={() => {
-                  setWeekStart(getWeekStart(new Date()));
-                  setShowWeekModal(false);
-                }}
+                onClick={handleCurrentWeek}
                 className="w-full px-4 py-3 rounded-lg text-white bg-orange-600 hover:bg-orange-700 font-semibold border-2 border-orange-700 transition-colors"
               >
                 Current Week
               </button>
               <button
-                onClick={() => {
-                  setWeekStart(addDays(weekStart, 7));
-                  setShowWeekModal(false);
-                }}
+                onClick={handleNextWeek}
                 className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
               >
                 Next Week
@@ -770,10 +851,7 @@ const WeeklyRotaPage = () => {
               {locations.map((loc) => (
                 <button
                   key={loc.id}
-                  onClick={() => {
-                    setSelectedLocation(loc.name);
-                    setShowLocationModal(false);
-                  }}
+                  onClick={() => handleLocationChange(loc.name)}
                   className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                     selectedLocation === loc.name
                       ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
@@ -806,10 +884,7 @@ const WeeklyRotaPage = () => {
             </div>
             <div className="space-y-2">
               <button
-                onClick={() => {
-                  setSelectedShiftType('all');
-                  setShowShiftModal(false);
-                }}
+                onClick={() => handleShiftTypeChange('all')}
                 className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'all'
                     ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
@@ -819,10 +894,7 @@ const WeeklyRotaPage = () => {
                 All Shifts
               </button>
               <button
-                onClick={() => {
-                  setSelectedShiftType('day');
-                  setShowShiftModal(false);
-                }}
+                onClick={() => handleShiftTypeChange('day')}
                 className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'day'
                     ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
@@ -832,10 +904,7 @@ const WeeklyRotaPage = () => {
                 Day
               </button>
               <button
-                onClick={() => {
-                  setSelectedShiftType('afternoon');
-                  setShowShiftModal(false);
-                }}
+                onClick={() => handleShiftTypeChange('afternoon')}
                 className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'afternoon'
                     ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
@@ -845,10 +914,7 @@ const WeeklyRotaPage = () => {
                 Afternoon
               </button>
               <button
-                onClick={() => {
-                  setSelectedShiftType('night');
-                  setShowShiftModal(false);
-                }}
+                onClick={() => handleShiftTypeChange('night')}
                 className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'night'
                     ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
