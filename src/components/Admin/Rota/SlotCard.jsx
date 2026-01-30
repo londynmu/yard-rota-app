@@ -48,14 +48,10 @@ const SlotCard = ({
 
   // Update isAvailable when slot status changes
   useEffect(() => {
-    console.log(`[SlotCard ${slot.id}] slot.status changed:`, slot.status);
     setIsAvailable(slot.status === 'available');
   }, [slot.status]);
-  
-  // Log slot status changes
-  useEffect(() => {
-    console.log(`[SlotCard ${slot.id}] Current status: slot.status=${slot.status}, isAvailable=${isAvailable}`);
-  }, [slot.status, isAvailable, slot.id]);
+
+  // Removed debug useEffect
 
   const formatTime = (timeString) => {
     return timeString.substring(0, 5); // HH:MM format

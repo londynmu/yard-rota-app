@@ -182,8 +182,6 @@ const RotaManager = () => {
         const { data, error } = await query;
 
         if (error) throw error;
-        
-        console.log("[RotaManager] Fetched slots:", data);
 
         // Group slots by user_id
         const slotsMap = new Map();
@@ -389,10 +387,8 @@ const RotaManager = () => {
   };
 
   const handleOpenEditModal = (slot) => {
-    console.log('[RotaManager] handleOpenEditModal called with slot:', slot);
     setSlotToEdit(slot);
     setShowEditModal(true);
-    console.log('[RotaManager] showEditModal should be true, slotToEdit set');
   };
 
   const handleUpdateSlot = async (slotId, updatedData) => {
@@ -524,13 +520,11 @@ const RotaManager = () => {
             // Parse slot times to minutes since midnight for easier comparison
             const newSlotStart = timeToMinutes(slotToAssign.start_time);
             const newSlotEnd = timeToMinutes(slotToAssign.end_time);
-            console.log(`[AssignCheck] Checking assignment for Employee ${employeeId}, New Slot: ${slotToAssign.start_time}-${slotToAssign.end_time} (${newSlotStart}-${newSlotEnd} mins)`);
             
             // Check against each existing slot
             for (const existingSlot of employeeSlots) {
               const existingStart = timeToMinutes(existingSlot.start_time);
               const existingEnd = timeToMinutes(existingSlot.end_time);
-              console.log(`[AssignCheck] Comparing with Existing Slot: ${existingSlot.start_time}-${existingSlot.end_time} (${existingStart}-${existingEnd} mins)`);
               
               // Normalize times for overnight shifts
               const normalizedNewEnd = newSlotEnd < newSlotStart ? newSlotEnd + 1440 : newSlotEnd;
@@ -539,8 +533,6 @@ const RotaManager = () => {
               // Standard overlap check using potentially normalized end times
               // Overlap exists if start of one is before end of other, AND vice-versa
               const overlapDetected = (newSlotStart < normalizedExistingEnd) && (existingStart < normalizedNewEnd);
-              console.log(`[AssignCheck] Normalized Times - New: ${newSlotStart}-${normalizedNewEnd}, Existing: ${existingStart}-${normalizedExistingEnd}`);
-              console.log(`[AssignCheck] Overlap Check Result: ${overlapDetected}`);
               
               // If slots overlap, prevent assignment
               if (overlapDetected) {
@@ -561,8 +553,6 @@ const RotaManager = () => {
               } else if (existingStart >= normalizedNewEnd) { // Existing slot starts after new ends
                 breakMinutes = existingStart - normalizedNewEnd;
               }
-              
-              console.log(`[AssignCheck] Calculated break (if > 0): ${breakMinutes} mins`);
 
               // Check if the calculated break is too short
               if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) {

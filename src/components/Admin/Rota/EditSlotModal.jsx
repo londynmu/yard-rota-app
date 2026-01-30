@@ -3,8 +3,6 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 
 const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, locations }) => {
-  console.log('[EditSlotModal] Rendering. Props received:', { isOpen, slot, locations });
-
   const [editedSlot, setEditedSlot] = useState({
     location: slot?.location || '',
     start_time: slot?.start_time || '09:00',
@@ -37,8 +35,6 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
   };
 
   const handleSave = async () => {
-    console.log('[EditSlotModal] handleSave called');
-    
     if (!editedSlot.location) {
       setError('Please select a location');
       return;

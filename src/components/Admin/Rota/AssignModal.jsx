@@ -212,8 +212,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           if (weeklyCountsError) {
             console.error('Error fetching weekly counts:', weeklyCountsError);
           } else {
-            console.log('Weekly data fetched:', weeklyCountsData?.length || 0, 'records');
-
             // Count shifts per user manually
             weeklyCountsData?.forEach(item => {
               if (item.user_id) {
@@ -225,8 +223,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
         } catch (err) {
           console.error('Weekly count calculation error:', err);
         }
-
-        console.log('Weekly counts calculated:', [...weeklyCountMap.entries()]);
 
         // Fetch availability for the day
         const date = slot.date;
@@ -393,12 +389,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             hasBreakTimeConflict,
             weeklyShifts: weeklyCountMap.get(profile.id) || 0
           };
-        });
-
-        // Log conflict flags before setting state
-        console.log('[AssignModal Check] Processed Employees with Conflict Flags:');
-        processedEmployees.forEach(emp => {
-          console.log(`- ${emp.first_name} ${emp.last_name}: Overlap=${emp.hasOverlappingConflict}, Break=${emp.hasBreakTimeConflict}`);
         });
 
         // Sort by match score (descending) and then by name

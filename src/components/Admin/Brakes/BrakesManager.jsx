@@ -178,7 +178,7 @@ const BrakesManager = () => {
     try {
       sessionStorage.setItem(getUnsavedFlagKey(), 'true');
     } catch (err) {
-      console.warn('[BrakesManager] Failed to mark assignments dirty:', err);
+      // Silent fail - not critical
     }
   }, [getUnsavedFlagKey]);
 
@@ -189,7 +189,7 @@ const BrakesManager = () => {
       sessionStorage.removeItem(sessionStorageKey);
       sessionStorage.removeItem(dirtyKey);
     } catch (err) {
-      console.warn('[BrakesManager] Failed to clear assignment cache:', err);
+      // Silent fail - not critical
     }
   }, [getSessionStorageKey, getUnsavedFlagKey]);
 
@@ -252,8 +252,6 @@ const BrakesManager = () => {
           console.error('Error fetching profiles:', error);
           return;
         }
-        
-        console.log('All profiles in system (for debugging):', allProfiles);
       } catch (err) {
         console.error('Error in fetchAllStaff:', err);
       }
@@ -265,7 +263,6 @@ const BrakesManager = () => {
   // --- Data Fetching ---
   const fetchBreakData = useCallback(async () => {
     if (!selectedDate || !selectedShift) return;
-    console.log(`[fetchBreakData] Starting fetch for Date: ${selectedDate}, Shift: ${selectedShift}`);
     setIsLoading(true);
     
     // Preserve locally added custom slots (not yet saved to DB)
@@ -325,7 +322,6 @@ const BrakesManager = () => {
         if (modifiedSlotsError) throw modifiedSlotsError;
   
         if (modifiedSlotsData && modifiedSlotsData.length > 0) {
-          console.log('[fetchBreakData] Fetched modified standard slot capacities:', modifiedSlotsData);
           modifiedSlotsData.forEach(mod => {
             if (mod.std_slot_id && mod.capacity !== null) {
               modifiedCapacities[mod.std_slot_id] = mod.capacity;
@@ -333,7 +329,7 @@ const BrakesManager = () => {
           });
         }
       } catch (modSlotsErr) {
-        console.warn("[fetchBreakData] Error fetching modified standard slot capacities:", modSlotsErr);
+        // Silent fail - will use default capacities
       }
   
       // Apply modified capacities to standard slots
@@ -363,7 +359,6 @@ const BrakesManager = () => {
           
         if (error) throw error;
         if (data && data.length > 0) {
-          console.log('[fetchBreakData] Fetched custom slot definitions:', data);
           // Custom slots are shared across all locations for the same date/shift
           customSlotsData = data.map(slot => ({
             id: slot.id,
@@ -375,7 +370,7 @@ const BrakesManager = () => {
           }));
         }
       } catch (customSlotError) {
-        console.warn("[fetchBreakData] Error fetching custom slot definitions:", customSlotError);
+        // Silent fail - will use only standard slots
       }
   
       // Combine standard, custom, and locally added slots
@@ -385,7 +380,6 @@ const BrakesManager = () => {
         ...localCustomSlots
       ], selectedShift);
       
-      console.log('[fetchBreakData] Combined all slots (standard + custom + local):', allSlots);
       setBreakSlots(allSlots);
       
       // Fetch existing break assignments or use saved session data
@@ -399,7 +393,6 @@ const BrakesManager = () => {
           if (locationFilter) {
             processedScheduled = processedScheduled.filter(assignment => assignment.location === locationFilter);
           }
-          console.log('[fetchBreakData] Loaded assignments from sessionStorage:', processedScheduled);
           setScheduledBreaks(processedScheduled);
         } catch (parseError) {
           console.error("[fetchBreakData] Error parsing sessionStorage assignments:", parseError);
@@ -427,14 +420,11 @@ const BrakesManager = () => {
           const { data: scheduledData, error: scheduledError } = await scheduledQuery;
           
           if (scheduledError) throw scheduledError;
-          
-          console.log('[fetchBreakData] Fetched existing assignments from DB:', scheduledData);
 
           // Process scheduled data to match to slots
           processedScheduled = scheduledData?.map(record => {
             if (!record.profiles) {
-               console.warn(`[fetchBreakData] Assignment ${record.id} is missing profile data. Skipping.`);
-               return null;
+               return null; // Skip assignments without profile data
             }
             // Find the matching slot by comparing DB values and ignoring seconds in time
             const matchingSlot = allSlots.find(slot => {
@@ -448,10 +438,6 @@ const BrakesManager = () => {
                      slotDbBreakType === record.break_type; // Compare DB type to DB type
             });
             
-            if (!matchingSlot) {
-              console.warn(`[fetchBreakData] Could not find matching frontend slot for assignment:`, record);
-            }
-
             const mappedAssignment = {
               id: record.id,
               slot_id: matchingSlot?.id || null, // Link to our slot ID
@@ -472,7 +458,6 @@ const BrakesManager = () => {
             return mappedAssignment;
           }).filter(Boolean) || []; // Filter out nulls
           
-          console.log('[fetchBreakData] Processed existing assignments with slot_id:', processedScheduled);
           setScheduledBreaks(processedScheduled);
 
         } catch (err) {
@@ -485,8 +470,6 @@ const BrakesManager = () => {
       // Fetch available staff for the selected date (needs to run regardless of where assignments came from)
       try {
         // Step 1: Get user IDs of staff who are scheduled to work on the selected date
-        console.log(`[fetchBreakData] Querying scheduled_rota for date: ${selectedDate}`);
-        
         // Fetch all scheduled shifts for this date
         const { data: scheduledShifts, error: scheduledError } = await supabase
           .from('scheduled_rota')
@@ -498,8 +481,6 @@ const BrakesManager = () => {
           console.error('[fetchBreakData] Error querying scheduled_rota table:', scheduledError);
           throw scheduledError;
         }
-        
-        console.log(`[fetchBreakData] Scheduled shifts found for ${selectedDate}:`, scheduledShifts || []);
         
         // Filter shifts by the current selected shift type
         const filteredShifts = scheduledShifts?.filter(record => 
@@ -513,8 +494,6 @@ const BrakesManager = () => {
           }
         });
 
-        console.log(`[fetchBreakData] Filtered shifts (shift_type='${selectedShift}'):`, filteredShifts);
-
         const filteredUserIds = filteredShifts
           .filter(record => {
             if (!record.user_id) return false;
@@ -524,13 +503,11 @@ const BrakesManager = () => {
           .map(record => record.user_id);
 
         if (!filteredUserIds || filteredUserIds.length === 0) {
-          console.log(`[fetchBreakData] No staff found scheduled for shift '${selectedShift}' on ${selectedDate}. Setting availableStaff to empty.`);
           setAvailableStaff([]);
           // We stop here if no one is scheduled for this shift on this date
         } else {
           // Step 2: Get profile details for the scheduled user IDs
           const uniqueUserIds = [...new Set(filteredUserIds)];
-          console.log('[fetchBreakData] Unique User IDs found in scheduled_rota:', uniqueUserIds);
           
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
@@ -541,8 +518,6 @@ const BrakesManager = () => {
             console.error('[fetchBreakData] Error fetching profiles for scheduled users:', profilesError);
             throw profilesError;
           }
-          
-          console.log('[fetchBreakData] Profiles found for scheduled users:', profilesData || []);
             
           // Step 3: Map profiles to our staff structure
           const processedAvailable = profilesData.map(profile => {
@@ -556,7 +531,6 @@ const BrakesManager = () => {
             };
           });
 
-          console.log('[fetchBreakData] Final processed available staff list (base):', processedAvailable);
           setAvailableStaff(processedAvailable); // Set base list
         }
       } catch (err) {
@@ -580,8 +554,6 @@ const BrakesManager = () => {
         // Note: Checking for undefined avoids re-calculating if staff list is already augmented
         return;
       }
-
-      console.log('[EffectCalculateBreaks] Recalculating break times based on scheduledBreaks:', scheduledBreaks);
 
       const staffWithCalculatedBreaks = availableStaff.map(staff => {
           // Find user's breaks in the current scheduledBreaks
@@ -615,7 +587,6 @@ const BrakesManager = () => {
           };
       });
 
-      console.log('[EffectCalculateBreaks] Updated availableStaff with break times:', staffWithCalculatedBreaks);
       setAvailableStaff(staffWithCalculatedBreaks); // Update state with augmented list
 
   }, [scheduledBreaks, breakSlots, selectedShift, availableStaff]); // Rerun when breaks, slots, shift, or base staff list changes
@@ -700,14 +671,9 @@ const BrakesManager = () => {
             return customRecord;
         });
 
-      console.log("[handleSaveAllBreaks] Assignments to Insert:", JSON.stringify(assignmentsToInsert, null, 2));
-      // console.log("[handleSaveAllBreaks] Standard Slots to Upsert:", JSON.stringify(standardSlotsToUpsert, null, 2)); // Should be empty
-      console.log("[handleSaveAllBreaks] Custom Slots to Upsert:", JSON.stringify(customSlotsToUpsert, null, 2));
-
       // --- Database Operations ---
 
       // 1. Delete existing *assignments* (records with user_id) for this date/shift
-      console.log("[handleSaveAllBreaks] Deleting existing assignments...");
       const { error: deleteAssignError } = await supabase
         .from('scheduled_breaks')
         .delete()
@@ -719,12 +685,9 @@ const BrakesManager = () => {
         console.error("[handleSaveAllBreaks] Error deleting old assignments:", deleteAssignError);
         throw deleteAssignError;
       }
-      console.log("[handleSaveAllBreaks] Successfully deleted old assignments.");
 
       // 2. Delete existing *standard slot definitions* (records with std_slot_id) for this date/shift
       //    (Only necessary if standard slot *definitions* were persisted - they aren't anymore)
-      // console.log("[handleSaveAllBreaks] Deleting existing standard slot definitions...");
-      // const { error: deleteStdSlotsError } = await supabase...;
 
       // 3. Handle Custom Slot Definitions (split into new and existing)
       if (customSlotsToUpsert.length > 0) {
@@ -734,7 +697,6 @@ const BrakesManager = () => {
         
         // Insert new custom slots
         if (newCustomSlots.length > 0) {
-          console.log("[handleSaveAllBreaks] Inserting new custom slot definitions...");
           const { error: insertCustomError } = await supabase
               .from('scheduled_breaks')
               .insert(newCustomSlots);
@@ -743,14 +705,11 @@ const BrakesManager = () => {
             console.error("[handleSaveAllBreaks] Error inserting new custom slots:", insertCustomError);
             console.error("Data attempted for new custom slots:", JSON.stringify(newCustomSlots, null, 2));
             throw insertCustomError;
-          } else {
-            console.log("[handleSaveAllBreaks] Successfully inserted new custom slots.");
           }
         }
         
         // Update existing custom slots
         if (existingCustomSlots.length > 0) {
-          console.log("[handleSaveAllBreaks] Updating existing custom slot definitions...");
           const { error: updateCustomError } = await supabase
               .from('scheduled_breaks')
               .upsert(existingCustomSlots, { onConflict: 'id' });
@@ -759,8 +718,6 @@ const BrakesManager = () => {
             console.error("[handleSaveAllBreaks] Error updating existing custom slots:", updateCustomError);
             console.error("Data attempted for existing custom slots:", JSON.stringify(existingCustomSlots, null, 2));
             throw updateCustomError;
-          } else {
-            console.log("[handleSaveAllBreaks] Successfully updated existing custom slots.");
           }
         }
       }
@@ -771,7 +728,6 @@ const BrakesManager = () => {
 
       // 5. Insert NEW assignments
       if (assignmentsToInsert.length > 0) {
-        console.log("[handleSaveAllBreaks] Inserting all assignments...");
         const { error: insertAssignError } = await supabase
           .from('scheduled_breaks')
           .insert(assignmentsToInsert);
@@ -780,8 +736,6 @@ const BrakesManager = () => {
           console.error("[handleSaveAllBreaks] Error inserting assignments:", insertAssignError);
           console.error("Data attempted for assignments:", JSON.stringify(assignmentsToInsert, null, 2));
           throw insertAssignError; // This is critical, so throw
-        } else {
-          console.log("[handleSaveAllBreaks] Successfully inserted assignments.");
         }
       }
 
@@ -871,7 +825,6 @@ const BrakesManager = () => {
     try {
       // If the slot was already saved to the database, delete it from there
       if (!isNewSlot) {
-        console.log('[confirmDeleteSlot] Deleting slot from database:', slotId);
         const { error } = await supabase
           .from('scheduled_breaks')
           .delete()
@@ -883,7 +836,6 @@ const BrakesManager = () => {
           setDeleteConfirmSlot(null);
           return;
         }
-        console.log('[confirmDeleteSlot] Successfully deleted from database');
       }
       
       // Remove the slot from state
@@ -1585,9 +1537,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     };
   }, [isOpen]);
   
-  useEffect(() => {
-    console.log("Modal opened, available staff:", availableStaff);
-  }, [isOpen, availableStaff]);
+  // Removed debug useEffect
   
   // Filter staff that are eligible for this slot - restore proper filtering
   const eligibleStaff = availableStaff.filter(staff => {
@@ -1615,12 +1565,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   });
   
   // Check if we have no staff after filtering
-  useEffect(() => {
-    if (isOpen && availableStaff.length > 0 && eligibleStaff.length === 0) {
-      console.log('No eligible staff after filtering. Available staff:', availableStaff);
-      console.log('Slot requirements:', slot);
-    }
-  }, [isOpen, availableStaff, eligibleStaff, slot]);
+  // Removed debug useEffect
   
   if (!isOpen) return null;
   

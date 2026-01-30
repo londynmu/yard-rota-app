@@ -203,8 +203,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
         agency_id: agencyId
       };
       
-      console.log('Updating user with data:', updates);
-      
       // Upload avatar if there's a new one
       if (avatar) {
         const fileExt = avatar.name.split('.').pop();
@@ -239,8 +237,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
       if (updateError) {
         throw updateError;
       }
-      
-      console.log('Update successful, response:', data);
       
       toast.success('Profile updated successfully!');
       

@@ -397,10 +397,7 @@ export default function UserList({ users, onRefresh }) {
     };
   }, [openDropdownId]);
   
-  // Log when users data changes
-  useEffect(() => {
-    console.log('UserList received updated users data:', users);
-  }, [users]);
+  // Removed debug useEffect
   
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -561,7 +558,6 @@ export default function UserList({ users, onRefresh }) {
       
       // Refresh the user list
       if (onRefresh) {
-        console.log('Refreshing user list after delete');
         onRefresh();
       }
       
@@ -591,7 +587,6 @@ export default function UserList({ users, onRefresh }) {
   // Custom refresh function that preserves filter settings
   const handleRefresh = async () => {
     if (onRefresh) {
-      console.log('Refreshing user list while preserving filters');
       await onRefresh();
     }
   };
@@ -1052,8 +1047,6 @@ export default function UserList({ users, onRefresh }) {
           user={userToEdit} 
           onClose={closeEditModal} 
             onSuccess={(updatedUser) => {
-              console.log('User updated successfully:', updatedUser);
-              
               // Use our custom refresh function to preserve filters
               handleRefresh();
               

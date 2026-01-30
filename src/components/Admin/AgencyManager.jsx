@@ -57,7 +57,6 @@ export default function AgencyManager() {
   const fetchAgencies = async () => {
     try {
       setLoading(true);
-      console.log("Fetching agencies...");
       
       const { data, error } = await supabase
         .from('agencies')
@@ -69,7 +68,6 @@ export default function AgencyManager() {
         throw error;
       }
       
-      console.log("Agencies loaded:", data);
       setAgencies(data || []);
     } catch (error) {
       console.error('Error fetching agencies:', error);
@@ -96,7 +94,6 @@ export default function AgencyManager() {
     }
 
     try {
-      console.log("Adding new agency:", newAgency);
       setLoading(true);
       
       const { error } = await supabase
@@ -114,7 +111,6 @@ export default function AgencyManager() {
         throw error;
       }
       
-      console.log("Agency added successfully");
       setNewAgency({ 
         name: '',
         email: '',

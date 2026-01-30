@@ -25,7 +25,6 @@ export default function RotaPlannerPage() {
         return;
       }
 
-      console.log('[RotaPlannerPage] User detected. Checking admin privileges...');
       setPageLoading(true);
       try {
         const { data: userProfile, error: profileError } = await supabase
@@ -38,15 +37,12 @@ export default function RotaPlannerPage() {
           if (profileError.code !== 'PGRST116') {
             throw profileError;
           }
-          console.warn('[RotaPlannerPage] Profile not found for user.');
           setError('Admin permissions require a user profile.');
           setIsAdmin(false);
         } else if (userProfile && userProfile.role === 'admin') {
-          console.log('[RotaPlannerPage] Admin role confirmed.');
           setIsAdmin(true);
           setError(null);
         } else {
-          console.log('[RotaPlannerPage] User is not admin. Role:', userProfile?.role);
           setError('You do not have permission to access this page.');
           setIsAdmin(false);
         }
