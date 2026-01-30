@@ -200,43 +200,15 @@ export default function AdminPage() {
         throw new Error('Invalid data format received from profiles table');
       }
       
-      // Try to get emails using RPC function
-      let usersWithEmails = [];
-      
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_complete_profiles_with_emails');
-        if (!rpcError && rpcData && Array.isArray(rpcData)) {
-          // Merge RPC email data with profile data
-          usersWithEmails = profilesData.map(profile => {
-            const rpcUser = rpcData.find(u => u.id === profile.id);
-            return {
-              ...profile,
-              email: rpcUser?.email || 'N/A',
-              performance_score: profile.performance_score ?? 50,
-              is_active: profile.is_active !== false,
-              agency_name: profile.agencies?.name || null
-            };
-          });
-        } else {
-          // If RPC fails, just use profiles without emails
-          usersWithEmails = profilesData.map(profile => ({
-            ...profile,
-            email: 'N/A',
-            performance_score: profile.performance_score ?? 50,
-            is_active: profile.is_active !== false,
-            agency_name: profile.agencies?.name || null
-          }));
-        }
-      } catch (rpcErr) {
-        // If any error, just use profiles without emails
-        usersWithEmails = profilesData.map(profile => ({
-          ...profile,
-          email: 'N/A',
-          performance_score: profile.performance_score ?? 50,
-          is_active: profile.is_active !== false,
-          agency_name: profile.agencies?.name || null
-        }));
-      }
+      // Map profiles - emails not available in browser context for security
+      // (Would require service_role key which cannot be exposed)
+      const usersWithEmails = profilesData.map(profile => ({
+        ...profile,
+        email: profile.email || 'N/A', // Use email from profile if available
+        performance_score: profile.performance_score ?? 50,
+        is_active: profile.is_active !== false,
+        agency_name: profile.agencies?.name || null
+      }));
       
       setUsers(usersWithEmails);
     } catch (err) {
