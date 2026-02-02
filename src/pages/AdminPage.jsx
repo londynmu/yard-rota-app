@@ -12,10 +12,10 @@ import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManager';
 
 export default function AdminPage() {
-  // Pobierz tylko user i loading z AuthContext
-  const { user, loading: authLoading } = useAuth(); 
+  // Pobierz tylko user z AuthContext
+  const { user } = useAuth(); 
   const [users, setUsers] = useState([]);
-  // Stan ładowania teraz dla całej strony (auth + profil + dane userów)
+  // Stan ładowania dla danych użytkowników
   const [pageLoading, setPageLoading] = useState(true); 
   const [error, setError] = useState(null);
   // Aktywna sekcja - zmiana na sidebar navigation
@@ -52,7 +52,7 @@ export default function AdminPage() {
       titleElement.textContent = titles[activeSection] || 'Admin Panel';
     }
   }, [activeSection]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  
   const [pendingApprovals, setPendingApprovals] = useState(0);
 
   // Listener dla custom event z top bara - tylko mobile
@@ -87,65 +87,11 @@ export default function AdminPage() {
     localStorage.setItem('adminActiveSection', activeSection);
   }, [activeSection]);
 
-  // Efekt do sprawdzania uprawnień admina PO załadowaniu AuthContext
-  useEffect(() => {
-    // Funkcja do pobrania profilu i sprawdzenia roli
-    const checkAdminStatus = async () => {
-      if (!user) { // Jeśli nie ma użytkownika, to na pewno nie admin
-        setError('You must be logged in and have admin privileges.');
-        setIsAdmin(false);
-        setPageLoading(false); // Zakończ ładowanie, bo wiemy, że nie ma dostępu
-        return;
-      }
-
-      // Jeśli jest użytkownik, spróbuj pobrać jego profil
-      setPageLoading(true); // Rozpocznij ładowanie (na wypadek, gdyby authLoading było false wcześniej)
-      try {
-        const { data: userProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role') // Fetch only the role
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          // If error other than missing profile (code 406)
-          if (profileError.code !== 'PGRST116') { 
-            throw profileError; // Throw error forward
-          }
-          // If profile does not exist (PGRST116)
-          setError('Admin permissions require a user profile.');
-          setIsAdmin(false);
-        } else if (userProfile && userProfile.role === 'admin') {
-          // Profile found and role is admin
-          setIsAdmin(true);
-          setError(null); // Clear error if user is admin
-        } else {
-          // Profile found but role is not admin
-          setError('You do not have permission to access this page.');
-          setIsAdmin(false);
-        }
-      } catch (err) {
-        console.error('[AdminPage] Error checking admin status:', err);
-        setError('Error verifying permissions.');
-        setIsAdmin(false);
-      } finally {
-        // Zakończ ładowanie strony dopiero po sprawdzeniu profilu
-        setPageLoading(false); 
-      }
-    };
-
-    // Uruchom sprawdzanie dopiero, gdy AuthContext zakończy ładowanie
-    if (!authLoading) { 
-      checkAdminStatus();
-    }
-
-  }, [user, authLoading]); // Zależność od user i authLoading
-
   // --- Monthly Shunter reminder banner ---
   const [showShunterReminder, setShowShunterReminder] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin || pageLoading) return;
+    if (pageLoading) return;
 
     const now = new Date();
     const year = now.getFullYear();
@@ -157,7 +103,7 @@ export default function AdminPage() {
     if (!dismissed) {
       setShowShunterReminder(true);
     }
-  }, [isAdmin, pageLoading]);
+  }, [pageLoading]);
 
   const handleDismissShunterReminder = () => {
     const now = new Date();
@@ -220,10 +166,8 @@ export default function AdminPage() {
     }
   };
 
-  // Efekt do pobierania listy użytkowników (jeśli admin)
+  // Efekt do pobierania listy użytkowników przy montowaniu
   useEffect(() => {
-    if (!isAdmin) return;
-    
     let cancelled = false;
     
     const loadData = async () => {
@@ -239,10 +183,11 @@ export default function AdminPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, user]); // Keep user dependency for the fallback email logic
+  }, [user]); // Keep user dependency for the fallback email logic
 
   // --- Renderowanie --- 
-  // Użyj pageLoading do głównego wskaźnika ładowania
+  // Pokazuj loader tylko podczas ładowania danych użytkowników
+  // ProtectedAdminRoute już obsługuje weryfikację uprawnień
   if (pageLoading) {
     return (
       <div className="min-h-screen bg-offwhite flex animate-pulse">
@@ -291,25 +236,22 @@ export default function AdminPage() {
     );
   }
   
-  // Show error if it occurred (e.g. lack of permissions)
+  // Show error if it occurred during data fetching
   if (error) {
     return (
       <div className="min-h-screen p-4 bg-offwhite">
         <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6 border border-gray-200">
           <div className="text-red-600 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
+            <h2 className="text-2xl font-bold mb-4 text-charcoal">Error Loading Data</h2>
             <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+            >
+              Reload Page
+            </button>
           </div>
         </div>
-      </div>
-    );
-  }
-  
-  // Jeśli zakończono ładowanie, nie ma błędu, ale nie jest adminem (nie powinno się zdarzyć)
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen p-4 bg-offwhite">
-        <p className="text-charcoal">Access Denied. Administrative privileges required.</p> 
       </div>
     );
   }
@@ -394,7 +336,7 @@ export default function AdminPage() {
     }
   };
 
-  // Główna zawartość strony admina (tylko jeśli isAdmin === true)
+  // Główna zawartość strony admina - uprawnienia już sprawdzone przez ProtectedAdminRoute
   return (
     <div className="min-h-screen bg-offwhite">
       {/* Mobile Overlay - tylko na mobile */}
