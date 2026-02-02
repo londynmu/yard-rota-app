@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './lib/AuthContext';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Auth from './components/Auth/Auth';
 import HomePage from './components/HomePage';
-import ProfileRequiredCheck from './components/Auth/ProfileRequiredCheck';
 import ProfilePage from './pages/ProfilePage';
 import { supabase } from './lib/supabaseClient';
 import ResetPassword from './pages/ResetPassword';
@@ -201,9 +200,7 @@ function AppContent() {
       {/* Show HomePage only if user exists, profile check finished, profile is complete, and account is approved */}
       <Route path="/*" element={
         (user && !isCheckingProfile && isProfileComplete && (!accountStatus || accountStatus === 'approved')) ? (
-          <ProfileRequiredCheck>
-            <HomePage />
-          </ProfileRequiredCheck>
+          <HomePage />
         ) : (
           <Navigate to={user && isProfileComplete ? "/waiting-for-approval" : "/login"} replace />
         )

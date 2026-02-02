@@ -1,14 +1,30 @@
 /**
- * CSV Import Helper for Shunter Performance Data
- * Handles parsing, validation, and import of daily shunter reports
+ * Supabase Edge Function: Import Performance CSV
+ * 
+ * This function automatically imports daily shunter performance reports from email attachments.
+ * It uses the same logic as the manual import in Admin Panel to ensure consistency.
+ * 
+ * Triggered by: Supabase cron job daily at 06:30
+ * 
+ * Environment Variables Required:
+ * - SUPABASE_URL
+ * - SUPABASE_SERVICE_ROLE_KEY
+ * - EMAIL_IMAP_HOST (e.g., imap.gmail.com)
+ * - EMAIL_IMAP_PORT (e.g., 993)
+ * - EMAIL_USERNAME
+ * - EMAIL_PASSWORD (or App Password for Gmail)
  */
+
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { corsHeaders } from "../_shared/cors.ts";
+
+// CSV Import Helper Functions (ported from src/utils/csvImportHelper.js)
 
 /**
  * Converts time string "M:SS" or "MM:SS" to total seconds
- * @param {string} timeStr - Time in format like "2:26" or "3:21"
- * @returns {number} Total seconds
  */
-export function timeToSeconds(timeStr) {
+function timeToSeconds(timeStr: string): number {
   if (!timeStr || typeof timeStr !== 'string') return 0;
   
   const parts = timeStr.trim().split(':');
@@ -22,10 +38,8 @@ export function timeToSeconds(timeStr) {
 
 /**
  * Converts seconds back to "M:SS" format
- * @param {number} totalSeconds
- * @returns {string} Time in "M:SS" format
  */
-export function secondsToTime(totalSeconds) {
+function secondsToTime(totalSeconds: number): string {
   if (!totalSeconds || totalSeconds <= 0) return '0:00';
   
   const minutes = Math.floor(totalSeconds / 60);
@@ -36,31 +50,31 @@ export function secondsToTime(totalSeconds) {
 
 /**
  * Parses CSV content and extracts shunter performance data
- * @param {string} fileContent - Raw CSV file content
- * @returns {Array<Object>} Parsed shunter data
+ * FIXED: Now parses ALL sections (Day/Afternoon/Night shifts), not just the first one
  */
-export function parseShunterCSV(fileContent) {
+function parseShunterCSV(fileContent: string): any[] {
   if (!fileContent || typeof fileContent !== 'string') {
     throw new Error('Invalid CSV content');
   }
 
   const lines = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   
-  // Find the header row (contains "Shunter user id")
-  let headerIndex = -1;
+  // Find ALL header rows (CSV has multiple sections with repeated headers)
+  const headerIndices: number[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes('Shunter user id')) {
-      headerIndex = i;
-      break;
+      headerIndices.push(i);
     }
   }
   
-  if (headerIndex === -1) {
+  if (headerIndices.length === 0) {
     throw new Error('Could not find header row with "Shunter user id"');
   }
   
-  // Parse header to get column indices
-  const headerLine = lines[headerIndex];
+  console.log(`📄 [parseShunterCSV] Found ${headerIndices.length} header sections in CSV`);
+  
+  // Parse header to get column indices (use first header)
+  const headerLine = lines[headerIndices[0]];
   const headers = headerLine.split(',').map(h => h.trim());
   
   const columnMap = {
@@ -84,13 +98,18 @@ export function parseShunterCSV(fileContent) {
     throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
   }
   
-  // Parse data rows
+  // Parse data rows from ALL sections
   const parsedData = [];
-  for (let i = headerIndex + 1; i < lines.length; i++) {
+  const headerSet = new Set(headerIndices); // For fast lookup
+  
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     
-    // Skip empty lines or header repetitions
-    if (!line || line.includes('Shunter user id')) continue;
+    // Skip header rows
+    if (headerSet.has(i)) continue;
+    
+    // Skip empty lines
+    if (!line) continue;
     
     const columns = line.split(',').map(c => c.trim());
     
@@ -114,16 +133,14 @@ export function parseShunterCSV(fileContent) {
     });
   }
   
+  console.log(`📄 [parseShunterCSV] Parsed ${parsedData.length} shift entries from ${headerIndices.length} sections`);
   return parsedData;
 }
 
 /**
- * Deduplicates identical entries that share the same yard ID and metrics.
- * This protects against YMS exports that repeat the same row with minor name variations.
- * @param {Array<Object>} parsedData
- * @returns {Array<Object>} Deduplicated dataset
+ * Deduplicates identical entries that share the same yard ID and metrics
  */
-export function dedupeIdenticalEntries(parsedData) {
+function dedupeIdenticalEntries(parsedData: any[]): any[] {
   if (!Array.isArray(parsedData)) return [];
 
   const uniqueMap = new Map();
@@ -150,55 +167,23 @@ export function dedupeIdenticalEntries(parsedData) {
     }
   });
 
-  return Array.from(uniqueMap.values());
-}
-
-/**
- * Validates parsed CSV data
- * @param {Array<Object>} parsedData
- * @returns {Object} Validation result with { isValid, errors }
- */
-export function validateCSVData(parsedData) {
-  const errors = [];
-  const warnings = [];
-  
-  if (!Array.isArray(parsedData) || parsedData.length === 0) {
-    errors.push('No valid data found in CSV file');
-    return { isValid: false, errors };
+  const deduped = Array.from(uniqueMap.values());
+  const duplicateCount = parsedData.length - deduped.length;
+  if (duplicateCount > 0) {
+    console.log(`🔍 [dedupeIdenticalEntries] Removed ${duplicateCount} duplicate entries`);
   }
   
-  // Check for duplicate yard IDs that shouldn't be summed (data quality issue)
-  const yardIds = parsedData.map(d => d.yardSystemId);
-  const duplicateCounts = {};
-  yardIds.forEach(id => {
-    duplicateCounts[id] = (duplicateCounts[id] || 0) + 1;
-  });
-  
-  const duplicates = Object.entries(duplicateCounts)
-    .filter(([, count]) => count > 3)
-    .map(([id, count]) => `${id} (${count} times)`);
-  
-  if (duplicates.length > 0) {
-    warnings.push(`Multiple shift entries detected (more than 3) for: ${duplicates.join(', ')}. This is usually fine for day/afternoon/night shifts, but review if unexpected.`);
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings
-  };
+  return deduped;
 }
 
 /**
  * Aggregates multiple shift entries for the same shunter (same day, multiple shifts)
  * Sums moves, calculates weighted average for times
- * @param {Array<Object>} parsedData
- * @returns {Array<Object>} Aggregated data with one entry per shunter
  */
-export function aggregateShiftData(parsedData) {
+function aggregateShiftData(parsedData: any[]): any[] {
   console.log(`🔄 [aggregateShiftData] Processing ${parsedData.length} shift entries`);
   
-  const aggregated = {};
+  const aggregated: any = {};
   
   parsedData.forEach((entry, idx) => {
     const id = entry.yardSystemId;
@@ -238,7 +223,7 @@ export function aggregateShiftData(parsedData) {
   });
   
   // Calculate weighted averages
-  const result = Object.values(aggregated).map(data => {
+  const result = Object.values(aggregated).map((data: any) => {
     const avgCollectSeconds = data.numberOfMoves > 0 
       ? Math.round(data.totalCollectSeconds / data.numberOfMoves)
       : 0;
@@ -269,16 +254,28 @@ export function aggregateShiftData(parsedData) {
 
 /**
  * Matches parsed CSV data with user profiles from database
- * @param {Array<Object>} aggregatedData - Aggregated shunter data
- * @param {Array<Object>} profiles - User profiles from database
- * @returns {Object} { matched, unmatched }
  */
-export function matchUsersWithCSV(aggregatedData, profiles) {
-  const matched = [];
-  const unmatched = [];
+async function matchUsersWithCSV(aggregatedData: any[], supabase: any): Promise<{ matched: any[], unmatched: any[] }> {
+  console.log(`🔍 [matchUsersWithCSV] Fetching user profiles...`);
+  
+  // Fetch all profiles with yard_system_id
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, yard_system_id, avatar_url')
+    .not('yard_system_id', 'is', null);
+  
+  if (error) {
+    console.error('❌ [matchUsersWithCSV] Error fetching profiles:', error);
+    throw new Error(`Failed to fetch user profiles: ${error.message}`);
+  }
+  
+  console.log(`✅ [matchUsersWithCSV] Found ${profiles?.length || 0} profiles with Yard System ID`);
+  
+  const matched: any[] = [];
+  const unmatched: any[] = [];
   
   aggregatedData.forEach(csvEntry => {
-    const profile = profiles.find(p => 
+    const profile = profiles?.find((p: any) => 
       p.yard_system_id && 
       p.yard_system_id.toUpperCase() === csvEntry.yardSystemId.toUpperCase()
     );
@@ -296,17 +293,22 @@ export function matchUsersWithCSV(aggregatedData, profiles) {
     }
   });
   
+  console.log(`✅ [matchUsersWithCSV] Matched: ${matched.length}, Unmatched: ${unmatched.length}`);
+  
+  if (unmatched.length > 0) {
+    console.warn('⚠️ [matchUsersWithCSV] Unmatched shunters (missing Yard System ID in profile):');
+    unmatched.forEach(u => {
+      console.warn(`  - ${u.yardSystemId}: ${u.fullName} (${u.numberOfMoves} moves)`);
+    });
+  }
+  
   return { matched, unmatched };
 }
 
 /**
  * Imports performance data to database
- * @param {Object} supabase - Supabase client
- * @param {string} reportDate - Date in YYYY-MM-DD format
- * @param {Array<Object>} matchedData - Matched shunter data with user IDs
- * @returns {Promise<Object>} Import result
  */
-export async function importPerformanceData(supabase, reportDate, matchedData) {
+async function importPerformanceData(supabase: any, reportDate: string, matchedData: any[]): Promise<any> {
   if (!matchedData || matchedData.length === 0) {
     console.warn('⚠️ [importPerformanceData] No data to import');
     return { success: false, error: 'No data to import', imported: 0 };
@@ -338,8 +340,7 @@ export async function importPerformanceData(supabase, reportDate, matchedData) {
     const { data, error } = await supabase
       .from('shunter_performance')
       .upsert(records, {
-        onConflict: 'user_id,report_date',
-        ignoreDuplicates: false
+        onConflict: 'user_id,report_date'
       });
     
     if (error) {
@@ -349,9 +350,91 @@ export async function importPerformanceData(supabase, reportDate, matchedData) {
     
     console.log(`✅ [importPerformanceData] Successfully imported ${records.length} records`);
     return { success: true, imported: records.length, data };
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [importPerformanceData] Import exception:', err);
     return { success: false, error: err.message, imported: 0 };
   }
 }
 
+// Main Edge Function Handler
+serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    console.log('🚀 [import-performance-csv] Edge function invoked');
+    
+    // Initialize Supabase client with service role key (admin access)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Parse request body
+    const body = await req.json();
+    const { csvContent, reportDate } = body;
+    
+    if (!csvContent) {
+      throw new Error('Missing CSV content in request body');
+    }
+    
+    if (!reportDate) {
+      throw new Error('Missing report date in request body');
+    }
+    
+    console.log(`📅 Processing report for date: ${reportDate}`);
+    
+    // Step 1: Parse CSV
+    const parsed = parseShunterCSV(csvContent);
+    
+    // Step 2: Deduplicate identical entries
+    const deduped = dedupeIdenticalEntries(parsed);
+    
+    // Step 3: Aggregate shift data
+    const aggregated = aggregateShiftData(deduped);
+    
+    // Step 4: Match with user profiles
+    const { matched, unmatched } = await matchUsersWithCSV(aggregated, supabase);
+    
+    // Step 5: Import to database
+    const result = await importPerformanceData(supabase, reportDate, matched);
+    
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    
+    console.log('✅ [import-performance-csv] Import completed successfully');
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        imported: result.imported,
+        unmatched: unmatched.length,
+        unmatchedDetails: unmatched.map(u => ({
+          yardSystemId: u.yardSystemId,
+          fullName: u.fullName,
+          numberOfMoves: u.numberOfMoves
+        }))
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
+    
+  } catch (error: any) {
+    console.error('❌ [import-performance-csv] Error:', error);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Unknown error occurred'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    );
+  }
+});

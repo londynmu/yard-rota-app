@@ -157,13 +157,36 @@ const PerformanceImport = () => {
       const duplicateCount = parsed.length - deduped.length;
 
       if (duplicateCount > 0) {
+        console.log(`🔍 [PerformanceImport] Removed ${duplicateCount} duplicate entries`);
         toast.warning(
           `Ignored ${duplicateCount} duplicated entr${duplicateCount === 1 ? 'y' : 'ies'} with identical metrics`
         );
       }
 
       // Aggregate shift data (sum moves from multiple shifts)
+      console.log(`🔄 [PerformanceImport] Aggregating ${deduped.length} shift entries...`);
       const aggregated = aggregateShiftData(deduped);
+      
+      // Validate aggregation - warn about suspicious entries
+      const multiShiftEntries = aggregated.filter(e => e.shiftCount > 1);
+      if (multiShiftEntries.length > 0) {
+        console.log(`✅ [PerformanceImport] ${multiShiftEntries.length} shunters worked multiple shifts:`);
+        multiShiftEntries.forEach(entry => {
+          console.log(`  - ${entry.yardSystemId}: ${entry.shiftCount} shifts → ${entry.numberOfMoves} total moves`);
+        });
+      }
+      
+      // Warn about suspicious aggregations (multiple shifts but low move count)
+      const suspiciousEntries = aggregated.filter(e => 
+        e.shiftCount > 1 && e.numberOfMoves < 50
+      );
+      
+      if (suspiciousEntries.length > 0) {
+        console.warn('⚠️ [PerformanceImport] Suspicious aggregation detected (multiple shifts but low total moves):');
+        suspiciousEntries.forEach(entry => {
+          console.warn(`  - ${entry.yardSystemId}: ${entry.shiftCount} shifts but only ${entry.numberOfMoves} moves`);
+        });
+      }
       
       // Match with user profiles
       const { matched, unmatched } = matchUsersWithCSV(aggregated, profiles);
