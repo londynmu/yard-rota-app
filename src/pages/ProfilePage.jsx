@@ -472,8 +472,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   };
 
 
-  // Handle loading state
-  if (loading) {
+  // Handle loading state - but NOT for required/simplified view
+  // For required profile, show form immediately to avoid flashing skeleton
+  if (loading && !isRequired && !simplifiedView) {
     return (
       <div className="min-h-screen bg-offwhite p-6 animate-pulse">
         <div className="max-w-2xl mx-auto space-y-6">
@@ -499,34 +500,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       </div>
     );
   }
-
-  // If the profile hasn't loaded yet and this is required, show loading state
-  if (isRequired && !profileLoaded) {
-    return (
-      <div className="min-h-screen bg-offwhite p-6 animate-pulse">
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Avatar skeleton */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-32 h-32 bg-slate-300 rounded-full mb-4" />
-            <div className="h-8 w-48 bg-slate-300 rounded" />
-          </div>
-          
-          {/* Form fields skeleton */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200 space-y-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-4 w-32 bg-slate-300 rounded" />
-                <div className="h-10 bg-slate-200 rounded" />
-              </div>
-            ))}
-            
-            {/* Button skeleton */}
-            <div className="h-12 bg-slate-300 rounded-lg w-full" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  
+  // For required profile that hasn't loaded yet, skip skeleton and show form directly
+  // This prevents flashing skeleton during initial profile check
 
   // Simplified view - full screen form focused on required fields
   if (simplifiedView) {

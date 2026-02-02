@@ -24,7 +24,7 @@ function AppContent() {
   
   // Track page visits for analytics
   usePageTracking();
-  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -39,22 +39,8 @@ function AppContent() {
   
   const profileCheckRef = useRef(false); // Ref to prevent multiple profile checks
   
-  // Dodajemy hook dla opóźnionego loadera
-  const [showLoader, setShowLoader] = useState(false);
-  const isLoading = authLoading || (hasAuthHash && !user);
-
-  // Hook na najwyższym poziomie komponentu
-  useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => {
-        setShowLoader(true);
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    } else {
-      setShowLoader(false);
-    }
-  }, [isLoading]);
+  // Combined loading state: auth loading OR profile checking
+  const isLoading = authLoading || (hasAuthHash && !user) || (user && isCheckingProfile);
 
   // Handle URL detection on mount and URL changes
   useEffect(() => {
@@ -87,6 +73,7 @@ function AppContent() {
 
     const checkProfileCompletion = async () => {
       profileCheckRef.current = true; // Mark that we're checking
+      setIsCheckingProfile(true); // Start checking - this will trigger loading screen
 
       try {
         const { data, error } = await supabase
@@ -130,23 +117,16 @@ function AppContent() {
     }
   }, [user]);
 
-  // --- NEW LOADING LOGIC ---
-  // Show loader if:
-  // 1. AuthProvider is still loading (initial getSession)
-  // OR 2. There's an auth hash in the URL, BUT we don't have a user yet (waiting for onAuthStateChange)
+  // --- UNIFIED LOADING LOGIC ---
+  // Show empty screen during:
+  // 1. AuthProvider loading (initial getSession)
+  // 2. Auth hash processing (waiting for onAuthStateChange)
+  // 3. Profile checking (verifying profile completion and status)
+  // This prevents any UI flashing during authentication and profile verification
   if (isLoading) {
-    // Nie pokazuj nic przez pierwsze 500ms
-    if (!showLoader) {
-      return null;
-    }
-    
-    return (
-      <div className="min-h-screen flex justify-center items-center bg-offwhite">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
-      </div>
-    );
+    return <div className="min-h-screen bg-offwhite"></div>;
   }
-  // --- END NEW LOADING LOGIC ---
+  // --- END UNIFIED LOADING LOGIC ---
 
   // Error state
   if (error) {
@@ -166,20 +146,11 @@ function AppContent() {
     );
   }
 
-  // If user exists, but we are still checking profile OR we know profile is not complete
-  if (user && (isCheckingProfile || !isProfileComplete)) {
-    // If still checking profile
-    if (isCheckingProfile) {
-      return (
-        <div className="min-h-screen flex justify-center items-center bg-offwhite">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
-        </div>
-      );
-    } else {
-      return (
-        <ProfilePage isRequired={true} supabaseClient={supabase} simplifiedView={true} />
-      );
-    }
+  // If user exists but profile is not complete, show profile completion page
+  if (user && !isProfileComplete) {
+    return (
+      <ProfilePage isRequired={true} supabaseClient={supabase} simplifiedView={true} />
+    );
   }
 
   // If user has a complete profile but is pending approval or rejected
