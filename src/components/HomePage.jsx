@@ -317,84 +317,12 @@ export default function HomePage() {
       {renderDropdownMenu()}
       
       <main className="flex-1 relative z-0 mb-16 md:mb-0">
-        <Suspense fallback={
-          <div className="min-h-screen bg-slate-50 p-4">
-            <div className="container mx-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                    <div className="h-8 bg-slate-200 rounded w-3/4" />
-                    <div className="h-24 bg-slate-100 rounded" />
-                    <div className="h-4 bg-slate-200 rounded w-1/2" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        }>
+        <Suspense fallback={<div className="min-h-screen bg-slate-50"></div>}>
           <Routes>
             <Route
               path="/calendar"
               element={
-                <React.Suspense fallback={
-                  <div className="bg-slate-50 min-h-screen p-4 animate-pulse">
-                    {/* Shunter of the Month skeleton */}
-                    <div className="max-w-4xl mx-auto mb-6">
-                      <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-slate-300 rounded-full" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-6 bg-slate-300 rounded w-48" />
-                            <div className="h-4 bg-slate-200 rounded w-32" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Calendar navigation skeleton */}
-                    <div className="max-w-4xl mx-auto mb-4">
-                      <div className="flex justify-between items-center gap-4">
-                        <div className="h-10 w-10 bg-slate-300 rounded-lg" />
-                        <div className="h-8 bg-slate-300 rounded w-48" />
-                        <div className="h-10 w-10 bg-slate-300 rounded-lg" />
-                      </div>
-                    </div>
-
-                    {/* Calendar grid skeleton */}
-                    <div className="max-w-4xl mx-auto">
-                      <div className="bg-white rounded-xl shadow-lg p-4 border-2 border-slate-200">
-                        {/* Weekday headers */}
-                        <div className="grid grid-cols-7 gap-1 mb-2">
-                          {Array.from({ length: 7 }).map((_, i) => (
-                            <div key={i} className="h-4 bg-slate-300 rounded mx-auto w-12" />
-                          ))}
-                        </div>
-                        {/* Calendar days */}
-                        <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                          {Array.from({ length: 35 }).map((_, i) => (
-                            <div key={i} className="aspect-square bg-slate-100 border-2 border-slate-200 rounded-lg p-2">
-                              <div className="h-5 w-5 bg-slate-300 rounded mb-1" />
-                              <div className="h-2 bg-slate-200 rounded w-3/4 mb-1" />
-                              <div className="h-2 bg-slate-200 rounded w-1/2" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Dashboard skeleton */}
-                    <div className="max-w-4xl mx-auto mt-6">
-                      <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
-                        <div className="h-6 bg-slate-300 rounded w-40 mb-4" />
-                        <div className="space-y-3">
-                          <div className="h-20 bg-slate-100 rounded" />
-                          <div className="h-20 bg-slate-100 rounded" />
-                          <div className="h-20 bg-slate-100 rounded" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                }>
+                <React.Suspense fallback={<div className="bg-slate-50 min-h-screen"></div>}>
                   <ShunterOfTheMonthCard />
                   <CalendarPage />
                 </React.Suspense>
