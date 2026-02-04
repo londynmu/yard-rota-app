@@ -83,9 +83,10 @@ function parseShunterCSV(content: string): ParsedRow[] {
   const idCol = colIdx("shunter user id");
   const nameCol = colIdx("full name");
   const movesCol = colIdx("no of moves");
-  const collectCol = colIdx("avg time to collect");
-  const travelCol = colIdx("avg time to travel");
-  const fullLocCol = colIdx("no of full locations");
+  // FIXED: CSV headers use "Average time to collect/travel", not "avg"
+  const collectCol = colIdx("average time to coll");
+  const travelCol = colIdx("average time to trav");
+  const fullLocCol = colIdx("no of full location");
 
   // Create set of header line numbers for fast lookup
   const headerSet = new Set(headerIndices);

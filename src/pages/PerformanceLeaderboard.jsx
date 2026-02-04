@@ -42,18 +42,44 @@ const normalizePerformanceRecords = (records) => {
 };
 
 // Helper functions - defined at module level for use in callbacks
-const timeToSeconds = (timeStr) => {
-  if (!timeStr) return 0;
-  // Handle if it's already a number
-  if (typeof timeStr === 'number') return timeStr;
-  // Handle string format
-  if (typeof timeStr !== 'string') return 0;
-  const parts = timeStr.split(':');
-  if (parts.length !== 2) return 0;
-  const minutes = parseInt(parts[0], 10);
-  const seconds = parseInt(parts[1], 10);
-  if (isNaN(minutes) || isNaN(seconds)) return 0;
-  return minutes * 60 + seconds;
+const timeToSeconds = (timeValue) => {
+  if (timeValue === null || timeValue === undefined) return 0;
+
+  // Handle if it's already a number (seconds)
+  if (typeof timeValue === 'number') {
+    return Number.isFinite(timeValue) ? timeValue : 0;
+  }
+
+  if (typeof timeValue !== 'string') return 0;
+
+  const raw = timeValue.trim();
+  if (!raw) return 0;
+
+  // Support numeric strings like "90" (seconds)
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const asNumber = Number(raw);
+    return Number.isFinite(asNumber) ? Math.round(asNumber) : 0;
+  }
+
+  // Support "M:SS" and "HH:MM:SS"
+  const parts = raw.split(':').map((p) => p.trim());
+  
+  if (parts.length === 2) {
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return 0;
+    return minutes * 60 + seconds;
+  }
+
+  if (parts.length === 3) {
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
+    if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) return 0;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  return 0;
 };
 
 const secondsToTime = (totalSeconds) => {
@@ -405,7 +431,8 @@ const PerformanceLeaderboard = () => {
 
   const getAverageTime = (stat, type) => {
     if (!stat) return '—';
-    const totalSeconds = type === 'collect' ? stat.collectSeconds : stat.travelSeconds;
+    const normalizedType = type === 'pickup' ? 'collect' : type;
+    const totalSeconds = normalizedType === 'travel' ? stat.travelSeconds : stat.collectSeconds;
     const moves = stat.moves || 0;
     
     // If no moves or no time data, show dash

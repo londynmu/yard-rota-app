@@ -138,11 +138,42 @@ const PerformanceStats = ({ period = 'month' }) => {
   }, [fetchPerformanceStats]);
 
   // Helper functions
-  const timeToSeconds = (timeStr) => {
-    if (!timeStr || typeof timeStr !== 'string') return 0;
-    const parts = timeStr.split(':');
-    if (parts.length !== 2) return 0;
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  const timeToSeconds = (timeValue) => {
+    if (timeValue === null || timeValue === undefined) return 0;
+
+    // Handle number seconds
+    if (typeof timeValue === 'number') {
+      return Number.isFinite(timeValue) ? timeValue : 0;
+    }
+
+    if (typeof timeValue !== 'string') return 0;
+
+    const raw = timeValue.trim();
+    if (!raw) return 0;
+
+    // Numeric string like "90" (seconds)
+    if (/^\d+(\.\d+)?$/.test(raw)) {
+      const asNumber = Number(raw);
+      return Number.isFinite(asNumber) ? Math.round(asNumber) : 0;
+    }
+
+    const parts = raw.split(':').map((p) => p.trim());
+    if (parts.length === 2) {
+      const minutes = parseInt(parts[0], 10);
+      const seconds = parseInt(parts[1], 10);
+      if (Number.isNaN(minutes) || Number.isNaN(seconds)) return 0;
+      return minutes * 60 + seconds;
+    }
+
+    if (parts.length === 3) {
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const seconds = parseInt(parts[2], 10);
+      if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) return 0;
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    return 0;
   };
 
   const secondsToTime = (totalSeconds) => {

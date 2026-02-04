@@ -9,15 +9,35 @@
  * @returns {number} Total seconds
  */
 export function timeToSeconds(timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return 0;
-  
-  const parts = timeStr.trim().split(':');
-  if (parts.length !== 2) return 0;
-  
-  const minutes = parseInt(parts[0], 10) || 0;
-  const seconds = parseInt(parts[1], 10) || 0;
-  
-  return minutes * 60 + seconds;
+  if (timeStr === null || timeStr === undefined) return 0;
+  if (typeof timeStr === 'number') return Number.isFinite(timeStr) ? timeStr : 0;
+  if (typeof timeStr !== 'string') return 0;
+
+  const raw = timeStr.trim();
+  if (!raw) return 0;
+
+  // Support numeric strings like "90" (seconds)
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const asNumber = Number(raw);
+    return Number.isFinite(asNumber) ? Math.round(asNumber) : 0;
+  }
+
+  // Support "M:SS" and "HH:MM:SS"
+  const parts = raw.split(':').map((p) => p.trim());
+  if (parts.length === 2) {
+    const minutes = parseInt(parts[0], 10) || 0;
+    const seconds = parseInt(parts[1], 10) || 0;
+    return minutes * 60 + seconds;
+  }
+
+  if (parts.length === 3) {
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    const seconds = parseInt(parts[2], 10) || 0;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  return 0;
 }
 
 /**
