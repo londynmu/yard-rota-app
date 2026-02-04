@@ -1,9 +1,60 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+// Session storage key to track reload attempts and prevent infinite loops
+const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
+const RELOAD_COOLDOWN_MS = 10000; // 10 seconds cooldown between reloads
+
+/**
+ * Check if the error is a chunk loading error (dynamic import failed)
+ * This typically happens after a new deployment when old chunk files are no longer available
+ */
+const isChunkLoadError = (error) => {
+  if (!error) return false;
+  
+  const errorString = error.toString().toLowerCase();
+  const errorMessage = (error.message || '').toLowerCase();
+  
+  // Common patterns for chunk loading errors
+  const patterns = [
+    'loading chunk',
+    'loading css chunk',
+    'dynamically imported module',
+    'failed to fetch dynamically imported module',
+    'error loading dynamically imported module',
+    'chunkloaderror',
+    'loading module',
+    'failed to load module script',
+  ];
+  
+  return patterns.some(pattern => 
+    errorString.includes(pattern) || errorMessage.includes(pattern)
+  );
+};
+
+/**
+ * Check if we can safely reload the page (not in a reload loop)
+ */
+const canReloadSafely = () => {
+  const lastReloadTime = sessionStorage.getItem(CHUNK_ERROR_RELOAD_KEY);
+  
+  if (!lastReloadTime) return true;
+  
+  const timeSinceLastReload = Date.now() - parseInt(lastReloadTime, 10);
+  return timeSinceLastReload > RELOAD_COOLDOWN_MS;
+};
+
+/**
+ * Mark that we're about to reload due to chunk error
+ */
+const markReloadAttempt = () => {
+  sessionStorage.setItem(CHUNK_ERROR_RELOAD_KEY, Date.now().toString());
+};
+
 /**
  * Error Boundary Component
  * Catches JavaScript errors in child component tree and displays fallback UI
+ * Automatically handles chunk loading errors by refreshing the page
  */
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,32 +62,101 @@ class ErrorBoundary extends React.Component {
     this.state = { 
       hasError: false, 
       error: null,
-      errorInfo: null 
+      errorInfo: null,
+      isChunkError: false
     };
   }
 
   static getDerivedStateFromError(error) {
     // Update state so the next render will show the fallback UI
-    return { hasError: true };
+    const chunkError = isChunkLoadError(error);
+    return { 
+      hasError: true,
+      isChunkError: chunkError
+    };
   }
 
   componentDidCatch(error, errorInfo) {
     // Log the error to console for debugging
     console.error('Error Boundary caught an error:', error, errorInfo);
     
+    const chunkError = isChunkLoadError(error);
+    
     this.setState({
       error,
-      errorInfo
+      errorInfo,
+      isChunkError: chunkError
     });
+    
+    // If it's a chunk loading error and we can safely reload, do it automatically
+    if (chunkError && canReloadSafely()) {
+      console.log('[ErrorBoundary] Chunk loading error detected, reloading page...');
+      markReloadAttempt();
+      // Small delay to ensure the log is visible
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    }
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    this.setState({ hasError: false, error: null, errorInfo: null, isChunkError: false });
     window.location.href = '/calendar';
+  };
+  
+  handleReload = () => {
+    // Clear the reload tracking so user can manually trigger reload
+    sessionStorage.removeItem(CHUNK_ERROR_RELOAD_KEY);
+    window.location.reload();
   };
 
   render() {
     if (this.state.hasError) {
+      // Special UI for chunk loading errors (typically after deployment)
+      if (this.state.isChunkError) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-offwhite p-4">
+            <div className="max-w-md w-full bg-white rounded-lg shadow-xl border border-gray-200 p-6">
+              <div className="text-center">
+                <svg 
+                  className="mx-auto h-12 w-12 text-blue-500 mb-4 animate-spin" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                
+                <h2 className="text-2xl font-bold text-charcoal mb-2">
+                  App Update Available
+                </h2>
+                
+                <p className="text-gray-600 mb-6">
+                  A new version of the app is available. The page will refresh automatically to load the latest version.
+                </p>
+                
+                <p className="text-sm text-gray-500 mb-6">
+                  If the page doesn&apos;t refresh automatically, please click the button below.
+                </p>
+                
+                <button
+                  onClick={this.handleReload}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                >
+                  Refresh Now
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Standard error UI
       return (
         <div className="min-h-screen flex items-center justify-center bg-offwhite p-4">
           <div className="max-w-md w-full bg-white rounded-lg shadow-xl border border-gray-200 p-6">
@@ -91,7 +211,7 @@ class ErrorBoundary extends React.Component {
                 </button>
                 
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={this.handleReload}
                   className="px-6 py-2 bg-white text-charcoal border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                 >
                   Reload Page

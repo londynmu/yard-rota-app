@@ -9,12 +9,50 @@ import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
 
+/**
+ * Wrapper for React.lazy that adds retry logic for failed chunk loads
+ * This helps handle the case where users have stale JS after a deployment
+ * @param {Function} componentImport - The dynamic import function
+ * @param {number} retries - Number of retry attempts (default: 2)
+ * @param {number} delay - Delay between retries in ms (default: 1000)
+ */
+const lazyWithRetry = (componentImport, retries = 2, delay = 1000) => {
+  return lazy(() => {
+    const retryImport = (attemptsLeft) => {
+      return componentImport().catch((error) => {
+        // Check if this is a chunk loading error
+        const errorString = error.toString().toLowerCase();
+        const isChunkError = 
+          errorString.includes('loading chunk') ||
+          errorString.includes('dynamically imported module') ||
+          errorString.includes('failed to fetch');
+        
+        if (attemptsLeft > 0 && isChunkError) {
+          console.log(`[lazyWithRetry] Chunk load failed, retrying... (${attemptsLeft} attempts left)`);
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              // Add cache-busting query param to force fresh fetch
+              resolve(retryImport(attemptsLeft - 1));
+            }, delay);
+          });
+        }
+        
+        // If no retries left or not a chunk error, throw
+        throw error;
+      });
+    };
+    
+    return retryImport(retries);
+  });
+};
+
 // Lazy load admin and non-essential pages for better initial load performance
-const AdminPage = lazy(() => import('../pages/AdminPage'));
-const WeeklyRotaPage = lazy(() => import('../pages/WeeklyRotaPage'));
-const UserApprovalPage = lazy(() => import('../pages/UserApprovalPage'));
-const BrakesPage = lazy(() => import('../pages/BrakesPage'));
-const PerformanceLeaderboard = lazy(() => import('../pages/PerformanceLeaderboard'));
+// Using lazyWithRetry to handle chunk loading failures after deployments
+const AdminPage = lazyWithRetry(() => import('../pages/AdminPage'));
+const WeeklyRotaPage = lazyWithRetry(() => import('../pages/WeeklyRotaPage'));
+const UserApprovalPage = lazyWithRetry(() => import('../pages/UserApprovalPage'));
+const BrakesPage = lazyWithRetry(() => import('../pages/BrakesPage'));
+const PerformanceLeaderboard = lazyWithRetry(() => import('../pages/PerformanceLeaderboard'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
