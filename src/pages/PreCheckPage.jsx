@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
+import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import TugDamageHistory from '../components/PreCheck/TugDamageHistory';
 
 export default function PreCheckPage() {
@@ -157,12 +158,18 @@ export default function PreCheckPage() {
     );
   }
 
-  // During shift damage report
+  // During shift damage report - simplified form (no checklist)
   if (step === 'during_shift') {
     return (
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         <button
-          onClick={() => setStep('select')}
+          onClick={() => {
+            setStep('select');
+            // Reset to show today's precheck status
+            if (todayPreCheck) {
+              setStep('select'); // Will show the "completed" view
+            }
+          }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,14 +177,11 @@ export default function PreCheckPage() {
           </svg>
           Back
         </button>
-        <h2 className="text-lg font-bold text-charcoal">Report Damage During Shift</h2>
-        <PreCheckForm 
+        <DuringShiftReport 
           selectedTug={selectedTug} 
           onSubmitSuccess={(submission) => {
-            setTodayPreCheck(prev => prev); // Keep the pre-shift check reference
             setStep('success');
           }}
-          checkType="during_shift"
         />
       </div>
     );
