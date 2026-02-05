@@ -1,0 +1,37 @@
+---
+description: Git commit message guidelines
+alwaysApply: true
+---
+
+# Commit Messages
+
+Keep commit messages short and categorized.
+
+## Format
+
+```
+[type] short description
+```
+
+## Types
+
+- `[cosmetic]` - UI/styling changes, visual tweaks
+- `[system]` - Logic, backend, database, infrastructure
+- `[fix]` - Bug fixes
+- `[docs]` - Documentation only
+
+## Examples
+
+```
+[cosmetic] add colors to Shunter of Month card
+[system] add email import function
+[fix] resolve duplicate entries in rota
+[cosmetic] adjust button padding
+```
+
+## Rules
+
+- Max 50 characters
+- No period at the end
+- Lowercase after type tag
+- Be specific but brief
