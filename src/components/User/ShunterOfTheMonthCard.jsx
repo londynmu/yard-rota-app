@@ -74,13 +74,9 @@ function ShunterOfTheMonthCard() {
   if (loading) {
     return (
       <div className="mb-3 px-4 mt-2">
-        <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm px-3 py-2 min-h-[60px] flex items-center">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="h-7 w-7 bg-gray-100 rounded-full animate-pulse" />
-            <div className="flex-1">
-              <div className="h-4 w-32 bg-gray-100 rounded mb-1 animate-pulse" />
-              <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
-            </div>
+        <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 min-h-[48px] flex items-center">
+          <div className="flex-1">
+            <div className="h-4 w-40 bg-gray-100 rounded animate-pulse" />
           </div>
         </div>
       </div>
@@ -93,52 +89,76 @@ function ShunterOfTheMonthCard() {
 
   return (
     <div className="mb-3 px-4 mt-2">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        {/* Header button */}
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="w-full bg-white border border-gray-200 rounded-xl shadow-sm px-3 py-2 flex items-center justify-between"
+          className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-b border-amber-100"
         >
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-yellow-100 text-yellow-700 border border-yellow-300 text-sm font-bold">
-              🏆
-            </span>
-            <div className="text-left">
-              <p className="text-sm font-semibold text-charcoal">Shunter of the Month</p>
-              <p className="text-xs text-gray-600">
-                    
-              </p>
-            </div>
-          </div>
-          <span className="text-xs text-gray-500">
-            {open ? 'Hide' : 'Show'}
-          </span>
+          <p className="text-sm font-semibold text-amber-800">Shunter of the Month</p>
+          <svg
+            className={`w-4 h-4 text-amber-500 transition-transform duration-200 ${
+              open ? 'rotate-180' : 'rotate-0'
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
 
-        {open && (
-          <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-sm max-h-52 overflow-y-auto">
-            <div className="divide-y divide-gray-100">
-              {rows.map((row) => (
+        {/* Animated content */}
+        <div
+          className={`border-t border-gray-100 overflow-hidden transition-all duration-200 ease-out ${
+            open ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="p-2 space-y-2">
+            {rows.map((row, index) => {
+              const hasWinners = row.day || row.night;
+              // Alternate colors for each month
+              const bgColors = [
+                'bg-amber-50 border-amber-200',
+                'bg-blue-50 border-blue-200',
+                'bg-emerald-50 border-emerald-200',
+                'bg-purple-50 border-purple-200',
+              ];
+              const textColors = [
+                'text-amber-700',
+                'text-blue-700',
+                'text-emerald-700',
+                'text-purple-700',
+              ];
+              const bgColor = bgColors[index % bgColors.length];
+              const textColor = textColors[index % textColors.length];
+
+              return (
                 <div
                   key={row.monthKey}
-                  className="px-3 py-2 flex flex-col gap-1 md:flex-row md:items-center md:justify-between"
+                  className={`px-3 py-2.5 rounded-lg border ${bgColor} flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between`}
                 >
-                  <p className="text-xs font-semibold text-charcoal">
+                  <p className={`text-xs font-bold uppercase tracking-wide ${textColor}`}>
                     {getMonthLabel(row.monthKey)}
                   </p>
-                  <div className="flex flex-col md:items-end md:text-right">
-                    <p className="text-[13px] text-gray-600">
-                      {row.day ? `${row.day} +50£` : '—'}
-                    </p>
-                    <p className="text-[13px] text-gray-600">
-                      {row.night ? `${row.night} +50£` : '—'}
-                    </p>
-                  </div>
+                  {hasWinners ? (
+                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-6">
+                      {row.day && (
+                        <span className="text-sm font-semibold text-charcoal">{row.day}</span>
+                      )}
+                      {row.night && (
+                        <span className="text-sm font-semibold text-charcoal">{row.night}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-400">—</span>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
