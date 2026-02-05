@@ -117,6 +117,24 @@ function AppContent() {
     }
   }, [user]);
 
+  // Save deep link URL for redirect after login (e.g. QR code scan)
+  useEffect(() => {
+    if (!user && location.pathname.startsWith('/precheck/tug/')) {
+      localStorage.setItem('redirect_after_login', location.pathname);
+    }
+  }, [user, location.pathname]);
+
+  // After login, check for saved redirect
+  useEffect(() => {
+    if (user && isProfileComplete && (!accountStatus || accountStatus === 'approved')) {
+      const redirectPath = localStorage.getItem('redirect_after_login');
+      if (redirectPath) {
+        localStorage.removeItem('redirect_after_login');
+        navigate(redirectPath, { replace: true });
+      }
+    }
+  }, [user, isProfileComplete, accountStatus, navigate]);
+
   // --- UNIFIED LOADING LOGIC ---
   // Show empty screen during:
   // 1. AuthProvider loading (initial getSession)

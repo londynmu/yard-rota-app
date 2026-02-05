@@ -8,6 +8,7 @@ import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
+import PreCheckReminder from './PreCheck/PreCheckReminder';
 
 /**
  * Wrapper for React.lazy that adds retry logic for failed chunk loads
@@ -53,6 +54,7 @@ const WeeklyRotaPage = lazyWithRetry(() => import('../pages/WeeklyRotaPage'));
 const UserApprovalPage = lazyWithRetry(() => import('../pages/UserApprovalPage'));
 const BrakesPage = lazyWithRetry(() => import('../pages/BrakesPage'));
 const PerformanceLeaderboard = lazyWithRetry(() => import('../pages/PerformanceLeaderboard'));
+const PreCheckPage = lazyWithRetry(() => import('../pages/PreCheckPage'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
@@ -177,6 +179,7 @@ export default function HomePage() {
     if (path === '/profile') return 'Your Profile';
     if (path === '/brakes') return 'Breaks';
     if (path === '/performance') return 'Performance';
+    if (path.startsWith('/precheck')) return 'Tug PreCheck';
     
     return 'My Rota';
   }, [location.pathname]);
@@ -243,7 +246,8 @@ export default function HomePage() {
           path === '/my-rota' || 
           path === '/brakes' || 
           path === '/calendar' ||
-          path === '/performance';
+          path === '/performance' ||
+          path.startsWith('/precheck');
         const isAdminPage = path === '/admin';
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
@@ -303,6 +307,16 @@ export default function HomePage() {
                   >
                     Performance
                   </Link>
+                  <Link
+                    to="/precheck"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname.startsWith('/precheck')
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    PreCheck
+                  </Link>
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -361,6 +375,7 @@ export default function HomePage() {
               path="/calendar"
               element={
                 <React.Suspense fallback={<div className="bg-slate-50 min-h-screen"></div>}>
+                  <PreCheckReminder />
                   <ShunterOfTheMonthCard />
                   <CalendarPage />
                 </React.Suspense>
@@ -393,6 +408,8 @@ export default function HomePage() {
             <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
             <Route path="/my-rota" element={<WeeklyRotaPage />} />
             <Route path="/performance" element={<PerformanceLeaderboard />} />
+            <Route path="/precheck" element={<PreCheckPage />} />
+            <Route path="/precheck/tug/:token" element={<PreCheckPage />} />
             <Route path="*" element={<Navigate to="/calendar" replace />} />
           </Routes>
         </Suspense>
@@ -440,6 +457,19 @@ export default function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <span className="text-xs font-medium">Stats</span>
+          </Link>
+
+          {/* PreCheck */}
+          <Link
+            to="/precheck"
+            className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all bottom-nav-icon ${
+              location.pathname.startsWith('/precheck') ? 'active' : ''
+            }`}
+          >
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span className="text-xs font-medium">PreCheck</span>
           </Link>
 
           {/* Admin (only if admin) */}

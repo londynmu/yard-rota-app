@@ -10,6 +10,8 @@ import PerformanceImport from '../components/Admin/PerformanceImport';
 import RotaPlannerPage from './RotaPlannerPage';
 import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManager';
+import TugManager from '../components/Admin/PreCheck/TugManager';
+import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -25,7 +27,7 @@ export default function AdminPage() {
     const validSections = [
       'dashboard', 'users', 'approvals', 'availability', 
       'rota-planner', 'breaks', 'performance', 'stats', 
-      'shunter-month', 'settings'
+      'shunter-month', 'settings', 'tugs', 'prechecks'
     ];
     return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
   });
@@ -47,6 +49,8 @@ export default function AdminPage() {
         'performance': 'Performance',
         'stats': 'Statistics',
         'shunter-month': 'Shunter of the Month',
+        'tugs': 'Tug Management',
+        'prechecks': 'PreCheck Reports',
         'settings': 'Settings'
       };
       titleElement.textContent = titles[activeSection] || 'Admin Panel';
@@ -266,6 +270,8 @@ export default function AdminPage() {
     { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
+    { id: 'tugs', label: 'Tugs', icon: '🚛', description: 'Manage tug fleet & QR codes' },
+    { id: 'prechecks', label: 'PreChecks', icon: '📝', description: 'Tug inspection reports' },
     { id: 'shunter-month', label: 'Shunter of the Month', icon: '🏆', description: 'Monthly Day & Night awards' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Locations & Agencies' },
   ];
@@ -323,6 +329,10 @@ export default function AdminPage() {
         return <RotaPlannerPage />;
       case 'breaks':
         return <BrakesManager />;
+      case 'tugs':
+        return <TugManager />;
+      case 'prechecks':
+        return <PreCheckList />;
       case 'shunter-month':
         return <ShunterOfTheMonthManager users={users} />;
       case 'settings':
