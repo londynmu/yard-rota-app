@@ -7,13 +7,37 @@ import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import TugDamageHistory from '../components/PreCheck/TugDamageHistory';
 
+// Persist during_shift state so it survives camera app taking over the browser
+const DURING_SHIFT_KEY = 'precheck_during_shift';
+
+const saveDuringShiftState = (tug) => {
+  if (tug) {
+    sessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number }));
+  }
+};
+
+const clearDuringShiftState = () => {
+  sessionStorage.removeItem(DURING_SHIFT_KEY);
+};
+
+const loadDuringShiftState = () => {
+  try {
+    const saved = sessionStorage.getItem(DURING_SHIFT_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+};
+
 export default function PreCheckPage() {
   const { token } = useParams(); // QR deep link token
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  const [step, setStep] = useState('select'); // 'select' | 'form' | 'success' | 'during_shift'
-  const [selectedTug, setSelectedTug] = useState(null);
+
+  // Restore step from sessionStorage if returning from camera
+  const savedDuringShift = loadDuringShiftState();
+  const [step, setStep] = useState(savedDuringShift ? 'during_shift' : 'select');
+  const [selectedTug, setSelectedTug] = useState(
+    savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber } : null
+  );
   const [userLocationId, setUserLocationId] = useState(null);
   const [todayPreCheck, setTodayPreCheck] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +131,7 @@ export default function PreCheckPage() {
   };
 
   const handleStartDuringShift = () => {
+    saveDuringShiftState(selectedTug);
     setStep('during_shift');
   };
 
@@ -164,11 +189,8 @@ export default function PreCheckPage() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         <button
           onClick={() => {
+            clearDuringShiftState();
             setStep('select');
-            // Reset to show today's precheck status
-            if (todayPreCheck) {
-              setStep('select'); // Will show the "completed" view
-            }
           }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
         >
@@ -180,6 +202,7 @@ export default function PreCheckPage() {
         <DuringShiftReport 
           selectedTug={selectedTug} 
           onSubmitSuccess={(submission) => {
+            clearDuringShiftState();
             setStep('success');
           }}
         />

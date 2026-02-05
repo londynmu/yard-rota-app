@@ -1,17 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import ImageUpload from './ImageUpload';
 import TugDiagram from './TugDiagram';
 
+const FORM_STORAGE_KEY = 'precheck_during_shift_form';
+
+const saveFormState = (data) => {
+  try {
+    // Can't serialize File objects, only save text fields
+    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
+      description: data.description,
+      severity: data.severity,
+      locationOnTug: data.locationOnTug,
+    }));
+  } catch { /* ignore */ }
+};
+
+const loadFormState = () => {
+  try {
+    const saved = sessionStorage.getItem(FORM_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+};
+
+const clearFormState = () => {
+  sessionStorage.removeItem(FORM_STORAGE_KEY);
+};
+
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
-  const [description, setDescription] = useState('');
-  const [severity, setSeverity] = useState('minor');
-  const [locationOnTug, setLocationOnTug] = useState(null);
+  const savedForm = loadFormState();
+  const [description, setDescription] = useState(savedForm?.description || '');
+  const [severity, setSeverity] = useState(savedForm?.severity || 'minor');
+  const [locationOnTug, setLocationOnTug] = useState(savedForm?.locationOnTug || null);
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Persist form state on every change (so camera app return preserves data)
+  const persistForm = useCallback(() => {
+    saveFormState({ description, severity, locationOnTug });
+  }, [description, severity, locationOnTug]);
+
+  useEffect(() => {
+    persistForm();
+  }, [persistForm]);
 
   const uploadImages = async (submissionId) => {
     const urls = [];
@@ -78,6 +112,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
 
       if (damageError) throw damageError;
 
+      clearFormState();
       onSubmitSuccess?.(submission);
     } catch (err) {
       console.error('[DuringShiftReport] Submit error:', err);
