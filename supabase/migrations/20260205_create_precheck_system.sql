@@ -1,7 +1,7 @@
 -- =====================================================
 -- PreCheck System - Tug Daily Check Sheet
 -- =====================================================
--- Tables: tugs, precheck_submissions, precheck_items, precheck_damages
+-- Tables: tugs, pecheck_submissions, precheck_items, precheck_damages
 -- Also fixes: locations SELECT policy for authenticated users
 -- =====================================================
 
