@@ -102,6 +102,7 @@ export default function InlineCamera({ onCapture, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/80 z-10">
         <button
+          type="button"
           onClick={handleClose}
           className="text-white p-2"
         >
@@ -123,6 +124,7 @@ export default function InlineCamera({ onCapture, onClose }) {
               </svg>
               <p className="text-sm mb-4">{error}</p>
               <button
+                type="button"
                 onClick={handleClose}
                 className="px-4 py-2 bg-white text-black rounded-lg text-sm font-semibold"
               >
@@ -152,6 +154,7 @@ export default function InlineCamera({ onCapture, onClose }) {
       {!error && (
         <div className="flex items-center justify-center py-6 bg-black/80">
           <button
+            type="button"
             onClick={handleCapture}
             disabled={!ready}
             className={`w-18 h-18 rounded-full border-4 border-white flex items-center justify-center transition-all ${
