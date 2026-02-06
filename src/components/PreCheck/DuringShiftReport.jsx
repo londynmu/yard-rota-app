@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import ImageUpload from './ImageUpload';
-import TugDiagram from './TugDiagram';
 
 const FORM_STORAGE_KEY = 'precheck_during_shift_form';
 
@@ -13,7 +12,6 @@ const saveFormState = (data) => {
     sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
       description: data.description,
       severity: data.severity,
-      locationOnTug: data.locationOnTug,
     }));
   } catch { /* ignore */ }
 };
@@ -34,14 +32,13 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const savedForm = loadFormState();
   const [description, setDescription] = useState(savedForm?.description || '');
   const [severity, setSeverity] = useState(savedForm?.severity || 'minor');
-  const [locationOnTug, setLocationOnTug] = useState(savedForm?.locationOnTug || null);
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Persist form state on every change (so camera app return preserves data)
   const persistForm = useCallback(() => {
-    saveFormState({ description, severity, locationOnTug });
-  }, [description, severity, locationOnTug]);
+    saveFormState({ description, severity });
+  }, [description, severity]);
 
   useEffect(() => {
     persistForm();
@@ -105,7 +102,6 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
         .insert({
           submission_id: submission.id,
           description: description.trim(),
-          location_on_tug: locationOnTug,
           severity,
           image_urls: imageUrls,
         });
@@ -146,12 +142,6 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
               autoFocus
             />
           </div>
-
-          {/* Tug diagram - tap to mark location */}
-          <TugDiagram
-            selectedZone={locationOnTug}
-            onSelectZone={setLocationOnTug}
-          />
 
           {/* Photos */}
           <div>
