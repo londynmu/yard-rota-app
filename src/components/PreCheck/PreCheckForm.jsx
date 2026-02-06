@@ -55,7 +55,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     Object.fromEntries(PERFORM_ITEMS.map(item => [item.key, false]))
   );
   const [checkItems, setCheckItems] = useState(
-    Object.fromEntries(CHECK_ITEMS.map(item => [item.key, { status: '', notes: '' }]))
+    Object.fromEntries(CHECK_ITEMS.map(item => [item.key, { status: '', notes: '', images: [] }]))
   );
   const [damages, setDamages] = useState([]);
   const [remarks, setRemarks] = useState('');
@@ -154,12 +154,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
       if (itemsError) throw itemsError;
 
-      // 4. Insert damages if any
+      // 4. Insert damages from damage reports
       if (damages.length > 0) {
         for (const damage of damages) {
-          // Upload images first
           const imageUrls = await uploadDamageImages(submission.id, damage.images);
-
           const { error: damageError } = await supabase
             .from('precheck_damages')
             .insert({
@@ -169,8 +167,26 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
               severity: damage.severity,
               image_urls: imageUrls,
             });
-
           if (damageError) throw damageError;
+        }
+      }
+
+      // 5. Insert damages from check items marked as repair_needed (with photos)
+      for (const item of CHECK_ITEMS) {
+        const ci = checkItems[item.key];
+        if (ci.status === 'repair_needed' && (ci.images?.length > 0 || ci.notes)) {
+          const imageUrls = ci.images?.length > 0
+            ? await uploadDamageImages(submission.id, ci.images)
+            : [];
+          const { error: ciDamageError } = await supabase
+            .from('precheck_damages')
+            .insert({
+              submission_id: submission.id,
+              description: ci.notes || `${item.label} - repair needed`,
+              severity: 'minor',
+              image_urls: imageUrls,
+            });
+          if (ciDamageError) throw ciDamageError;
         }
       }
 
@@ -232,14 +248,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
       {/* Section 2: Check Items */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-charcoal text-sm">
-            Check Items - Mark OK or Repair Needed
-          </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-charcoal text-sm">Check Items</h3>
           <div className="flex items-center gap-2">
             {repairCount > 0 && (
               <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                {repairCount} repair{repairCount !== 1 ? 's' : ''}
+                {repairCount} issue{repairCount !== 1 ? 's' : ''}
               </span>
             )}
             {allChecksDone && repairCount === 0 && (
@@ -247,6 +261,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             )}
           </div>
         </div>
+        <p className="text-xs text-gray-400 mb-3">
+          <span className="inline-flex items-center gap-1"><svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg> OK</span>
+          {' '}
+          <span className="inline-flex items-center gap-1"><svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg> Issue</span>
+        </p>
         {errors.check && (
           <p className="text-xs text-red-600 mb-2 bg-red-50 p-2 rounded-lg">{errors.check}</p>
         )}
@@ -264,6 +283,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
               onNotesChange={(notes) => setCheckItems(prev => ({
                 ...prev,
                 [item.key]: { ...prev[item.key], notes }
+              }))}
+              images={checkItems[item.key].images}
+              onImagesChange={(images) => setCheckItems(prev => ({
+                ...prev,
+                [item.key]: { ...prev[item.key], images }
               }))}
             />
           ))}
