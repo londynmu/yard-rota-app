@@ -241,7 +241,7 @@ export default function PreCheckPage() {
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
         <div>
           <h1 className="text-xl font-bold text-charcoal">Daily Tug Check</h1>
-          <p className="text-sm text-gray-500 mt-1">Select your tug and complete the pre-shift inspection</p>
+          <p className="text-sm text-gray-500 mt-1">Select your tug to start the pre-shift inspection</p>
         </div>
 
         {qrError && (
@@ -253,25 +253,12 @@ export default function PreCheckPage() {
         <TugSelector 
           selectedTug={selectedTug} 
           onSelect={handleTugSelect}
+          onStartCheck={(tug) => {
+            setSelectedTug(tug);
+            handleProceedToForm();
+          }}
           userLocationId={userLocationId}
         />
-
-        {/* Damage history for selected tug */}
-        {selectedTug && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <TugDamageHistory tugId={selectedTug.id} />
-          </div>
-        )}
-
-        {/* Continue button */}
-        {selectedTug && (
-          <button
-            onClick={handleProceedToForm}
-            className="w-full py-4 bg-charcoal text-white font-bold rounded-xl hover:bg-black active:scale-[0.98] transition-all shadow-lg text-base"
-          >
-            Start PreCheck for {selectedTug.tug_number}
-          </button>
-        )}
       </div>
     );
   }

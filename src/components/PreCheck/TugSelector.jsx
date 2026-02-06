@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import PropTypes from 'prop-types';
+import TugDamageHistory from './TugDamageHistory';
 
-export default function TugSelector({ selectedTug, onSelect, userLocationId }) {
+export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId }) {
   const [tugs, setTugs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // 'all' or 'my-location'
+  const [filter, setFilter] = useState('all');
+  const [expandedTug, setExpandedTug] = useState(null);
 
   useEffect(() => {
     fetchTugs();
   }, []);
+
+  // Auto-expand if a tug is pre-selected (e.g. from QR)
+  useEffect(() => {
+    if (selectedTug) {
+      setExpandedTug(selectedTug.id);
+    }
+  }, [selectedTug]);
 
   const fetchTugs = async () => {
     try {
@@ -32,15 +41,23 @@ export default function TugSelector({ selectedTug, onSelect, userLocationId }) {
     ? tugs.filter(t => t.location_id === userLocationId)
     : tugs;
 
+  const handleTugClick = (tug) => {
+    if (expandedTug === tug.id) {
+      // Collapse if already expanded
+      setExpandedTug(null);
+      onSelect(null);
+    } else {
+      setExpandedTug(tug.id);
+      onSelect(tug);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="animate-pulse space-y-3">
-        <div className="h-10 bg-slate-200 rounded-lg" />
-        <div className="grid grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-20 bg-slate-200 rounded-lg" />
-          ))}
-        </div>
+      <div className="animate-pulse space-y-2">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-16 bg-slate-200 rounded-xl" />
+        ))}
       </div>
     );
   }
@@ -89,41 +106,83 @@ export default function TugSelector({ selectedTug, onSelect, userLocationId }) {
         </div>
       )}
 
-      {/* Tug grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {filteredTugs.map(tug => (
-          <button
-            key={tug.id}
-            type="button"
-            onClick={() => onSelect(tug)}
-            className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-              selectedTug?.id === tug.id
-                ? 'border-charcoal bg-charcoal text-white shadow-lg scale-[1.02]'
-                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
-            }`}
-          >
-            <div className={`text-lg font-bold ${selectedTug?.id === tug.id ? 'text-white' : 'text-charcoal'}`}>
-              {tug.display_name || tug.tug_number}
-            </div>
-            {tug.display_name && (
-              <div className={`text-xs ${selectedTug?.id === tug.id ? 'text-gray-300' : 'text-gray-500'}`}>
-                {tug.tug_number}
-              </div>
-            )}
-            {tug.locations && (
-              <div className={`text-xs mt-0.5 ${selectedTug?.id === tug.id ? 'text-gray-300' : 'text-gray-500'}`}>
-                {tug.locations.name}
-              </div>
-            )}
-            {selectedTug?.id === tug.id && (
-              <div className="absolute top-2 right-2">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      {/* Tug list (accordion) */}
+      <div className="space-y-2">
+        {filteredTugs.map(tug => {
+          const isExpanded = expandedTug === tug.id;
+          const isSelected = selectedTug?.id === tug.id;
+
+          return (
+            <div
+              key={tug.id}
+              className={`rounded-xl border-2 overflow-hidden transition-all ${
+                isExpanded
+                  ? 'border-charcoal shadow-lg'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {/* Tug row - clickable */}
+              <button
+                type="button"
+                onClick={() => handleTugClick(tug)}
+                className={`w-full p-4 flex items-center gap-3 text-left transition-colors ${
+                  isExpanded ? 'bg-charcoal text-white' : 'bg-white hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-base font-bold ${isExpanded ? 'text-white' : 'text-charcoal'}`}>
+                      {tug.display_name || tug.tug_number}
+                    </span>
+                    {tug.display_name && (
+                      <span className={`text-xs ${isExpanded ? 'text-gray-300' : 'text-gray-400'}`}>
+                        {tug.tug_number}
+                      </span>
+                    )}
+                    {tug.locations && (
+                      <>
+                        <span className={`text-xs ${isExpanded ? 'text-gray-400' : 'text-gray-300'}`}>•</span>
+                        <span className={`text-xs ${isExpanded ? 'text-gray-300' : 'text-gray-500'}`}>
+                          {tug.locations.name}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <svg
+                  className={`w-5 h-5 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180 text-white' : 'text-gray-400'}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
-            )}
-          </button>
-        ))}
+              </button>
+
+              {/* Expanded content */}
+              {isExpanded && (
+                <div className="bg-white border-t border-gray-200">
+                  {/* Start PreCheck button */}
+                  <div className="p-4 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => onStartCheck(tug)}
+                      className="w-full py-3.5 bg-charcoal text-white font-bold rounded-xl hover:bg-black active:scale-[0.98] transition-all shadow-md text-sm flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                      Start PreCheck for {tug.display_name || tug.tug_number}
+                    </button>
+                  </div>
+
+                  {/* Damage history */}
+                  <div className="px-4 pb-4">
+                    <TugDamageHistory tugId={tug.id} />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -132,5 +191,6 @@ export default function TugSelector({ selectedTug, onSelect, userLocationId }) {
 TugSelector.propTypes = {
   selectedTug: PropTypes.object,
   onSelect: PropTypes.func.isRequired,
+  onStartCheck: PropTypes.func.isRequired,
   userLocationId: PropTypes.string,
 };
