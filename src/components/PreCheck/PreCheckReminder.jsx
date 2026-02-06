@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
+import { getShiftWindow } from '../../pages/PreCheckPage';
 
 export default function PreCheckReminder() {
   const { user } = useAuth();
@@ -15,26 +16,32 @@ export default function PreCheckReminder() {
 
   const checkIfNeeded = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
 
-      // 1. Check if user has a shift today
-      const { data: todayShift, error: shiftError } = await supabase
+      // 1. Get user's shifts (today + yesterday for night shifts)
+      const { data: shifts, error: shiftError } = await supabase
         .from('scheduled_rota')
-        .select('id')
+        .select('start_time, end_time, shift_type, date')
         .eq('user_id', user.id)
-        .eq('date', today)
-        .limit(1)
-        .maybeSingle();
+        .in('date', [today, yesterday])
+        .order('date', { ascending: false });
 
-      if (shiftError || !todayShift) return;
+      if (shiftError || !shifts || shifts.length === 0) return;
 
-      // 2. Check if user already did a pre-shift check today
+      // 2. Calculate shift window
+      const sw = getShiftWindow(shifts, now);
+      if (!sw || now > sw.end) return; // No active shift or shift ended
+
+      // 3. Check if user already has a pre-shift check in this window
       const { data: existingCheck, error: checkError } = await supabase
         .from('precheck_submissions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('check_date', today)
         .eq('check_type', 'pre_shift')
+        .gte('check_time', sw.start.toISOString())
+        .lte('check_time', sw.end.toISOString())
         .limit(1)
         .maybeSingle();
 

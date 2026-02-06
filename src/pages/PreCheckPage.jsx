@@ -7,39 +7,71 @@ import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import TugDamageHistory from '../components/PreCheck/TugDamageHistory';
 
-// Persist during_shift state so it survives camera app taking over the browser
+// ─── Persist during_shift state (camera app workaround) ───
 const DURING_SHIFT_KEY = 'precheck_during_shift';
-
 const saveDuringShiftState = (tug) => {
-  if (tug) {
-    sessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number }));
-  }
+  if (tug) sessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number, displayName: tug.display_name }));
 };
-
-const clearDuringShiftState = () => {
-  sessionStorage.removeItem(DURING_SHIFT_KEY);
-};
-
+const clearDuringShiftState = () => sessionStorage.removeItem(DURING_SHIFT_KEY);
 const loadDuringShiftState = () => {
-  try {
-    const saved = sessionStorage.getItem(DURING_SHIFT_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch { return null; }
+  try { const s = sessionStorage.getItem(DURING_SHIFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
 };
+
+// ─── Shift Window Logic ───
+// Calculates the time window for the current shift based on scheduled_rota data.
+// Returns { start: Date, end: Date } or null.
+export function getShiftWindow(shifts, now = new Date()) {
+  if (!shifts || shifts.length === 0) return null;
+
+  const today = now.toISOString().split('T')[0];
+  const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
+
+  for (const shift of shifts) {
+    const shiftDate = shift.date; // "2026-02-05"
+    const startStr = shift.start_time; // "05:45"
+    const endStr = shift.end_time; // "18:00"
+    if (!shiftDate || !startStr || !endStr) continue;
+
+    const start = new Date(`${shiftDate}T${startStr}:00`);
+    let end = new Date(`${shiftDate}T${endStr}:00`);
+
+    // Night shift: end_time < start_time means end is next day
+    if (end <= start) {
+      end = new Date(end.getTime() + 86400000);
+    }
+
+    // Check if NOW falls within this shift window (with 1h buffer before start)
+    const bufferStart = new Date(start.getTime() - 3600000);
+    if (now >= bufferStart && now <= end) {
+      return { start, end };
+    }
+  }
+
+  return null;
+}
+
+// Fallback: 12 hours from the earliest check time
+function getFallbackWindow(checks, now = new Date()) {
+  if (checks && checks.length > 0) {
+    const earliest = new Date(checks[checks.length - 1].check_time || checks[checks.length - 1].created_at);
+    return { start: earliest, end: new Date(earliest.getTime() + 12 * 3600000) };
+  }
+  return null;
+}
 
 export default function PreCheckPage() {
-  const { token } = useParams(); // QR deep link token
+  const { token } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Restore step from sessionStorage if returning from camera
   const savedDuringShift = loadDuringShiftState();
   const [step, setStep] = useState(savedDuringShift ? 'during_shift' : 'select');
   const [selectedTug, setSelectedTug] = useState(
-    savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber } : null
+    savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber, display_name: savedDuringShift.displayName } : null
   );
   const [userLocationId, setUserLocationId] = useState(null);
-  const [todayPreCheck, setTodayPreCheck] = useState(null);
+  const [shiftChecks, setShiftChecks] = useState([]); // all pre_shift checks in the shift window
+  const [shiftWindow, setShiftWindow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [qrError, setQrError] = useState(null);
 
@@ -52,42 +84,77 @@ export default function PreCheckPage() {
     setLoading(true);
 
     try {
-      // 1. Get user's today shift location
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayShift } = await supabase
-        .from('scheduled_rota')
-        .select('location')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .limit(1)
-        .maybeSingle();
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
 
-      if (todayShift?.location) {
-        // Look up location ID by name
-        const { data: locationData } = await supabase
-          .from('locations')
-          .select('id')
-          .eq('name', todayShift.location)
-          .maybeSingle();
-        
-        if (locationData) setUserLocationId(locationData.id);
+      // 1. Get user's shifts (today + yesterday for night shifts)
+      const { data: shifts } = await supabase
+        .from('scheduled_rota')
+        .select('location, start_time, end_time, shift_type, date')
+        .eq('user_id', user.id)
+        .in('date', [today, yesterday])
+        .order('date', { ascending: false });
+
+      // Determine shift window
+      const sw = getShiftWindow(shifts || [], now);
+
+      // Set location from the active shift
+      if (shifts && shifts.length > 0) {
+        const activeShift = shifts[0];
+        if (activeShift.location) {
+          const { data: locData } = await supabase
+            .from('locations')
+            .select('id')
+            .eq('name', activeShift.location)
+            .maybeSingle();
+          if (locData) setUserLocationId(locData.id);
+        }
       }
 
-      // 2. Check if user already has a pre-shift check today
-      const { data: existingCheck } = await supabase
+      // 2. Get existing pre-shift checks in the shift window
+      let checksQuery = supabase
         .from('precheck_submissions')
         .select('*, tugs(tug_number, display_name)')
         .eq('user_id', user.id)
-        .eq('check_date', today)
         .eq('check_type', 'pre_shift')
-        .maybeSingle();
+        .order('check_time', { ascending: false });
 
-      if (existingCheck) {
-        setTodayPreCheck(existingCheck);
-        setSelectedTug({ id: existingCheck.tug_id, tug_number: existingCheck.tugs?.tug_number, display_name: existingCheck.tugs?.display_name });
+      if (sw) {
+        checksQuery = checksQuery
+          .gte('check_time', sw.start.toISOString())
+          .lte('check_time', sw.end.toISOString());
+      } else {
+        // No shift found - look for checks in last 12 hours
+        const twelveHoursAgo = new Date(now.getTime() - 12 * 3600000);
+        checksQuery = checksQuery.gte('check_time', twelveHoursAgo.toISOString());
       }
 
-      // 3. If QR token, load tug by token
+      const { data: existingChecks } = await checksQuery;
+      const checks = existingChecks || [];
+
+      // Calculate effective window (shift-based or fallback from checks)
+      const effectiveWindow = sw || getFallbackWindow(checks, now);
+      setShiftWindow(effectiveWindow);
+
+      // Check if we're still within the window
+      if (effectiveWindow && now <= effectiveWindow.end) {
+        setShiftChecks(checks);
+      } else {
+        setShiftChecks([]); // Window expired
+      }
+
+      // Set selected tug to the most recent check's tug
+      if (checks.length > 0 && !savedDuringShift) {
+        const latest = checks[0];
+        setSelectedTug({
+          id: latest.tug_id,
+          tug_number: latest.tugs?.tug_number,
+          display_name: latest.tugs?.display_name,
+        });
+      }
+
+      // 3. QR token handling
       if (token) {
         const { data: tugByToken, error } = await supabase
           .from('tugs')
@@ -100,9 +167,12 @@ export default function PreCheckPage() {
           setQrError('Invalid or inactive QR code. Please try again or select a tug manually.');
         } else {
           setSelectedTug(tugByToken);
-          if (!existingCheck) {
+          // Check if THIS specific tug was already checked in this shift
+          const alreadyChecked = checks.some(c => c.tug_id === tugByToken.id);
+          if (!alreadyChecked) {
             setStep('form');
           }
+          // If already checked, will show the completed view
         }
       }
     } catch (err) {
@@ -126,73 +196,108 @@ export default function PreCheckPage() {
   };
 
   const handleSubmitSuccess = (submission) => {
-    setTodayPreCheck(submission);
+    // Add the new check to the list
+    setShiftChecks(prev => [submission, ...prev]);
     setStep('success');
   };
 
-  const handleStartDuringShift = () => {
-    saveDuringShiftState(selectedTug);
+  const handleStartDuringShift = (tug) => {
+    setSelectedTug(tug);
+    saveDuringShiftState(tug);
     setStep('during_shift');
   };
 
+  const handleCheckAnotherTug = () => {
+    setSelectedTug(null);
+    setStep('select');
+  };
+
+  // ─── Loading ───
   if (loading) {
     return (
       <div className="max-w-lg mx-auto px-4 py-6 animate-pulse space-y-4">
         <div className="h-8 bg-slate-200 rounded w-48" />
         <div className="h-40 bg-slate-200 rounded-xl" />
-        <div className="h-40 bg-slate-200 rounded-xl" />
       </div>
     );
   }
 
-  // Already completed pre-shift check today
-  if (todayPreCheck && step !== 'during_shift') {
+  // ─── Completed view (has checks in shift window) ───
+  if (shiftChecks.length > 0 && step !== 'during_shift' && step !== 'form' && step !== 'success') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-sm font-bold text-green-800">Pre-Shift Check Completed</span>
-          </div>
-          <p className="text-sm text-green-700 ml-7">
-            <strong>{selectedTug?.display_name || todayPreCheck.tugs?.display_name || ''}</strong>
-            {(selectedTug?.display_name || todayPreCheck.tugs?.display_name) ? ' • ' : ''}
-            {selectedTug?.tug_number || todayPreCheck.tugs?.tug_number}
-            {' • '}Today at {new Date(todayPreCheck.check_time || todayPreCheck.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        </div>
+      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+        {/* Checks list */}
+        {shiftChecks.map((check, idx) => {
+          const tugName = check.tugs?.display_name || check.tugs?.tug_number || 'Unknown';
+          const tugNumber = check.tugs?.tug_number || '';
+          const time = new Date(check.check_time || check.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          const isLatest = idx === 0;
 
-        {/* Report new damage during shift */}
+          return (
+            <div key={check.id} className="space-y-2">
+              {/* Check status card */}
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm font-bold text-green-800">
+                    {tugName} — Check Completed
+                  </span>
+                </div>
+                <p className="text-xs text-green-600 ml-7">
+                  {tugName !== tugNumber ? `${tugNumber} • ` : ''}
+                  Today at {time}
+                </p>
+              </div>
+
+              {/* Report damage for this tug */}
+              <button
+                onClick={() => handleStartDuringShift({
+                  id: check.tug_id,
+                  tug_number: tugNumber,
+                  display_name: check.tugs?.display_name,
+                })}
+                className="w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+              >
+                Report Damage on {tugName}
+              </button>
+
+              {/* Damage history for the latest tug */}
+              {isLatest && (
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>
+                  <TugDamageHistory tugId={check.tug_id} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Check Another Tug */}
         <button
-          onClick={handleStartDuringShift}
-          className="w-full py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 shadow-md"
+          onClick={handleCheckAnotherTug}
+          className="w-full py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors flex items-center justify-center gap-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          Report New Damage
+          Check Another Tug
         </button>
-
-        {/* Damage history */}
-        {selectedTug && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <TugDamageHistory tugId={selectedTug.id} />
-          </div>
-        )}
       </div>
     );
   }
 
-  // During shift damage report - simplified form (no checklist)
+  // ─── During shift damage report ───
   if (step === 'during_shift') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         <button
           onClick={() => {
             clearDuringShiftState();
-            setStep('select');
+            // Go back to completed view if we have checks, otherwise select
+            setStep(shiftChecks.length > 0 ? 'select' : 'select');
+            // Force re-initialize to refresh the completed view
+            if (shiftChecks.length > 0) {
+              initialize();
+            }
           }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
         >
@@ -201,9 +306,9 @@ export default function PreCheckPage() {
           </svg>
           Back
         </button>
-        <DuringShiftReport 
-          selectedTug={selectedTug} 
-          onSubmitSuccess={(submission) => {
+        <DuringShiftReport
+          selectedTug={selectedTug}
+          onSubmitSuccess={() => {
             clearDuringShiftState();
             setStep('success');
           }}
@@ -212,32 +317,42 @@ export default function PreCheckPage() {
     );
   }
 
-  // Success screen
+  // ─── Success screen ───
   if (step === 'success') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center space-y-4">
+          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-green-800 mb-2">Check Submitted Successfully</h2>
-          <p className="text-sm text-green-600 mb-6">
-            Your check for <strong>{selectedTug?.tug_number}</strong> has been recorded.
-          </p>
-          <button
-            onClick={() => navigate('/calendar')}
-            className="px-6 py-2.5 bg-charcoal text-white font-medium rounded-lg hover:bg-black transition-colors"
-          >
-            Back to Home
-          </button>
+          <div>
+            <h2 className="text-lg font-bold text-green-800">Submitted Successfully</h2>
+            <p className="text-sm text-green-600 mt-1">
+              {selectedTug?.display_name || selectedTug?.tug_number} has been recorded.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleCheckAnotherTug}
+              className="w-full py-2.5 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors text-sm"
+            >
+              Check Another Tug
+            </button>
+            <button
+              onClick={() => navigate('/calendar')}
+              className="w-full py-2.5 bg-white text-charcoal font-medium rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Step: Select tug
+  // ─── Select tug ───
   if (step === 'select') {
     return (
       <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
@@ -249,8 +364,8 @@ export default function PreCheckPage() {
           </div>
         )}
 
-        <TugSelector 
-          selectedTug={selectedTug} 
+        <TugSelector
+          selectedTug={selectedTug}
           onSelect={handleTugSelect}
           onStartCheck={(tug) => {
             setSelectedTug(tug);
@@ -262,7 +377,7 @@ export default function PreCheckPage() {
     );
   }
 
-  // Step: Form - scroll to top on mount
+  // ─── Form (pre-shift check) ───
   if (step === 'form') {
     window.scrollTo({ top: 0 });
   }
@@ -279,8 +394,8 @@ export default function PreCheckPage() {
         Change Tug
       </button>
 
-      <PreCheckForm 
-        selectedTug={selectedTug} 
+      <PreCheckForm
+        selectedTug={selectedTug}
         onSubmitSuccess={handleSubmitSuccess}
         checkType="pre_shift"
       />
