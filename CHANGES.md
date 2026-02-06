@@ -2,7 +2,7 @@
 
 ## Changes Made
 
-1. **Fixed User Display in Available Staff:** 
+1. **Fixed User .Display in Available Staff:** 
    - Corrected the fetchAvailableUsers function to properly process users and set their availability status
    - Fixed the floating panel and mobile panel displays
 
