@@ -294,15 +294,15 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         </button>
         {inspectionOpen && (
           <div>
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-4 py-2 border-b border-gray-100">
-              <span className="flex items-center gap-1.5 text-xs text-slate-500">
+            {/* Legend - aligned right to match button positions */}
+            <div className="flex items-center justify-end gap-3 py-2 px-1 border-b border-gray-100">
+              <span className="flex items-center gap-1 text-xs text-slate-400">
                 <span className="w-5 h-5 rounded bg-red-500 text-white flex items-center justify-center">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
                 </span>
                 Issue
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="flex items-center gap-1 text-xs text-slate-400">
                 <span className="w-5 h-5 rounded bg-green-500 text-white flex items-center justify-center">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                 </span>

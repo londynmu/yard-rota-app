@@ -23,9 +23,16 @@ export default function CheckItemRow({ label, value, onChange, notes, onNotesCha
 
   return (
     <div className={`border-b border-gray-100 last:border-b-0 ${value === 'repair_needed' ? 'bg-red-50/50' : ''}`}>
-      {/* Compact row */}
+      {/* Compact row: Label ... Warning OK */}
       <div className="flex items-center gap-2 py-2 px-1">
-        {/* Issue / Warning button (left) */}
+        {/* Label (left) */}
+        <span className={`flex-1 text-sm font-medium min-w-0 ${
+          value === 'ok' ? 'text-green-700' : value === 'repair_needed' ? 'text-red-700' : 'text-charcoal'
+        }`}>
+          {label}
+        </span>
+
+        {/* Issue / Warning button */}
         <button
           type="button"
           onClick={handleMarkIssue}
@@ -40,14 +47,7 @@ export default function CheckItemRow({ label, value, onChange, notes, onNotesCha
           </svg>
         </button>
 
-        {/* Label */}
-        <span className={`flex-1 text-sm font-medium min-w-0 ${
-          value === 'ok' ? 'text-green-700' : value === 'repair_needed' ? 'text-red-700' : 'text-charcoal'
-        }`}>
-          {label}
-        </span>
-
-        {/* OK / Check button (right) */}
+        {/* OK / Check button */}
         <button
           type="button"
           onClick={handleMarkOk}
