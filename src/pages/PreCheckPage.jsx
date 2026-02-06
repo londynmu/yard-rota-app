@@ -144,14 +144,15 @@ export default function PreCheckPage() {
         setShiftChecks([]); // Window expired
       }
 
-      // Set selected tug to the most recent check's tug
-      if (checks.length > 0 && !savedDuringShift) {
+      // Set selected tug and show completed view if checks exist
+      if (checks.length > 0 && effectiveWindow && now <= effectiveWindow.end && !savedDuringShift) {
         const latest = checks[0];
         setSelectedTug({
           id: latest.tug_id,
           tug_number: latest.tugs?.tug_number,
           display_name: latest.tugs?.display_name,
         });
+        setStep('completed');
       }
 
       // 3. QR token handling
@@ -222,8 +223,8 @@ export default function PreCheckPage() {
     );
   }
 
-  // ─── Completed view (has checks in shift window) ───
-  if (shiftChecks.length > 0 && step !== 'during_shift' && step !== 'form' && step !== 'success') {
+  // ─── Completed view ───
+  if (step === 'completed' && shiftChecks.length > 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         {/* Checks list */}
@@ -292,12 +293,7 @@ export default function PreCheckPage() {
         <button
           onClick={() => {
             clearDuringShiftState();
-            // Go back to completed view if we have checks, otherwise select
-            setStep(shiftChecks.length > 0 ? 'select' : 'select');
-            // Force re-initialize to refresh the completed view
-            if (shiftChecks.length > 0) {
-              initialize();
-            }
+            setStep(shiftChecks.length > 0 ? 'completed' : 'select');
           }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
         >
@@ -354,8 +350,23 @@ export default function PreCheckPage() {
 
   // ─── Select tug ───
   if (step === 'select') {
+    const checkedTugIds = shiftChecks.map(c => c.tug_id);
+
     return (
       <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+        {/* Back to completed checks if any exist */}
+        {shiftChecks.length > 0 && (
+          <button
+            onClick={() => setStep('completed')}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to today&apos;s checks
+          </button>
+        )}
+
         <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
 
         {qrError && (
@@ -372,6 +383,7 @@ export default function PreCheckPage() {
             handleProceedToForm();
           }}
           userLocationId={userLocationId}
+          checkedTugIds={checkedTugIds}
         />
       </div>
     );

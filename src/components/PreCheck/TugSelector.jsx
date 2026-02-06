@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import PropTypes from 'prop-types';
 import TugDamageHistory from './TugDamageHistory';
 
-export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId }) {
+export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId, checkedTugIds = [] }) {
   const [tugs, setTugs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -37,9 +37,10 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
     }
   };
 
-  const filteredTugs = filter === 'my-location' && userLocationId
+  const filteredTugs = (filter === 'my-location' && userLocationId
     ? tugs.filter(t => t.location_id === userLocationId)
-    : tugs;
+    : tugs
+  ).filter(t => !checkedTugIds.includes(t.id));
 
   const tugRefs = useRef({});
 
@@ -190,4 +191,5 @@ TugSelector.propTypes = {
   onSelect: PropTypes.func.isRequired,
   onStartCheck: PropTypes.func.isRequired,
   userLocationId: PropTypes.string,
+  checkedTugIds: PropTypes.array,
 };
