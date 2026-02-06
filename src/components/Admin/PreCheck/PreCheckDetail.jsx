@@ -111,7 +111,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
       <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold text-xl flex-shrink-0">
-            {submission.tugs?.tug_number?.replace(/[^0-9]/g, '').slice(0, 3) || '?'}
+            {submission.tugs?.display_name || submission.tugs?.tug_number?.slice(0, 5) || '?'}
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-charcoal">{submission.tugs?.tug_number}</h2>

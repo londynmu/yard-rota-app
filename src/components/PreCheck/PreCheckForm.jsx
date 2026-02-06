@@ -193,7 +193,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold text-lg">
-            {selectedTug?.tug_number?.replace(/[^0-9]/g, '') || '?'}
+            {selectedTug?.display_name || selectedTug?.tug_number?.slice(0, 5) || '?'}
           </div>
           <div>
             <h3 className="font-bold text-charcoal">{selectedTug?.tug_number || 'No Tug Selected'}</h3>

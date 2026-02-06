@@ -8,7 +8,7 @@ export default function TugManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTug, setEditingTug] = useState(null);
-  const [formData, setFormData] = useState({ tug_number: '', location_id: '', status: 'active' });
+  const [formData, setFormData] = useState({ tug_number: '', display_name: '', location_id: '', status: 'active' });
   const [saving, setSaving] = useState(false);
   const [showQR, setShowQR] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all', 'active', 'inactive', 'maintenance'
@@ -44,6 +44,7 @@ export default function TugManager() {
     try {
       const payload = {
         tug_number: formData.tug_number.trim(),
+        display_name: formData.display_name.trim() || null,
         location_id: formData.location_id || null,
         status: formData.status,
       };
@@ -63,7 +64,7 @@ export default function TugManager() {
 
       setShowForm(false);
       setEditingTug(null);
-      setFormData({ tug_number: '', location_id: '', status: 'active' });
+      setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' });
       fetchData();
     } catch (err) {
       console.error('[TugManager] Save error:', err);
@@ -89,6 +90,7 @@ export default function TugManager() {
     setEditingTug(tug);
     setFormData({
       tug_number: tug.tug_number,
+      display_name: tug.display_name || '',
       location_id: tug.location_id || '',
       status: tug.status,
     });
@@ -216,7 +218,7 @@ export default function TugManager() {
             Print All QR
           </button>
           <button
-            onClick={() => { setShowForm(true); setEditingTug(null); setFormData({ tug_number: '', location_id: '', status: 'active' }); }}
+            onClick={() => { setShowForm(true); setEditingTug(null); setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' }); }}
             className="px-4 py-2 text-sm font-semibold bg-charcoal text-white rounded-lg hover:bg-black transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,23 +246,32 @@ export default function TugManager() {
         ))}
       </div>
 
-      {/* Add/Edit form */}
-      {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-          <h3 className="font-semibold text-charcoal">
-            {editingTug ? `Edit ${editingTug.tug_number}` : 'Add New Tug'}
-          </h3>
+      {/* Add New form (only when adding, not editing) */}
+      {showForm && !editingTug && (
+        <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
+          <h3 className="font-semibold text-charcoal">Add New Tug</h3>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tug Number *</label>
               <input
                 type="text"
                 value={formData.tug_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, tug_number: e.target.value }))}
-                placeholder="e.g. TUG-001"
+                placeholder="e.g. 06925"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
+              <input
+                type="text"
+                value={formData.display_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
+                placeholder="e.g. 069 or TUG-A"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">Short label shown on cards. Leave empty to auto-generate.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
@@ -295,7 +306,7 @@ export default function TugManager() {
               disabled={saving}
               className="px-5 py-2 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
             >
-              {saving ? 'Saving...' : editingTug ? 'Update' : 'Add Tug'}
+              {saving ? 'Saving...' : 'Add Tug'}
             </button>
             <button
               onClick={() => { setShowForm(false); setEditingTug(null); }}
@@ -312,8 +323,8 @@ export default function TugManager() {
         {filteredTugs.map(tug => (
           <div key={tug.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold flex-shrink-0">
-                {tug.tug_number.replace(/[^0-9]/g, '').slice(0, 3) || '#'}
+              <div className="w-12 h-12 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold flex-shrink-0 text-sm">
+                {tug.display_name || tug.tug_number.slice(0, 5) || '#'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -382,6 +393,73 @@ export default function TugManager() {
                     className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-gray-700"
                   >
                     Regenerate QR
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Inline edit form */}
+            {editingTug?.id === tug.id && (
+              <div className="border-t border-charcoal/20 p-4 bg-slate-50 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Tug Number *</label>
+                    <input
+                      type="text"
+                      value={formData.tug_number}
+                      onChange={(e) => setFormData(prev => ({ ...prev, tug_number: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
+                    <input
+                      type="text"
+                      value={formData.display_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
+                      placeholder="e.g. 069"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                    <select
+                      value={formData.location_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, location_id: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                    >
+                      <option value="">-- No location --</option>
+                      {locations.map(loc => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-1.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
+                  >
+                    {saving ? 'Saving...' : 'Update'}
+                  </button>
+                  <button
+                    onClick={() => { setEditingTug(null); setShowForm(false); }}
+                    className="px-4 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>

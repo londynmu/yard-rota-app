@@ -103,10 +103,15 @@ export default function TugSelector({ selectedTug, onSelect, userLocationId }) {
             }`}
           >
             <div className={`text-lg font-bold ${selectedTug?.id === tug.id ? 'text-white' : 'text-charcoal'}`}>
-              {tug.tug_number}
+              {tug.display_name || tug.tug_number}
             </div>
+            {tug.display_name && (
+              <div className={`text-xs ${selectedTug?.id === tug.id ? 'text-gray-300' : 'text-gray-500'}`}>
+                {tug.tug_number}
+              </div>
+            )}
             {tug.locations && (
-              <div className={`text-xs mt-1 ${selectedTug?.id === tug.id ? 'text-gray-300' : 'text-gray-500'}`}>
+              <div className={`text-xs mt-0.5 ${selectedTug?.id === tug.id ? 'text-gray-300' : 'text-gray-500'}`}>
                 {tug.locations.name}
               </div>
             )}
