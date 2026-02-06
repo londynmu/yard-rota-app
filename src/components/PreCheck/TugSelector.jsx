@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import PropTypes from 'prop-types';
 import TugDamageHistory from './TugDamageHistory';
@@ -41,16 +41,21 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
     ? tugs.filter(t => t.location_id === userLocationId)
     : tugs;
 
-  const handleTugClick = (tug) => {
+  const tugRefs = useRef({});
+
+  const handleTugClick = useCallback((tug) => {
     if (expandedTug === tug.id) {
-      // Collapse if already expanded
       setExpandedTug(null);
       onSelect(null);
     } else {
       setExpandedTug(tug.id);
       onSelect(tug);
+      // Scroll the card into view after expanding
+      setTimeout(() => {
+        tugRefs.current[tug.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
     }
-  };
+  }, [expandedTug, onSelect]);
 
   if (loading) {
     return (
@@ -110,27 +115,33 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
       <div className="space-y-2">
         {filteredTugs.map(tug => {
           const isExpanded = expandedTug === tug.id;
-          const name = tug.display_name || tug.tug_number;
+          const displayName = tug.display_name || tug.tug_number;
 
           return (
             <div
               key={tug.id}
+              ref={(el) => { tugRefs.current[tug.id] = el; }}
               className={`rounded-xl overflow-hidden transition-all ${
                 isExpanded
-                  ? 'bg-slate-50 border border-slate-200 shadow-md'
-                  : 'bg-white border border-gray-200 hover:border-slate-300'
+                  ? 'shadow-md ring-1 ring-amber-300'
+                  : 'hover:shadow-sm'
               }`}
             >
               {/* Header row */}
-              <div className="flex items-center">
+              <div className={`flex items-center ${
+                isExpanded
+                  ? 'bg-amber-50 border-b border-amber-200'
+                  : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60'
+              } rounded-t-xl ${!isExpanded ? 'rounded-b-xl' : ''}`}>
                 <button
                   type="button"
                   onClick={() => handleTugClick(tug)}
-                  className="flex-1 px-4 py-3.5 text-left flex items-center"
+                  className="flex-1 px-4 py-3 text-left flex items-center gap-2"
                 >
-                  <span className="text-base font-bold text-charcoal">{name}</span>
+                  <span className="text-base font-bold text-charcoal">{displayName}</span>
+                  <span className="text-xs text-amber-700/50">{tug.tug_number}</span>
                   <svg
-                    className={`w-4 h-4 ml-auto text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 ml-auto text-amber-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                     fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -141,7 +152,7 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
                   <button
                     type="button"
                     onClick={() => onStartCheck(tug)}
-                    className="mr-3 px-4 py-2 bg-slate-700 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 active:scale-[0.97] transition-all flex-shrink-0"
+                    className="mr-3 px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 active:scale-[0.97] transition-all flex-shrink-0"
                   >
                     Start Check
                   </button>
@@ -150,7 +161,7 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
 
               {/* Expanded content */}
               {isExpanded && (
-                <div className="border-t border-slate-200 px-4 py-3 space-y-3">
+                <div className="bg-white border-x border-b border-amber-200/60 rounded-b-xl px-4 py-3 space-y-3">
                   {/* Tug details */}
                   <div className="flex gap-4 text-xs text-slate-500">
                     <span>Number: <strong className="text-charcoal">{tug.tug_number}</strong></span>
@@ -160,7 +171,10 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
                   </div>
 
                   {/* Damage history */}
-                  <TugDamageHistory tugId={tug.id} />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>
+                    <TugDamageHistory tugId={tug.id} />
+                  </div>
                 </div>
               )}
             </div>

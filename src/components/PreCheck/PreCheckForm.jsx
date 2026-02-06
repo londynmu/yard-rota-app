@@ -203,78 +203,144 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const allChecksDone = CHECK_ITEMS.every(item => checkItems[item.key].status);
   const repairCount = CHECK_ITEMS.filter(item => checkItems[item.key].status === 'repair_needed').length;
 
+  // Section states: auto-collapse when complete
+  const [fluidsOpen, setFluidsOpen] = useState(true);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
+
+  // Auto-collapse fluids when all checked, open inspection
+  const handlePerformChange = (key, checked) => {
+    const next = { ...performItems, [key]: checked };
+    setPerformItems(next);
+    if (PERFORM_ITEMS.every(item => next[item.key])) {
+      setTimeout(() => {
+        setFluidsOpen(false);
+        setInspectionOpen(true);
+      }, 400);
+    }
+  };
+
+  // Section status helpers
+  const fluidsStatus = allPerformChecked ? 'done' : 'pending';
+  const inspectionStatus = allChecksDone
+    ? (repairCount > 0 ? 'issues' : 'done')
+    : 'pending';
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Section 1: Fluid Checks */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-gray-100">
-          <h3 className="font-semibold text-charcoal text-sm">Fluid & Level Checks</h3>
-          {allPerformChecked && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Done</span>
-          )}
-        </div>
-        {errors.perform && (
-          <p className="text-xs text-red-600 mx-4 mt-2 bg-red-50 p-2 rounded-lg">{errors.perform}</p>
-        )}
-        <div className="px-4 divide-y divide-gray-100">
-          {PERFORM_ITEMS.map(item => (
-            <PerformItemRow
-              key={item.key}
-              label={item.label}
-              checked={performItems[item.key]}
-              onChange={(checked) => setPerformItems(prev => ({ ...prev, [item.key]: checked }))}
-            />
-          ))}
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 py-2">
+        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+          <span className="w-6 h-6 rounded-md bg-green-500 text-white flex items-center justify-center">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+          </span>
+          OK
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-slate-500">
+          <span className="w-6 h-6 rounded-md bg-red-500 text-white flex items-center justify-center">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+          </span>
+          Issue
+        </span>
       </div>
 
-      {/* Section 2: Check Items */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <h3 className="font-semibold text-charcoal text-sm">Vehicle Inspection</h3>
-            <span className="text-[10px] text-slate-400 flex items-center gap-1">
-              <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>OK
-              <svg className="w-3 h-3 text-red-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>Issue
-            </span>
-          </div>
+      {/* Section 1: Fluid Checks - collapsible */}
+      <div className={`rounded-xl overflow-hidden transition-all border ${
+        fluidsStatus === 'done' ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'
+      }`}>
+        <button
+          type="button"
+          onClick={() => setFluidsOpen(!fluidsOpen)}
+          className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
+            fluidsStatus === 'done' ? 'bg-green-50' : 'bg-slate-50'
+          }`}
+        >
+          <h3 className="font-semibold text-charcoal text-sm">Fluid & Level Checks</h3>
           <div className="flex items-center gap-2">
-            {repairCount > 0 && (
-              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                {repairCount} issue{repairCount !== 1 ? 's' : ''}
-              </span>
+            {fluidsStatus === 'done' && (
+              <span className="text-xs text-green-700 font-semibold">All Checked</span>
             )}
-            {allChecksDone && repairCount === 0 && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">All OK</span>
-            )}
+            <svg className={`w-4 h-4 text-slate-400 transition-transform ${fluidsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
-        </div>
-        {errors.check && (
-          <p className="text-xs text-red-600 mx-4 mt-2 bg-red-50 p-2 rounded-lg">{errors.check}</p>
+        </button>
+        {fluidsOpen && (
+          <div>
+            {errors.perform && (
+              <p className="text-xs text-red-600 mx-4 mt-2 bg-red-50 p-2 rounded-lg">{errors.perform}</p>
+            )}
+            <div className="px-4 divide-y divide-gray-100">
+              {PERFORM_ITEMS.map(item => (
+                <PerformItemRow
+                  key={item.key}
+                  label={item.label}
+                  checked={performItems[item.key]}
+                  onChange={(checked) => handlePerformChange(item.key, checked)}
+                />
+              ))}
+            </div>
+          </div>
         )}
-        <div className="px-2">
-          {CHECK_ITEMS.map(item => (
-            <CheckItemRow
-              key={item.key}
-              label={item.label}
-              value={checkItems[item.key].status}
-              onChange={(status) => setCheckItems(prev => ({
-                ...prev,
-                [item.key]: { ...prev[item.key], status }
-              }))}
-              notes={checkItems[item.key].notes}
-              onNotesChange={(notes) => setCheckItems(prev => ({
-                ...prev,
-                [item.key]: { ...prev[item.key], notes }
-              }))}
-              images={checkItems[item.key].images}
-              onImagesChange={(images) => setCheckItems(prev => ({
-                ...prev,
-                [item.key]: { ...prev[item.key], images }
-              }))}
-            />
-          ))}
-        </div>
+      </div>
+
+      {/* Section 2: Vehicle Inspection - collapsible */}
+      <div className={`rounded-xl overflow-hidden transition-all border ${
+        inspectionStatus === 'done' ? 'border-green-300 bg-green-50'
+          : inspectionStatus === 'issues' ? 'border-red-300 bg-red-50'
+          : 'border-gray-200 bg-white'
+      }`}>
+        <button
+          type="button"
+          onClick={() => setInspectionOpen(!inspectionOpen)}
+          className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
+            inspectionStatus === 'done' ? 'bg-green-50'
+              : inspectionStatus === 'issues' ? 'bg-red-50'
+              : 'bg-slate-50'
+          }`}
+        >
+          <h3 className="font-semibold text-charcoal text-sm">Vehicle Inspection</h3>
+          <div className="flex items-center gap-2">
+            {inspectionStatus === 'done' && (
+              <span className="text-xs text-green-700 font-semibold">All OK</span>
+            )}
+            {inspectionStatus === 'issues' && (
+              <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
+            )}
+            <svg className={`w-4 h-4 text-slate-400 transition-transform ${inspectionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+        {inspectionOpen && (
+          <div>
+            {errors.check && (
+              <p className="text-xs text-red-600 mx-4 mt-2 bg-red-50 p-2 rounded-lg">{errors.check}</p>
+            )}
+            <div className="px-2">
+              {CHECK_ITEMS.map(item => (
+                <CheckItemRow
+                  key={item.key}
+                  label={item.label}
+                  value={checkItems[item.key].status}
+                  onChange={(status) => setCheckItems(prev => ({
+                    ...prev,
+                    [item.key]: { ...prev[item.key], status }
+                  }))}
+                  notes={checkItems[item.key].notes}
+                  onNotesChange={(notes) => setCheckItems(prev => ({
+                    ...prev,
+                    [item.key]: { ...prev[item.key], notes }
+                  }))}
+                  images={checkItems[item.key].images}
+                  onImagesChange={(images) => setCheckItems(prev => ({
+                    ...prev,
+                    [item.key]: { ...prev[item.key], images }
+                  }))}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Section 3: Additional Damage Reports */}
@@ -322,7 +388,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             Submitting...
           </span>
         ) : (
-          `Submit Pre-Shift Check`
+          'Submit Pre-Shift Check'
         )}
       </button>
     </form>

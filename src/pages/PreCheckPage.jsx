@@ -76,7 +76,7 @@ export default function PreCheckPage() {
       // 2. Check if user already has a pre-shift check today
       const { data: existingCheck } = await supabase
         .from('precheck_submissions')
-        .select('*, tugs(tug_number)')
+        .select('*, tugs(tug_number, display_name)')
         .eq('user_id', user.id)
         .eq('check_date', today)
         .eq('check_type', 'pre_shift')
@@ -84,7 +84,7 @@ export default function PreCheckPage() {
 
       if (existingCheck) {
         setTodayPreCheck(existingCheck);
-        setSelectedTug({ id: existingCheck.tug_id, tug_number: existingCheck.tugs?.tug_number });
+        setSelectedTug({ id: existingCheck.tug_id, tug_number: existingCheck.tugs?.tug_number, display_name: existingCheck.tugs?.display_name });
       }
 
       // 3. If QR token, load tug by token
@@ -149,16 +149,18 @@ export default function PreCheckPage() {
   if (todayPreCheck && step !== 'during_shift') {
     return (
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
-        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
+            <span className="text-sm font-bold text-green-800">Pre-Shift Check Completed</span>
           </div>
-          <h2 className="text-lg font-bold text-green-800 mb-1">Pre-Shift Check Completed</h2>
-          <p className="text-sm text-green-600">
-            Tug <strong>{selectedTug?.tug_number || todayPreCheck.tugs?.tug_number}</strong> checked today at{' '}
-            {new Date(todayPreCheck.check_time || todayPreCheck.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+          <p className="text-sm text-green-700 ml-7">
+            <strong>{selectedTug?.display_name || todayPreCheck.tugs?.display_name || ''}</strong>
+            {(selectedTug?.display_name || todayPreCheck.tugs?.display_name) ? ' • ' : ''}
+            {selectedTug?.tug_number || todayPreCheck.tugs?.tug_number}
+            {' • '}Today at {new Date(todayPreCheck.check_time || todayPreCheck.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
 
@@ -238,7 +240,8 @@ export default function PreCheckPage() {
   // Step: Select tug
   if (step === 'select') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+        <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
 
         {qrError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
@@ -259,9 +262,13 @@ export default function PreCheckPage() {
     );
   }
 
-  // Step: Form
+  // Step: Form - scroll to top on mount
+  if (step === 'form') {
+    window.scrollTo({ top: 0 });
+  }
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+    <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
       <button
         onClick={() => setStep('select')}
         className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
