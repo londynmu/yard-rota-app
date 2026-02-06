@@ -192,11 +192,13 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       {/* Header info */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold text-lg">
-            {selectedTug?.display_name || selectedTug?.tug_number?.slice(0, 5) || '?'}
-          </div>
           <div>
-            <h3 className="font-bold text-charcoal">{selectedTug?.tug_number || 'No Tug Selected'}</h3>
+            <h3 className="font-bold text-charcoal">
+              {selectedTug?.display_name || selectedTug?.tug_number || 'No Tug Selected'}
+            </h3>
+            {selectedTug?.display_name && (
+              <p className="text-xs text-gray-500">{selectedTug.tug_number}</p>
+            )}
             <p className="text-xs text-gray-500">
               {checkType === 'pre_shift' ? 'Pre-Shift Check' : 'During Shift Report'} 
               {' • '}{new Date().toLocaleDateString('en-GB')}

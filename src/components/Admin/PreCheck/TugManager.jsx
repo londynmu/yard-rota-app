@@ -323,19 +323,20 @@ export default function TugManager() {
         {filteredTugs.map(tug => (
           <div key={tug.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-charcoal text-white rounded-xl flex items-center justify-center font-bold flex-shrink-0 text-sm">
-                {tug.display_name || tug.tug_number.slice(0, 5) || '#'}
-              </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-charcoal">{tug.tug_number}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {tug.display_name && (
+                    <span className="text-lg font-bold text-charcoal">{tug.display_name}</span>
+                  )}
+                  <span className={`font-semibold ${tug.display_name ? 'text-sm text-gray-500' : 'text-lg text-charcoal'}`}>
+                    {tug.tug_number}
+                  </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColors[tug.status]}`}>
                     {tug.status}
                   </span>
+                  <span className="text-xs text-gray-400">•</span>
+                  <span className="text-xs text-gray-500">{tug.locations?.name || 'No location'}</span>
                 </div>
-                <p className="text-xs text-gray-500">
-                  {tug.locations?.name || 'No location'}
-                </p>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
