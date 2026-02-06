@@ -6,4 +6,4 @@ JOIN profiles p ON sr.user_id = p.id
 WHERE p.first_name = 'Dave' AND p.last_name = 'Glover'
 GROUP BY date
 HAVING COUNT(*) > 1
-ORDER BY date;
+ORDER BY date;]

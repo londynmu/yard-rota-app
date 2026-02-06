@@ -226,7 +226,8 @@ export default function PreCheckPage() {
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-3">
+      <div className="max-w-lg mx-auto px-4 pb-24 flex flex-col justify-end min-h-[calc(100vh-140px)]">
+        <div className="space-y-3">
         {/* All checks grouped in one card */}
         <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
           {shiftChecks.map((check, idx) => {
@@ -270,6 +271,7 @@ export default function PreCheckPage() {
         >
           Check Another Tug
         </button>
+        </div>
       </div>
     );
   }

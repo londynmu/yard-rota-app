@@ -82,36 +82,6 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
 
   return (
     <div>
-      {/* Location filter or spacer */}
-      
-      {/* Location filter */}
-      {userLocationId && (
-        <div className="flex gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setFilter('my-location')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-              filter === 'my-location'
-                ? 'bg-charcoal text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            My Location
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-              filter === 'all'
-                ? 'bg-charcoal text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All Locations
-          </button>
-        </div>
-      )}
-
       {/* Tug list (accordion) */}
       <div className="space-y-2">
         {filteredTugs.map(tug => {
