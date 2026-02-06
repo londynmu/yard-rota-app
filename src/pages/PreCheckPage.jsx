@@ -34,18 +34,7 @@ export default function PreCheckPage() {
 
   // Restore step from sessionStorage if returning from camera
   const savedDuringShift = loadDuringShiftState();
-  // #region agent log
-  console.log('[PreCheckPage] mount/render, savedDuringShift:', savedDuringShift);
-  // #endregion
-  const [step, setStepRaw] = useState(savedDuringShift ? 'during_shift' : 'select');
-  // Wrapped setStep to log every change
-  const setStep = (newStep) => {
-    // #region agent log
-    console.log('[PreCheckPage] setStep:', newStep, 'from:', step);
-    console.trace('[PreCheckPage] setStep trace');
-    // #endregion
-    setStepRaw(newStep);
-  };
+  const [step, setStep] = useState(savedDuringShift ? 'during_shift' : 'select');
   const [selectedTug, setSelectedTug] = useState(
     savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber } : null
   );

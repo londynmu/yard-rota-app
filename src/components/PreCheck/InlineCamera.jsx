@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 
 export default function InlineCamera({ onCapture, onClose }) {
@@ -6,6 +7,7 @@ export default function InlineCamera({ onCapture, onClose }) {
   const streamRef = useRef(null);
   const [error, setError] = useState(null);
   const [ready, setReady] = useState(false);
+  const [preview, setPreview] = useState(null); // { url, file } when photo taken
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -14,13 +16,26 @@ export default function InlineCamera({ onCapture, onClose }) {
     }
   }, []);
 
+  // Lock body scroll and hide bottom nav when camera is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    // Hide mobile bottom nav
+    const bottomNav = document.querySelector('nav.md\\:hidden');
+    if (bottomNav) bottomNav.style.display = 'none';
+
+    return () => {
+      document.body.style.overflow = '';
+      if (bottomNav) bottomNav.style.display = '';
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } },
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false,
         });
 
@@ -41,7 +56,7 @@ export default function InlineCamera({ onCapture, onClose }) {
         console.error('[InlineCamera] Error:', err);
         if (!cancelled) {
           if (err.name === 'NotAllowedError') {
-            setError('Camera access denied. Please allow camera access in your browser settings.');
+            setError('Camera access denied. Please allow camera access in your browser settings and reload.');
           } else if (err.name === 'NotFoundError') {
             setError('No camera found on this device.');
           } else {
@@ -72,19 +87,16 @@ export default function InlineCamera({ onCapture, onClose }) {
 
     canvas.toBlob(
       (blob) => {
-        // #region agent log
-        console.log('[InlineCamera] toBlob result:', blob ? `${blob.size} bytes` : 'null');
-        // #endregion
         if (blob) {
           const file = new File([blob], `photo-${Date.now()}.jpg`, {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
-          // #region agent log
-          console.log('[InlineCamera] calling onCapture with file:', file.size);
-          // #endregion
+          const url = URL.createObjectURL(blob);
+          // Pause video, show preview
+          if (videoRef.current) videoRef.current.pause();
           stopCamera();
-          onCapture(file);
+          setPreview({ url, file });
         }
       },
       'image/jpeg',
@@ -92,46 +104,112 @@ export default function InlineCamera({ onCapture, onClose }) {
     );
   };
 
+  const handleRetake = () => {
+    // Clear preview and restart camera
+    if (preview?.url) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+    setReady(false);
+
+    // Restart camera
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    }).then(stream => {
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+          setReady(true);
+        };
+      }
+    }).catch(err => {
+      setError(`Camera error: ${err.message}`);
+    });
+  };
+
+  const handleUsePhoto = () => {
+    if (preview?.file) {
+      onCapture(preview.file);
+    }
+    // Don't revoke URL yet - it will be used as preview in the form
+  };
+
   const handleClose = () => {
     stopCamera();
+    if (preview?.url) URL.revokeObjectURL(preview.url);
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
+  // Render as portal to document.body so it's truly above everything
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 99999,
+        background: '#000',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/80 z-10">
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 16px',
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        background: 'rgba(0,0,0,0.8)',
+        zIndex: 10,
+      }}>
         <button
           type="button"
           onClick={handleClose}
-          className="text-white p-2"
+          style={{ color: '#fff', padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <span className="text-white text-sm font-medium">Take Photo</span>
-        <div className="w-10" />
+        <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>
+          {preview ? 'Review Photo' : 'Take Photo'}
+        </span>
+        <div style={{ width: 40 }} />
       </div>
 
-      {/* Camera view */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Camera / Preview area */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {error ? (
-          <div className="absolute inset-0 flex items-center justify-center p-6">
-            <div className="bg-red-900/80 text-white rounded-xl p-6 text-center max-w-sm">
-              <svg className="w-12 h-12 mx-auto mb-3 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <p className="text-sm mb-4">{error}</p>
+          <div style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}>
+            <div style={{
+              background: 'rgba(127,29,29,0.8)', color: '#fff', borderRadius: 12, padding: 24, textAlign: 'center', maxWidth: 320,
+            }}>
+              <p style={{ fontSize: 14, marginBottom: 16 }}>{error}</p>
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 bg-white text-black rounded-lg text-sm font-semibold"
+                style={{
+                  padding: '8px 16px', background: '#fff', color: '#000', border: 'none',
+                  borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
               >
                 Go Back
               </button>
             </div>
           </div>
+        ) : preview ? (
+          // Photo preview
+          <img
+            src={preview.url}
+            alt="Captured"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+          />
         ) : (
           <>
             <video
@@ -139,34 +217,101 @@ export default function InlineCamera({ onCapture, onClose }) {
               autoPlay
               playsInline
               muted
-              className="absolute inset-0 w-full h-full object-cover"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />
             {!ready && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-white text-sm">Starting camera...</div>
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ color: '#fff', fontSize: 14 }}>Starting camera...</span>
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Capture button */}
-      {!error && (
-        <div className="flex items-center justify-center py-6 bg-black/80">
+      {/* Bottom controls */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 24,
+        padding: '20px 16px',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+        background: 'rgba(0,0,0,0.8)',
+      }}>
+        {preview ? (
+          // Review buttons: Retake / Use Photo
+          <>
+            <button
+              type="button"
+              onClick={handleRetake}
+              style={{
+                flex: 1,
+                padding: '14px 0',
+                background: 'transparent',
+                border: '2px solid #fff',
+                borderRadius: 12,
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Retake
+            </button>
+            <button
+              type="button"
+              onClick={handleUsePhoto}
+              style={{
+                flex: 1,
+                padding: '14px 0',
+                background: '#fff',
+                border: '2px solid #fff',
+                borderRadius: 12,
+                color: '#000',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Use Photo
+            </button>
+          </>
+        ) : !error && (
+          // Capture button
           <button
             type="button"
             onClick={handleCapture}
             disabled={!ready}
-            className={`w-18 h-18 rounded-full border-4 border-white flex items-center justify-center transition-all ${
-              ready ? 'active:scale-90' : 'opacity-50'
-            }`}
-            style={{ width: 72, height: 72 }}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              border: '4px solid #fff',
+              background: 'transparent',
+              cursor: ready ? 'pointer' : 'default',
+              opacity: ready ? 1 : 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              transition: 'transform 0.1s',
+            }}
+            onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.9)'; }}
+            onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
           >
-            <div className="w-14 h-14 rounded-full bg-white" style={{ width: 56, height: 56 }} />
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: '#fff',
+            }} />
           </button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </div>,
+    document.body
   );
 }
 

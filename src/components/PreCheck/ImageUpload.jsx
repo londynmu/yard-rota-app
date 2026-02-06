@@ -90,24 +90,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   };
 
   const handleCameraCapture = async (file) => {
-    // #region agent log
-    console.log('[ImageUpload] handleCameraCapture called, file:', file?.name, file?.size);
-    // #endregion
     setShowCamera(false);
     if (file) {
-      try {
-        // #region agent log
-        console.log('[ImageUpload] calling processAndAddFiles');
-        // #endregion
-        await processAndAddFiles([file]);
-        // #region agent log
-        console.log('[ImageUpload] processAndAddFiles completed');
-        // #endregion
-      } catch (err) {
-        // #region agent log
-        console.error('[ImageUpload] processAndAddFiles FAILED:', err);
-        // #endregion
-      }
+      await processAndAddFiles([file]);
     }
   };
 
