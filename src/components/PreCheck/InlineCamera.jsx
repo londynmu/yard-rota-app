@@ -8,6 +8,8 @@ export default function InlineCamera({ onCapture, onClose }) {
   const [error, setError] = useState(null);
   const [ready, setReady] = useState(false);
   const [preview, setPreview] = useState(null); // { url, file } when photo taken
+  const [flashOn, setFlashOn] = useState(false);
+  const [flashSupported, setFlashSupported] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -45,6 +47,18 @@ export default function InlineCamera({ onCapture, onClose }) {
         }
 
         streamRef.current = stream;
+
+        // Check if torch/flash is supported
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          try {
+            const capabilities = videoTrack.getCapabilities?.();
+            if (capabilities?.torch) {
+              setFlashSupported(true);
+            }
+          } catch { /* torch not supported */ }
+        }
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
@@ -104,11 +118,25 @@ export default function InlineCamera({ onCapture, onClose }) {
     );
   };
 
+  const toggleFlash = async () => {
+    if (!streamRef.current) return;
+    const videoTrack = streamRef.current.getVideoTracks()[0];
+    if (!videoTrack) return;
+    try {
+      const newFlash = !flashOn;
+      await videoTrack.applyConstraints({ advanced: [{ torch: newFlash }] });
+      setFlashOn(newFlash);
+    } catch (err) {
+      console.error('[InlineCamera] Flash toggle error:', err);
+    }
+  };
+
   const handleRetake = () => {
     // Clear preview and restart camera
     if (preview?.url) URL.revokeObjectURL(preview.url);
     setPreview(null);
     setReady(false);
+    setFlashOn(false);
 
     // Restart camera
     navigator.mediaDevices.getUserMedia({
@@ -178,7 +206,33 @@ export default function InlineCamera({ onCapture, onClose }) {
         <span style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>
           {preview ? 'Review Photo' : 'Take Photo'}
         </span>
-        <div style={{ width: 40 }} />
+        {/* Flash toggle */}
+        {flashSupported && !preview ? (
+          <button
+            type="button"
+            onClick={toggleFlash}
+            style={{
+              color: flashOn ? '#fbbf24' : '#fff',
+              padding: 8,
+              background: flashOn ? 'rgba(251,191,36,0.2)' : 'none',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+            }}
+          >
+            {flashOn ? (
+              <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            )}
+          </button>
+        ) : (
+          <div style={{ width: 40 }} />
+        )}
       </div>
 
       {/* Camera / Preview area */}
