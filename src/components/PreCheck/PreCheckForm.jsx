@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import PerformItemRow from './PerformItemRow';
 import CheckItemRow from './CheckItemRow';
-import DamageReport from './DamageReport';
+import ImageUpload from './ImageUpload';
 
 // Items from the Daily Check Sheet
 const PERFORM_ITEMS = [
@@ -57,8 +57,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [checkItems, setCheckItems] = useState(
     Object.fromEntries(CHECK_ITEMS.map(item => [item.key, { status: '', notes: '', images: [] }]))
   );
-  const [damages, setDamages] = useState([]);
   const [remarks, setRemarks] = useState('');
+  const [remarksImages, setRemarksImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -154,20 +154,17 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
       if (itemsError) throw itemsError;
 
-      // 4. Insert damages from damage reports
-      if (damages.length > 0) {
-        for (const damage of damages) {
-          const imageUrls = await uploadDamageImages(submission.id, damage.images);
-          const { error: damageError } = await supabase
-            .from('precheck_damages')
-            .insert({
-              submission_id: submission.id,
-              description: damage.description,
-              location_on_tug: damage.location_on_tug,
-              severity: damage.severity,
-              image_urls: imageUrls,
-            });
-          if (damageError) throw damageError;
+      // 4. Upload remarks images if any
+      if (remarksImages.length > 0) {
+        const remarksImageUrls = await uploadDamageImages(submission.id, remarksImages);
+        // Store remarks image URLs as a general damage entry
+        if (remarksImageUrls.length > 0) {
+          await supabase.from('precheck_damages').insert({
+            submission_id: submission.id,
+            description: remarks || 'Additional photos',
+            severity: 'minor',
+            image_urls: remarksImageUrls,
+          });
         }
       }
 
@@ -342,28 +339,23 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         )}
       </div>
 
-      {/* Section 3: Additional Damage Reports */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
-          <h3 className="font-semibold text-charcoal text-sm">Additional Damage Reports</h3>
-        </div>
-        <div className="p-4">
-          <DamageReport damages={damages} onDamagesChange={setDamages} />
-        </div>
-      </div>
-
-      {/* Section 4: Remarks */}
+      {/* Section 3: Remarks + Photos */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
           <h3 className="font-semibold text-charcoal text-sm">Remarks</h3>
         </div>
-        <div className="p-4">
+        <div className="p-4 space-y-3">
           <textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             placeholder="Any additional notes or observations..."
             rows={2}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+          />
+          <ImageUpload
+            images={remarksImages}
+            onImagesChange={setRemarksImages}
+            maxImages={3}
           />
         </div>
       </div>
