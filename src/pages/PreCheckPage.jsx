@@ -226,59 +226,47 @@ export default function PreCheckPage() {
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
-        {/* Checks list */}
-        {shiftChecks.map((check, idx) => {
-          const tugName = check.tugs?.display_name || check.tugs?.tug_number || 'Unknown';
-          const tugNumber = check.tugs?.tug_number || '';
-          const time = new Date(check.check_time || check.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-          const isLatest = idx === 0;
+      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-3">
+        {/* All checks grouped in one card */}
+        <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
+          {shiftChecks.map((check, idx) => {
+            const tugName = check.tugs?.display_name || check.tugs?.tug_number || 'Unknown';
+            const tugNumber = check.tugs?.tug_number || '';
+            const time = new Date(check.check_time || check.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-          return (
-            <div key={check.id} className="space-y-2">
-              {/* Check status card */}
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            return (
+              <div key={check.id} className={`p-3 flex items-center justify-between ${idx > 0 ? 'border-t border-green-200' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-sm font-bold text-green-800">
-                    {tugName} — Check Completed
-                  </span>
+                  <div>
+                    <span className="text-sm font-bold text-green-800">{tugName}</span>
+                    <span className="text-xs text-green-600 ml-2">
+                      {tugName !== tugNumber ? `${tugNumber} • ` : ''}{time}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-xs text-green-600 ml-7">
-                  {tugName !== tugNumber ? `${tugNumber} • ` : ''}
-                  Today at {time}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => handleStartDuringShift({
+                    id: check.tug_id,
+                    tug_number: tugNumber,
+                    display_name: check.tugs?.display_name,
+                  })}
+                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                >
+                  Report Damage
+                </button>
               </div>
-
-              {/* Report damage for this tug */}
-              <button
-                onClick={() => handleStartDuringShift({
-                  id: check.tug_id,
-                  tug_number: tugNumber,
-                  display_name: check.tugs?.display_name,
-                })}
-                className="w-full py-2.5 bg-red-50 text-red-600 font-medium text-sm rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-              >
-                Report Damage on {tugName}
-              </button>
-
-              {/* Damage history for the latest tug */}
-              {isLatest && (
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>
-                  <TugDamageHistory tugId={check.tug_id} />
-                </div>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
         {/* Check Another Tug */}
         <button
           onClick={handleCheckAnotherTug}
-          className="w-full py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors"
         >
           Check Another Tug
         </button>

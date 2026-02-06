@@ -11,7 +11,6 @@ const saveFormState = (data) => {
     // Can't serialize File objects, only save text fields
     sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
       description: data.description,
-      severity: data.severity,
     }));
   } catch { /* ignore */ }
 };
@@ -31,14 +30,13 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
   const savedForm = loadFormState();
   const [description, setDescription] = useState(savedForm?.description || '');
-  const [severity, setSeverity] = useState(savedForm?.severity || 'minor');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Persist form state on every change (so camera app return preserves data)
   const persistForm = useCallback(() => {
-    saveFormState({ description, severity });
-  }, [description, severity]);
+    saveFormState({ description });
+  }, [description]);
 
   useEffect(() => {
     persistForm();
@@ -102,7 +100,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
         .insert({
           submission_id: submission.id,
           description: description.trim(),
-          severity,
+          severity: 'minor',
           image_urls: imageUrls,
         });
 
@@ -123,9 +121,11 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 bg-red-50 border-b border-red-100">
-          <p className="text-sm font-bold text-red-800">Damage Report</p>
+          <p className="text-sm font-bold text-red-800">
+            Damage Report for {selectedTug?.display_name || selectedTug?.tug_number}
+          </p>
           <p className="text-xs text-red-500">
-            {selectedTug?.display_name || selectedTug?.tug_number} • {new Date().toLocaleDateString('en-GB')} {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            {new Date().toLocaleDateString('en-GB')} {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
 
@@ -151,31 +151,6 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
               onImagesChange={setImages}
               maxImages={5}
             />
-          </div>
-
-          {/* Severity - compact */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Severity</label>
-            <div className="flex gap-2">
-              {[
-                { value: 'minor', label: 'Minor', bg: 'bg-yellow-50 border-yellow-300 text-yellow-700' },
-                { value: 'major', label: 'Major', bg: 'bg-orange-50 border-orange-300 text-orange-700' },
-                { value: 'critical', label: 'Critical', bg: 'bg-red-50 border-red-300 text-red-700' },
-              ].map(level => (
-                <button
-                  key={level.value}
-                  type="button"
-                  onClick={() => setSeverity(level.value)}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg border-2 transition-all ${
-                    severity === level.value
-                      ? level.bg
-                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  {level.label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
