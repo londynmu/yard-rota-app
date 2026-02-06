@@ -45,19 +45,30 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
 
 export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
   const [compressing, setCompressing] = useState(false);
 
   const handleFiles = async (files) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:handleFiles-entry',message:'handleFiles called',data:{filesLength:files?.length,fileDetails:Array.from(files||[]).map(f=>({name:f.name,type:f.type,size:f.size}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,E'})}).catch(()=>{});
+    // #endregion
     const newFiles = Array.from(files).filter(f => {
-      if (!f.type.startsWith('image/')) return false;
+      if (!f.type.startsWith('image/')) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:mime-filter',message:'File rejected - not image',data:{name:f.name,type:f.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        return false;
+      }
       if (f.size > 20 * 1024 * 1024) {
         alert(`File ${f.name} is too large. Maximum size is 20MB.`);
         return false;
       }
       return true;
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:after-filter',message:'After filter',data:{newFilesCount:newFiles.length,remaining:maxImages-images.length,currentImages:images.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     const remaining = maxImages - images.length;
     if (remaining <= 0) {
@@ -69,18 +80,32 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
 
     // Compress all images
     setCompressing(true);
-    const compressedFiles = await Promise.all(
-      filesToAdd.map(file => compressImage(file))
-    );
-    setCompressing(false);
+    try {
+      const compressedFiles = await Promise.all(
+        filesToAdd.map(file => compressImage(file))
+      );
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:after-compress',message:'After compression',data:{compressedCount:compressedFiles.length,compressedSizes:compressedFiles.map(f=>f.size)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      setCompressing(false);
 
-    const newImages = compressedFiles.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }));
+      const newImages = compressedFiles.map(file => ({
+        file,
+        preview: URL.createObjectURL(file),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }));
 
-    onImagesChange([...images, ...newImages]);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:before-callback',message:'Calling onImagesChange',data:{totalImages:images.length+newImages.length,newImagesCount:newImages.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
+      onImagesChange([...images, ...newImages]);
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:compress-error',message:'Compression error',data:{error:err?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      setCompressing(false);
+    }
   };
 
   const handleDrop = (e) => {
@@ -100,50 +125,36 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
 
   return (
     <div>
-      {/* Hidden file inputs */}
+      {/* Single file input - on mobile, OS shows Camera + Gallery chooser */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
-        className="hidden"
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/jpeg,image/png"
-        capture="environment"
-        onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+        accept="image/*"
+        onChange={(e) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ImageUpload.jsx:onChange',message:'File input onChange fired',data:{filesCount:e.target.files?.length,fileNames:Array.from(e.target.files||[]).map(f=>f.name),fileTypes:Array.from(e.target.files||[]).map(f=>f.type),fileSizes:Array.from(e.target.files||[]).map(f=>f.size)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A-fix'})}).catch(()=>{});
+          // #endregion
+          const files = e.target.files;
+          if (files && files.length > 0) {
+            handleFiles(files).then(() => { e.target.value = ''; });
+          }
+        }}
         className="hidden"
       />
 
-      {/* Two buttons: Camera + Gallery */}
-      <div className="flex gap-3 mb-3">
-        <button
-          type="button"
-          onClick={() => cameraInputRef.current?.click()}
-          disabled={compressing}
-          className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-red-300 text-red-600 font-medium text-sm rounded-xl hover:bg-red-50 hover:border-red-400 transition-all"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Take Photo
-        </button>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={compressing}
-          className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 text-gray-600 font-medium text-sm rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Gallery
-        </button>
-      </div>
+      {/* Add photo button */}
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={compressing}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 text-gray-600 font-medium text-sm rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        Add Photo
+      </button>
 
       {/* Drop zone (desktop) */}
       <div
