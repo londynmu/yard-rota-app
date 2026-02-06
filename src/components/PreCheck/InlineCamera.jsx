@@ -72,11 +72,17 @@ export default function InlineCamera({ onCapture, onClose }) {
 
     canvas.toBlob(
       (blob) => {
+        // #region agent log
+        console.log('[InlineCamera] toBlob result:', blob ? `${blob.size} bytes` : 'null');
+        // #endregion
         if (blob) {
           const file = new File([blob], `photo-${Date.now()}.jpg`, {
             type: 'image/jpeg',
             lastModified: Date.now(),
           });
+          // #region agent log
+          console.log('[InlineCamera] calling onCapture with file:', file.size);
+          // #endregion
           stopCamera();
           onCapture(file);
         }
