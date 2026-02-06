@@ -238,11 +238,7 @@ export default function PreCheckPage() {
   // Step: Select tug
   if (step === 'select') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-xl font-bold text-charcoal">Daily Tug Check</h1>
-          <p className="text-sm text-gray-500 mt-1">Select your tug to start the pre-shift inspection</p>
-        </div>
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
 
         {qrError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">

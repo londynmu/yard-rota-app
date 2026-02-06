@@ -203,43 +203,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const allChecksDone = CHECK_ITEMS.every(item => checkItems[item.key].status);
   const repairCount = CHECK_ITEMS.filter(item => checkItems[item.key].status === 'repair_needed').length;
 
-  // Progress
-  const totalItems = PERFORM_ITEMS.length + CHECK_ITEMS.length;
-  const doneItems = PERFORM_ITEMS.filter(i => performItems[i.key]).length +
-    CHECK_ITEMS.filter(i => checkItems[i.key].status).length;
-  const progressPct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Sticky header */}
-      <div className="bg-slate-100 rounded-xl p-4 border border-slate-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-charcoal text-base">
-              {selectedTug?.display_name || selectedTug?.tug_number || 'No Tug Selected'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {selectedTug?.display_name ? `${selectedTug.tug_number} • ` : ''}
-              {checkType === 'pre_shift' ? 'Pre-Shift Check' : 'During Shift Report'}
-              {' • '}{new Date().toLocaleDateString('en-GB')}
-            </p>
-          </div>
-          <div className="text-right">
-            <span className={`text-lg font-bold ${progressPct === 100 ? 'text-green-600' : 'text-charcoal'}`}>
-              {progressPct}%
-            </span>
-            <p className="text-[10px] text-slate-400">{doneItems}/{totalItems}</p>
-          </div>
-        </div>
-        {/* Progress bar */}
-        <div className="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${progressPct === 100 ? 'bg-green-500' : 'bg-charcoal'}`}
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      </div>
-
       {/* Section 1: Fluid Checks */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-gray-100">
@@ -345,9 +310,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         className={`w-full py-4 rounded-xl font-bold text-white text-base transition-all shadow-lg ${
           submitting
             ? 'bg-gray-400 cursor-not-allowed'
-            : progressPct === 100
-              ? 'bg-green-600 hover:bg-green-700 active:scale-[0.98]'
-              : 'bg-charcoal hover:bg-black active:scale-[0.98]'
+            : 'bg-charcoal hover:bg-black active:scale-[0.98]'
         }`}
       >
         {submitting ? (
