@@ -7,7 +7,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.11.2'
+        classpath 'com.android.tools.build:gradle:9.0.0'
         classpath 'com.google.gms:google-services:4.4.2'
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -24,7 +24,7 @@ allprojects {
     }
 }
 
-// Force Java 17 source/target for all Android modules (avoids accidental 21)
+// Force Java 17 source/target and fix deprecated proguard file for all Android modules
 subprojects { proj ->
     afterEvaluate {
         if (proj.hasProperty("android")) {
@@ -32,6 +32,11 @@ subprojects { proj ->
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
+                }
+                buildTypes {
+                    release {
+                        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                    }
                 }
             }
         }

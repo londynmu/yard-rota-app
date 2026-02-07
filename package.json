@@ -12,7 +12,8 @@
     "logout-all": "node scripts/logout-all-users.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "postinstall": "node scripts/fix-proguard.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
