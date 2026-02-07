@@ -1,5 +1,8 @@
 import React, { useRef, useState, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { dataUrlToFile } from '../../lib/cameraUtils';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
@@ -45,9 +48,11 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
 };
 
 export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
 
   const processAndAddFiles = async (files) => {
     if (!files || files.length === 0) return;
@@ -95,6 +100,32 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
     }
   };
 
+  const handleNativePick = async (source) => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 85,
+        resultType: CameraResultType.DataUrl,
+        source,
+        saveToGallery: false,
+        correctOrientation: true,
+      });
+      const file = dataUrlToFile(photo?.dataUrl, `photo-${Date.now()}.jpg`);
+      if (!file) {
+        alert('Unable to process the selected image.');
+        return;
+      }
+      await processAndAddFiles([file]);
+    } catch (err) {
+      const message = String(err?.message || '').toLowerCase();
+      if (message.includes('cancel')) return;
+      if (source === CameraSource.Photos) {
+        alert('Unable to open the photo library. Please try again.');
+      } else {
+        alert('Unable to open the camera. Please try again.');
+      }
+    }
+  };
+
   const handleRemove = (id) => {
     const updated = images.filter(img => img.id !== id);
     const removed = images.find(img => img.id === id);
@@ -108,7 +139,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       {showCamera && (
         <Suspense fallback={
           <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
-            <div className="text-white">Loading camera...</div>
+            <div className="text-white">Opening camera...</div>
           </div>
         }>
           <InlineCamera
@@ -118,9 +149,26 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         </Suspense>
       )}
 
-      {/* Gallery file input */}
+      {/* Camera file input (web) */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        capture="environment"
+        onChange={(e) => {
+          const files = e.target.files;
+          if (files && files.length > 0) {
+            processAndAddFiles(files);
+          }
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
+
+      {/* Gallery file input (web) */}
+      <input
+        ref={galleryInputRef}
         type="file"
         accept="image/*"
         multiple
@@ -138,7 +186,13 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setShowCamera(true)}
+          onClick={() => {
+            if (isNative) {
+              setShowCamera(true);
+            } else {
+              cameraInputRef.current?.click();
+            }
+          }}
           disabled={compressing}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-charcoal font-medium text-sm rounded-lg hover:bg-slate-200 transition-all"
         >
@@ -150,7 +204,13 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         </button>
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (isNative) {
+              handleNativePick(CameraSource.Photos);
+            } else {
+              galleryInputRef.current?.click();
+            }
+          }}
           disabled={compressing}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-charcoal font-medium text-sm rounded-lg hover:bg-slate-200 transition-all"
         >
