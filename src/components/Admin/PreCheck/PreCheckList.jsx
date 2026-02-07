@@ -401,7 +401,7 @@ export default function PreCheckList() {
         {/* Card body */}
         <div className="p-3 bg-white">
           {hasFaults ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+            <div className="grid gap-3 items-start" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
               {faults.map(fault => (
                 <FaultCard
                   key={fault.id}
@@ -620,46 +620,42 @@ function FaultCard({ fault, onStatusChange }) {
           : 'border-red-200 bg-red-50'
       }`}>
         {/* Header: item name only */}
-        <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1.5">
+        <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1">
           {fault.header}
         </h5>
 
         {/* Description */}
-        <p className="text-xs text-gray-700 mb-2 flex-1">{fault.description}</p>
+        <p className="text-xs text-gray-700 mb-2">{fault.description}</p>
 
-        {/* Photos */}
+        {/* Photos - grid 2 columns */}
         {fault.imageUrls.length > 0 && (
-          <div className="space-y-1 mb-2">
+          <div className="grid grid-cols-2 gap-1 mb-2">
             {fault.imageUrls.map((url, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setImgOpen(url)}
-                className="block w-full rounded-lg overflow-hidden border border-gray-200 cursor-zoom-in"
+                className="rounded-md overflow-hidden border border-gray-200 cursor-zoom-in aspect-square"
               >
                 <img
                   src={url}
-                  alt={`Damage ${idx + 1}`}
-                  className="w-full h-32 object-cover"
+                  alt={`Photo ${idx + 1}`}
+                  className="w-full h-full object-cover"
                 />
               </button>
             ))}
           </div>
         )}
 
-        {/* Resolved info */}
-        {fault.resolvedAt && resolvedByName && (
-          <p className="text-[10px] text-green-700 mb-2">
-            Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
-          </p>
-        )}
+        {/* Spacer to push status to bottom */}
+        <div className="flex-1" />
 
         {/* Status action (only for real damage records) */}
         {fault.repairStatus !== null && (
           <select
             value={fault.repairStatus}
             onChange={(e) => onStatusChange(e.target.value)}
-            className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border mt-auto cursor-pointer ${
+            className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border cursor-pointer ${
               fault.repairStatus === 'resolved' ? 'border-green-300 bg-green-100 text-green-800'
                 : fault.repairStatus === 'in_progress' ? 'border-yellow-300 bg-yellow-100 text-yellow-800'
                 : 'border-red-300 bg-red-100 text-red-800'
@@ -669,6 +665,13 @@ function FaultCard({ fault, onStatusChange }) {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
+        )}
+
+        {/* Resolved info - below action button */}
+        {fault.resolvedAt && resolvedByName && (
+          <p className="text-[10px] text-green-700 mt-1.5">
+            Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
+          </p>
         )}
       </div>
 
