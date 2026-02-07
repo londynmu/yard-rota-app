@@ -290,42 +290,16 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     }
   };
 
-  // ─── Loading state ───
-  if (itemsLoading || !formInitialized) {
-    return (
-      <div className="space-y-3 animate-pulse">
-        <div className="h-12 bg-slate-200 rounded-xl" />
-        <div className="h-64 bg-slate-200 rounded-xl" />
-        <div className="h-48 bg-slate-200 rounded-xl" />
-      </div>
-    );
-  }
-
-  const outsideDone = (outsideItems || []).every(item => checkItems[item.key]?.status);
-  const insideDone = (insideItems || []).every(item => checkItems[item.key]?.status);
-  const outsideRepairs = (outsideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
-  const insideRepairs = (insideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
-
-  const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
-  const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
-
-  const handleCheckChange = (key, status) => {
-    setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
-  };
-
   // Auto-upload images to temp storage when added
   const handleItemImagesChange = useCallback(async (itemKey, newImages) => {
-    // Update state immediately
     setCheckItems(prev => ({
       ...prev,
       [itemKey]: { ...prev[itemKey], images: newImages }
     }));
 
-    // Find images needing upload (have file but no url)
     const toUpload = newImages.filter(img => img.file && !img.url);
     if (toUpload.length === 0) return;
 
-    // Upload in background
     for (const img of toUpload) {
       const url = await uploadTempImage(img.file, img.id);
       if (url) {
@@ -358,6 +332,29 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       }
     }
   }, [uploadTempImage]);
+
+  // ─── Loading state ───
+  if (itemsLoading || !formInitialized) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-12 bg-slate-200 rounded-xl" />
+        <div className="h-64 bg-slate-200 rounded-xl" />
+        <div className="h-48 bg-slate-200 rounded-xl" />
+      </div>
+    );
+  }
+
+  const outsideDone = (outsideItems || []).every(item => checkItems[item.key]?.status);
+  const insideDone = (insideItems || []).every(item => checkItems[item.key]?.status);
+  const outsideRepairs = (outsideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
+  const insideRepairs = (insideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
+
+  const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
+  const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
+
+  const handleCheckChange = (key, status) => {
+    setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
+  };
 
   // Render a section (always open, no collapse)
   const renderSection = (title, items, status, repairCount) => (
