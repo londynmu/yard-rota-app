@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
-import TugDamageHistory from '../components/PreCheck/TugDamageHistory';
+// TugDamageHistory used in TugSelector
 
 // ─── Persist during_shift state (camera app workaround) ───
 const DURING_SHIFT_KEY = 'precheck_during_shift';
@@ -22,9 +22,6 @@ const loadDuringShiftState = () => {
 // Returns { start: Date, end: Date } or null.
 export function getShiftWindow(shifts, now = new Date()) {
   if (!shifts || shifts.length === 0) return null;
-
-  const today = now.toISOString().split('T')[0];
-  const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
 
   for (const shift of shifts) {
     const shiftDate = shift.date; // "2026-02-05"
@@ -51,7 +48,7 @@ export function getShiftWindow(shifts, now = new Date()) {
 }
 
 // Fallback: 12 hours from the earliest check time
-function getFallbackWindow(checks, now = new Date()) {
+function getFallbackWindow(checks) {
   if (checks && checks.length > 0) {
     const earliest = new Date(checks[checks.length - 1].check_time || checks[checks.length - 1].created_at);
     return { start: earliest, end: new Date(earliest.getTime() + 12 * 3600000) };
@@ -70,10 +67,10 @@ export default function PreCheckPage() {
     savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber, display_name: savedDuringShift.displayName } : null
   );
   const [userLocationId, setUserLocationId] = useState(null);
-  const [shiftChecks, setShiftChecks] = useState([]); // all pre_shift checks in the shift window
-  const [shiftWindow, setShiftWindow] = useState(null);
+  const [shiftChecks, setShiftChecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qrError, setQrError] = useState(null);
+  const [lastSubmitType, setLastSubmitType] = useState(null); // 'precheck' or 'damage'
 
   useEffect(() => {
     initialize();
@@ -135,7 +132,6 @@ export default function PreCheckPage() {
 
       // Calculate effective window (shift-based or fallback from checks)
       const effectiveWindow = sw || getFallbackWindow(checks, now);
-      setShiftWindow(effectiveWindow);
 
       // Check if we're still within the window
       if (effectiveWindow && now <= effectiveWindow.end) {
@@ -197,8 +193,8 @@ export default function PreCheckPage() {
   };
 
   const handleSubmitSuccess = (submission) => {
-    // Add the new check to the list
     setShiftChecks(prev => [submission, ...prev]);
+    setLastSubmitType('precheck');
     setStep('success');
   };
 
@@ -296,6 +292,7 @@ export default function PreCheckPage() {
           selectedTug={selectedTug}
           onSubmitSuccess={() => {
             clearDuringShiftState();
+            setLastSubmitType('damage');
             setStep('success');
           }}
         />
@@ -305,18 +302,20 @@ export default function PreCheckPage() {
 
   // ─── Success screen ───
   if (step === 'success') {
+    const isDamage = lastSubmitType === 'damage';
+    const tugName = selectedTug?.display_name || selectedTug?.tug_number || '';
+    const tugNumber = selectedTug?.tug_number || '';
+    const now = new Date();
+
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center space-y-4">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+        <div className={`${isDamage ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-5 space-y-4`}>
           <div>
-            <h2 className="text-lg font-bold text-green-800">Submitted Successfully</h2>
-            <p className="text-sm text-green-600 mt-1">
-              {selectedTug?.display_name || selectedTug?.tug_number} has been recorded.
+            <h2 className={`text-base font-bold ${isDamage ? 'text-red-800' : 'text-green-800'}`}>
+              {isDamage ? `Damage has been recorded for ${tugName}` : `Pre-Shift Check completed for ${tugName}`}
+            </h2>
+            <p className={`text-xs mt-1 ${isDamage ? 'text-red-600' : 'text-green-600'}`}>
+              {tugName !== tugNumber ? `${tugNumber} • ` : ''}{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
           <div className="flex flex-col gap-2">
