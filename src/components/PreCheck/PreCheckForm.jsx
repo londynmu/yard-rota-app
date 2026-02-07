@@ -162,7 +162,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
       if (subError) throw subError;
 
-      // 2. Insert all check items
+      // 2. Insert all check items (return IDs for linking damages)
       const allRows = ALL_ITEMS.map(item => ({
         submission_id: submission.id,
         item_category: 'check',
@@ -171,26 +171,34 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         notes: checkItems[item.key].notes || null,
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: insertedItems, error: itemsError } = await supabase
         .from('precheck_items')
-        .insert(allRows);
+        .insert(allRows)
+        .select('id, item_name');
 
       if (itemsError) throw itemsError;
 
-      // 3. Upload remarks images if any
-      if (remarksImages.length > 0) {
-        const remarksImageUrls = await uploadDamageImages(submission.id, remarksImages);
-        if (remarksImageUrls.length > 0) {
-          await supabase.from('precheck_damages').insert({
-            submission_id: submission.id,
-            description: remarks || 'Additional photos',
-            severity: 'minor',
-            image_urls: remarksImageUrls,
-          });
-        }
+      // Build a map of item_name → inserted row id
+      const itemIdMap = {};
+      if (insertedItems) {
+        insertedItems.forEach(row => { itemIdMap[row.item_name] = row.id; });
       }
 
-      // 4. Insert damages from check items marked as repair_needed (with photos)
+      // 3. Create damage from remarks (text and/or images)
+      if (remarks || remarksImages.length > 0) {
+        let remarksImageUrls = [];
+        if (remarksImages.length > 0) {
+          remarksImageUrls = await uploadDamageImages(submission.id, remarksImages);
+        }
+        await supabase.from('precheck_damages').insert({
+          submission_id: submission.id,
+          description: remarks || 'Additional photos',
+          severity: 'minor',
+          image_urls: remarksImageUrls,
+        });
+      }
+
+      // 4. Insert damages from check items marked as repair_needed
       for (const item of ALL_ITEMS) {
         const ci = checkItems[item.key];
         if (ci.status === 'repair_needed' && (ci.images?.length > 0 || ci.notes)) {
@@ -201,6 +209,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             .from('precheck_damages')
             .insert({
               submission_id: submission.id,
+              item_id: itemIdMap[item.key] || null,
               description: ci.notes || `${item.label} - repair needed`,
               severity: 'minor',
               image_urls: imageUrls,
