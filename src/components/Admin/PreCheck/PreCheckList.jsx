@@ -57,7 +57,7 @@ export default function PreCheckList() {
   const fetchFilterOptions = useCallback(async () => {
     const [locRes, tugRes] = await Promise.all([
       supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('tugs').select('id, tug_number').order('tug_number'),
+      supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
     ]);
     setLocations(locRes.data || []);
     setTugs(tugRes.data || []);
@@ -296,7 +296,7 @@ export default function PreCheckList() {
       } else if (damage.location_on_tug) {
         header = damage.location_on_tug;
       } else if (damage.description === remarksText || damage.description === 'Additional photos') {
-        header = 'Remarks';
+        header = sub.check_type === 'during_shift' ? 'Damage Report' : 'Remarks';
       } else {
         const match = damage.description?.match(/^(.+?)\s*-\s*repair needed$/i);
         header = match ? match[1] : 'Damage Report';
@@ -317,7 +317,7 @@ export default function PreCheckList() {
     if (remarksText && !damages.some(d => d.description === remarksText || d.description === 'Additional photos')) {
       faults.push({
         id: `remarks-${sub.id}`,
-        header: 'Remarks',
+        header: sub.check_type === 'during_shift' ? 'Damage Report' : 'Remarks',
         description: remarksText,
         imageUrls: [],
         repairStatus: null,
@@ -427,188 +427,114 @@ export default function PreCheckList() {
 
   // ─── Render ───
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-bold text-charcoal">{stats.total}</div>
-          <div className="text-xs text-gray-500">Total Checks</div>
+    <div className="space-y-4">
+      {/* ─── Single toolbar line ─── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Toggle pills */}
+        <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
+          <button
+            type="button"
+            onClick={switchToByDate}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              viewMode === 'byDate'
+                ? 'bg-charcoal text-white shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            By Date
+          </button>
+          <button
+            type="button"
+            onClick={switchToByTug}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+              viewMode === 'byTug'
+                ? 'bg-charcoal text-white shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            By Tug
+          </button>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-bold text-orange-600">{stats.withDamages}</div>
-          <div className="text-xs text-gray-500">With Damages</div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-          <div className="text-2xl font-bold text-red-600">{stats.withRepairs}</div>
-          <div className="text-xs text-gray-500">Open Repairs</div>
-        </div>
-      </div>
 
-      {/* ─── View Mode Toggle ─── */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={switchToByDate}
-          className={`py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-            viewMode === 'byDate'
-              ? 'bg-charcoal text-white border-charcoal'
-              : 'bg-white text-gray-400 border-dashed border-gray-300 hover:text-gray-600 hover:border-gray-400'
-          }`}
-        >
-          By Date
-        </button>
-        <button
-          type="button"
-          onClick={switchToByTug}
-          className={`py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-            viewMode === 'byTug'
-              ? 'bg-charcoal text-white border-charcoal'
-              : 'bg-white text-gray-400 border-dashed border-gray-300 hover:text-gray-600 hover:border-gray-400'
-          }`}
-        >
-          By Tug
-        </button>
-      </div>
+        <span className="w-px h-5 bg-gray-200" />
 
-      {/* ─── Context-aware Controls ─── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-4">
+        {/* Mode-specific primary control */}
         {viewMode === 'byDate' ? (
-          <>
-            {/* Time range presets */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 font-medium mr-1">Range:</span>
-              {Object.entries(TIME_RANGES).map(([key, { label }]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setTimeRange(key)}
-                  className={`px-3.5 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    timeRange === key
-                      ? 'bg-charcoal text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-              <span className="text-xs text-gray-400 ml-auto">
-                {submissions.length} loaded
-              </span>
-            </div>
-
-            {/* Secondary filters */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
-                <select
-                  value={filters.location}
-                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Tug</label>
-                <select
-                  value={filters.tug}
-                  onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  {tugs.map(t => (
-                    <option key={t.id} value={t.id}>{t.tug_number}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                <select
-                  value={filters.checkType}
-                  onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  <option value="pre_shift">Pre-Shift</option>
-                  <option value="during_shift">During Shift</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
-                <input
-                  type="text"
-                  value={filters.user}
-                  onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-                  placeholder="Search name..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                />
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Prominent tug selector */}
-            <div>
-              <label className="block text-xs font-semibold text-charcoal mb-1.5">Select Tug</label>
-              <select
-                value={selectedTug}
-                onChange={(e) => setSelectedTug(e.target.value)}
-                className={`w-full rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                  selectedTug
-                    ? 'border-2 border-charcoal bg-white text-charcoal'
-                    : 'border-2 border-dashed border-gray-300 bg-gray-50 text-gray-500'
+          <div className="flex items-center gap-1">
+            {Object.entries(TIME_RANGES).map(([key, { label }]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTimeRange(key)}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
+                  timeRange === key
+                    ? 'bg-charcoal text-white'
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
                 }`}
               >
-                <option value="">Choose a tug...</option>
-                {tugs.map(t => (
-                  <option key={t.id} value={t.id}>{t.tug_number}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Secondary filters */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                <select
-                  value={filters.checkType}
-                  onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  <option value="pre_shift">Pre-Shift</option>
-                  <option value="during_shift">During Shift</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
-                <select
-                  value={filters.location}
-                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
-                <input
-                  type="text"
-                  value={filters.user}
-                  onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-                  placeholder="Search name..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-                />
-              </div>
-            </div>
-          </>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <select
+            value={selectedTug}
+            onChange={(e) => setSelectedTug(e.target.value)}
+            className={`border rounded-lg px-2 py-1 text-xs font-medium ${
+              selectedTug ? 'border-charcoal text-charcoal' : 'border-gray-300 text-gray-400'
+            }`}
+          >
+            <option value="">Select tug...</option>
+            {tugs.map(t => (
+              <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
+            ))}
+          </select>
         )}
+
+        <span className="w-px h-5 bg-gray-200" />
+
+        {/* Inline filters */}
+        <select
+          value={filters.location}
+          onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
+        >
+          <option value="">All locations</option>
+          {locations.map(loc => (
+            <option key={loc.id} value={loc.id}>{loc.name}</option>
+          ))}
+        </select>
+
+        {viewMode === 'byDate' && (
+          <select
+            value={filters.tug}
+            onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
+            className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
+          >
+            <option value="">All tugs</option>
+            {tugs.map(t => (
+              <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
+            ))}
+          </select>
+        )}
+
+        <select
+          value={filters.checkType}
+          onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
+        >
+          <option value="">All types</option>
+          <option value="pre_shift">Pre-Shift</option>
+          <option value="during_shift">During Shift</option>
+        </select>
+
+        <input
+          type="text"
+          value={filters.user}
+          onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
+          placeholder="Search user..."
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600 w-24"
+        />
       </div>
 
       {/* ─── Results ─── */}

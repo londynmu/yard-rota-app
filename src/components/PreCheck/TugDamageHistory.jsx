@@ -70,7 +70,7 @@ export default function TugDamageHistory({ tugId }) {
 
   return (
     <div>
-      <div className="space-y-1">
+      <div className="space-y-2">
         {displayDamages.map(damage => {
           const profile = damage.precheck_submissions?.profiles;
           const reporterName = profile 
@@ -78,45 +78,53 @@ export default function TugDamageHistory({ tugId }) {
             : 'Unknown';
           const isOpen = expanded === damage.id;
 
+          const statusColor = damage.repair_status === 'resolved'
+            ? 'border-l-green-400 bg-green-50'
+            : damage.repair_status === 'in_progress'
+            ? 'border-l-yellow-400 bg-yellow-50'
+            : 'border-l-red-400 bg-red-50';
+
+          const dotColor = damage.repair_status === 'resolved'
+            ? 'bg-green-400'
+            : damage.repair_status === 'in_progress'
+            ? 'bg-yellow-400'
+            : 'bg-red-400';
+
           return (
-            <div key={damage.id} className={`rounded-lg overflow-hidden transition-all ${isOpen ? 'bg-white border border-slate-200 mb-2' : ''}`}>
-              {/* Compact row */}
+            <div
+              key={damage.id}
+              className={`rounded-lg border border-slate-200 border-l-4 overflow-hidden transition-all ${statusColor}`}
+            >
               <button
                 type="button"
                 onClick={() => setExpanded(isOpen ? null : damage.id)}
-                className={`w-full text-left px-2 py-2 flex items-center gap-2 transition-colors ${
-                  isOpen ? 'bg-slate-50' : 'rounded-lg hover:bg-slate-100'
-                }`}
+                className="w-full text-left px-3 py-2.5 flex items-center gap-3"
               >
-                <span className="text-xs text-slate-400 w-28 flex-shrink-0">
-                  {formatDate(damage.created_at)}
-                </span>
-                <span className="text-xs text-slate-600 flex-1 truncate">
-                  {reporterName}
-                </span>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  damage.repair_status === 'resolved' ? 'bg-green-400'
-                    : damage.repair_status === 'in_progress' ? 'bg-yellow-400'
-                    : 'bg-red-400'
-                }`} />
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-charcoal">{reporterName}</span>
+                    <span className="text-[10px] text-slate-400">{formatDate(damage.created_at)}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{damage.description}</p>
+                </div>
                 <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
-              {/* Expanded: photo full width + details below */}
               {isOpen && (
-                <div>
+                <div className="border-t border-slate-200 bg-white">
                   {damage.image_urls && damage.image_urls.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 p-2">
                       {damage.image_urls.map((url, idx) => (
-                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden">
                           <img src={url} alt="" className="w-full object-contain max-h-72 bg-slate-100" />
                         </a>
                       ))}
                     </div>
                   )}
-                  <div className="px-3 py-2.5 border-t border-slate-100">
+                  <div className="px-3 py-2">
                     <p className="text-sm text-charcoal">{damage.description}</p>
                   </div>
                 </div>
@@ -130,7 +138,7 @@ export default function TugDamageHistory({ tugId }) {
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="w-full py-1.5 text-xs text-slate-500 hover:text-charcoal transition-colors"
+          className="w-full py-2 mt-2 text-xs text-slate-500 hover:text-charcoal transition-colors"
         >
           Show all {damages.length} entries
         </button>

@@ -107,12 +107,14 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
                 <button
                   type="button"
                   onClick={() => handleTugClick(tug)}
-                  className="flex-1 px-4 py-3 text-left flex items-center gap-2"
+                  className="flex-1 px-4 py-3 relative flex items-center justify-center gap-2"
                 >
                   <span className="text-base font-bold text-charcoal">{displayName}</span>
-                  <span className="text-xs text-amber-700/50">{tug.tug_number}</span>
+                  {tug.display_name && (
+                    <span className="text-xs text-charcoal">({tug.tug_number})</span>
+                  )}
                   <svg
-                    className={`w-4 h-4 ml-auto text-amber-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 absolute right-4 text-amber-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                     fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -133,14 +135,6 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
               {/* Expanded content */}
               {isExpanded && (
                 <div className="bg-white border-x border-b border-amber-200/60 rounded-b-xl px-4 py-3 space-y-3">
-                  {/* Tug details */}
-                  <div className="flex gap-4 text-xs text-slate-500">
-                    <span>Number: <strong className="text-charcoal">{tug.tug_number}</strong></span>
-                    {tug.locations && (
-                      <span>Location: <strong className="text-charcoal">{tug.locations.name}</strong></span>
-                    )}
-                  </div>
-
                   {/* Damage history */}
                   <div>
                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>

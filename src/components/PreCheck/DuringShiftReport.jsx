@@ -120,7 +120,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
     <form onSubmit={handleSubmit}>
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 bg-red-50 border-b border-red-100">
+        <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-center justify-between">
           <p className="text-sm font-bold text-red-800">
             Damage Report for {selectedTug?.display_name || selectedTug?.tug_number}
           </p>
