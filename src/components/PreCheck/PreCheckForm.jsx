@@ -47,6 +47,17 @@ const FALLBACK_INSIDE = [
 ];
 
 // ─── Form persistence helpers ───
+const FORM_SESSION_ID_KEY = 'precheck_form_session_id';
+
+const getFormSessionId = () => {
+  let id = sessionStorage.getItem(FORM_SESSION_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem(FORM_SESSION_ID_KEY, id);
+  }
+  return id;
+};
+
 const loadSavedForm = () => {
   try {
     const s = sessionStorage.getItem(FORM_STATE_KEY);
@@ -105,6 +116,26 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [showWarning, setShowWarning] = useState(false);
+  const formSessionId = useRef(getFormSessionId()).current;
+
+  // ─── Upload image to temp storage immediately ───
+  const uploadTempImage = useCallback(async (file, imageId) => {
+    try {
+      const ext = file.name?.split('.').pop() || 'jpg';
+      const filePath = `temp/${formSessionId}/${imageId}.${ext}`;
+      const { error } = await supabase.storage
+        .from('precheck-images')
+        .upload(filePath, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage
+        .from('precheck-images')
+        .getPublicUrl(filePath);
+      return publicUrl;
+    } catch (err) {
+      console.error('[PreCheckForm] Temp upload failed:', err);
+      return null;
+    }
+  }, [formSessionId]);
 
   // Initialize form state once items are loaded
   useEffect(() => {
@@ -120,27 +151,56 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         if (savedForm.checkItems[key]) {
           fresh[key].status = savedForm.checkItems[key].status || '';
           fresh[key].notes = savedForm.checkItems[key].notes || '';
+          // Restore saved image URLs
+          fresh[key].images = (savedForm.checkItems[key].imageUrls || []).map(img => ({
+            id: img.id,
+            url: img.url,
+            preview: img.url,
+          }));
         }
       }
     }
 
     setCheckItems(fresh);
     setRemarks(savedForm?.remarks || '');
+
+    // Restore remarks images
+    if (savedForm?.remarksImageUrls?.length > 0) {
+      setRemarksImages(savedForm.remarksImageUrls.map(img => ({
+        id: img.id,
+        url: img.url,
+        preview: img.url,
+      })));
+    }
+
     setFormInitialized(true);
   }, [itemsLoading, formInitialized, allItems]);
 
-  // ─── Debounced save to sessionStorage ───
+  // ─── Debounced save to sessionStorage (including image URLs) ───
   const saveTimerRef = useRef(null);
   const saveToStorage = useCallback(() => {
     if (!formInitialized) return;
     const stripped = {};
     for (const key of Object.keys(checkItems)) {
-      stripped[key] = { status: checkItems[key].status, notes: checkItems[key].notes };
+      stripped[key] = {
+        status: checkItems[key].status,
+        notes: checkItems[key].notes,
+        imageUrls: (checkItems[key].images || [])
+          .filter(img => img.url)
+          .map(img => ({ id: img.id, url: img.url })),
+      };
     }
+    const remarksImageUrls = remarksImages
+      .filter(img => img.url)
+      .map(img => ({ id: img.id, url: img.url }));
     try {
-      sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({ checkItems: stripped, remarks }));
+      sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({
+        checkItems: stripped,
+        remarks,
+        remarksImageUrls,
+      }));
     } catch { /* ignore */ }
-  }, [checkItems, remarks, formInitialized]);
+  }, [checkItems, remarks, remarksImages, formInitialized]);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -205,7 +265,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
     const queueSubmission = async () => {
       await queuePrecheckSubmission(payload);
-      try { sessionStorage.removeItem(FORM_STATE_KEY); } catch { /* */ }
+      try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(null, { queued: true });
     };
 
@@ -216,7 +276,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       }
 
       const submission = await submitPrecheckPayload(payload, supabase);
-      try { sessionStorage.removeItem(FORM_STATE_KEY); } catch { /* */ }
+      try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
       console.error('[PreCheckForm] Submit error:', err);
@@ -252,6 +312,52 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const handleCheckChange = (key, status) => {
     setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
   };
+
+  // Auto-upload images to temp storage when added
+  const handleItemImagesChange = useCallback(async (itemKey, newImages) => {
+    // Update state immediately
+    setCheckItems(prev => ({
+      ...prev,
+      [itemKey]: { ...prev[itemKey], images: newImages }
+    }));
+
+    // Find images needing upload (have file but no url)
+    const toUpload = newImages.filter(img => img.file && !img.url);
+    if (toUpload.length === 0) return;
+
+    // Upload in background
+    for (const img of toUpload) {
+      const url = await uploadTempImage(img.file, img.id);
+      if (url) {
+        setCheckItems(prev => {
+          const currentImages = prev[itemKey]?.images || [];
+          return {
+            ...prev,
+            [itemKey]: {
+              ...prev[itemKey],
+              images: currentImages.map(i => i.id === img.id ? { ...i, url } : i),
+            },
+          };
+        });
+      }
+    }
+  }, [uploadTempImage]);
+
+  const handleRemarksImagesChange = useCallback(async (newImages) => {
+    setRemarksImages(newImages);
+
+    const toUpload = newImages.filter(img => img.file && !img.url);
+    if (toUpload.length === 0) return;
+
+    for (const img of toUpload) {
+      const url = await uploadTempImage(img.file, img.id);
+      if (url) {
+        setRemarksImages(prev =>
+          prev.map(i => i.id === img.id ? { ...i, url } : i)
+        );
+      }
+    }
+  }, [uploadTempImage]);
 
   // Render a section (always open, no collapse)
   const renderSection = (title, items, status, repairCount) => (
@@ -290,10 +396,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
               [item.key]: { ...prev[item.key], notes }
             }))}
             images={checkItems[item.key]?.images || []}
-            onImagesChange={(images) => setCheckItems(prev => ({
-              ...prev,
-              [item.key]: { ...prev[item.key], images }
-            }))}
+            onImagesChange={(images) => handleItemImagesChange(item.key, images)}
           />
         ))}
       </div>
@@ -326,7 +429,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
           />
           <ImageUpload
             images={remarksImages}
-            onImagesChange={setRemarksImages}
+            onImagesChange={handleRemarksImagesChange}
             maxImages={3}
           />
         </div>

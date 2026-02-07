@@ -61,14 +61,21 @@ export const onPrecheckQueueUpdate = (callback) => {
 };
 
 export const mapImagesToQueueEntries = (images = []) => images
-  .filter(img => img?.file instanceof Blob)
-  .map(img => ({
-    id: img.id || createId(),
-    name: img.file?.name || 'photo.jpg',
-    type: img.file?.type || 'image/jpeg',
-    size: img.file?.size || 0,
-    blob: img.file,
-  }));
+  .filter(img => (img?.file instanceof Blob) || img?.url)
+  .map(img => {
+    // Already uploaded (has URL) - pass through
+    if (img.url && !(img.file instanceof Blob)) {
+      return { id: img.id || createId(), url: img.url };
+    }
+    // Not yet uploaded - include blob for upload
+    return {
+      id: img.id || createId(),
+      name: img.file?.name || 'photo.jpg',
+      type: img.file?.type || 'image/jpeg',
+      size: img.file?.size || 0,
+      blob: img.file,
+    };
+  });
 
 export const queuePrecheckSubmission = async (payload) => {
   const db = await getDb();
@@ -119,8 +126,13 @@ export const getPrecheckQueueStatus = async (userId) => {
 };
 
 const uploadImages = async (supabase, submissionId, images, options = {}) => {
-  const entries = (images || []).filter(img => img?.blob instanceof Blob);
-  if (entries.length === 0) return [];
+  const allEntries = (images || []).filter(img => (img?.blob instanceof Blob) || img?.url);
+  if (allEntries.length === 0) return [];
+
+  // Separate pre-uploaded (have URL) from needing upload (have blob)
+  const preUploaded = allEntries.filter(img => img.url && !(img.blob instanceof Blob)).map(img => img.url);
+  const entries = allEntries.filter(img => img?.blob instanceof Blob);
+  if (entries.length === 0) return preUploaded;
 
   const concurrency = options.concurrency || DEFAULT_UPLOAD_CONCURRENCY;
   const urls = await runWithConcurrency(entries, concurrency, async (img) => {
@@ -141,7 +153,7 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
     return publicUrl;
   });
 
-  return urls.filter(Boolean);
+  return [...preUploaded, ...urls.filter(Boolean)];
 };
 
 export const submitPrecheckPayload = async (payload, supabase) => {
