@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
-import PerformItemRow from './PerformItemRow';
 import CheckItemRow from './CheckItemRow';
 import ImageUpload from './ImageUpload';
+import { FORM_STATE_KEY } from '../../pages/PreCheckPage';
 
 // All check items grouped into OUTSIDE and INSIDE
 const OUTSIDE_ITEMS = [
@@ -42,15 +42,59 @@ const INSIDE_ITEMS = [
 // Combined for validation and submission
 const ALL_ITEMS = [...OUTSIDE_ITEMS, ...INSIDE_ITEMS];
 
+// ─── Form persistence helpers ───
+const loadSavedForm = () => {
+  try {
+    const s = sessionStorage.getItem(FORM_STATE_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+};
+
+const makeEmptyItems = () =>
+  Object.fromEntries(ALL_ITEMS.map(item => [item.key, { status: '', notes: '', images: [] }]));
+
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType = 'pre_shift' }) {
   const { user } = useAuth();
-  const [checkItems, setCheckItems] = useState(
-    Object.fromEntries(ALL_ITEMS.map(item => [item.key, { status: '', notes: '', images: [] }]))
-  );
-  const [remarks, setRemarks] = useState('');
+
+  // Restore form from sessionStorage if available
+  const savedForm = loadSavedForm();
+  const [checkItems, setCheckItems] = useState(() => {
+    if (savedForm?.checkItems) {
+      // Merge saved statuses/notes with fresh structure (images can't be restored)
+      const fresh = makeEmptyItems();
+      for (const key of Object.keys(fresh)) {
+        if (savedForm.checkItems[key]) {
+          fresh[key].status = savedForm.checkItems[key].status || '';
+          fresh[key].notes = savedForm.checkItems[key].notes || '';
+        }
+      }
+      return fresh;
+    }
+    return makeEmptyItems();
+  });
+  const [remarks, setRemarks] = useState(savedForm?.remarks || '');
   const [remarksImages, setRemarksImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // ─── Debounced save to sessionStorage ───
+  const saveTimerRef = useRef(null);
+  const saveToStorage = useCallback(() => {
+    // Strip images (not serializable), save only status + notes
+    const stripped = {};
+    for (const key of Object.keys(checkItems)) {
+      stripped[key] = { status: checkItems[key].status, notes: checkItems[key].notes };
+    }
+    try {
+      sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({ checkItems: stripped, remarks }));
+    } catch { /* ignore */ }
+  }, [checkItems, remarks]);
+
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(saveToStorage, 500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [saveToStorage]);
 
   const validate = () => {
     const newErrors = {};
@@ -164,6 +208,9 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
           if (ciDamageError) throw ciDamageError;
         }
       }
+
+      // Clear saved form state
+      try { sessionStorage.removeItem(FORM_STATE_KEY); } catch { /* */ }
 
       onSubmitSuccess?.(submission);
     } catch (err) {

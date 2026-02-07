@@ -7,8 +7,11 @@ import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 // TugDamageHistory used in TugSelector
 
-// ─── Persist during_shift state (camera app workaround) ───
+// ─── Persist state helpers ───
 const DURING_SHIFT_KEY = 'precheck_during_shift';
+const PAGE_STATE_KEY = 'precheck_page_state';
+export const FORM_STATE_KEY = 'precheck_form_state';
+
 const saveDuringShiftState = (tug) => {
   if (tug) sessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number, displayName: tug.display_name }));
 };
@@ -16,6 +19,20 @@ const clearDuringShiftState = () => sessionStorage.removeItem(DURING_SHIFT_KEY);
 const loadDuringShiftState = () => {
   try { const s = sessionStorage.getItem(DURING_SHIFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
 };
+
+const savePageState = (step, tug) => {
+  try {
+    sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({
+      step,
+      tug: tug ? { id: tug.id, tug_number: tug.tug_number, display_name: tug.display_name } : null,
+    }));
+  } catch { /* ignore */ }
+};
+const loadPageState = () => {
+  try { const s = sessionStorage.getItem(PAGE_STATE_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+};
+const clearPageState = () => sessionStorage.removeItem(PAGE_STATE_KEY);
+export const clearFormState = () => sessionStorage.removeItem(FORM_STATE_KEY);
 
 // ─── Shift Window Logic ───
 // Calculates the time window for the current shift based on scheduled_rota data.
@@ -61,16 +78,29 @@ export default function PreCheckPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Restore state from sessionStorage (survives page refresh)
   const savedDuringShift = loadDuringShiftState();
-  const [step, setStep] = useState(savedDuringShift ? 'during_shift' : 'select');
-  const [selectedTug, setSelectedTug] = useState(
-    savedDuringShift ? { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber, display_name: savedDuringShift.displayName } : null
-  );
+  const savedPage = !token ? loadPageState() : null; // QR token takes priority over saved state
+
+  const getInitialStep = () => {
+    if (savedDuringShift) return 'during_shift';
+    if (savedPage?.step === 'form' && savedPage?.tug) return 'form';
+    return 'select';
+  };
+
+  const getInitialTug = () => {
+    if (savedDuringShift) return { id: savedDuringShift.tugId, tug_number: savedDuringShift.tugNumber, display_name: savedDuringShift.displayName };
+    if (savedPage?.tug) return savedPage.tug;
+    return null;
+  };
+
+  const [step, setStep] = useState(getInitialStep);
+  const [selectedTug, setSelectedTug] = useState(getInitialTug);
   const [userLocationId, setUserLocationId] = useState(null);
   const [shiftChecks, setShiftChecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qrError, setQrError] = useState(null);
-  const [lastSubmitType, setLastSubmitType] = useState(null); // 'precheck' or 'damage'
+  const [lastSubmitType, setLastSubmitType] = useState(null);
 
   useEffect(() => {
     initialize();
@@ -141,14 +171,19 @@ export default function PreCheckPage() {
       }
 
       // Set selected tug and show completed view if checks exist
+      // BUT don't override if user was in the middle of a form (restored from sessionStorage)
+      const restoredStep = getInitialStep();
       if (checks.length > 0 && effectiveWindow && now <= effectiveWindow.end && !savedDuringShift) {
-        const latest = checks[0];
-        setSelectedTug({
-          id: latest.tug_id,
-          tug_number: latest.tugs?.tug_number,
-          display_name: latest.tugs?.display_name,
-        });
-        setStep('completed');
+        if (restoredStep !== 'form') {
+          const latest = checks[0];
+          setSelectedTug({
+            id: latest.tug_id,
+            tug_number: latest.tugs?.tug_number,
+            display_name: latest.tugs?.display_name,
+          });
+          setStep('completed');
+        }
+        // If restoredStep is 'form', keep it - user was filling out the form
       }
 
       // 3. QR token handling
@@ -190,23 +225,29 @@ export default function PreCheckPage() {
       return;
     }
     setStep('form');
+    savePageState('form', selectedTug);
   };
 
   const handleSubmitSuccess = (submission) => {
     setShiftChecks(prev => [submission, ...prev]);
     setLastSubmitType('precheck');
     setStep('success');
+    clearPageState();
+    clearFormState();
   };
 
   const handleStartDuringShift = (tug) => {
     setSelectedTug(tug);
     saveDuringShiftState(tug);
     setStep('during_shift');
+    clearPageState();
   };
 
   const handleCheckAnotherTug = () => {
     setSelectedTug(null);
     setStep('select');
+    clearPageState();
+    clearFormState();
   };
 
   // ─── Loading ───
@@ -387,7 +428,11 @@ export default function PreCheckPage() {
     <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setStep('select')}
+          onClick={() => {
+            setStep('select');
+            clearPageState();
+            clearFormState();
+          }}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
