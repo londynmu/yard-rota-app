@@ -111,21 +111,24 @@ export default function CheckItemManager() {
     }
   };
 
-  // ─── Toggle active ───
+  // ─── Toggle active (optimistic local update) ───
   const toggleActive = async (item) => {
+    // Optimistic update
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: !i.is_active } : i));
     try {
       const { error } = await supabase
         .from('precheck_check_items')
         .update({ is_active: !item.is_active })
         .eq('id', item.id);
       if (error) throw error;
-      fetchItems();
     } catch (err) {
       console.error('[CheckItemManager] Toggle error:', err);
+      // Revert on error
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: item.is_active } : i));
     }
   };
 
-  // ─── Reorder ───
+  // ─── Reorder (optimistic local update) ───
   const moveItem = async (item, direction) => {
     const categoryItems = items
       .filter(i => i.category === item.category)
@@ -137,14 +140,21 @@ export default function CheckItemManager() {
     const current = categoryItems[idx];
     const swap = categoryItems[swapIdx];
 
+    // Optimistic update
+    setItems(prev => prev.map(i => {
+      if (i.id === current.id) return { ...i, sort_order: swap.sort_order };
+      if (i.id === swap.id) return { ...i, sort_order: current.sort_order };
+      return i;
+    }));
+
     try {
       await Promise.all([
         supabase.from('precheck_check_items').update({ sort_order: swap.sort_order }).eq('id', current.id),
         supabase.from('precheck_check_items').update({ sort_order: current.sort_order }).eq('id', swap.id),
       ]);
-      fetchItems();
     } catch (err) {
       console.error('[CheckItemManager] Reorder error:', err);
+      fetchItems(); // Revert by refetching on error
     }
   };
 

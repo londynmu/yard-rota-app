@@ -61,34 +61,34 @@ CREATE POLICY check_items_delete_admin ON precheck_check_items
 -- 5. Seed with existing hardcoded items
 -- OUTSIDE items (sort_order 1-15)
 INSERT INTO precheck_check_items (item_key, label, tooltip, category, sort_order) VALUES
-  ('tyres',                  'Tyres',              'Check tread depth, pressure and damage on all tyres', 'outside', 1),
-  ('mud_flaps',              'Mud Flaps',           'Check mud flaps are secure and not torn',             'outside', 2),
-  ('head_lights',            'Head Lights',         'Check all headlights are working',                   'outside', 3),
-  ('signal_lights',          'Signal Lights',       'Check indicators and hazard lights',                 'outside', 4),
-  ('brake_lights',           'Brake Lights',        'Check all brake lights illuminate when pressed',     'outside', 5),
-  ('strobe_lights',          'Beacon Lights',       'Check beacon/strobe lights are working',             'outside', 6),
-  ('mirrors',                'Mirrors',             'Check mirrors are clean, secure and adjusted',       'outside', 7),
-  ('doors',                  'Doors',               'Check doors open, close and latch properly',         'outside', 8),
-  ('windows',                'Windows',             'Check windows are clean and not cracked',            'outside', 9),
-  ('step_handles_platforms', 'Steps/Platforms',      'Check steps and platforms are secure and clean',     'outside', 10),
-  ('fifth_wheel_operation',  '5th Wheel Operation', 'Check 5th wheel locks and releases correctly',      'outside', 11),
-  ('trailer_air_lines',      'Electric / Air Lines','Check airline connections and electrical cables',    'outside', 12),
-  ('fluid_leaks',            'Fluid Leaks',         'Check underneath for oil, coolant or fuel leaks',   'outside', 13),
-  ('air_leaks',              'Air Leaks',           'Listen for air leaks around brakes and lines',      'outside', 14),
-  ('wipers',                 'Wipers',              'Check wipers clear the windscreen properly',        'outside', 15)
+  ('tyres',                  'Tyres',              'Good tread, correct pressure, no cuts or bulges',                'outside', 1),
+  ('mud_flaps',              'Mud Flaps',           'Secure, not torn or missing',                                   'outside', 2),
+  ('head_lights',            'Head Lights',         'All headlights working, lenses not cracked',                    'outside', 3),
+  ('signal_lights',          'Signal Lights',       'Indicators and hazards flash correctly',                        'outside', 4),
+  ('brake_lights',           'Brake Lights',        'All brake lights come on when pedal is pressed',                'outside', 5),
+  ('strobe_lights',          'Beacon Lights',       'Beacon/strobe lights flash when turned on',                     'outside', 6),
+  ('mirrors',                'Mirrors',             'Clean, secure, properly adjusted',                              'outside', 7),
+  ('doors',                  'Doors',               'Open, close and latch properly',                                'outside', 8),
+  ('windows',                'Windows',             'Clean, no cracks or chips',                                     'outside', 9),
+  ('step_handles_platforms', 'Steps/Platforms',      'Secure, clean, no damage',                                     'outside', 10),
+  ('fifth_wheel_operation',  '5th Wheel Operation', 'Locks and releases correctly',                                  'outside', 11),
+  ('trailer_air_lines',      'Electric / Air Lines','Connections secure, no visible damage',                         'outside', 12),
+  ('fluid_leaks',            'Fluid Leaks',         'No oil, coolant or fuel drips underneath',                      'outside', 13),
+  ('air_leaks',              'Air Leaks',           'No hissing from brakes, lines or connections',                  'outside', 14),
+  ('wipers',                 'Wipers',              'Blades clear the windscreen without streaks',                   'outside', 15)
 ON CONFLICT (item_key) DO NOTHING;
 
 -- INSIDE items (sort_order 1-11)
 INSERT INTO precheck_check_items (item_key, label, tooltip, category, sort_order) VALUES
-  ('seat',              'Seat',            'Check seat adjusts and locks in position',          'inside', 1),
-  ('seat_belt',         'Seat Belt',       'Check seat belt clicks, holds and retracts',        'inside', 2),
-  ('heater',            'Heater',          'Check heater and demister are working',             'inside', 3),
-  ('steering',          'Steering',        'Check steering wheel for excessive play',           'inside', 4),
-  ('throttle',          'Throttle',        'Check throttle responds smoothly',                  'inside', 5),
-  ('starter',           'Starter',         'Check engine starts and runs normally',             'inside', 6),
-  ('service_brakes',    'Service Brakes',  'Test service brakes hold and stop the vehicle',    'inside', 7),
-  ('park_brake',        'Park Brake',      'Test park brake holds on an incline',              'inside', 8),
-  ('cab_lights',        'Cab Lights',      'Check interior cab lights are working',            'inside', 9),
-  ('stickers',          'Stickers',        'Check all required stickers and labels are present','inside', 10),
-  ('king_pin_warning',  'King Pin Light',  'Check king pin warning light operates correctly',  'inside', 11)
+  ('seat',              'Seat',            'Adjusts and locks in position',                     'inside', 1),
+  ('seat_belt',         'Seat Belt',       'Clicks in, holds firm, retracts smoothly',          'inside', 2),
+  ('heater',            'Heater',          'Heater and demister blow warm air',                 'inside', 3),
+  ('steering',          'Steering',        'No excessive play, turns smoothly',                 'inside', 4),
+  ('throttle',          'Throttle',        'Responds smoothly, no sticking',                    'inside', 5),
+  ('starter',           'Starter',         'Engine starts and runs normally',                   'inside', 6),
+  ('service_brakes',    'Service Brakes',  'Brakes hold and stop the vehicle properly',        'inside', 7),
+  ('park_brake',        'Park Brake',      'Holds the vehicle on an incline',                  'inside', 8),
+  ('cab_lights',        'Cab Lights',      'Interior lights working',                          'inside', 9),
+  ('stickers',          'Stickers',        'All required stickers and labels present',         'inside', 10),
+  ('king_pin_warning',  'King Pin Light',  'Warning light operates correctly',                 'inside', 11)
 ON CONFLICT (item_key) DO NOTHING;
