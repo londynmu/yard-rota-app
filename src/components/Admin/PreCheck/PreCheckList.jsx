@@ -443,7 +443,7 @@ export default function PreCheckList() {
                       {/* Card body */}
                       <div className="p-3 bg-white">
                         {hasFaults ? (
-                          <div className="flex flex-wrap gap-3">
+                          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
                             {faults.map(fault => (
                               <FaultCard
                                 key={fault.id}
@@ -487,7 +487,7 @@ function FaultCard({ fault, onStatusChange }) {
 
   return (
     <>
-      <div className={`flex-1 min-w-[180px] max-w-[320px] rounded-lg border p-3 flex flex-col ${
+      <div className={`rounded-lg border p-3 flex flex-col ${
         fault.repairStatus === 'resolved' ? 'border-green-200 bg-green-50'
           : fault.repairStatus === 'in_progress' ? 'border-yellow-200 bg-yellow-50'
           : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
