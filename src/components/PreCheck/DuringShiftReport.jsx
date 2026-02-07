@@ -3,6 +3,13 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import ImageUpload from './ImageUpload';
+import useNetworkStatus from '../../lib/useNetworkStatus';
+import {
+  mapImagesToQueueEntries,
+  queueDuringShiftSubmission,
+  submitDuringShiftPayload,
+} from '../../lib/precheckQueue';
+import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
 const FORM_STORAGE_KEY = 'precheck_during_shift_form';
 
@@ -28,6 +35,7 @@ const clearFormState = () => {
 
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
+  const { isOnline } = useNetworkStatus();
   const savedForm = loadFormState();
   const [description, setDescription] = useState(savedForm?.description || '');
   const [images, setImages] = useState([]);
@@ -42,30 +50,12 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
     persistForm();
   }, [persistForm]);
 
-  const uploadImages = async (submissionId) => {
-    const urls = [];
-    for (const img of images) {
-      if (!img.file) continue;
-      const ext = img.file.name.split('.').pop() || 'jpg';
-      const filePath = `damages/${submissionId}/${img.id}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('precheck-images')
-        .upload(filePath, img.file, { upsert: true });
-
-      if (uploadError) {
-        console.error('[DuringShiftReport] Upload error:', uploadError);
-        continue;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('precheck-images')
-        .getPublicUrl(filePath);
-
-      urls.push(publicUrl);
-    }
-    return urls;
-  };
+  const buildPayload = () => ({
+    userId: user.id,
+    tugId: selectedTug.id,
+    description: description.trim(),
+    images: mapImagesToQueueEntries(images),
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,41 +66,30 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
     }
 
     setSubmitting(true);
-    try {
-      // 1. Create during_shift submission
-      const { data: submission, error: subError } = await supabase
-        .from('precheck_submissions')
-        .insert({
-          user_id: user.id,
-          tug_id: selectedTug.id,
-          check_type: 'during_shift',
-          remarks: description.trim(),
-        })
-        .select()
-        .single();
+    const payload = buildPayload();
 
-      if (subError) throw subError;
-
-      // 2. Upload images
-      const imageUrls = await uploadImages(submission.id);
-
-      // 3. Create damage record
-      const { error: damageError } = await supabase
-        .from('precheck_damages')
-        .insert({
-          submission_id: submission.id,
-          description: description.trim(),
-          severity: 'minor',
-          image_urls: imageUrls,
-        });
-
-      if (damageError) throw damageError;
-
+    const queueSubmission = async () => {
+      await queueDuringShiftSubmission(payload);
       clearFormState();
-      onSubmitSuccess?.(submission);
+      onSubmitSuccess?.(null, { queued: true });
+    };
+
+    try {
+      if (!isOnline) {
+        await queueSubmission();
+        return;
+      }
+
+      const submission = await submitDuringShiftPayload(payload, supabase);
+      clearFormState();
+      onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
       console.error('[DuringShiftReport] Submit error:', err);
-      alert('Error submitting report. Please try again.');
+      if (!isOnline || isLikelyNetworkError(err)) {
+        await queueSubmission();
+      } else {
+        alert('Error submitting report. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

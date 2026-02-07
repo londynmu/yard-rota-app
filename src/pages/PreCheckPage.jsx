@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
+import {
+  getPrecheckQueueStatus,
+  onPrecheckQueueUpdate,
+  processPrecheckQueue,
+} from '../lib/precheckQueue';
 // TugDamageHistory used in TugSelector
 
 // ─── Persist state helpers ───
@@ -77,6 +83,7 @@ export default function PreCheckPage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isOnline, connection } = useNetworkStatus();
 
   // Restore state from sessionStorage (survives page refresh)
   const savedDuringShift = loadDuringShiftState();
@@ -101,10 +108,57 @@ export default function PreCheckPage() {
   const [loading, setLoading] = useState(true);
   const [qrError, setQrError] = useState(null);
   const [lastSubmitType, setLastSubmitType] = useState(null);
+  const [lastSubmitQueued, setLastSubmitQueued] = useState(false);
+  const [queueStatus, setQueueStatus] = useState({ total: 0, pending: 0, uploading: 0, failed: 0 });
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     initialize();
   }, [user, token]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refreshStatus = async () => {
+      const status = await getPrecheckQueueStatus(user.id);
+      setQueueStatus(status);
+    };
+
+    refreshStatus();
+    const unsubscribe = onPrecheckQueueUpdate(refreshStatus);
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !isOnline) return;
+
+    const sync = async () => {
+      setIsSyncing(true);
+      try {
+        await processPrecheckQueue({ supabase, userId: user.id });
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    sync();
+  }, [isOnline, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!('serviceWorker' in navigator)) return;
+
+    const handleMessage = (event) => {
+      if (event?.data?.type !== 'PRECHECK_SYNC') return;
+      if (!isOnline) return;
+      setIsSyncing(true);
+      processPrecheckQueue({ supabase, userId: user.id })
+        .finally(() => setIsSyncing(false));
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [user?.id, isOnline]);
 
   const initialize = async () => {
     if (!user) return;
@@ -228,9 +282,12 @@ export default function PreCheckPage() {
     savePageState('form', selectedTug);
   };
 
-  const handleSubmitSuccess = (submission) => {
-    setShiftChecks(prev => [submission, ...prev]);
+  const handleSubmitSuccess = (submission, meta = {}) => {
+    if (submission) {
+      setShiftChecks(prev => [submission, ...prev]);
+    }
     setLastSubmitType('precheck');
+    setLastSubmitQueued(!!meta.queued);
     setStep('success');
     clearPageState();
     clearFormState();
@@ -317,6 +374,47 @@ export default function PreCheckPage() {
   if (step === 'during_shift') {
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+        {(queueStatus.total > 0 || !isOnline) && (
+          <div className={`rounded-lg border px-3 py-2 text-xs ${
+            !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                {!isOnline && (
+                  <span>You are offline. Reports will sync when you&apos;re back online.</span>
+                )}
+                {isOnline && (
+                  <span>
+                    {queueStatus.failed > 0
+                      ? `${queueStatus.failed} upload(s) failed.`
+                      : `${queueStatus.pending + queueStatus.uploading} upload(s) pending.`}
+                    {connection?.effectiveType ? ` (${connection.effectiveType})` : ''}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!isOnline || !user?.id) return;
+                  setIsSyncing(true);
+                  try {
+                    await processPrecheckQueue({ supabase, userId: user.id });
+                  } finally {
+                    setIsSyncing(false);
+                  }
+                }}
+                disabled={!isOnline || isSyncing}
+                className={`px-2 py-1 rounded border text-xs ${
+                  !isOnline || isSyncing
+                    ? 'border-gray-200 text-gray-400'
+                    : 'border-blue-300 text-blue-700 hover:bg-blue-100'
+                }`}
+              >
+                {isSyncing ? 'Syncing...' : 'Sync now'}
+              </button>
+            </div>
+          </div>
+        )}
         <button
           onClick={() => {
             clearDuringShiftState();
@@ -331,9 +429,10 @@ export default function PreCheckPage() {
         </button>
         <DuringShiftReport
           selectedTug={selectedTug}
-          onSubmitSuccess={() => {
+          onSubmitSuccess={(_, meta = {}) => {
             clearDuringShiftState();
             setLastSubmitType('damage');
+            setLastSubmitQueued(!!meta.queued);
             setStep('success');
           }}
         />
@@ -358,6 +457,11 @@ export default function PreCheckPage() {
             <p className={`text-xs mt-1 ${isDamage ? 'text-red-600' : 'text-green-600'}`}>
               {tugName !== tugNumber ? `${tugNumber} • ` : ''}{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
             </p>
+            {lastSubmitQueued && (
+              <p className="text-xs mt-1 text-slate-500">
+                Saved offline. Upload will resume automatically when you&apos;re online.
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <button
@@ -426,6 +530,47 @@ export default function PreCheckPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+      {(queueStatus.total > 0 || !isOnline) && (
+        <div className={`rounded-lg border px-3 py-2 text-xs ${
+          !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              {!isOnline && (
+                <span>You are offline. Checks will sync when you&apos;re back online.</span>
+              )}
+              {isOnline && (
+                <span>
+                  {queueStatus.failed > 0
+                    ? `${queueStatus.failed} upload(s) failed.`
+                    : `${queueStatus.pending + queueStatus.uploading} upload(s) pending.`}
+                  {connection?.effectiveType ? ` (${connection.effectiveType})` : ''}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!isOnline || !user?.id) return;
+                setIsSyncing(true);
+                try {
+                  await processPrecheckQueue({ supabase, userId: user.id });
+                } finally {
+                  setIsSyncing(false);
+                }
+              }}
+              disabled={!isOnline || isSyncing}
+              className={`px-2 py-1 rounded border text-xs ${
+                !isOnline || isSyncing
+                  ? 'border-gray-200 text-gray-400'
+                  : 'border-blue-300 text-blue-700 hover:bg-blue-100'
+              }`}
+            >
+              {isSyncing ? 'Syncing...' : 'Sync now'}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <button
           onClick={() => {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 
-export default function CheckItemRow({ label, tooltip, value, onChange, notes, onNotesChange, images, onImagesChange }) {
+export default function CheckItemRow({ itemKey, label, tooltip, value, onChange, notes, onNotesChange, images, onImagesChange }) {
   const [expanded, setExpanded] = useState(false);
 
   const handleMarkIssue = () => {
@@ -22,7 +22,7 @@ export default function CheckItemRow({ label, tooltip, value, onChange, notes, o
   };
 
   return (
-    <div className={`border-b border-gray-100 last:border-b-0 ${value === 'repair_needed' ? 'bg-red-50/50' : ''}`}>
+    <div id={itemKey ? `check-item-${itemKey}` : undefined} className={`border-b border-gray-100 last:border-b-0 ${value === 'repair_needed' ? 'bg-red-50/50' : ''}`}>
       {/* Row: Label ... Warning OK */}
       <div className="flex items-center gap-3 py-3 px-2">
         {/* Label (left) */}
@@ -75,7 +75,7 @@ export default function CheckItemRow({ label, tooltip, value, onChange, notes, o
             type="text"
             value={notes || ''}
             onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="What's wrong? (optional)"
+            placeholder="What's wrong? (required)"
             className="w-full text-sm border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white"
           />
           {onImagesChange && (
@@ -98,7 +98,7 @@ export default function CheckItemRow({ label, tooltip, value, onChange, notes, o
           <div className="flex items-center gap-2 text-xs text-red-600">
             {notes && <span className="truncate">{notes}</span>}
             {images?.length > 0 && <span>{images.length} photo(s)</span>}
-            {!notes && !images?.length && <span className="text-red-400">Tap to add details...</span>}
+            {!notes && !images?.length && <span className="text-red-500 font-medium">Tap to describe what&apos;s wrong</span>}
             <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -110,6 +110,7 @@ export default function CheckItemRow({ label, tooltip, value, onChange, notes, o
 }
 
 CheckItemRow.propTypes = {
+  itemKey: PropTypes.string,
   label: PropTypes.string.isRequired,
   tooltip: PropTypes.string,
   value: PropTypes.string,

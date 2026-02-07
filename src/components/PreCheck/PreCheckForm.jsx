@@ -5,6 +5,13 @@ import { useAuth } from '../../lib/AuthContext';
 import CheckItemRow from './CheckItemRow';
 import ImageUpload from './ImageUpload';
 import { FORM_STATE_KEY } from '../../pages/PreCheckPage';
+import useNetworkStatus from '../../lib/useNetworkStatus';
+import {
+  mapImagesToQueueEntries,
+  queuePrecheckSubmission,
+  submitPrecheckPayload,
+} from '../../lib/precheckQueue';
+import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
 const FALLBACK_OUTSIDE = [
@@ -49,6 +56,7 @@ const loadSavedForm = () => {
 
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType = 'pre_shift' }) {
   const { user } = useAuth();
+  const { isOnline } = useNetworkStatus();
 
   // ─── Dynamic items from DB ───
   const [outsideItems, setOutsideItems] = useState(null);
@@ -141,43 +149,48 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   }, [saveToStorage]);
 
   const validate = () => {
+    // 1. Check all items are marked
     const allChecked = allItems.every(item => checkItems[item.key]?.status);
     if (!allChecked) {
       setShowWarning(true);
-      // Scroll to the warning message
       setTimeout(() => {
         document.getElementById('precheck-warning')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
       return false;
     }
+
+    // 2. Check all repair_needed items have a description
+    const missingNotes = allItems.filter(item => 
+      checkItems[item.key]?.status === 'repair_needed' && !checkItems[item.key]?.notes?.trim()
+    );
+    if (missingNotes.length > 0) {
+      setShowWarning(true);
+      // Scroll to the first item missing notes
+      const firstKey = missingNotes[0].key;
+      setTimeout(() => {
+        document.getElementById(`check-item-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return false;
+    }
+
     setShowWarning(false);
     return true;
   };
 
-  const uploadDamageImages = async (submissionId, damageImages) => {
-    const urls = [];
-    for (const img of damageImages) {
-      if (!img.file) continue;
-      const ext = img.file.name.split('.').pop();
-      const filePath = `damages/${submissionId}/${img.id}.${ext}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('precheck-images')
-        .upload(filePath, img.file, { upsert: true });
-
-      if (uploadError) {
-        console.error('[PreCheckForm] Upload error:', uploadError);
-        continue;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('precheck-images')
-        .getPublicUrl(filePath);
-
-      urls.push(publicUrl);
-    }
-    return urls;
-  };
+  const buildPayload = () => ({
+    userId: user.id,
+    tugId: selectedTug.id,
+    checkType,
+    remarks: remarks?.trim() || '',
+    remarksImages: mapImagesToQueueEntries(remarksImages),
+    items: allItems.map(item => ({
+      key: item.key,
+      label: item.label,
+      status: checkItems[item.key]?.status || '',
+      notes: checkItems[item.key]?.notes || '',
+      images: mapImagesToQueueEntries(checkItems[item.key]?.images || []),
+    })),
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -188,84 +201,30 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     }
 
     setSubmitting(true);
-    try {
-      // 1. Create submission
-      const { data: submission, error: subError } = await supabase
-        .from('precheck_submissions')
-        .insert({
-          user_id: user.id,
-          tug_id: selectedTug.id,
-          check_type: checkType,
-          remarks: remarks || null,
-        })
-        .select()
-        .single();
+    const payload = buildPayload();
 
-      if (subError) throw subError;
-
-      // 2. Insert all check items (return IDs for linking damages)
-      const allRows = allItems.map(item => ({
-        submission_id: submission.id,
-        item_category: 'check',
-        item_name: item.key,
-        status: checkItems[item.key].status,
-        notes: checkItems[item.key].notes || null,
-      }));
-
-      const { data: insertedItems, error: itemsError } = await supabase
-        .from('precheck_items')
-        .insert(allRows)
-        .select('id, item_name');
-
-      if (itemsError) throw itemsError;
-
-      // Build a map of item_name → inserted row id
-      const itemIdMap = {};
-      if (insertedItems) {
-        insertedItems.forEach(row => { itemIdMap[row.item_name] = row.id; });
-      }
-
-      // 3. Create damage from remarks (text and/or images)
-      if (remarks || remarksImages.length > 0) {
-        let remarksImageUrls = [];
-        if (remarksImages.length > 0) {
-          remarksImageUrls = await uploadDamageImages(submission.id, remarksImages);
-        }
-        await supabase.from('precheck_damages').insert({
-          submission_id: submission.id,
-          description: remarks || 'Additional photos',
-          severity: 'minor',
-          image_urls: remarksImageUrls,
-        });
-      }
-
-      // 4. Insert damages from check items marked as repair_needed
-      for (const item of allItems) {
-        const ci = checkItems[item.key];
-        if (ci.status === 'repair_needed' && (ci.images?.length > 0 || ci.notes)) {
-          const imageUrls = ci.images?.length > 0
-            ? await uploadDamageImages(submission.id, ci.images)
-            : [];
-          const { error: ciDamageError } = await supabase
-            .from('precheck_damages')
-            .insert({
-              submission_id: submission.id,
-              item_id: itemIdMap[item.key] || null,
-              description: ci.notes || `${item.label} - repair needed`,
-              severity: 'minor',
-              image_urls: imageUrls,
-            });
-          if (ciDamageError) throw ciDamageError;
-        }
-      }
-
-      // Clear saved form state
+    const queueSubmission = async () => {
+      await queuePrecheckSubmission(payload);
       try { sessionStorage.removeItem(FORM_STATE_KEY); } catch { /* */ }
+      onSubmitSuccess?.(null, { queued: true });
+    };
 
-      onSubmitSuccess?.(submission);
+    try {
+      if (!isOnline) {
+        await queueSubmission();
+        return;
+      }
+
+      const submission = await submitPrecheckPayload(payload, supabase);
+      try { sessionStorage.removeItem(FORM_STATE_KEY); } catch { /* */ }
+      onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
       console.error('[PreCheckForm] Submit error:', err);
-      alert('Error submitting PreCheck. Please try again.');
+      if (!isOnline || isLikelyNetworkError(err)) {
+        await queueSubmission();
+      } else {
+        alert('Error submitting PreCheck. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -319,9 +278,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       <div className="px-2">
         {items.map(item => (
           <CheckItemRow
-            key={item.key}
-            label={item.label}
-            tooltip={item.tooltip}
+                key={item.key}
+                itemKey={item.key}
+                label={item.label}
+                tooltip={item.tooltip}
             value={checkItems[item.key]?.status || ''}
             onChange={(status) => handleCheckChange(item.key, status)}
             notes={checkItems[item.key]?.notes || ''}
@@ -340,10 +300,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     </div>
   );
 
-  // Count unchecked items for warning message
-  const uncheckedOutside = (outsideItems || []).filter(item => !checkItems[item.key]?.status).length;
-  const uncheckedInside = (insideItems || []).filter(item => !checkItems[item.key]?.status).length;
-  const totalUnchecked = uncheckedOutside + uncheckedInside;
+  // Count problems for warning message
+  const totalUnchecked = allItems.filter(item => !checkItems[item.key]?.status).length;
+  const missingDescriptions = allItems.filter(item =>
+    checkItems[item.key]?.status === 'repair_needed' && !checkItems[item.key]?.notes?.trim()
+  ).length;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -372,18 +333,32 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       </div>
 
       {/* Warning message when not all items checked */}
-      {showWarning && totalUnchecked > 0 && (
+      {showWarning && (totalUnchecked > 0 || missingDescriptions > 0) && (
         <div id="precheck-warning" className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
           <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
           <div>
-            <p className="text-sm font-semibold text-red-800">
-              {totalUnchecked} item{totalUnchecked !== 1 ? 's' : ''} not checked yet
-            </p>
-            <p className="text-xs text-red-600 mt-0.5">
-              You must check every item before submitting. Go through the list and mark each item as OK or report an issue.
-            </p>
+            {totalUnchecked > 0 && (
+              <>
+                <p className="text-sm font-semibold text-red-800">
+                  {totalUnchecked} item{totalUnchecked !== 1 ? 's' : ''} not checked yet
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  You must check every item before submitting.
+                </p>
+              </>
+            )}
+            {missingDescriptions > 0 && (
+              <>
+                <p className={`text-sm font-semibold text-red-800 ${totalUnchecked > 0 ? 'mt-2' : ''}`}>
+                  {missingDescriptions} issue{missingDescriptions !== 1 ? 's' : ''} missing description
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  Please describe what&apos;s wrong for each item marked with a warning.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
