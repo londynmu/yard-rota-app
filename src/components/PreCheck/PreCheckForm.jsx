@@ -96,8 +96,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [remarksImages, setRemarksImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  const [outsideOpen, setOutsideOpen] = useState(true);
-  const [insideOpen, setInsideOpen] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
   // Initialize form state once items are loaded
   useEffect(() => {
@@ -142,20 +141,17 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   }, [saveToStorage]);
 
   const validate = () => {
-    const newErrors = {};
-
-    const uncheckedOutside = (outsideItems || []).filter(item => !checkItems[item.key]?.status);
-    if (uncheckedOutside.length > 0) {
-      newErrors.outside = `Please check all Outside items (${uncheckedOutside.length} remaining)`;
+    const allChecked = allItems.every(item => checkItems[item.key]?.status);
+    if (!allChecked) {
+      setShowWarning(true);
+      // Scroll to the warning message
+      setTimeout(() => {
+        document.getElementById('precheck-warning')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return false;
     }
-
-    const uncheckedInside = (insideItems || []).filter(item => !checkItems[item.key]?.status);
-    if (uncheckedInside.length > 0) {
-      newErrors.inside = `Please check all Inside items (${uncheckedInside.length} remaining)`;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setShowWarning(false);
+    return true;
   };
 
   const uploadDamageImages = async (submissionId, damageImages) => {
@@ -298,22 +294,18 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
   };
 
-  // Render a section
-  const renderSection = (title, items, isOpen, setOpen, status, repairCount, errorKey) => (
-    <div className={`rounded-xl overflow-hidden transition-all border ${
+  // Render a section (always open, no collapse)
+  const renderSection = (title, items, status, repairCount) => (
+    <div className={`rounded-xl overflow-hidden border ${
       status === 'done' ? 'border-green-300 bg-green-50'
         : status === 'issues' ? 'border-red-300 bg-red-50'
         : 'border-gray-200 bg-white'
     }`}>
-      <button
-        type="button"
-        onClick={() => setOpen(!isOpen)}
-        className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
-          status === 'done' ? 'bg-green-50'
-            : status === 'issues' ? 'bg-red-50'
-            : 'bg-slate-50'
-        }`}
-      >
+      <div className={`px-4 py-3 flex items-center justify-between ${
+        status === 'done' ? 'bg-green-50'
+          : status === 'issues' ? 'bg-red-50'
+          : 'bg-slate-50'
+      }`}>
         <h3 className="font-semibold text-charcoal text-sm">{title}</h3>
         <div className="flex items-center gap-2">
           {status === 'done' && (
@@ -322,46 +314,41 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
           {status === 'issues' && (
             <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
           )}
-          <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
         </div>
-      </button>
-      {isOpen && (
-        <div>
-          {errors[errorKey] && (
-            <p className="text-xs text-red-600 mx-4 mt-2 bg-red-50 p-2 rounded-lg">{errors[errorKey]}</p>
-          )}
-          <div className="px-2">
-            {items.map(item => (
-              <CheckItemRow
-                key={item.key}
-                label={item.label}
-                tooltip={item.tooltip}
-                value={checkItems[item.key]?.status || ''}
-                onChange={(status) => handleCheckChange(item.key, status)}
-                notes={checkItems[item.key]?.notes || ''}
-                onNotesChange={(notes) => setCheckItems(prev => ({
-                  ...prev,
-                  [item.key]: { ...prev[item.key], notes }
-                }))}
-                images={checkItems[item.key]?.images || []}
-                onImagesChange={(images) => setCheckItems(prev => ({
-                  ...prev,
-                  [item.key]: { ...prev[item.key], images }
-                }))}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
+      <div className="px-2">
+        {items.map(item => (
+          <CheckItemRow
+            key={item.key}
+            label={item.label}
+            tooltip={item.tooltip}
+            value={checkItems[item.key]?.status || ''}
+            onChange={(status) => handleCheckChange(item.key, status)}
+            notes={checkItems[item.key]?.notes || ''}
+            onNotesChange={(notes) => setCheckItems(prev => ({
+              ...prev,
+              [item.key]: { ...prev[item.key], notes }
+            }))}
+            images={checkItems[item.key]?.images || []}
+            onImagesChange={(images) => setCheckItems(prev => ({
+              ...prev,
+              [item.key]: { ...prev[item.key], images }
+            }))}
+          />
+        ))}
+      </div>
     </div>
   );
 
+  // Count unchecked items for warning message
+  const uncheckedOutside = (outsideItems || []).filter(item => !checkItems[item.key]?.status).length;
+  const uncheckedInside = (insideItems || []).filter(item => !checkItems[item.key]?.status).length;
+  const totalUnchecked = uncheckedOutside + uncheckedInside;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {renderSection('Outside Check', outsideItems, outsideOpen, setOutsideOpen, outsideStatus, outsideRepairs, 'outside')}
-      {renderSection('Inside Check', insideItems, insideOpen, setInsideOpen, insideStatus, insideRepairs, 'inside')}
+      {renderSection('Outside Check', outsideItems, outsideStatus, outsideRepairs)}
+      {renderSection('Inside Check', insideItems, insideStatus, insideRepairs)}
 
       {/* Section 3: Remarks + Photos */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -383,6 +370,23 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
           />
         </div>
       </div>
+
+      {/* Warning message when not all items checked */}
+      {showWarning && totalUnchecked > 0 && (
+        <div id="precheck-warning" className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-red-800">
+              {totalUnchecked} item{totalUnchecked !== 1 ? 's' : ''} not checked yet
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              You must check every item before submitting. Go through the list and mark each item as OK or report an issue.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Submit button */}
       <button
