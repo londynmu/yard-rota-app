@@ -6,41 +6,38 @@ import CheckItemRow from './CheckItemRow';
 import ImageUpload from './ImageUpload';
 import { FORM_STATE_KEY } from '../../pages/PreCheckPage';
 
-// All check items grouped into OUTSIDE and INSIDE
-const OUTSIDE_ITEMS = [
-  { key: 'tyres', label: 'Tyres' },
-  { key: 'mud_flaps', label: 'Mud Flaps' },
-  { key: 'head_lights', label: 'Head Lights' },
-  { key: 'signal_lights', label: 'Signal Lights' },
-  { key: 'brake_lights', label: 'Brake Lights' },
-  { key: 'strobe_lights', label: 'Beacon Lights' },
-  { key: 'mirrors', label: 'Mirrors' },
-  { key: 'doors', label: 'Doors' },
-  { key: 'windows', label: 'Windows' },
-  { key: 'step_handles_platforms', label: 'Steps/Platforms' },
-  { key: 'fifth_wheel_operation', label: '5th Wheel Operation' },
-  { key: 'trailer_air_lines', label: 'Electric / Air Lines' },
-  { key: 'fluid_leaks', label: 'Fluid Leaks' },
-  { key: 'air_leaks', label: 'Air Leaks' },
-  { key: 'wipers', label: 'Wipers' },
+// ─── Hardcoded fallback (used if DB fetch fails) ───
+const FALLBACK_OUTSIDE = [
+  { key: 'tyres', label: 'Tyres', tooltip: null },
+  { key: 'mud_flaps', label: 'Mud Flaps', tooltip: null },
+  { key: 'head_lights', label: 'Head Lights', tooltip: null },
+  { key: 'signal_lights', label: 'Signal Lights', tooltip: null },
+  { key: 'brake_lights', label: 'Brake Lights', tooltip: null },
+  { key: 'strobe_lights', label: 'Beacon Lights', tooltip: null },
+  { key: 'mirrors', label: 'Mirrors', tooltip: null },
+  { key: 'doors', label: 'Doors', tooltip: null },
+  { key: 'windows', label: 'Windows', tooltip: null },
+  { key: 'step_handles_platforms', label: 'Steps/Platforms', tooltip: null },
+  { key: 'fifth_wheel_operation', label: '5th Wheel Operation', tooltip: null },
+  { key: 'trailer_air_lines', label: 'Electric / Air Lines', tooltip: null },
+  { key: 'fluid_leaks', label: 'Fluid Leaks', tooltip: null },
+  { key: 'air_leaks', label: 'Air Leaks', tooltip: null },
+  { key: 'wipers', label: 'Wipers', tooltip: null },
 ];
 
-const INSIDE_ITEMS = [
-  { key: 'seat', label: 'Seat' },
-  { key: 'seat_belt', label: 'Seat Belt' },
-  { key: 'heater', label: 'Heater' },
-  { key: 'steering', label: 'Steering' },
-  { key: 'throttle', label: 'Throttle' },
-  { key: 'starter', label: 'Starter' },
-  { key: 'service_brakes', label: 'Service Brakes' },
-  { key: 'park_brake', label: 'Park Brake' },
-  { key: 'cab_lights', label: 'Cab Lights' },
-  { key: 'stickers', label: 'Stickers' },
-  { key: 'king_pin_warning', label: 'King Pin Light' },
+const FALLBACK_INSIDE = [
+  { key: 'seat', label: 'Seat', tooltip: null },
+  { key: 'seat_belt', label: 'Seat Belt', tooltip: null },
+  { key: 'heater', label: 'Heater', tooltip: null },
+  { key: 'steering', label: 'Steering', tooltip: null },
+  { key: 'throttle', label: 'Throttle', tooltip: null },
+  { key: 'starter', label: 'Starter', tooltip: null },
+  { key: 'service_brakes', label: 'Service Brakes', tooltip: null },
+  { key: 'park_brake', label: 'Park Brake', tooltip: null },
+  { key: 'cab_lights', label: 'Cab Lights', tooltip: null },
+  { key: 'stickers', label: 'Stickers', tooltip: null },
+  { key: 'king_pin_warning', label: 'King Pin Light', tooltip: null },
 ];
-
-// Combined for validation and submission
-const ALL_ITEMS = [...OUTSIDE_ITEMS, ...INSIDE_ITEMS];
 
 // ─── Form persistence helpers ───
 const loadSavedForm = () => {
@@ -50,37 +47,85 @@ const loadSavedForm = () => {
   } catch { return null; }
 };
 
-const makeEmptyItems = () =>
-  Object.fromEntries(ALL_ITEMS.map(item => [item.key, { status: '', notes: '', images: [] }]));
-
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType = 'pre_shift' }) {
   const { user } = useAuth();
 
-  // Restore form from sessionStorage if available
-  const savedForm = loadSavedForm();
-  const [checkItems, setCheckItems] = useState(() => {
+  // ─── Dynamic items from DB ───
+  const [outsideItems, setOutsideItems] = useState(null);
+  const [insideItems, setInsideItems] = useState(null);
+  const [itemsLoading, setItemsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCheckItems = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('precheck_check_items')
+          .select('item_key, label, tooltip, category')
+          .eq('is_active', true)
+          .order('sort_order');
+
+        if (error) throw error;
+
+        const outside = (data || [])
+          .filter(i => i.category === 'outside')
+          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip }));
+        const inside = (data || [])
+          .filter(i => i.category === 'inside')
+          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip }));
+
+        setOutsideItems(outside.length > 0 ? outside : FALLBACK_OUTSIDE);
+        setInsideItems(inside.length > 0 ? inside : FALLBACK_INSIDE);
+      } catch (err) {
+        console.error('[PreCheckForm] Failed to fetch check items, using fallback:', err);
+        setOutsideItems(FALLBACK_OUTSIDE);
+        setInsideItems(FALLBACK_INSIDE);
+      } finally {
+        setItemsLoading(false);
+      }
+    };
+    fetchCheckItems();
+  }, []);
+
+  // Derived: all items combined (only available after fetch)
+  const allItems = outsideItems && insideItems ? [...outsideItems, ...insideItems] : [];
+
+  // ─── Form state (initialized after items load) ───
+  const [checkItems, setCheckItems] = useState({});
+  const [formInitialized, setFormInitialized] = useState(false);
+  const [remarks, setRemarks] = useState('');
+  const [remarksImages, setRemarksImages] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [outsideOpen, setOutsideOpen] = useState(true);
+  const [insideOpen, setInsideOpen] = useState(false);
+
+  // Initialize form state once items are loaded
+  useEffect(() => {
+    if (itemsLoading || formInitialized || allItems.length === 0) return;
+
+    const savedForm = loadSavedForm();
+    const fresh = Object.fromEntries(
+      allItems.map(item => [item.key, { status: '', notes: '', images: [] }])
+    );
+
     if (savedForm?.checkItems) {
-      // Merge saved statuses/notes with fresh structure (images can't be restored)
-      const fresh = makeEmptyItems();
       for (const key of Object.keys(fresh)) {
         if (savedForm.checkItems[key]) {
           fresh[key].status = savedForm.checkItems[key].status || '';
           fresh[key].notes = savedForm.checkItems[key].notes || '';
         }
       }
-      return fresh;
     }
-    return makeEmptyItems();
-  });
-  const [remarks, setRemarks] = useState(savedForm?.remarks || '');
-  const [remarksImages, setRemarksImages] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
+
+    setCheckItems(fresh);
+    setRemarks(savedForm?.remarks || '');
+    setFormInitialized(true);
+  }, [itemsLoading, formInitialized, allItems]);
 
   // ─── Debounced save to sessionStorage ───
   const saveTimerRef = useRef(null);
   const saveToStorage = useCallback(() => {
-    // Strip images (not serializable), save only status + notes
+    if (!formInitialized) return;
     const stripped = {};
     for (const key of Object.keys(checkItems)) {
       stripped[key] = { status: checkItems[key].status, notes: checkItems[key].notes };
@@ -88,7 +133,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     try {
       sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({ checkItems: stripped, remarks }));
     } catch { /* ignore */ }
-  }, [checkItems, remarks]);
+  }, [checkItems, remarks, formInitialized]);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -99,12 +144,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const validate = () => {
     const newErrors = {};
 
-    const uncheckedOutside = OUTSIDE_ITEMS.filter(item => !checkItems[item.key].status);
+    const uncheckedOutside = (outsideItems || []).filter(item => !checkItems[item.key]?.status);
     if (uncheckedOutside.length > 0) {
       newErrors.outside = `Please check all Outside items (${uncheckedOutside.length} remaining)`;
     }
 
-    const uncheckedInside = INSIDE_ITEMS.filter(item => !checkItems[item.key].status);
+    const uncheckedInside = (insideItems || []).filter(item => !checkItems[item.key]?.status);
     if (uncheckedInside.length > 0) {
       newErrors.inside = `Please check all Inside items (${uncheckedInside.length} remaining)`;
     }
@@ -163,7 +208,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       if (subError) throw subError;
 
       // 2. Insert all check items (return IDs for linking damages)
-      const allRows = ALL_ITEMS.map(item => ({
+      const allRows = allItems.map(item => ({
         submission_id: submission.id,
         item_category: 'check',
         item_name: item.key,
@@ -199,7 +244,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       }
 
       // 4. Insert damages from check items marked as repair_needed
-      for (const item of ALL_ITEMS) {
+      for (const item of allItems) {
         const ci = checkItems[item.key];
         if (ci.status === 'repair_needed' && (ci.images?.length > 0 || ci.notes)) {
           const imageUrls = ci.images?.length > 0
@@ -230,13 +275,21 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     }
   };
 
-  const outsideDone = OUTSIDE_ITEMS.every(item => checkItems[item.key].status);
-  const insideDone = INSIDE_ITEMS.every(item => checkItems[item.key].status);
-  const outsideRepairs = OUTSIDE_ITEMS.filter(item => checkItems[item.key].status === 'repair_needed').length;
-  const insideRepairs = INSIDE_ITEMS.filter(item => checkItems[item.key].status === 'repair_needed').length;
+  // ─── Loading state ───
+  if (itemsLoading || !formInitialized) {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-12 bg-slate-200 rounded-xl" />
+        <div className="h-64 bg-slate-200 rounded-xl" />
+        <div className="h-48 bg-slate-200 rounded-xl" />
+      </div>
+    );
+  }
 
-  const [outsideOpen, setOutsideOpen] = useState(true);
-  const [insideOpen, setInsideOpen] = useState(false);
+  const outsideDone = (outsideItems || []).every(item => checkItems[item.key]?.status);
+  const insideDone = (insideItems || []).every(item => checkItems[item.key]?.status);
+  const outsideRepairs = (outsideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
+  const insideRepairs = (insideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
 
   const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
@@ -284,14 +337,15 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
               <CheckItemRow
                 key={item.key}
                 label={item.label}
-                value={checkItems[item.key].status}
+                tooltip={item.tooltip}
+                value={checkItems[item.key]?.status || ''}
                 onChange={(status) => handleCheckChange(item.key, status)}
-                notes={checkItems[item.key].notes}
+                notes={checkItems[item.key]?.notes || ''}
                 onNotesChange={(notes) => setCheckItems(prev => ({
                   ...prev,
                   [item.key]: { ...prev[item.key], notes }
                 }))}
-                images={checkItems[item.key].images}
+                images={checkItems[item.key]?.images || []}
                 onImagesChange={(images) => setCheckItems(prev => ({
                   ...prev,
                   [item.key]: { ...prev[item.key], images }
@@ -306,8 +360,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {renderSection('Outside Check', OUTSIDE_ITEMS, outsideOpen, setOutsideOpen, outsideStatus, outsideRepairs, 'outside')}
-      {renderSection('Inside Check', INSIDE_ITEMS, insideOpen, setInsideOpen, insideStatus, insideRepairs, 'inside')}
+      {renderSection('Outside Check', outsideItems, outsideOpen, setOutsideOpen, outsideStatus, outsideRepairs, 'outside')}
+      {renderSection('Inside Check', insideItems, insideOpen, setInsideOpen, insideStatus, insideRepairs, 'inside')}
 
       {/* Section 3: Remarks + Photos */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

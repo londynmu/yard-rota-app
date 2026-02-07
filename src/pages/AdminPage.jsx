@@ -12,6 +12,7 @@ import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManager';
 import TugManager from '../components/Admin/PreCheck/TugManager';
 import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
+import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -27,7 +28,7 @@ export default function AdminPage() {
     const validSections = [
       'dashboard', 'users', 'approvals', 'availability', 
       'rota-planner', 'breaks', 'performance', 'stats', 
-      'shunter-month', 'settings', 'tugs', 'prechecks'
+      'shunter-month', 'settings', 'tugs', 'prechecks', 'check-items'
     ];
     return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
   });
@@ -51,6 +52,7 @@ export default function AdminPage() {
         'shunter-month': 'Shunter of the Month',
         'tugs': 'Tug Management',
         'prechecks': 'PreCheck Reports',
+        'check-items': 'Check Items',
         'settings': 'Settings'
       };
       titleElement.textContent = titles[activeSection] || 'Admin Panel';
@@ -272,6 +274,7 @@ export default function AdminPage() {
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
     { id: 'tugs', label: 'Tugs', icon: '🚛', description: 'Manage tug fleet & QR codes' },
     { id: 'prechecks', label: 'PreChecks', icon: '📝', description: 'Tug inspection reports' },
+    { id: 'check-items', label: 'Check Items', icon: '📋', description: 'Manage checklist & tooltips' },
     { id: 'shunter-month', label: 'Shunter of the Month', icon: '🏆', description: 'Monthly Day & Night awards' },
     { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Locations & Agencies' },
   ];
@@ -333,6 +336,8 @@ export default function AdminPage() {
         return <TugManager />;
       case 'prechecks':
         return <PreCheckList />;
+      case 'check-items':
+        return <CheckItemManager />;
       case 'shunter-month':
         return <ShunterOfTheMonthManager users={users} />;
       case 'settings':

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 
-export default function CheckItemRow({ label, value, onChange, notes, onNotesChange, images, onImagesChange }) {
+export default function CheckItemRow({ label, tooltip, value, onChange, notes, onNotesChange, images, onImagesChange }) {
   const [expanded, setExpanded] = useState(false);
 
   const handleMarkIssue = () => {
@@ -26,11 +26,16 @@ export default function CheckItemRow({ label, value, onChange, notes, onNotesCha
       {/* Compact row: Label ... Warning OK */}
       <div className="flex items-center gap-2 py-2 px-1">
         {/* Label (left) */}
-        <span className={`flex-1 text-sm font-medium min-w-0 ${
-          value === 'ok' ? 'text-green-700' : value === 'repair_needed' ? 'text-red-700' : 'text-charcoal'
-        }`}>
-          {label}
-        </span>
+        <div className="flex-1 min-w-0">
+          <span className={`text-sm font-medium ${
+            value === 'ok' ? 'text-green-700' : value === 'repair_needed' ? 'text-red-700' : 'text-charcoal'
+          }`}>
+            {label}
+          </span>
+          {tooltip && (
+            <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{tooltip}</p>
+          )}
+        </div>
 
         {/* Issue / Warning button */}
         <button
@@ -106,6 +111,7 @@ export default function CheckItemRow({ label, value, onChange, notes, onNotesCha
 
 CheckItemRow.propTypes = {
   label: PropTypes.string.isRequired,
+  tooltip: PropTypes.string,
   value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   notes: PropTypes.string,
