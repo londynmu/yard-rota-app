@@ -1,25 +1,60 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/AuthContext';
 
+const TIME_RANGES = {
+  '24h': { ms: 24 * 3600000, label: '24h' },
+  '48h': { ms: 48 * 3600000, label: '48h' },
+  '7d':  { ms: 7 * 24 * 3600000, label: '7 days' },
+  '30d': { ms: 30 * 24 * 3600000, label: '30 days' },
+};
+
+const TUG_PAGE_SIZE = 20;
+
 export default function PreCheckList() {
   const { user } = useAuth();
+
+  // ─── Core state ───
+  const [viewMode, setViewMode] = useState('byDate');
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('byDate');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // ─── By Date state ───
+  const [timeRange, setTimeRange] = useState('24h');
+
+  // ─── By Tug state ───
+  const [selectedTug, setSelectedTug] = useState('');
+
+  // ─── Shared secondary filters ───
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split('T')[0],
     location: '',
-    tug: '',
-    user: '',
+    tug: '',        // secondary tug filter (By Date mode only)
     checkType: '',
+    user: '',
   });
   const [locations, setLocations] = useState([]);
   const [tugs, setTugs] = useState([]);
-  const [stats, setStats] = useState({ total: 0, withDamages: 0, withRepairs: 0 });
+
+  // ─── Pagination cursors (refs to avoid stale closures) ───
+  const windowEndRef = useRef(new Date().toISOString());
+  const tugCursorRef = useRef(null);
+  const fetchGenRef = useRef(0); // generation counter to discard stale fetches
+  const sentinelRef = useRef(null);
+  const observerRef = useRef(null);
+
+  // ─── Stats (computed from loaded data) ───
+  const stats = useMemo(() => ({
+    total: submissions.length,
+    withDamages: submissions.filter(s => s.precheck_damages?.length > 0).length,
+    withRepairs: submissions.filter(s =>
+      s.precheck_damages?.some(d => d.repair_status === 'open')
+    ).length,
+  }), [submissions]);
 
   // ─── Fetch filter options ───
-  const fetchFilters = useCallback(async () => {
+  const fetchFilterOptions = useCallback(async () => {
     const [locRes, tugRes] = await Promise.all([
       supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
       supabase.from('tugs').select('id, tug_number').order('tug_number'),
@@ -28,9 +63,20 @@ export default function PreCheckList() {
     setTugs(tugRes.data || []);
   }, []);
 
-  // ─── Fetch submissions with full item + damage data ───
-  const fetchSubmissions = useCallback(async () => {
-    setLoading(true);
+  // ─── Core fetch function ───
+  const fetchData = useCallback(async (append = false) => {
+    // Generation counter: fresh fetches increment, appends keep current
+    const gen = append ? fetchGenRef.current : ++fetchGenRef.current;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setHasMore(true);
+      windowEndRef.current = new Date().toISOString();
+      tugCursorRef.current = null;
+    }
+
     try {
       let query = supabase
         .from('precheck_submissions')
@@ -41,56 +87,95 @@ export default function PreCheckList() {
           precheck_items(*),
           precheck_damages(*, resolved_profile:resolved_by(first_name, last_name))
         `)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('created_at', { ascending: false });
 
-      if (filters.date) {
-        query = query.eq('check_date', filters.date);
+      if (viewMode === 'byDate') {
+        const rangeDuration = TIME_RANGES[timeRange].ms;
+        const rangeEnd = new Date(windowEndRef.current);
+        const rangeStart = new Date(rangeEnd.getTime() - rangeDuration);
+
+        query = query
+          .gte('check_time', rangeStart.toISOString())
+          .lt('check_time', rangeEnd.toISOString());
+
+        // Secondary tug filter (By Date only)
+        if (filters.tug) {
+          query = query.eq('tug_id', filters.tug);
+        }
+
+        // Advance cursor for next load-more
+        windowEndRef.current = rangeStart.toISOString();
+      } else {
+        // By Tug mode
+        if (!selectedTug) {
+          setSubmissions([]);
+          setLoading(false);
+          return;
+        }
+        query = query.eq('tug_id', selectedTug).limit(TUG_PAGE_SIZE);
+        if (append && tugCursorRef.current) {
+          query = query.lt('created_at', tugCursorRef.current);
+        }
       }
+
+      // Shared server-side filter
       if (filters.checkType) {
         query = query.eq('check_type', filters.checkType);
-      }
-      if (filters.tug) {
-        query = query.eq('tug_id', filters.tug);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      let filtered = data || [];
+      // Discard if a newer fetch has started
+      if (fetchGenRef.current !== gen) return;
 
-      // Client-side filter by location
+      let results = data || [];
+
+      // Client-side filters
       if (filters.location) {
-        filtered = filtered.filter(s => s.tugs?.location_id === filters.location);
+        results = results.filter(s => s.tugs?.location_id === filters.location);
       }
-
-      // Client-side filter by user name
       if (filters.user) {
         const search = filters.user.toLowerCase();
-        filtered = filtered.filter(s => {
+        results = results.filter(s => {
           const name = `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.toLowerCase();
           return name.includes(search);
         });
       }
 
-      setSubmissions(filtered);
+      // Update By Tug cursor
+      if (viewMode === 'byTug' && data && data.length > 0) {
+        tugCursorRef.current = data[data.length - 1].created_at;
+      }
 
-      // Stats
-      setStats({
-        total: filtered.length,
-        withDamages: filtered.filter(s => s.precheck_damages?.length > 0).length,
-        withRepairs: filtered.filter(s =>
-          s.precheck_damages?.some(d => d.repair_status === 'open')
-        ).length,
-      });
+      // Determine hasMore
+      if (viewMode === 'byTug') {
+        setHasMore((data || []).length >= TUG_PAGE_SIZE);
+      } else {
+        setHasMore((data || []).length > 0);
+      }
+
+      if (append) {
+        setSubmissions(prev => [...prev, ...results]);
+      } else {
+        setSubmissions(results);
+      }
     } catch (err) {
       console.error('[PreCheckList] Fetch error:', err);
     } finally {
-      setLoading(false);
+      if (fetchGenRef.current === gen) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, [filters]);
+  }, [viewMode, timeRange, selectedTug, filters]);
 
-  // ─── Update damage status (optimistic + refetch) ───
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore || loading) return;
+    fetchData(true);
+  }, [fetchData, loadingMore, hasMore, loading]);
+
+  // ─── Update damage status (optimistic + targeted refetch) ───
   const updateDamageStatus = async (damageId, newStatus, submissionId) => {
     try {
       const updates = { repair_status: newStatus };
@@ -102,7 +187,7 @@ export default function PreCheckList() {
         updates.resolved_by = null;
       }
 
-      // Optimistic local update
+      // Optimistic update
       setSubmissions(prev => prev.map(sub => {
         if (sub.id !== submissionId) return sub;
         return {
@@ -121,54 +206,77 @@ export default function PreCheckList() {
 
       if (error) throw error;
 
-      // Refetch for fresh resolved_profile data
-      fetchSubmissions();
+      // Targeted refetch for resolved_profile data
+      const { data: freshDamages } = await supabase
+        .from('precheck_damages')
+        .select('*, resolved_profile:resolved_by(first_name, last_name)')
+        .eq('submission_id', submissionId);
+
+      setSubmissions(prev => prev.map(sub => {
+        if (sub.id !== submissionId) return sub;
+        return { ...sub, precheck_damages: freshDamages || sub.precheck_damages };
+      }));
     } catch (err) {
       console.error('[PreCheckList] Update damage error:', err);
-      fetchSubmissions();
     }
   };
 
-  useEffect(() => { fetchFilters(); }, [fetchFilters]);
-  useEffect(() => { fetchSubmissions(); }, [fetchSubmissions]);
+  // ─── Mode switching ───
+  const switchToByDate = () => {
+    if (viewMode === 'byDate') return;
+    setViewMode('byDate');
+    setSubmissions([]);
+    setSelectedTug('');
+    setTimeRange('24h');
+  };
 
-  // ─── Grouping logic ───
-  const grouped = useMemo(() => {
-    if (viewMode === 'byTug') {
-      const map = {};
-      submissions.forEach(sub => {
-        const key = sub.tug_id;
-        if (!map[key]) {
-          map[key] = {
-            key,
-            label: sub.tugs?.display_name || sub.tugs?.tug_number || 'Unknown Tug',
-            sublabel: sub.tugs?.display_name ? sub.tugs.tug_number : null,
-            location: sub.tugs?.locations?.name || null,
-            items: [],
-          };
-        }
-        map[key].items.push(sub);
-      });
-      // Sort groups by tug number
-      return Object.values(map).sort((a, b) => a.label.localeCompare(b.label));
-    } else {
-      const map = {};
-      submissions.forEach(sub => {
-        const key = sub.check_date;
-        if (!map[key]) {
-          map[key] = {
-            key,
-            label: new Date(key + 'T12:00:00').toLocaleDateString('en-GB', {
-              weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-            }),
-            items: [],
-          };
-        }
-        map[key].items.push(sub);
-      });
-      // Sort groups by date descending
-      return Object.values(map).sort((a, b) => b.key.localeCompare(a.key));
+  const switchToByTug = () => {
+    if (viewMode === 'byTug') return;
+    setViewMode('byTug');
+    setSubmissions([]);
+    setFilters(prev => ({ ...prev, tug: '' }));
+  };
+
+  // ─── Effects ───
+  useEffect(() => { fetchFilterOptions(); }, [fetchFilterOptions]);
+  useEffect(() => { fetchData(false); }, [fetchData]);
+
+  // ─── Intersection Observer for infinite scroll ───
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!hasMore || loading || loadingMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
+    );
+
+    if (sentinelRef.current) {
+      observerRef.current.observe(sentinelRef.current);
     }
+
+    return () => observerRef.current?.disconnect();
+  }, [hasMore, loading, loadingMore, loadMore]);
+
+  // ─── Grouping (By Date only) ───
+  const grouped = useMemo(() => {
+    if (viewMode === 'byTug') return null;
+
+    const map = {};
+    submissions.forEach(sub => {
+      const key = sub.check_date;
+      if (!map[key]) {
+        map[key] = {
+          key,
+          label: new Date(key + 'T12:00:00').toLocaleDateString('en-GB', {
+            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+          }),
+          items: [],
+        };
+      }
+      map[key].items.push(sub);
+    });
+    return Object.values(map).sort((a, b) => b.key.localeCompare(a.key));
   }, [submissions, viewMode]);
 
   // ─── Build fault cards for a submission ───
@@ -178,12 +286,10 @@ export default function PreCheckList() {
     const remarksText = sub.remarks || '';
 
     const faults = damages.map(damage => {
-      // Try to find linked item via item_id
       const linkedItem = damage.item_id
         ? items.find(i => i.id === damage.item_id)
         : null;
 
-      // Determine header: linked item > location > parse "Label - repair needed" > fallback
       let header;
       if (linkedItem) {
         header = linkedItem.item_name.replace(/_/g, ' ');
@@ -192,7 +298,6 @@ export default function PreCheckList() {
       } else if (damage.description === remarksText || damage.description === 'Additional photos') {
         header = 'Remarks';
       } else {
-        // Legacy fallback: try to extract item label from "Label - repair needed"
         const match = damage.description?.match(/^(.+?)\s*-\s*repair needed$/i);
         header = match ? match[1] : 'Damage Report';
       }
@@ -202,21 +307,19 @@ export default function PreCheckList() {
         header,
         description: damage.description,
         imageUrls: damage.image_urls || [],
-        severity: damage.severity,
         repairStatus: damage.repair_status,
         resolvedAt: damage.resolved_at,
         resolvedProfile: damage.resolved_profile,
       };
     });
 
-    // Legacy: if submission has remarks but no matching damage, add virtual fault
+    // Legacy: remarks without matching damage
     if (remarksText && !damages.some(d => d.description === remarksText || d.description === 'Additional photos')) {
       faults.push({
         id: `remarks-${sub.id}`,
         header: 'Remarks',
         description: remarksText,
         imageUrls: [],
-        severity: 'minor',
         repairStatus: null,
         resolvedAt: null,
         resolvedProfile: null,
@@ -224,6 +327,102 @@ export default function PreCheckList() {
     }
 
     return faults;
+  };
+
+  // ─── Render a submission card ───
+  const renderSubmissionCard = (sub) => {
+    const faults = getFaults(sub);
+    const profile = sub.profiles;
+    const userName = profile
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+      : 'Unknown';
+    const hasFaults = faults.length > 0;
+    const hasOpen = sub.precheck_damages?.some(d => d.repair_status === 'open');
+
+    return (
+      <div
+        key={sub.id}
+        className={`rounded-xl border overflow-hidden shadow-sm ${
+          hasOpen ? 'border-red-200'
+            : hasFaults ? 'border-orange-200'
+            : 'border-gray-200'
+        }`}
+      >
+        {/* Card header */}
+        <div className={`px-4 py-2.5 flex items-center gap-2 flex-wrap ${
+          hasOpen ? 'bg-red-50'
+            : hasFaults ? 'bg-orange-50'
+            : 'bg-gray-50'
+        }`}>
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            hasOpen ? 'bg-red-500' : hasFaults ? 'bg-orange-500' : 'bg-green-500'
+          }`} />
+
+          {viewMode === 'byDate' && (
+            <span className="font-semibold text-charcoal text-sm">
+              {sub.tugs?.display_name || sub.tugs?.tug_number}
+            </span>
+          )}
+          {viewMode === 'byTug' && (
+            <span className="font-semibold text-charcoal text-sm">
+              {new Date(sub.check_date + 'T12:00:00').toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric',
+              })}
+            </span>
+          )}
+
+          <span className="text-xs text-gray-500">
+            {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+              hour: '2-digit', minute: '2-digit',
+            })}
+          </span>
+
+          <span className="text-xs text-gray-500">by {userName}</span>
+
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            sub.check_type === 'pre_shift'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-orange-100 text-orange-700'
+          }`}>
+            {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
+          </span>
+
+          {viewMode === 'byDate' && sub.tugs?.locations?.name && (
+            <span className="text-xs text-gray-400">{sub.tugs.locations.name}</span>
+          )}
+
+          {hasFaults && (
+            <span className="text-xs text-red-600 font-medium ml-auto">
+              {faults.length} damage{faults.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Card body */}
+        <div className="p-3 bg-white">
+          {hasFaults ? (
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+              {faults.map(fault => (
+                <FaultCard
+                  key={fault.id}
+                  fault={fault}
+                  onStatusChange={(newStatus) =>
+                    updateDamageStatus(fault.id, newStatus, sub.id)
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-green-600 font-medium py-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              All checks passed
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // ─── Render ───
@@ -245,239 +444,240 @@ export default function PreCheckList() {
         </div>
       </div>
 
-      {/* View mode toggle + Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-4">
-        {/* Toggle */}
-        <div className="flex items-center justify-between">
-          <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode('byDate')}
-              className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
-                viewMode === 'byDate'
-                  ? 'bg-white text-charcoal shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              By Date
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('byTug')}
-              className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${
-                viewMode === 'byTug'
-                  ? 'bg-white text-charcoal shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              By Tug
-            </button>
-          </div>
-          <span className="text-xs text-gray-400">{submissions.length} result{submissions.length !== 1 ? 's' : ''}</span>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
-            <input
-              type="date"
-              value={filters.date}
-              onChange={(e) => setFilters(prev => ({ ...prev, date: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
-            <select
-              value={filters.location}
-              onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-            >
-              <option value="">All</option>
-              {locations.map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tug</label>
-            <select
-              value={filters.tug}
-              onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-            >
-              <option value="">All</option>
-              {tugs.map(tug => (
-                <option key={tug.id} value={tug.id}>{tug.tug_number}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-            <select
-              value={filters.checkType}
-              onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-            >
-              <option value="">All</option>
-              <option value="pre_shift">Pre-Shift</option>
-              <option value="during_shift">During Shift</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
-            <input
-              type="text"
-              value={filters.user}
-              onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-              placeholder="Search name..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-            />
-          </div>
-        </div>
+      {/* ─── View Mode Toggle ─── */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={switchToByDate}
+          className={`py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+            viewMode === 'byDate'
+              ? 'bg-charcoal text-white border-charcoal'
+              : 'bg-white text-gray-400 border-dashed border-gray-300 hover:text-gray-600 hover:border-gray-400'
+          }`}
+        >
+          By Date
+        </button>
+        <button
+          type="button"
+          onClick={switchToByTug}
+          className={`py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+            viewMode === 'byTug'
+              ? 'bg-charcoal text-white border-charcoal'
+              : 'bg-white text-gray-400 border-dashed border-gray-300 hover:text-gray-600 hover:border-gray-400'
+          }`}
+        >
+          By Tug
+        </button>
       </div>
 
-      {/* Results */}
+      {/* ─── Context-aware Controls ─── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-4">
+        {viewMode === 'byDate' ? (
+          <>
+            {/* Time range presets */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 font-medium mr-1">Range:</span>
+              {Object.entries(TIME_RANGES).map(([key, { label }]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTimeRange(key)}
+                  className={`px-3.5 py-1.5 text-xs font-medium rounded-full transition-all ${
+                    timeRange === key
+                      ? 'bg-charcoal text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              <span className="text-xs text-gray-400 ml-auto">
+                {submissions.length} loaded
+              </span>
+            </div>
+
+            {/* Secondary filters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
+                <select
+                  value={filters.location}
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Tug</label>
+                <select
+                  value={filters.tug}
+                  onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  {tugs.map(t => (
+                    <option key={t.id} value={t.id}>{t.tug_number}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <select
+                  value={filters.checkType}
+                  onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="pre_shift">Pre-Shift</option>
+                  <option value="during_shift">During Shift</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
+                <input
+                  type="text"
+                  value={filters.user}
+                  onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
+                  placeholder="Search name..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Prominent tug selector */}
+            <div>
+              <label className="block text-xs font-semibold text-charcoal mb-1.5">Select Tug</label>
+              <select
+                value={selectedTug}
+                onChange={(e) => setSelectedTug(e.target.value)}
+                className={`w-full rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                  selectedTug
+                    ? 'border-2 border-charcoal bg-white text-charcoal'
+                    : 'border-2 border-dashed border-gray-300 bg-gray-50 text-gray-500'
+                }`}
+              >
+                <option value="">Choose a tug...</option>
+                {tugs.map(t => (
+                  <option key={t.id} value={t.id}>{t.tug_number}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Secondary filters */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <select
+                  value={filters.checkType}
+                  onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="pre_shift">Pre-Shift</option>
+                  <option value="during_shift">During Shift</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
+                <select
+                  value={filters.location}
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                >
+                  <option value="">All</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
+                <input
+                  type="text"
+                  value={filters.user}
+                  onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
+                  placeholder="Search name..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ─── Results ─── */}
       {loading ? (
         <div className="animate-pulse space-y-3">
           {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
         </div>
+      ) : viewMode === 'byTug' && !selectedTug ? (
+        <div className="text-center py-16 text-gray-400">
+          <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <p className="font-medium">Select a tug to view its history</p>
+          <p className="text-sm mt-1">Use the dropdown above to pick a tug.</p>
+        </div>
       ) : submissions.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium">No PreCheck reports found</p>
-          <p className="text-sm mt-1">Try adjusting your filters.</p>
+          <p className="text-sm mt-1">Try adjusting your filters or time range.</p>
         </div>
-      ) : (
+      ) : viewMode === 'byDate' && grouped ? (
+        /* ─── By Date: grouped view ─── */
         <div className="space-y-8">
           {grouped.map((group) => (
             <div key={group.key}>
-              {/* Group header */}
               <div className="flex items-baseline gap-3 mb-3 pb-2 border-b border-gray-200">
                 <h3 className="text-sm font-bold text-charcoal">{group.label}</h3>
-                {group.sublabel && (
-                  <span className="text-xs text-gray-400">{group.sublabel}</span>
-                )}
-                {group.location && (
-                  <span className="text-xs text-gray-400">{group.location}</span>
-                )}
                 <span className="text-xs text-gray-400 ml-auto">
                   {group.items.length} check{group.items.length !== 1 ? 's' : ''}
                 </span>
               </div>
-
-              {/* Submission cards */}
               <div className="space-y-3">
-                {group.items.map(sub => {
-                  const faults = getFaults(sub);
-                  const profile = sub.profiles;
-                  const userName = profile
-                    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-                    : 'Unknown';
-                  const hasFaults = faults.length > 0;
-                  const hasOpen = sub.precheck_damages?.some(d => d.repair_status === 'open');
-
-                  return (
-                    <div
-                      key={sub.id}
-                      className={`rounded-xl border overflow-hidden shadow-sm ${
-                        hasOpen ? 'border-red-200'
-                          : hasFaults ? 'border-orange-200'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      {/* Card header */}
-                      <div className={`px-4 py-2.5 flex items-center gap-2 flex-wrap ${
-                        hasOpen ? 'bg-red-50'
-                          : hasFaults ? 'bg-orange-50'
-                          : 'bg-gray-50'
-                      }`}>
-                        {/* Status dot */}
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          hasOpen ? 'bg-red-500'
-                            : hasFaults ? 'bg-orange-500'
-                            : 'bg-green-500'
-                        }`} />
-
-                        {/* Context-dependent info */}
-                        {viewMode === 'byDate' && (
-                          <span className="font-semibold text-charcoal text-sm">
-                            {sub.tugs?.display_name || sub.tugs?.tug_number}
-                          </span>
-                        )}
-                        {viewMode === 'byTug' && (
-                          <span className="font-semibold text-charcoal text-sm">
-                            {new Date(sub.check_date + 'T12:00:00').toLocaleDateString('en-GB', {
-                              day: '2-digit', month: 'short',
-                            })}
-                          </span>
-                        )}
-
-                        <span className="text-xs text-gray-500">
-                          {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
-                            hour: '2-digit', minute: '2-digit',
-                          })}
-                        </span>
-
-                        <span className="text-xs text-gray-500">by {userName}</span>
-
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          sub.check_type === 'pre_shift'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
-                        </span>
-
-                        {viewMode === 'byDate' && sub.tugs?.locations?.name && (
-                          <span className="text-xs text-gray-400">{sub.tugs.locations.name}</span>
-                        )}
-
-                        {hasFaults && (
-                          <span className="text-xs text-red-600 font-medium ml-auto">
-                            {faults.length} damage{faults.length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Card body */}
-                      <div className="p-3 bg-white">
-                        {hasFaults ? (
-                          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                            {faults.map(fault => (
-                              <FaultCard
-                                key={fault.id}
-                                fault={fault}
-                                onStatusChange={(newStatus) =>
-                                  updateDamageStatus(fault.id, newStatus, sub.id)
-                                }
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-xs text-green-600 font-medium py-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                            All checks passed
-                          </div>
-                        )}
-
-                        {/* Remarks are now displayed as fault cards above */}
-                      </div>
-                    </div>
-                  );
-                })}
+                {group.items.map(sub => renderSubmissionCard(sub))}
               </div>
             </div>
           ))}
         </div>
+      ) : (
+        /* ─── By Tug: flat list ─── */
+        <div className="space-y-3">
+          {submissions.map(sub => renderSubmissionCard(sub))}
+        </div>
+      )}
+
+      {/* ─── Infinite scroll sentinel + spinner ─── */}
+      {!loading && submissions.length > 0 && (
+        <>
+          {loadingMore && (
+            <div className="flex items-center justify-center py-4 gap-2 text-gray-400">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span className="text-xs">Loading more...</span>
+            </div>
+          )}
+          {hasMore && <div ref={sentinelRef} className="h-4" />}
+          {!hasMore && submissions.length > 0 && (
+            <p className="text-center text-xs text-gray-400 py-3">
+              All results loaded
+            </p>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-// ─── Fault sub-container ───
+// ─── Fault sub-container (no severity badge) ───
 function FaultCard({ fault, onStatusChange }) {
   const [imgOpen, setImgOpen] = useState(null);
 
@@ -493,19 +693,10 @@ function FaultCard({ fault, onStatusChange }) {
           : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
           : 'border-red-200 bg-red-50'
       }`}>
-        {/* Header: item name + severity */}
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <h5 className="text-sm font-semibold text-charcoal capitalize truncate">
-            {fault.header}
-          </h5>
-          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded flex-shrink-0 ${
-            fault.severity === 'critical' ? 'bg-red-200 text-red-800'
-              : fault.severity === 'major' ? 'bg-orange-200 text-orange-800'
-              : 'bg-yellow-200 text-yellow-800'
-          }`}>
-            {fault.severity}
-          </span>
-        </div>
+        {/* Header: item name only */}
+        <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1.5">
+          {fault.header}
+        </h5>
 
         {/* Description */}
         <p className="text-xs text-gray-700 mb-2 flex-1">{fault.description}</p>
