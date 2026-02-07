@@ -36,7 +36,7 @@ export default function CheckItemRow({ label, value, onChange, notes, onNotesCha
         <button
           type="button"
           onClick={handleMarkIssue}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
+          className={`w-8 h-8 mr-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
             value === 'repair_needed'
               ? 'bg-red-500 text-white'
               : 'bg-gray-100 text-gray-300 hover:bg-red-50 hover:text-red-400'
