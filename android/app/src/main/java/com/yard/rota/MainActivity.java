@@ -8,10 +8,8 @@ import android.os.Build;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
-import androidx.core.graphics.Insets;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.Manifest;
@@ -85,22 +83,6 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
-  private void installSafeAreaListener(final View root) {
-    if (root == null) return;
-
-    final int baseLeft = root.getPaddingLeft();
-    final int baseTop = root.getPaddingTop();
-    final int baseRight = root.getPaddingRight();
-    final int baseBottom = root.getPaddingBottom();
-
-    ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-      Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-      v.setPadding(baseLeft, baseTop + bars.top, baseRight, baseBottom + bars.bottom);
-      return insets;
-    });
-    ViewCompat.requestApplyInsets(root);
-  }
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Switch from launch (splash) theme to main content theme
@@ -115,9 +97,9 @@ public class MainActivity extends BridgeActivity {
       window.setNavigationBarColor(Color.WHITE);
     }
 
-    WindowCompat.setDecorFitsSystemWindows(window, false);
+    // Let Android handle system bar insets automatically (no double-padding)
+    WindowCompat.setDecorFitsSystemWindows(window, true);
     enforceSystemBarAppearance(window);
-    installSafeAreaListener(findViewById(android.R.id.content));
 
     // Request camera permissions proactively so WebView getUserMedia works
     requestCameraPermissions();
