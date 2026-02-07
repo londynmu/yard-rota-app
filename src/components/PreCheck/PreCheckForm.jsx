@@ -232,22 +232,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
 
-  // Auto-collapse completed sections
   const handleCheckChange = (key, status) => {
-    setCheckItems(prev => {
-      const next = { ...prev, [key]: { ...prev[key], status } };
-      // Outside just completed → collapse outside, open inside
-      const allOutsideDone = OUTSIDE_ITEMS.every(item => next[item.key].status);
-      if (allOutsideDone && !outsideDone) {
-        setTimeout(() => { setOutsideOpen(false); setInsideOpen(true); }, 400);
-      }
-      // Inside just completed → collapse inside
-      const allInsideDone = INSIDE_ITEMS.every(item => next[item.key].status);
-      if (allInsideDone && !insideDone) {
-        setTimeout(() => { setInsideOpen(false); }, 400);
-      }
-      return next;
-    });
+    setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
   };
 
   // Render a section
