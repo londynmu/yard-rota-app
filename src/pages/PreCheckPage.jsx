@@ -92,6 +92,7 @@ export default function PreCheckPage() {
   // Restore state from sessionStorage (survives page refresh)
   const savedDuringShift = loadDuringShiftState();
   const savedPage = !token ? loadPageState() : null; // QR token takes priority over saved state
+  const clearPendingPhotos = () => { try { sessionStorage.removeItem('pending_photos'); } catch { /* ignore */ } };
 
   const getInitialStep = () => {
     if (savedDuringShift) return 'during_shift';
@@ -119,6 +120,9 @@ export default function PreCheckPage() {
 
   useEffect(() => {
     initialize();
+    return () => {
+      clearPendingPhotos();
+    };
   }, [user, token]);
 
   useEffect(() => {
@@ -289,11 +293,13 @@ export default function PreCheckPage() {
       alert('Please select a tug.');
       return;
     }
+    clearPendingPhotos();
     setStep('form');
     savePageState('form', selectedTug);
   };
 
   const handleSubmitSuccess = (submission, meta = {}) => {
+    clearPendingPhotos();
     if (submission) {
       setShiftChecks(prev => [submission, ...prev]);
     }
@@ -305,6 +311,7 @@ export default function PreCheckPage() {
   };
 
   const handleStartDuringShift = (tug) => {
+    clearPendingPhotos();
     setSelectedTug(tug);
     saveDuringShiftState(tug);
     setStep('during_shift');
@@ -312,6 +319,7 @@ export default function PreCheckPage() {
   };
 
   const handleCheckAnotherTug = () => {
+    clearPendingPhotos();
     setSelectedTug(null);
     setStep('select');
     clearPageState();
@@ -442,6 +450,7 @@ export default function PreCheckPage() {
           selectedTug={selectedTug}
           onSubmitSuccess={(_, meta = {}) => {
             clearDuringShiftState();
+            clearPendingPhotos();
             setLastSubmitType('damage');
             setLastSubmitQueued(!!meta.queued);
             setStep('success');
