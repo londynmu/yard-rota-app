@@ -291,13 +291,20 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   };
 
   // Auto-upload images to temp storage when added
-  const handleItemImagesChange = useCallback(async (itemKey, newImages) => {
-    setCheckItems(prev => ({
-      ...prev,
-      [itemKey]: { ...prev[itemKey], images: newImages }
-    }));
+  const handleItemImagesChange = useCallback(async (itemKey, newImagesOrFn) => {
+    setCheckItems(prev => {
+      const current = prev[itemKey]?.images || [];
+      const nextImages = typeof newImagesOrFn === 'function' ? newImagesOrFn(current) : newImagesOrFn;
+      return {
+        ...prev,
+        [itemKey]: { ...prev[itemKey], images: nextImages },
+      };
+    });
 
-    const toUpload = newImages.filter(img => img.file && !img.url);
+    const resolved = typeof newImagesOrFn === 'function'
+      ? newImagesOrFn([])
+      : newImagesOrFn;
+    const toUpload = (resolved || []).filter(img => img.file && !img.url);
     if (toUpload.length === 0) return;
 
     for (const img of toUpload) {
@@ -317,10 +324,16 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     }
   }, [uploadTempImage]);
 
-  const handleRemarksImagesChange = useCallback(async (newImages) => {
-    setRemarksImages(newImages);
+  const handleRemarksImagesChange = useCallback(async (newImagesOrFn) => {
+    setRemarksImages(prev => {
+      const next = typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn;
+      return next;
+    });
 
-    const toUpload = newImages.filter(img => img.file && !img.url);
+    const resolved = typeof newImagesOrFn === 'function'
+      ? newImagesOrFn([])
+      : newImagesOrFn;
+    const toUpload = (resolved || []).filter(img => img.file && !img.url);
     if (toUpload.length === 0) return;
 
     for (const img of toUpload) {
