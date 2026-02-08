@@ -362,6 +362,9 @@ export default function PreCheckList() {
           {viewMode === 'byDate' && (
             <span className="font-semibold text-charcoal text-sm">
               {sub.tugs?.display_name || sub.tugs?.tug_number}
+              {sub.tugs?.display_name && sub.tugs?.tug_number && (
+                <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
+              )}
             </span>
           )}
           {viewMode === 'byTug' && (
@@ -373,30 +376,29 @@ export default function PreCheckList() {
           )}
 
           <span className="text-xs text-gray-500">
-            {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+            by <span className="font-semibold text-charcoal">{userName}</span> at {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
               hour: '2-digit', minute: '2-digit',
             })}
-          </span>
-
-          <span className="text-xs text-gray-500">by {userName}</span>
-
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            sub.check_type === 'pre_shift'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-orange-100 text-orange-700'
-          }`}>
-            {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
           </span>
 
           {viewMode === 'byDate' && sub.tugs?.locations?.name && (
             <span className="text-xs text-gray-400">{sub.tugs.locations.name}</span>
           )}
 
-          {hasFaults && (
-            <span className="text-xs text-red-600 font-medium ml-auto">
-              {faults.length} damage{faults.length !== 1 ? 's' : ''}
+          <span className="ml-auto flex items-center gap-2">
+            {hasFaults && (
+              <span className="text-xs text-red-600 font-medium">
+                {faults.length} damage{faults.length !== 1 ? 's' : ''}
+              </span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              sub.check_type === 'pre_shift'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-orange-100 text-orange-700'
+            }`}>
+              {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
             </span>
-          )}
+          </span>
         </div>
 
         {/* Card body */}
@@ -437,6 +439,15 @@ export default function PreCheckList() {
               All checks passed
             </div>
           )}
+        </div>
+
+        {/* Card footer */}
+        <div className={`px-4 py-2.5 flex items-center gap-2 ${
+          hasOpen ? 'bg-red-50'
+            : hasFaults ? 'bg-orange-50'
+            : 'bg-gray-50'
+        }`}>
+          <span className="text-xs">&nbsp;</span>
         </div>
       </div>
     );
