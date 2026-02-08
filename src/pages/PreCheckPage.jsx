@@ -92,7 +92,16 @@ export default function PreCheckPage() {
   // Restore state from sessionStorage (survives page refresh)
   const savedDuringShift = loadDuringShiftState();
   const savedPage = !token ? loadPageState() : null; // QR token takes priority over saved state
-  const clearPendingPhotos = () => { try { sessionStorage.removeItem('pending_photos'); } catch { /* ignore */ } };
+  const clearPendingPhotos = () => {
+    try {
+      const keys = Object.keys(sessionStorage);
+      keys.forEach(k => {
+        if (k.startsWith('pending_photos')) {
+          sessionStorage.removeItem(k);
+        }
+      });
+    } catch { /* ignore */ }
+  };
 
   const getInitialStep = () => {
     if (savedDuringShift) return 'during_shift';

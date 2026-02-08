@@ -133,6 +133,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
               images={images}
               onImagesChange={handleImagesChange}
               maxImages={5}
+            storageKey="pending_photos_during_shift"
             />
           </div>
         </div>

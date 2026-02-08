@@ -1,24 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 
 export default function CheckItemRow({ itemKey, label, tooltip, value, onChange, notes, onNotesChange, images, onImagesChange }) {
-  const [expanded, setExpanded] = useState(false);
-
   const handleMarkIssue = () => {
     if (value === 'repair_needed') {
-      // Toggle off - clear issue
       onChange('ok');
-      setExpanded(false);
     } else {
       onChange('repair_needed');
-      setExpanded(true);
     }
   };
 
   const handleMarkOk = () => {
     onChange('ok');
-    setExpanded(false);
   };
 
   return (
@@ -68,8 +62,8 @@ export default function CheckItemRow({ itemKey, label, tooltip, value, onChange,
         </button>
       </div>
 
-      {/* Expanded issue details */}
-      {value === 'repair_needed' && expanded && (
+      {/* Issue details always visible when repair_needed */}
+      {value === 'repair_needed' && (
         <div className="px-2 pb-3 space-y-2">
           <input
             type="text"
@@ -83,27 +77,10 @@ export default function CheckItemRow({ itemKey, label, tooltip, value, onChange,
               images={images || []}
               onImagesChange={onImagesChange}
               maxImages={2}
+              storageKey={itemKey ? `pending_photos_item_${itemKey}` : undefined}
             />
           )}
         </div>
-      )}
-
-      {/* Collapsed issue indicator */}
-      {value === 'repair_needed' && !expanded && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="w-full px-2 pb-2 text-left"
-        >
-          <div className="flex items-center gap-2 text-xs text-red-600">
-            {notes && <span className="truncate">{notes}</span>}
-            {images?.length > 0 && <span>{images.length} photo(s)</span>}
-            {!notes && !images?.length && <span className="text-red-500 font-medium">Tap to describe what&apos;s wrong</span>}
-            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </button>
       )}
     </div>
   );

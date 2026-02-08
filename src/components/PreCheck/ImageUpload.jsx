@@ -54,7 +54,7 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   });
 };
 
-export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
+export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos' }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
@@ -64,10 +64,11 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   // On mount, recover pending photos (dataUrl) if any (handles reload/unmount during capture)
   useEffect(() => {
     let cancelled = false;
+    if (!storageKey) return undefined;
     (async () => {
       let pendingRaw = null;
       let pending;
-      try { pendingRaw = sessionStorage.getItem('pending_photos'); } catch { pendingRaw = null; }
+      try { pendingRaw = sessionStorage.getItem(storageKey); } catch { pendingRaw = null; }
       try { pending = JSON.parse(pendingRaw || '[]'); } catch { pending = []; }
       if (!pending || pending.length === 0) return;
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
@@ -75,7 +76,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         await processAndAddFiles(files);
       }
       if (!cancelled) {
-        try { sessionStorage.setItem('pending_photos', pendingRaw || '[]'); } catch {}
+        try { sessionStorage.setItem(storageKey, pendingRaw || '[]'); } catch {}
       }
     })();
     return () => { cancelled = true; };
@@ -132,13 +133,15 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       // Call parent state update FIRST, then local state update
       onImagesChange(prev => {
         const merged = [...prev, ...newImages];
-        try {
-          const payload = merged.map(img => ({
-            name: img.file?.name || img.name || 'photo.jpg',
-            dataUrl: img.dataUrl || img.preview || img.url,
-          }));
-          sessionStorage.setItem('pending_photos', JSON.stringify(payload));
-        } catch {}
+        if (storageKey) {
+          try {
+            const payload = merged.map(img => ({
+              name: img.file?.name || img.name || 'photo.jpg',
+              dataUrl: img.dataUrl || img.preview || img.url,
+            }));
+            sessionStorage.setItem(storageKey, JSON.stringify(payload));
+          } catch {}
+        }
         return merged;
       });
       setCompressing(false);
@@ -229,9 +232,15 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
             let pending = [];
-            try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
+        if (storageKey) {
+          try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
+        }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify([...pending, ...arr])); } catch {} })
+          .then(arr => {
+            if (storageKey) {
+              try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+            }
+          })
               .catch(() => {});
             processAndAddFiles(files);
           } else {
@@ -251,9 +260,15 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           const files = e.target.files;
           if (files && files.length > 0) {
             let pending = [];
-            try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
+        if (storageKey) {
+          try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
+        }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify([...pending, ...arr])); } catch {} })
+          .then(arr => {
+            if (storageKey) {
+              try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+            }
+          })
               .catch(() => {});
             processAndAddFiles(files);
           }
@@ -345,4 +360,5 @@ ImageUpload.propTypes = {
   images: PropTypes.array.isRequired,
   onImagesChange: PropTypes.func.isRequired,
   maxImages: PropTypes.number,
+  storageKey: PropTypes.string,
 };
