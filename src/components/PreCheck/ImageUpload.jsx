@@ -76,9 +76,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   _dbg('ImageUpload.jsx:mount','rendered',{isNative,isPwa,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
   useEffect(() => {
     _dbg('ImageUpload.jsx:imagesEffect','images PROP changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-F'});
-    if (images.length > 0) {
-      try { sessionStorage.removeItem('pending_photos'); } catch { /* */ }
-    }
   }, [images]);
   // #endregion
 
@@ -245,8 +242,10 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           const files = e.target.files;
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
+            let pending = [];
+            try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify(arr)); } catch {} })
+              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify([...pending, ...arr])); } catch {} })
               .catch(() => {});
             processAndAddFiles(files);
           } else {
@@ -268,8 +267,10 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         onChange={(e) => {
           const files = e.target.files;
           if (files && files.length > 0) {
+            let pending = [];
+            try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify(arr)); } catch {} })
+              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify([...pending, ...arr])); } catch {} })
               .catch(() => {});
             processAndAddFiles(files);
           }
