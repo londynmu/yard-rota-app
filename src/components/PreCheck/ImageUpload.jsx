@@ -98,7 +98,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
       if (!pending || pending.length === 0) return;
       let savedY = null;
       try { savedY = Number(sessionStorage.getItem(scrollKey)); } catch { savedY = null; }
-      _dbgScroll('ImageUpload.jsx', 'mount pending', { count: pending.length, savedY, hypothesisId: 'scroll' });
+      _dbgScroll('ImageUpload.jsx', 'mount pending', { count: pending.length, savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
       if (!cancelled && files.length > 0) {
         await processAndAddFiles(files);
@@ -111,9 +111,27 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fallback restore on mount if scroll saved
+  useEffect(() => {
+    let savedY = null;
+    try { savedY = Number(sessionStorage.getItem(scrollKey)); } catch { savedY = null; }
+    if (Number.isFinite(savedY) && savedY > 0) {
+      requestAnimationFrame(() => {
+        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
+        _dbgScroll('ImageUpload.jsx', 'mount restore rAF', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
+      });
+      setTimeout(() => {
+        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
+        _dbgScroll('ImageUpload.jsx', 'mount restore timeout', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
+      }, 60);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const processAndAddFiles = async (files) => {
-    const savedY = (() => { try { return Number(sessionStorage.getItem(scrollKey)) || window.scrollY; } catch { return window.scrollY; }})();
-    _dbgScroll('ImageUpload.jsx', 'process start', { y: window.scrollY, savedY, files: files?.length ?? 0, hypothesisId: 'scroll' });
+    const savedY = (() => { try { const v = Number(sessionStorage.getItem(scrollKey)); return Number.isFinite(v) ? v : window.scrollY; } catch { return window.scrollY; }})();
+    const metricsStart = { y: window.scrollY, savedY, files: files?.length ?? 0, h: document.documentElement.scrollHeight, vh: window.innerHeight };
+    _dbgScroll('ImageUpload.jsx', 'process start', { ...metricsStart, hypothesisId: 'scroll' });
     if (!files || files.length === 0) return;
 
     const rejected = { nonImage: 0, tooLarge: 0 };
@@ -175,11 +193,16 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         return merged;
       });
       setCompressing(false);
-      _dbgScroll('ImageUpload.jsx', 'process end', { y: window.scrollY, savedY, added: newImages.length, hypothesisId: 'scroll' });
+      const metricsEnd = { y: window.scrollY, savedY, added: newImages.length, h: document.documentElement.scrollHeight, vh: window.innerHeight };
+      _dbgScroll('ImageUpload.jsx', 'process end', { ...metricsEnd, hypothesisId: 'scroll' });
       requestAnimationFrame(() => {
         try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
-        _dbgScroll('ImageUpload.jsx', 'process restore', { y: window.scrollY, target: savedY, hypothesisId: 'scroll' });
+        _dbgScroll('ImageUpload.jsx', 'process restore rAF', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
       });
+      setTimeout(() => {
+        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
+        _dbgScroll('ImageUpload.jsx', 'process restore timeout', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
+      }, 60);
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
