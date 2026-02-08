@@ -145,7 +145,12 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       _dbg('ImageUpload.jsx:processAndAddFiles','BEFORE onImagesChange (callback form)',{newCount:newImages.length,hypothesisId:'H-F'});
       // #endregion
       // Call parent state update FIRST, then local state update
-      onImagesChange(prev => [...prev, ...newImages]);
+      onImagesChange(prev => {
+        const merged = [...prev, ...newImages];
+        _dbg('ImageUpload.jsx:processAndAddFiles','MERGED',{prevLen:prev.length,mergedLen:merged.length,hypothesisId:'H-F'});
+        try { sessionStorage.setItem('pending_photos', JSON.stringify(merged.map(img => ({ name: img.file?.name || img.name || 'photo.jpg', dataUrl: img.preview || img.url })))); } catch {}
+        return merged;
+      });
       setCompressing(false);
       // #region agent log
       _dbg('ImageUpload.jsx:processAndAddFiles','AFTER both state updates',{hypothesisId:'H-F'});
