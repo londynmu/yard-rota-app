@@ -109,7 +109,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       const compressedFiles = await Promise.all(
         filesToAdd.map(file => compressImage(file))
       );
-      setCompressing(false);
 
       const newImages = compressedFiles.map(file => ({
         file,
@@ -118,12 +117,13 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       }));
 
       // #region agent log
-      const merged = [...images, ...newImages];
-      _dbg('ImageUpload.jsx:processAndAddFiles','BEFORE onImagesChange',{mergedCount:merged.length,mergedIds:merged.map(i=>i.id),hypothesisId:'H-F'});
+      _dbg('ImageUpload.jsx:processAndAddFiles','BEFORE onImagesChange (callback form)',{newCount:newImages.length,hypothesisId:'H-F'});
       // #endregion
-      onImagesChange(merged);
+      // Call parent state update FIRST, then local state update
+      onImagesChange(prev => [...prev, ...newImages]);
+      setCompressing(false);
       // #region agent log
-      _dbg('ImageUpload.jsx:processAndAddFiles','AFTER onImagesChange returned',{hypothesisId:'H-F'});
+      _dbg('ImageUpload.jsx:processAndAddFiles','AFTER both state updates',{hypothesisId:'H-F'});
       // #endregion
     } catch (err) {
       // #region agent log
