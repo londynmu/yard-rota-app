@@ -401,17 +401,33 @@ export default function PreCheckList() {
         {/* Card body */}
         <div className="p-3 bg-white">
           {hasFaults ? (
-            <div className="grid gap-3 items-start" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-              {faults.map(fault => (
-                <FaultCard
-                  key={fault.id}
-                  fault={fault}
-                  onStatusChange={(newStatus) =>
-                    updateDamageStatus(fault.id, newStatus, sub.id)
-                  }
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-3 items-start" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                {faults.map(fault => (
+                  <FaultCard
+                    key={fault.id}
+                    fault={fault}
+                    onStatusChange={(newStatus) =>
+                      updateDamageStatus(fault.id, newStatus, sub.id)
+                    }
+                  />
+                ))}
+              </div>
+              {/* Show count of OK items */}
+              {(() => {
+                const allItems = sub.precheck_items || [];
+                const okCount = allItems.filter(i => i.status === 'ok').length;
+                if (okCount === 0) return null;
+                return (
+                  <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100 text-xs text-green-600 font-medium">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {okCount} other check{okCount !== 1 ? 's' : ''} passed
+                  </div>
+                );
+              })()}
+            </>
           ) : (
             <div className="flex items-center gap-2 text-xs text-green-600 font-medium py-1">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -605,99 +621,72 @@ export default function PreCheckList() {
 
 // ─── Fault sub-container (no severity badge) ───
 function FaultCard({ fault, onStatusChange }) {
-  const [imgOpen, setImgOpen] = useState(null);
-
   const resolvedByName = fault.resolvedProfile
     ? `${fault.resolvedProfile.first_name || ''} ${fault.resolvedProfile.last_name || ''}`.trim()
     : null;
 
   return (
-    <>
-      <div className={`rounded-lg border p-3 flex flex-col ${
-        fault.repairStatus === 'resolved' ? 'border-green-200 bg-green-50'
-          : fault.repairStatus === 'in_progress' ? 'border-yellow-200 bg-yellow-50'
-          : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
-          : 'border-red-200 bg-red-50'
-      }`}>
-        {/* Header: item name only */}
-        <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1">
-          {fault.header}
-        </h5>
+    <div className={`rounded-lg border p-3 flex flex-col ${
+      fault.repairStatus === 'resolved' ? 'border-green-200 bg-green-50'
+        : fault.repairStatus === 'in_progress' ? 'border-yellow-200 bg-yellow-50'
+        : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
+        : 'border-red-200 bg-red-50'
+    }`}>
+      {/* Header: item name only */}
+      <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1">
+        {fault.header}
+      </h5>
 
-        {/* Description */}
-        <p className="text-xs text-gray-700 mb-2">{fault.description}</p>
+      {/* Description */}
+      <p className="text-xs text-gray-700 mb-2">{fault.description}</p>
 
-        {/* Photos - grid 2 columns */}
-        {fault.imageUrls.length > 0 && (
-          <div className="grid grid-cols-2 gap-1 mb-2">
-            {fault.imageUrls.map((url, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setImgOpen(url)}
-                className="rounded-md overflow-hidden border border-gray-200 cursor-zoom-in aspect-square"
-              >
-                <img
-                  src={url}
-                  alt={`Photo ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Spacer to push status to bottom */}
-        <div className="flex-1" />
-
-        {/* Status action (only for real damage records) */}
-        {fault.repairStatus !== null && (
-          <select
-            value={fault.repairStatus}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border cursor-pointer ${
-              fault.repairStatus === 'resolved' ? 'border-green-300 bg-green-100 text-green-800'
-                : fault.repairStatus === 'in_progress' ? 'border-yellow-300 bg-yellow-100 text-yellow-800'
-                : 'border-red-300 bg-red-100 text-red-800'
-            }`}
-          >
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-          </select>
-        )}
-
-        {/* Resolved info - below action button */}
-        {fault.resolvedAt && resolvedByName && (
-          <p className="text-[10px] text-green-700 mt-1.5">
-            Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
-          </p>
-        )}
-      </div>
-
-      {/* Lightbox */}
-      {imgOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setImgOpen(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setImgOpen(null)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <img
-            src={imgOpen}
-            alt="Damage full view"
-            className="max-w-full max-h-[85vh] rounded-lg object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+      {/* Photos - grid 2 columns */}
+      {fault.imageUrls.length > 0 && (
+        <div className="grid grid-cols-2 gap-1 mb-2">
+          {fault.imageUrls.map((url, idx) => (
+            <a
+              key={idx}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md overflow-hidden border border-gray-200 cursor-pointer aspect-square block"
+            >
+              <img
+                src={url}
+                alt={`Photo ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </a>
+          ))}
         </div>
       )}
-    </>
+
+      {/* Spacer to push status to bottom */}
+      <div className="flex-1" />
+
+      {/* Status action (only for real damage records) */}
+      {fault.repairStatus !== null && (
+        <select
+          value={fault.repairStatus}
+          onChange={(e) => onStatusChange(e.target.value)}
+          className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border cursor-pointer ${
+            fault.repairStatus === 'resolved' ? 'border-green-300 bg-green-100 text-green-800'
+              : fault.repairStatus === 'in_progress' ? 'border-yellow-300 bg-yellow-100 text-yellow-800'
+              : 'border-red-300 bg-red-100 text-red-800'
+          }`}
+        >
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      )}
+
+      {/* Resolved info - below action button */}
+      {fault.resolvedAt && resolvedByName && (
+        <p className="text-[10px] text-green-700 mt-1.5">
+          Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
+        </p>
+      )}
+    </div>
   );
 }

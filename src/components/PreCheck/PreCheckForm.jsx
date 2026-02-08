@@ -114,7 +114,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [remarks, setRemarks] = useState('');
   const [remarksImages, setRemarksImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
   const [showWarning, setShowWarning] = useState(false);
   const formSessionId = useRef(getFormSessionId()).current;
 
@@ -194,10 +193,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       } catch { /* ignore */ }
     }
     if (savedY !== null && savedY > 0) {
-      // #region agent log
-      try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} formInit scroll restore target=${savedY} curY=${window.scrollY} curH=${document.documentElement.scrollHeight}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-      // #endregion
-      // Use rAF + short delay to ensure DOM is painted
+      // Use rAF to ensure DOM is painted
       requestAnimationFrame(() => {
         window.scrollTo({ top: savedY, behavior: 'auto' });
       });
@@ -320,9 +316,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   // Auto-upload images to temp storage when added
   const handleItemImagesChange = useCallback(async (itemKey, newImagesOrFn) => {
-    // #region agent log
-    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} handleItemImagesChange key=${itemKey} scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-    // #endregion
     setCheckItems(prev => {
       const current = prev[itemKey]?.images || [];
       const nextImages = typeof newImagesOrFn === 'function' ? newImagesOrFn(current) : newImagesOrFn;
@@ -356,9 +349,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   }, [uploadTempImage]);
 
   const handleRemarksImagesChange = useCallback(async (newImagesOrFn) => {
-    // #region agent log
-    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} handleRemarksImagesChange scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-    // #endregion
     setRemarksImages(prev => {
       const next = typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn;
       return next;
@@ -428,10 +418,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       <div className="px-2">
         {items.map(item => (
           <CheckItemRow
-                key={item.key}
-                itemKey={item.key}
-                label={item.label}
-                tooltip={item.tooltip}
+            key={item.key}
+            itemKey={item.key}
+            label={item.label}
+            tooltip={item.tooltip}
             value={checkItems[item.key]?.status || ''}
             onChange={(status) => handleCheckChange(item.key, status)}
             notes={checkItems[item.key]?.notes || ''}
