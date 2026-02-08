@@ -180,7 +180,11 @@ export default function PreCheckPage() {
     if (!initializedRef.current) {
       setLoading(true);
     }
-    _dbgP('PreCheckPage:initialize','START',{initialized:initializedRef.current,loading,step,hasTug:!!selectedTug,hypothesisId:'H-J'});
+    let cameraFlag = null; let pendingPhotos = null; let savedPageRaw = null;
+    try { cameraFlag = sessionStorage.getItem('camera_intent_active'); } catch { /* */ }
+    try { pendingPhotos = JSON.parse(sessionStorage.getItem('pending_photos') || '[]').length; } catch { pendingPhotos = null; }
+    try { savedPageRaw = sessionStorage.getItem('precheck_page_state'); } catch { /* */ }
+    _dbgP('PreCheckPage:initialize','START',{initialized:initializedRef.current,loading,step,hasTug:!!selectedTug,cameraFlag,pendingPhotos,savedPageRawLength:savedPageRaw?.length || 0,hypothesisId:'H-J'});
 
     try {
       const now = new Date();

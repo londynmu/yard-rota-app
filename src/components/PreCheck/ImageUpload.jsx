@@ -70,8 +70,10 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const [dbgLogs, setDbgLogs] = useState(() => { try { return JSON.parse(localStorage.getItem('_dbg_log') || '[]'); } catch { return []; } });
   // #endregion
   const isNative = Capacitor.isNativePlatform();
+  const isPwa = typeof window !== 'undefined'
+    && (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
   // #region agent log
-  _dbg('ImageUpload.jsx:mount','rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
+  _dbg('ImageUpload.jsx:mount','rendered',{isNative,isPwa,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
   useEffect(() => {
     _dbg('ImageUpload.jsx:imagesEffect','images PROP changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-F'});
     if (images.length > 0) {
