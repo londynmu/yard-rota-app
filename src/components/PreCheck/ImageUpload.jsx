@@ -129,8 +129,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   }, []);
 
   const processAndAddFiles = async (files) => {
-    const savedY = (() => { try { const v = Number(sessionStorage.getItem(scrollKey)); return Number.isFinite(v) ? v : window.scrollY; } catch { return window.scrollY; }})();
-    const metricsStart = { y: window.scrollY, savedY, files: files?.length ?? 0, h: document.documentElement.scrollHeight, vh: window.innerHeight };
+    const preY = (() => { try { const v = Number(sessionStorage.getItem(scrollKey)); return Number.isFinite(v) ? v : window.scrollY; } catch { return window.scrollY; }})();
+    const preH = document.documentElement.scrollHeight;
+    const metricsStart = { y: window.scrollY, savedY: preY, files: files?.length ?? 0, h: preH, vh: window.innerHeight };
     _dbgScroll('ImageUpload.jsx', 'process start', { ...metricsStart, hypothesisId: 'scroll' });
     if (!files || files.length === 0) return;
 
@@ -193,16 +194,20 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         return merged;
       });
       setCompressing(false);
-      const metricsEnd = { y: window.scrollY, savedY, added: newImages.length, h: document.documentElement.scrollHeight, vh: window.innerHeight };
+      const metricsEnd = { y: window.scrollY, savedY: preY, added: newImages.length, h: document.documentElement.scrollHeight, vh: window.innerHeight };
       _dbgScroll('ImageUpload.jsx', 'process end', { ...metricsEnd, hypothesisId: 'scroll' });
-      requestAnimationFrame(() => {
-        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
-        _dbgScroll('ImageUpload.jsx', 'process restore rAF', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
-      });
-      setTimeout(() => {
-        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
-        _dbgScroll('ImageUpload.jsx', 'process restore timeout', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
-      }, 60);
+
+      const restoreScroll = (attempt = 0) => {
+        const curH = document.documentElement.scrollHeight;
+        const near = curH >= preH - 50; // allow small diff
+        if (!near && attempt < 10) {
+          requestAnimationFrame(() => restoreScroll(attempt + 1));
+          return;
+        }
+        try { window.scrollTo({ top: preY, behavior: 'auto' }); } catch {}
+        _dbgScroll('ImageUpload.jsx', 'process restore final', { y: window.scrollY, target: preY, preH, curH, attempt, hypothesisId: 'scroll' });
+      };
+      requestAnimationFrame(() => restoreScroll(0));
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
