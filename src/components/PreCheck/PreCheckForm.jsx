@@ -390,7 +390,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
 
   const handleCheckChange = (key, status) => {
+    const scrollY = window.scrollY;
     setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollY, behavior: 'auto' });
+    });
   };
 
   // Render a section (always open, no collapse)
