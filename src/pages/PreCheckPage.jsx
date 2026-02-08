@@ -117,7 +117,6 @@ export default function PreCheckPage() {
   };
 
   const [step, setStep] = useState(getInitialStep);
-  const formScrolledRef = useRef(false);
   const [selectedTug, setSelectedTug] = useState(getInitialTug);
   const [userLocationId, setUserLocationId] = useState(null);
   const [shiftChecks, setShiftChecks] = useState([]);
@@ -280,7 +279,7 @@ export default function PreCheckPage() {
           // Check if THIS specific tug was already checked in this shift
           const alreadyChecked = checks.some(c => c.tug_id === tugByToken.id);
           if (!alreadyChecked) {
-            formScrolledRef.current = false;
+            window.scrollTo({ top: 0 });
             setStep('form');
           }
           // If already checked, will show the completed view
@@ -305,7 +304,10 @@ export default function PreCheckPage() {
       return;
     }
     clearPendingPhotos();
-    formScrolledRef.current = false;
+    // #region agent log
+    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} handleProceedToForm scrollTo(0)`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+    // #endregion
+    window.scrollTo({ top: 0 });
     setStep('form');
     savePageState('form', selectedTug);
   };
@@ -556,13 +558,7 @@ export default function PreCheckPage() {
   }
 
   // ─── Form (pre-shift check) ───
-  if (step === 'form' && !formScrolledRef.current) {
-    // #region agent log
-    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} scrollTo(0) FIRED (once) scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-    // #endregion
-    window.scrollTo({ top: 0 });
-    formScrolledRef.current = true;
-  }
+  // scrollTo(0) removed from render body — now only in handleProceedToForm / QR flow
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
