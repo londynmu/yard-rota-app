@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/AuthContext';
 
@@ -621,6 +622,7 @@ export default function PreCheckList() {
 
 // ─── Fault sub-container (no severity badge) ───
 function FaultCard({ fault, onStatusChange }) {
+  const [openImage, setOpenImage] = useState(null);
   const resolvedByName = fault.resolvedProfile
     ? `${fault.resolvedProfile.first_name || ''} ${fault.resolvedProfile.last_name || ''}`.trim()
     : null;
@@ -644,11 +646,10 @@ function FaultCard({ fault, onStatusChange }) {
       {fault.imageUrls.length > 0 && (
         <div className="grid grid-cols-2 gap-1 mb-2">
           {fault.imageUrls.map((url, idx) => (
-            <a
+            <button
               key={idx}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              onClick={() => setOpenImage(url)}
               className="rounded-md overflow-hidden border border-gray-200 cursor-pointer aspect-square block"
             >
               <img
@@ -656,9 +657,34 @@ function FaultCard({ fault, onStatusChange }) {
                 alt={`Photo ${idx + 1}`}
                 className="w-full h-full object-cover"
               />
-            </a>
+            </button>
           ))}
         </div>
+      )}
+
+      {/* Image lightbox overlay (portal to body to escape stacking contexts) */}
+      {openImage && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center"
+          onClick={() => setOpenImage(null)}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpenImage(null); }}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center transition-colors"
+          >
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={openImage}
+            alt="Full size"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
       )}
 
       {/* Spacer to push status to bottom */}
