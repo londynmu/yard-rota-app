@@ -402,7 +402,7 @@ export default function PreCheckList() {
         <div className="p-3 bg-white">
           {hasFaults ? (
             <>
-              <div className="grid gap-3 items-start" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+              <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
                 {faults.map(fault => (
                   <FaultCard
                     key={fault.id}
