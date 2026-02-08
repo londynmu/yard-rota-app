@@ -124,6 +124,7 @@ export default function PreCheckPage() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
+    _dbgP('PreCheckPage:initEffect','CALL initialize',{userId:user?.id,token:!!token,hypothesisId:'H-J'});
     initialize();
   }, [user, token]);
 
@@ -179,6 +180,7 @@ export default function PreCheckPage() {
     if (!initializedRef.current) {
       setLoading(true);
     }
+    _dbgP('PreCheckPage:initialize','START',{initialized:initializedRef.current,loading,step,hasTug:!!selectedTug,hypothesisId:'H-J'});
 
     try {
       const now = new Date();
@@ -283,6 +285,7 @@ export default function PreCheckPage() {
     } finally {
       setLoading(false);
       initializedRef.current = true;
+      _dbgP('PreCheckPage:initialize','END',{loading:false,initialized:initializedRef.current,hypothesisId:'H-J'});
     }
   };
 
@@ -327,6 +330,7 @@ export default function PreCheckPage() {
 
   // ─── Loading ───
   if (loading) {
+    _dbgP('PreCheckPage:render','branch loading',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 animate-pulse space-y-4">
         <div className="h-8 bg-slate-200 rounded w-48" />
@@ -337,6 +341,7 @@ export default function PreCheckPage() {
 
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
+    _dbgP('PreCheckPage:render','branch completed',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
         <div className="space-y-3">
@@ -390,6 +395,7 @@ export default function PreCheckPage() {
 
   // ─── During shift damage report ───
   if (step === 'during_shift') {
+    _dbgP('PreCheckPage:render','branch during_shift',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         {(queueStatus.total > 0 || !isOnline) && (
@@ -460,6 +466,7 @@ export default function PreCheckPage() {
 
   // ─── Success screen ───
   if (step === 'success') {
+    _dbgP('PreCheckPage:render','branch success',{step,loading,hypothesisId:'H-J'});
     const isDamage = lastSubmitType === 'damage';
     const tugName = selectedTug?.display_name || selectedTug?.tug_number || '';
     const tugNumber = selectedTug?.tug_number || '';
