@@ -171,9 +171,14 @@ export default function PreCheckPage() {
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
   }, [user?.id, isOnline]);
 
+  const initializedRef = useRef(false);
+
   const initialize = async () => {
     if (!user) return;
-    setLoading(true);
+    // Only show loading skeleton on first init — re-init must NOT unmount child components
+    if (!initializedRef.current) {
+      setLoading(true);
+    }
 
     try {
       const now = new Date();
@@ -277,6 +282,7 @@ export default function PreCheckPage() {
       console.error('[PreCheckPage] Init error:', err);
     } finally {
       setLoading(false);
+      initializedRef.current = true;
     }
   };
 
