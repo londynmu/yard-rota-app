@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
-import { dataUrlToFile } from '../../lib/cameraUtils';
+import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
 export default function InlineCamera({ onCapture, onClose }) {
   const [error, setError] = useState(null);
@@ -32,21 +32,22 @@ export default function InlineCamera({ onCapture, onClose }) {
       try {
         const photo = await Camera.getPhoto({
           quality: 85,
-          resultType: CameraResultType.DataUrl,
+          resultType: CameraResultType.Uri,
           source: CameraSource.Camera,
           saveToGallery: false,
           correctOrientation: true,
         });
 
         if (cancelled) return;
-        const dataUrl = photo?.dataUrl;
-        if (!dataUrl) {
-          setError('No image returned from the camera.');
-          setOpening(false);
-          return;
+        let file = null;
+        if (photo?.webPath) {
+          const response = await fetch(photo.webPath);
+          const blob = await response.blob();
+          file = blobToFile(blob, `photo-${Date.now()}.jpg`);
+        } else if (photo?.dataUrl) {
+          file = dataUrlToFile(photo.dataUrl, `photo-${Date.now()}.jpg`);
         }
 
-        const file = dataUrlToFile(dataUrl, `photo-${Date.now()}.jpg`);
         if (!file) {
           setError('Failed to process the camera image.');
           setOpening(false);

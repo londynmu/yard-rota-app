@@ -19,3 +19,9 @@ export const dataUrlToFile = (dataUrl, filename = 'photo.jpg') => {
     return null;
   }
 };
+
+export const blobToFile = (blob, filename = 'photo.jpg') => {
+  if (!(blob instanceof Blob)) return null;
+  const type = blob.type || 'image/jpeg';
+  return new File([blob], filename, { type, lastModified: Date.now() });
+};

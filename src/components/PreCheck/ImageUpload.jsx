@@ -2,7 +2,7 @@ import React, { useRef, useState, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { dataUrlToFile } from '../../lib/cameraUtils';
+import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
@@ -104,12 +104,19 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
     try {
       const photo = await Camera.getPhoto({
         quality: 85,
-        resultType: CameraResultType.DataUrl,
+        resultType: CameraResultType.Uri,
         source,
         saveToGallery: false,
         correctOrientation: true,
       });
-      const file = dataUrlToFile(photo?.dataUrl, `photo-${Date.now()}.jpg`);
+      let file = null;
+      if (photo?.webPath) {
+        const response = await fetch(photo.webPath);
+        const blob = await response.blob();
+        file = blobToFile(blob, `photo-${Date.now()}.jpg`);
+      } else if (photo?.dataUrl) {
+        file = dataUrlToFile(photo.dataUrl, `photo-${Date.now()}.jpg`);
+      }
       if (!file) {
         alert('Unable to process the selected image.');
         return;
