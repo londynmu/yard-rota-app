@@ -376,14 +376,10 @@ export default function PreCheckList() {
           )}
 
           <span className="text-xs text-gray-500">
-            by <span className="font-semibold text-charcoal">{userName}</span> at {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+            by <span className="font-semibold text-charcoal">{userName}</span> · {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
               hour: '2-digit', minute: '2-digit',
             })}
           </span>
-
-          {viewMode === 'byDate' && sub.tugs?.locations?.name && (
-            <span className="text-xs text-gray-400">{sub.tugs.locations.name}</span>
-          )}
 
           <span className="ml-auto flex items-center gap-2">
             {hasFaults && (
@@ -441,14 +437,6 @@ export default function PreCheckList() {
           )}
         </div>
 
-        {/* Card footer */}
-        <div className={`px-4 py-2.5 flex items-center gap-2 ${
-          hasOpen ? 'bg-red-50'
-            : hasFaults ? 'bg-orange-50'
-            : 'bg-gray-50'
-        }`}>
-          <span className="text-xs">&nbsp;</span>
-        </div>
       </div>
     );
   };
@@ -634,9 +622,21 @@ export default function PreCheckList() {
 // ─── Fault sub-container (no severity badge) ───
 function FaultCard({ fault, onStatusChange }) {
   const [openImage, setOpenImage] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const resolvedByName = fault.resolvedProfile
     ? `${fault.resolvedProfile.first_name || ''} ${fault.resolvedProfile.last_name || ''}`.trim()
     : null;
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
 
   return (
     <div className={`rounded-lg border p-3 flex flex-col ${
@@ -645,10 +645,54 @@ function FaultCard({ fault, onStatusChange }) {
         : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
         : 'border-red-200 bg-red-50'
     }`}>
-      {/* Header: item name only */}
-      <h5 className="text-sm font-semibold text-charcoal capitalize truncate mb-1">
-        {fault.header}
-      </h5>
+      {/* Header: item name + status action */}
+      <div className="flex items-center gap-2 mb-1">
+        <h5 className="text-sm font-semibold text-charcoal capitalize truncate">
+          {fault.header}
+        </h5>
+
+        {fault.repairStatus !== null && (
+          <div className="relative ml-auto flex-shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setShowMenu(prev => !prev)}
+              className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                fault.repairStatus === 'resolved' ? 'bg-green-400'
+                  : fault.repairStatus === 'in_progress' ? 'bg-yellow-400'
+                  : 'bg-red-400'
+              }`} />
+              <span>{fault.repairStatus === 'open' ? 'Open' : fault.repairStatus === 'in_progress' ? 'In Progress' : 'Resolved'}</span>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                {[
+                  { value: 'open', label: 'Open', dot: 'bg-red-400' },
+                  { value: 'in_progress', label: 'In Progress', dot: 'bg-yellow-400' },
+                  { value: 'resolved', label: 'Resolved', dot: 'bg-green-400' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { onStatusChange(opt.value); setShowMenu(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
+                      fault.repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Description */}
       <p className="text-xs text-gray-700 mb-2">{fault.description}</p>
@@ -698,29 +742,9 @@ function FaultCard({ fault, onStatusChange }) {
         document.body
       )}
 
-      {/* Spacer to push status to bottom */}
-      <div className="flex-1" />
-
-      {/* Status action (only for real damage records) */}
-      {fault.repairStatus !== null && (
-        <select
-          value={fault.repairStatus}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className={`w-full text-xs font-medium rounded-lg px-2.5 py-1.5 border cursor-pointer ${
-            fault.repairStatus === 'resolved' ? 'border-green-300 bg-green-100 text-green-800'
-              : fault.repairStatus === 'in_progress' ? 'border-yellow-300 bg-yellow-100 text-yellow-800'
-              : 'border-red-300 bg-red-100 text-red-800'
-          }`}
-        >
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="resolved">Resolved</option>
-        </select>
-      )}
-
-      {/* Resolved info - below action button */}
+      {/* Resolved info */}
       {fault.resolvedAt && resolvedByName && (
-        <p className="text-[10px] text-green-700 mt-1.5">
+        <p className="text-[10px] text-green-700 mt-1">
           Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
         </p>
       )}
