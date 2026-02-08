@@ -88,6 +88,8 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
 
   const processAndAddFiles = async (files) => {
     if (!files || files.length === 0) return;
+    // Capture scroll position before any async work (mobile browsers may reset it)
+    const savedScrollY = window.scrollY;
 
     const newFiles = Array.from(files).filter(f => {
       if (f.type && !f.type.startsWith('image/')) return false;
@@ -142,6 +144,16 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           } catch {}
         }
         return merged;
+      });
+
+      // Restore scroll after React re-render paints
+      requestAnimationFrame(() => {
+        const targetY = savedScrollY > 0
+          ? savedScrollY
+          : Number(sessionStorage.getItem(scrollKey)) || 0;
+        if (targetY > 0) {
+          window.scrollTo({ top: targetY, behavior: 'auto' });
+        }
       });
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
@@ -223,7 +235,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         capture="environment"
         onChange={(e) => {
           try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
-          try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch {}
           const files = e.target.files;
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
