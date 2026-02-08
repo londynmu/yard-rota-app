@@ -54,7 +54,7 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   });
 };
 
-export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos', preserveScroll = true }) {
+export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos' }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
@@ -84,7 +84,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   }, []);
 
   const processAndAddFiles = async (files) => {
-    const prevScroll = preserveScroll ? window.scrollY : null;
     if (!files || files.length === 0) return;
 
     const rejected = { nonImage: 0, tooLarge: 0 };
@@ -146,15 +145,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         return merged;
       });
       setCompressing(false);
-      if (preserveScroll && prevScroll !== null) {
-        requestAnimationFrame(() => window.scrollTo({ top: prevScroll, behavior: 'auto' }));
-      }
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
-      if (preserveScroll && prevScroll !== null) {
-        requestAnimationFrame(() => window.scrollTo({ top: prevScroll, behavior: 'auto' }));
-      }
     }
   };
 
@@ -368,5 +361,4 @@ ImageUpload.propTypes = {
   onImagesChange: PropTypes.func.isRequired,
   maxImages: PropTypes.number,
   storageKey: PropTypes.string,
-  preserveScroll: PropTypes.bool,
 };
