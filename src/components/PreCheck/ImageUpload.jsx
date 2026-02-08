@@ -81,6 +81,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
 
   // On mount, recover pending photos (dataUrl) if any (handles reload/unmount during capture)
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       let pendingRaw = null;
       let pending;
@@ -90,10 +91,14 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       if (!pending || pending.length === 0) return;
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
       _dbg('ImageUpload.jsx:pending','processing files',{filesCount:files.length,hypothesisId:'H-K'});
-      if (files.length > 0) {
+      if (!cancelled && files.length > 0) {
         await processAndAddFiles(files);
       }
+      if (!cancelled) {
+        try { sessionStorage.setItem('pending_photos', pendingRaw || '[]'); } catch {}
+      }
     })();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -136,10 +141,14 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       const compressedFiles = await Promise.all(
         filesToAdd.map(file => compressImage(file))
       );
+      const dataUrls = await Promise.all(
+        compressedFiles.map(file => fileToDataUrl(file).catch(() => null))
+      );
 
-      const newImages = compressedFiles.map(file => ({
+      const newImages = compressedFiles.map((file, idx) => ({
         file,
         preview: URL.createObjectURL(file),
+        dataUrl: dataUrls[idx] || null,
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       }));
 
@@ -150,7 +159,13 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       onImagesChange(prev => {
         const merged = [...prev, ...newImages];
         _dbg('ImageUpload.jsx:processAndAddFiles','MERGED',{prevLen:prev.length,mergedLen:merged.length,hypothesisId:'H-F'});
-        try { sessionStorage.setItem('pending_photos', JSON.stringify(merged.map(img => ({ name: img.file?.name || img.name || 'photo.jpg', dataUrl: img.preview || img.url })))); } catch {}
+        try {
+          const payload = merged.map(img => ({
+            name: img.file?.name || img.name || 'photo.jpg',
+            dataUrl: img.dataUrl || img.preview || img.url,
+          }));
+          sessionStorage.setItem('pending_photos', JSON.stringify(payload));
+        } catch {}
         return merged;
       });
       setCompressing(false);
