@@ -198,6 +198,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         window.scrollTo({ top: savedY, behavior: 'auto' });
       });
     }
+    // Clear all scroll keys after restore to prevent stale values from interfering
+    for (const key of scrollKeys) {
+      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+    }
   }, [formInitialized, allItems]);
 
   // ─── Debounced save to sessionStorage (including image URLs) ───
@@ -392,9 +396,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const handleCheckChange = (key, status) => {
     const scrollY = window.scrollY;
     setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: scrollY, behavior: 'auto' });
-    });
+    // Restore scroll: rAF for normal browsers, setTimeout for iOS Safari (adjusts scroll later)
+    const restore = () => window.scrollTo({ top: scrollY, behavior: 'auto' });
+    requestAnimationFrame(restore);
+    setTimeout(restore, 80);
   };
 
   // Render a section (always open, no collapse)

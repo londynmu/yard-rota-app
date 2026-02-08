@@ -4,6 +4,10 @@ import ImageUpload from './ImageUpload';
 
 export default function CheckItemRow({ itemKey, label, tooltip, value, onChange, notes, onNotesChange, images, onImagesChange }) {
   const handleMarkIssue = () => {
+    // Blur active element to prevent iOS Safari from scrolling to focused inputs on re-render
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     if (value === 'repair_needed') {
       onChange('ok');
     } else {
@@ -12,6 +16,10 @@ export default function CheckItemRow({ itemKey, label, tooltip, value, onChange,
   };
 
   const handleMarkOk = () => {
+    // Blur active element to prevent iOS Safari from scrolling to focused inputs on re-render
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     onChange('ok');
   };
 

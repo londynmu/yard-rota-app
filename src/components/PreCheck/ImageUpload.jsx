@@ -154,6 +154,8 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         if (targetY > 0) {
           window.scrollTo({ top: targetY, behavior: 'auto' });
         }
+        // Clear saved scroll position so it doesn't interfere with future interactions
+        try { sessionStorage.removeItem(scrollKey); } catch {}
       });
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
