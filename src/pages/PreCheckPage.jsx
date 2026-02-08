@@ -92,6 +92,7 @@ export default function PreCheckPage() {
   const getInitialStep = () => {
     if (savedDuringShift) return 'during_shift';
     if (savedPage?.step === 'form' && savedPage?.tug) return 'form';
+    if (savedPage?.step === 'during_shift' && savedPage?.tug) return 'during_shift';
     return 'select';
   };
 
@@ -225,10 +226,11 @@ export default function PreCheckPage() {
       }
 
       // Set selected tug and show completed view if checks exist
-      // BUT don't override if user was in the middle of a form (restored from sessionStorage)
+      // BUT don't override if user was in the middle of a form or camera (restored from sessionStorage)
       const restoredStep = getInitialStep();
+      const cameraActive = (() => { try { return sessionStorage.getItem('camera_intent_active') === 'true'; } catch { return false; } })();
       if (checks.length > 0 && effectiveWindow && now <= effectiveWindow.end && !savedDuringShift) {
-        if (restoredStep !== 'form') {
+        if (restoredStep !== 'form' && restoredStep !== 'during_shift' && !cameraActive) {
           const latest = checks[0];
           setSelectedTug({
             id: latest.tug_id,
@@ -237,7 +239,7 @@ export default function PreCheckPage() {
           });
           setStep('completed');
         }
-        // If restoredStep is 'form', keep it - user was filling out the form
+        // If restoredStep is 'form'/'during_shift' or camera is active, keep it
       }
 
       // 3. QR token handling
@@ -297,7 +299,7 @@ export default function PreCheckPage() {
     setSelectedTug(tug);
     saveDuringShiftState(tug);
     setStep('during_shift');
-    clearPageState();
+    savePageState('during_shift', tug);
   };
 
   const handleCheckAnotherTug = () => {

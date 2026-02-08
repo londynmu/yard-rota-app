@@ -5,7 +5,6 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
-const InlineWebCamera = lazy(() => import('./InlineWebCamera'));
 
 // Compress image using canvas
 const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
@@ -54,7 +53,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const isNative = Capacitor.isNativePlatform();
-  const canUseWebCamera = !isNative && !!(navigator?.mediaDevices?.getUserMedia);
 
   const processAndAddFiles = async (files) => {
     if (!files || files.length === 0) return;
@@ -158,35 +156,28 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
 
   return (
     <div>
-      {/* Inline camera modal */}
-      {showCamera && (
+      {/* Native camera modal (Capacitor only) */}
+      {showCamera && isNative && (
         <Suspense fallback={
           <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
             <div className="text-white">Opening camera...</div>
           </div>
         }>
-          {isNative ? (
-            <InlineCamera
-              onCapture={handleCameraCapture}
-              onClose={() => setShowCamera(false)}
-            />
-          ) : (
-            <InlineWebCamera
-              onCapture={handleCameraCapture}
-              onClose={() => setShowCamera(false)}
-            />
-          )}
+          <InlineCamera
+            onCapture={handleCameraCapture}
+            onClose={() => setShowCamera(false)}
+          />
         </Suspense>
       )}
 
-      {/* Camera file input (web) */}
+      {/* Camera file input (web) - opens system camera with flash/zoom */}
       <input
         ref={cameraInputRef}
         type="file"
         accept="image/*"
-        multiple
         capture="environment"
         onChange={(e) => {
+          try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
           const files = e.target.files;
           if (files && files.length > 0) {
             processAndAddFiles(files);
@@ -219,9 +210,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           onClick={() => {
             if (isNative) {
               setShowCamera(true);
-            } else if (canUseWebCamera) {
-              setShowCamera(true);
             } else {
+              // Set flag so app knows we're returning from system camera
+              try { sessionStorage.setItem('camera_intent_active', 'true'); } catch { /* */ }
               cameraInputRef.current?.click();
             }
           }}
