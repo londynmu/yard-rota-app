@@ -13,27 +13,6 @@ import {
 } from '../../lib/precheckQueue';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
-// #region agent log scroll2
-const _dbgScroll2 = (loc, msg, data) => {
-  fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: loc,
-      message: msg,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  try {
-    const prev = JSON.parse(localStorage.getItem('_dbg_log_scroll2') || '[]');
-    prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`);
-    if (prev.length > 40) prev.shift();
-    localStorage.setItem('_dbg_log_scroll2', JSON.stringify(prev));
-  } catch { /* ignore */ }
-};
-// #endregion
-
 // ─── Hardcoded fallback (used if DB fetch fails) ───
 const FALLBACK_OUTSIDE = [
   { key: 'tyres', label: 'Tyres', tooltip: null },
@@ -197,6 +176,34 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     setFormInitialized(true);
   }, [itemsLoading, formInitialized, allItems]);
 
+  // ─── Restore scroll position after form is fully rendered (handles camera/gallery return) ───
+  useEffect(() => {
+    if (!formInitialized) return;
+    // Check all possible scroll keys for a saved position
+    const scrollKeys = [
+      'pending_photos_remarks_scrollY',
+      ...allItems.map(item => `pending_photos_item_${item.key}_scrollY`),
+    ];
+    let savedY = null;
+    for (const key of scrollKeys) {
+      try {
+        const v = Number(sessionStorage.getItem(key));
+        if (Number.isFinite(v) && v > 0 && (savedY === null || v > savedY)) {
+          savedY = v;
+        }
+      } catch { /* ignore */ }
+    }
+    if (savedY !== null && savedY > 0) {
+      // #region agent log
+      try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} formInit scroll restore target=${savedY} curY=${window.scrollY} curH=${document.documentElement.scrollHeight}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+      // #endregion
+      // Use rAF + short delay to ensure DOM is painted
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedY, behavior: 'auto' });
+      });
+    }
+  }, [formInitialized, allItems]);
+
   // ─── Debounced save to sessionStorage (including image URLs) ───
   const saveTimerRef = useRef(null);
   const saveToStorage = useCallback(() => {
@@ -228,24 +235,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     saveTimerRef.current = setTimeout(saveToStorage, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [saveToStorage]);
-
-  // Debug scroll logs to catch jumps
-  useEffect(() => {
-    _dbgScroll2('PreCheckForm:render', 'layout', {
-      y: window.scrollY,
-      h: document.documentElement.scrollHeight,
-      vh: window.innerHeight,
-      items: allItems.length,
-    });
-    const t = setTimeout(() => {
-      _dbgScroll2('PreCheckForm:render:timeout', 'layout post', {
-        y: window.scrollY,
-        h: document.documentElement.scrollHeight,
-        vh: window.innerHeight,
-      });
-    }, 80);
-    return () => clearTimeout(t);
-  });
 
   const validate = () => {
     // 1. Check all items are marked
@@ -488,44 +477,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             maxImages={3}
             storageKey="pending_photos_remarks"
           />
-        </div>
-      </div>
-
-      {/* Debug scroll2 panel */}
-      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] font-mono text-yellow-800 max-h-32 overflow-y-auto">
-        <div className="flex justify-between items-center mb-1">
-          <span className="font-bold">DEBUG SCROLL2</span>
-          <button
-            type="button"
-            className="text-red-500 text-[9px]"
-            onClick={() => { localStorage.removeItem('_dbg_log_scroll2'); }}
-          >
-            clear
-          </button>
-          <button
-            type="button"
-            className="text-blue-500 text-[9px]"
-            onClick={(e) => {
-              e.stopPropagation();
-              try {
-                const logs = JSON.parse(localStorage.getItem('_dbg_log_scroll2') || '[]');
-                const panel = document.getElementById('dbg-scroll2-panel');
-                if (panel) {
-                  panel.innerHTML = logs.slice(-8).map((l) => `<div>${l}</div>`).join('');
-                }
-              } catch { /* ignore */ }
-            }}
-          >
-            refresh
-          </button>
-        </div>
-        <div id="dbg-scroll2-panel">
-          {(() => {
-            try {
-              const logs = JSON.parse(localStorage.getItem('_dbg_log_scroll2') || '[]');
-              return logs.slice(-8).map((l, i) => <div key={i}>{l}</div>);
-            } catch { return null; }
-          })()}
         </div>
       </div>
 

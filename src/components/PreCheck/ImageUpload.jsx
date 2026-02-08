@@ -4,27 +4,6 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
-// #region agent log helper
-const _dbgScroll = (loc, msg, data) => {
-  fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: loc,
-      message: msg,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  try {
-    const prev = JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]');
-    prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`);
-    if (prev.length > 30) prev.shift();
-    localStorage.setItem('_dbg_log_scroll', JSON.stringify(prev));
-  } catch { /* ignore */ }
-};
-// #endregion
-
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -80,9 +59,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [dbgScrollLogs, setDbgScrollLogs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]'); } catch { return []; }
-  });
   const isNative = Capacitor.isNativePlatform();
   const scrollKey = storageKey ? `${storageKey}_scrollY` : 'pending_photos_scrollY';
 
@@ -96,9 +72,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
       try { pendingRaw = sessionStorage.getItem(storageKey); } catch { pendingRaw = null; }
       try { pending = JSON.parse(pendingRaw || '[]'); } catch { pending = []; }
       if (!pending || pending.length === 0) return;
-      let savedY = null;
-      try { savedY = Number(sessionStorage.getItem(scrollKey)); } catch { savedY = null; }
-      _dbgScroll('ImageUpload.jsx', 'mount pending', { count: pending.length, savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
       if (!cancelled && files.length > 0) {
         await processAndAddFiles(files);
@@ -111,31 +84,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fallback restore on mount if scroll saved
-  useEffect(() => {
-    let savedY = null;
-    try { savedY = Number(sessionStorage.getItem(scrollKey)); } catch { savedY = null; }
-    if (Number.isFinite(savedY) && savedY > 0) {
-      requestAnimationFrame(() => {
-        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
-        _dbgScroll('ImageUpload.jsx', 'mount restore rAF', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
-      });
-      setTimeout(() => {
-        try { window.scrollTo({ top: savedY, behavior: 'auto' }); } catch {}
-        _dbgScroll('ImageUpload.jsx', 'mount restore timeout', { y: window.scrollY, target: savedY, h: document.documentElement.scrollHeight, vh: window.innerHeight, hypothesisId: 'scroll' });
-      }, 60);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const processAndAddFiles = async (files) => {
-    const preY = (() => { try { const v = Number(sessionStorage.getItem(scrollKey)); return Number.isFinite(v) ? v : window.scrollY; } catch { return window.scrollY; }})();
-    const preH = document.documentElement.scrollHeight;
-    const metricsStart = { y: window.scrollY, savedY: preY, files: files?.length ?? 0, h: preH, vh: window.innerHeight };
-    _dbgScroll('ImageUpload.jsx', 'process start', { ...metricsStart, hypothesisId: 'scroll' });
     if (!files || files.length === 0) return;
 
-    const rejected = { nonImage: 0, tooLarge: 0 };
     const newFiles = Array.from(files).filter(f => {
       if (f.type && !f.type.startsWith('image/')) return false;
       if (f.size > 40 * 1024 * 1024) return false;
@@ -143,13 +94,11 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
     });
 
     if (newFiles.length === 0) {
-      Array.from(files).forEach(f => {
-        if (f.type && !f.type.startsWith('image/')) rejected.nonImage += 1;
-        if (f.size > 40 * 1024 * 1024) rejected.tooLarge += 1;
-      });
-      if (rejected.tooLarge > 0) {
+      const hasNonImage = Array.from(files).some(f => f.type && !f.type.startsWith('image/'));
+      const hasTooLarge = Array.from(files).some(f => f.size > 40 * 1024 * 1024);
+      if (hasTooLarge) {
         alert('Image is too large. Please use a smaller image.');
-      } else if (rejected.nonImage > 0) {
+      } else if (hasNonImage) {
         alert('Unsupported file type. Please choose an image.');
       }
       return;
@@ -179,7 +128,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       }));
 
-      // Call parent state update FIRST, then local state update
       onImagesChange(prev => {
         const merged = [...prev, ...newImages];
         if (storageKey) {
@@ -193,40 +141,14 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         }
         return merged;
       });
-      setCompressing(false);
-      const metricsEnd = { y: window.scrollY, savedY: preY, added: newImages.length, h: document.documentElement.scrollHeight, vh: window.innerHeight };
-      _dbgScroll('ImageUpload.jsx', 'process end', { ...metricsEnd, hypothesisId: 'scroll' });
-
-      const restoreScroll = (attempt = 0) => {
-        const curH = document.documentElement.scrollHeight;
-        // #region agent log
-        try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} restoreScroll attempt=${attempt} target=${preY} curY=${window.scrollY} curH=${curH}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-        // #endregion
-        _dbgScroll('ImageUpload.jsx', 'restore attempt', { attempt, curH, preH, target: preY, hypothesisId: 'scroll' });
-        const near = curH >= preH * 0.9; // allow 10% diff
-        if (!near && attempt < 40) {
-          setTimeout(() => restoreScroll(attempt + 1), 80);
-          return;
-        }
-        try { window.scrollTo({ top: preY, behavior: 'auto' }); } catch {}
-        // #region agent log
-        try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} restoreScroll DONE y=${window.scrollY} target=${preY} attempt=${attempt}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
-        // #endregion
-        _dbgScroll('ImageUpload.jsx', 'process restore final', { y: window.scrollY, target: preY, preH, curH, attempt, hypothesisId: 'scroll' });
-      };
-      setTimeout(() => restoreScroll(0), 0);
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
+    } finally {
       setCompressing(false);
-      _dbgScroll('ImageUpload.jsx', 'process error', { y: window.scrollY, error: String(err), hypothesisId: 'scroll' });
     }
   };
 
   const handleCameraCapture = async (file) => {
-    // #region agent log
-    _dbg('ImageUpload.jsx:handleCameraCapture','ENTRY',{hasFile:!!file,fileSize:file?.size,fileType:file?.type,hypothesisId:'H-E'});
-    setDbgLogs(JSON.parse(localStorage.getItem('_dbg_log') || '[]'));
-    // #endregion
     setShowCamera(false);
     if (file) {
       await processAndAddFiles([file]);
@@ -300,7 +222,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         onChange={(e) => {
           try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
           try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch {}
-          _dbgScroll('ImageUpload.jsx', 'input onChange', { y: window.scrollY, files: e.target.files?.length ?? 0, hypothesisId: 'scroll' });
           const files = e.target.files;
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
@@ -356,7 +277,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           type="button"
           onClick={() => {
             try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch {}
-            _dbgScroll('ImageUpload.jsx', 'take photo click', { y: window.scrollY, hypothesisId: 'scroll' });
             if (isNative) {
               setShowCamera(true);
             } else {
@@ -428,29 +348,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         </div>
       )}
 
-      {/* Debug scroll panel (temporary) */}
-      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] font-mono text-yellow-800 max-h-32 overflow-y-auto">
-        <div className="flex justify-between items-center mb-1">
-          <span className="font-bold">DEBUG SCROLL</span>
-          <button
-            type="button"
-            className="text-red-500 text-[9px]"
-            onClick={() => { localStorage.removeItem('_dbg_log_scroll'); setDbgScrollLogs([]); }}
-          >
-            clear
-          </button>
-          <button
-            type="button"
-            className="text-blue-500 text-[9px]"
-            onClick={() => { try { setDbgScrollLogs(JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]')); } catch { setDbgScrollLogs([]); } }}
-          >
-            refresh
-          </button>
-        </div>
-        {dbgScrollLogs.slice(-8).map((l, i) => (
-          <div key={i}>{l}</div>
-        ))}
-      </div>
     </div>
   );
 }

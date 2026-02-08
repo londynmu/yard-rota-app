@@ -3,9 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 
-// #region agent log
-const _dbgP = (loc, msg, data) => { try { const prev = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`); if(prev.length>40)prev.shift(); localStorage.setItem('_dbg_log', JSON.stringify(prev)); } catch {} };
-// #endregion
 import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
