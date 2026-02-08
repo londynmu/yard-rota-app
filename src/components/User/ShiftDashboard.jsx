@@ -623,6 +623,9 @@ export default function ShiftDashboard({
     // Map user -> location for breaks filtering
     const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
 
+    // Map user -> shift times for tug badge visibility (only show during active shift)
+    const userShiftMap = new Map(allShifts.map(s => [s.user_id, { start_time: s.start_time, end_time: s.end_time }]));
+
     // Helper function to check if break is currently active
     const isBreakActive = (breakStartTime, breakDurationMinutes) => {
       const now = getNowMinutes();
@@ -971,16 +974,23 @@ export default function ShiftDashboard({
                                     <p className="text-lg font-bold text-charcoal">
                                       {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
                                       {isMe && <span className="text-gray-600"> (You)</span>}
-                                      {b.tug_name && (
-                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                                          {b.tug_name}
-                                        </span>
-                                      )}
                                     </p>
                                   </div>
-                                  <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                                    {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                  </span>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                                      {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                    </span>
+                                    {b.tug_name && (() => {
+                                      const shift = userShiftMap.get(b.user_id);
+                                      return shift && isNowWithinShift(shift.start_time, shift.end_time);
+                                    })() && (
+                                      <div className="mt-1.5">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm">
+                                          {b.tug_name}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
