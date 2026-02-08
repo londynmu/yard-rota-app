@@ -70,6 +70,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const [dbgLogs, setDbgLogs] = useState(() => { try { return JSON.parse(localStorage.getItem('_dbg_log') || '[]'); } catch { return []; } });
   // #endregion
   const isNative = Capacitor.isNativePlatform();
+  const isPwa = typeof window !== 'undefined'
+    && (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone);
+  const useInlineWebCamera = !isNative && isPwa;
   // #region agent log
   _dbg('ImageUpload.jsx:mount','rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
   useEffect(() => {
@@ -214,16 +217,23 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   return (
     <div>
       {/* Native camera modal (Capacitor only) */}
-      {showCamera && isNative && (
+      {showCamera && (isNative || useInlineWebCamera) && (
         <Suspense fallback={
           <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
             <div className="text-white">Opening camera...</div>
           </div>
         }>
-          <InlineCamera
-            onCapture={handleCameraCapture}
-            onClose={() => setShowCamera(false)}
-          />
+          {isNative ? (
+            <InlineCamera
+              onCapture={handleCameraCapture}
+              onClose={() => setShowCamera(false)}
+            />
+          ) : (
+            <InlineWebCamera
+              onCapture={handleCameraCapture}
+              onClose={() => setShowCamera(false)}
+            />
+          )}
         </Suspense>
       )}
 
@@ -280,9 +290,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           type="button"
           onClick={() => {
             // #region agent log
-            _dbg('ImageUpload.jsx:takePhoto','Take Photo clicked',{isNative,hypothesisId:'H-A'});
+            _dbg('ImageUpload.jsx:takePhoto','Take Photo clicked',{isNative,useInlineWebCamera,isPwa,hypothesisId:'H-A'});
             // #endregion
-            if (isNative) {
+            if (isNative || useInlineWebCamera) {
               setShowCamera(true);
             } else {
               // Set flag so app knows we're returning from system camera
