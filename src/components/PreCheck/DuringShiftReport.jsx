@@ -58,10 +58,10 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
 
   // #region agent log
   const handleImagesChange = useCallback((newImagesOrFn) => {
-    _dbgD('DuringShift:handleImagesChange','CALLED',{type:typeof newImagesOrFn,isFunction:typeof newImagesOrFn === 'function',hypothesisId:'H-I'});
+    _dbgD('DuringShift:handleImagesChange','CALLED',{type:typeof newImagesOrFn,isFunction:typeof newImagesOrFn === 'function',mountId:mountIdRef.current,hypothesisId:'H-I'});
     setImages(prev => {
       const result = typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn;
-      _dbgD('DuringShift:setImages-inner','STATE UPDATER EXECUTING',{prevLen:prev.length,resultLen:Array.isArray(result)?result.length:'not-array',resultIds:Array.isArray(result)?result.map(i=>i.id):'n/a',hypothesisId:'H-I'});
+      _dbgD('DuringShift:setImages-inner','STATE UPDATER EXECUTING',{prevLen:prev.length,resultLen:Array.isArray(result)?result.length:'not-array',resultIds:Array.isArray(result)?result.map(i=>i.id):'n/a',mountId:mountIdRef.current,hypothesisId:'H-I'});
       return result;
     });
   }, []);
