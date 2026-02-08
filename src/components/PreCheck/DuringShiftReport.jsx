@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
@@ -46,7 +46,14 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   // #region agent log
-  _dbgD('DuringShift:render','render',{imagesCount:images.length,hypothesisId:'H-G'});
+  const mountIdRef = useRef(`m-${Date.now()}`);
+  _dbgD('DuringShift:render','render',{imagesCount:images.length,mountId:mountIdRef.current,hypothesisId:'H-G'});
+  useEffect(() => {
+    _dbgD('DuringShift:MOUNT','MOUNTED',{mountId:mountIdRef.current,hypothesisId:'H-J'});
+    return () => {
+      _dbgD('DuringShift:UNMOUNT','UNMOUNTED!',{mountId:mountIdRef.current,hypothesisId:'H-J'});
+    };
+  }, []);
   // #endregion
 
   // #region agent log

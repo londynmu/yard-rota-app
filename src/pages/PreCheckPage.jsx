@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+
+// #region agent log
+const _dbgP = (loc, msg, data) => { try { const prev = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`); if(prev.length>40)prev.shift(); localStorage.setItem('_dbg_log', JSON.stringify(prev)); } catch {} };
+// #endregion
 import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
@@ -102,7 +106,13 @@ export default function PreCheckPage() {
     return null;
   };
 
-  const [step, setStep] = useState(getInitialStep);
+  const [step, setStepRaw] = useState(getInitialStep);
+  // #region agent log
+  const setStep = (newStep) => {
+    _dbgP('PreCheckPage:setStep','STEP CHANGE',{from:step,to:newStep,hypothesisId:'H-J'});
+    setStepRaw(newStep);
+  };
+  // #endregion
   const [selectedTug, setSelectedTug] = useState(getInitialTug);
   const [userLocationId, setUserLocationId] = useState(null);
   const [shiftChecks, setShiftChecks] = useState([]);
