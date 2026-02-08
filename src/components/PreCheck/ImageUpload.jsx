@@ -47,14 +47,24 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   });
 };
 
+// #region agent log
+const _dbg = (loc, msg, data) => fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:loc,message:msg,data,timestamp:Date.now()})}).catch(()=>{});
+// #endregion
+
 export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  // #region agent log
+  _dbg('ImageUpload.jsx:mount','ImageUpload rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
+  // #endregion
 
   const processAndAddFiles = async (files) => {
+    // #region agent log
+    _dbg('ImageUpload.jsx:processAndAddFiles','ENTRY',{filesLength:files?.length,fileTypes:files?Array.from(files).map(f=>({name:f.name,type:f.type,size:f.size})):null,hypothesisId:'H-B'});
+    // #endregion
     if (!files || files.length === 0) return;
 
     const rejected = { nonImage: 0, tooLarge: 0 };
@@ -98,8 +108,14 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       }));
 
+      // #region agent log
+      _dbg('ImageUpload.jsx:processAndAddFiles','calling onImagesChange',{existingCount:images.length,newCount:newImages.length,newIds:newImages.map(i=>i.id),hasPreview:newImages.map(i=>!!i.preview),hypothesisId:'H-D'});
+      // #endregion
       onImagesChange([...images, ...newImages]);
     } catch (err) {
+      // #region agent log
+      _dbg('ImageUpload.jsx:processAndAddFiles','COMPRESSION ERROR',{error:String(err),hypothesisId:'H-C'});
+      // #endregion
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
     }
@@ -177,10 +193,17 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         accept="image/*"
         capture="environment"
         onChange={(e) => {
+          // #region agent log
+          _dbg('ImageUpload.jsx:cameraInput','onChange FIRED',{hasFiles:!!e.target.files,filesCount:e.target.files?.length,hypothesisId:'H-A'});
+          // #endregion
           try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
           const files = e.target.files;
           if (files && files.length > 0) {
             processAndAddFiles(files);
+          } else {
+            // #region agent log
+            _dbg('ImageUpload.jsx:cameraInput','onChange NO FILES',{hypothesisId:'H-B'});
+            // #endregion
           }
           e.target.value = '';
         }}
@@ -208,6 +231,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         <button
           type="button"
           onClick={() => {
+            // #region agent log
+            _dbg('ImageUpload.jsx:takePhoto','Take Photo clicked',{isNative,hypothesisId:'H-A'});
+            // #endregion
             if (isNative) {
               setShowCamera(true);
             } else {

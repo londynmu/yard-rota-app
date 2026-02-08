@@ -5,6 +5,10 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
+// #region agent log
+const _dbg = (loc, msg, data) => fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:loc,message:msg,data,timestamp:Date.now()})}).catch(()=>{});
+// #endregion
+
 export default function InlineCamera({ onCapture, onClose }) {
   const [error, setError] = useState(null);
   const [opening, setOpening] = useState(true);
@@ -40,16 +44,25 @@ export default function InlineCamera({ onCapture, onClose }) {
         });
 
         if (cancelled) return;
+        // #region agent log
+        _dbg('InlineCamera.jsx:getPhoto','photo result',{hasWebPath:!!photo?.webPath,hasPath:!!photo?.path,hasDataUrl:!!photo?.dataUrl,format:photo?.format,hypothesisId:'H-E'});
+        // #endregion
         let file = null;
         const webPath = photo?.webPath || (photo?.path ? Capacitor.convertFileSrc(photo.path) : null);
         if (webPath) {
           const response = await fetch(webPath);
           const blob = await response.blob();
+          // #region agent log
+          _dbg('InlineCamera.jsx:getPhoto','blob from webPath',{blobSize:blob?.size,blobType:blob?.type,hypothesisId:'H-E'});
+          // #endregion
           file = blobToFile(blob, `photo-${Date.now()}.jpg`);
         } else if (photo?.dataUrl) {
           file = dataUrlToFile(photo.dataUrl, `photo-${Date.now()}.jpg`);
         }
 
+        // #region agent log
+        _dbg('InlineCamera.jsx:getPhoto','file created',{hasFile:!!file,fileSize:file?.size,fileType:file?.type,hypothesisId:'H-E'});
+        // #endregion
         if (!file) {
           setError('Failed to process the camera image.');
           setOpening(false);
@@ -60,6 +73,9 @@ export default function InlineCamera({ onCapture, onClose }) {
         onClose();
       } catch (err) {
         if (cancelled) return;
+        // #region agent log
+        _dbg('InlineCamera.jsx:getPhoto','CATCH ERROR',{error:String(err?.message||err),hypothesisId:'H-E'});
+        // #endregion
         const message = String(err?.message || '');
         if (message.toLowerCase().includes('cancel')) {
           onClose();
