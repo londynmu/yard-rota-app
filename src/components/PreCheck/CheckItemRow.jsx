@@ -78,6 +78,7 @@ export default function CheckItemRow({ itemKey, label, tooltip, value, onChange,
               onImagesChange={onImagesChange}
               maxImages={2}
               storageKey={itemKey ? `pending_photos_item_${itemKey}` : undefined}
+              preserveScroll
             />
           )}
         </div>

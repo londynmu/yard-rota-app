@@ -442,6 +442,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             onImagesChange={handleRemarksImagesChange}
             maxImages={3}
             storageKey="pending_photos_remarks"
+            preserveScroll
           />
         </div>
       </div>
