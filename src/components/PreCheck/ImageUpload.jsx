@@ -1,4 +1,4 @@
-import React, { useRef, useState, lazy, Suspense } from 'react';
+import React, { useRef, useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
@@ -65,6 +65,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const isNative = Capacitor.isNativePlatform();
   // #region agent log
   _dbg('ImageUpload.jsx:mount','rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
+  useEffect(() => {
+    _dbg('ImageUpload.jsx:imagesEffect','images PROP changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-F'});
+  }, [images]);
   // #endregion
 
   const processAndAddFiles = async (files) => {
@@ -115,10 +118,13 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       }));
 
       // #region agent log
-      _dbg('ImageUpload.jsx:processAndAddFiles','calling onImagesChange',{existingCount:images.length,newCount:newImages.length,newIds:newImages.map(i=>i.id),hasPreview:newImages.map(i=>!!i.preview),hypothesisId:'H-D'});
-      setDbgLogs(JSON.parse(localStorage.getItem('_dbg_log') || '[]'));
+      const merged = [...images, ...newImages];
+      _dbg('ImageUpload.jsx:processAndAddFiles','BEFORE onImagesChange',{mergedCount:merged.length,mergedIds:merged.map(i=>i.id),hypothesisId:'H-F'});
       // #endregion
-      onImagesChange([...images, ...newImages]);
+      onImagesChange(merged);
+      // #region agent log
+      _dbg('ImageUpload.jsx:processAndAddFiles','AFTER onImagesChange returned',{hypothesisId:'H-F'});
+      // #endregion
     } catch (err) {
       // #region agent log
       _dbg('ImageUpload.jsx:processAndAddFiles','COMPRESSION ERROR',{error:String(err),hypothesisId:'H-C'});

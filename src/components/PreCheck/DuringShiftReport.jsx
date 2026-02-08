@@ -33,6 +33,10 @@ const clearFormState = () => {
   sessionStorage.removeItem(FORM_STORAGE_KEY);
 };
 
+// #region agent log
+const _dbgD = (loc, msg, data) => { try { const prev = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`); if(prev.length>30)prev.shift(); localStorage.setItem('_dbg_log', JSON.stringify(prev)); } catch {} };
+// #endregion
+
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
@@ -40,6 +44,16 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const [description, setDescription] = useState(savedForm?.description || '');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // #region agent log
+  _dbgD('DuringShift:render','render',{imagesCount:images.length,hypothesisId:'H-G'});
+  // #endregion
+
+  // #region agent log
+  useEffect(() => {
+    _dbgD('DuringShift:imagesEffect','images state changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-G'});
+  }, [images]);
+  // #endregion
 
   // Persist form state on every change (so camera app return preserves data)
   const persistForm = useCallback(() => {
