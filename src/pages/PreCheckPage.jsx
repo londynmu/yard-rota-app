@@ -554,6 +554,9 @@ export default function PreCheckPage() {
 
   // ─── Form (pre-shift check) ───
   if (step === 'form') {
+    // #region agent log
+    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} scrollTo(0) FIRED scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+    // #endregion
     window.scrollTo({ top: 0 });
   }
 
@@ -635,6 +638,19 @@ export default function PreCheckPage() {
         onSubmitSuccess={handleSubmitSuccess}
         checkType="pre_shift"
       />
+
+      {/* #region agent log - visible debug panel for H-A */}
+      <div className="mt-2 p-2 bg-orange-50 border border-orange-300 rounded text-[10px] font-mono text-orange-800 max-h-40 overflow-y-auto">
+        <div className="flex justify-between items-center mb-1">
+          <span className="font-bold">DEBUG H-A: scrollTo(0) calls</span>
+          <button type="button" className="text-red-500 text-[9px]" onClick={() => { localStorage.removeItem('_dbg_log_HA'); }}>clear</button>
+          <button type="button" className="text-blue-500 text-[9px]" onClick={() => { try { document.getElementById('dbg-ha-panel').innerHTML = JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]').slice(-10).map(l=>`<div>${l}</div>`).join(''); } catch {} }}>refresh</button>
+        </div>
+        <div id="dbg-ha-panel">
+          {(() => { try { return JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]').slice(-10).map((l,i)=><div key={i}>{l}</div>); } catch { return null; } })()}
+        </div>
+      </div>
+      {/* #endregion */}
     </div>
   );
 }

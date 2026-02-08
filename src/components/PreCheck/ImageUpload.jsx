@@ -199,6 +199,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
 
       const restoreScroll = (attempt = 0) => {
         const curH = document.documentElement.scrollHeight;
+        // #region agent log
+        try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} restoreScroll attempt=${attempt} target=${preY} curY=${window.scrollY} curH=${curH}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+        // #endregion
         _dbgScroll('ImageUpload.jsx', 'restore attempt', { attempt, curH, preH, target: preY, hypothesisId: 'scroll' });
         const near = curH >= preH * 0.9; // allow 10% diff
         if (!near && attempt < 40) {
@@ -206,6 +209,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           return;
         }
         try { window.scrollTo({ top: preY, behavior: 'auto' }); } catch {}
+        // #region agent log
+        try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} restoreScroll DONE y=${window.scrollY} target=${preY} attempt=${attempt}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+        // #endregion
         _dbgScroll('ImageUpload.jsx', 'process restore final', { y: window.scrollY, target: preY, preH, curH, attempt, hypothesisId: 'scroll' });
       };
       setTimeout(() => restoreScroll(0), 0);
