@@ -291,13 +291,26 @@ export default function ShiftDashboard({
           profilesData?.forEach(p => {
             profilesMap[p.id] = p;
           });
+
+          // Fetch tug assignments from today's prechecks
+          const tugMap = {};
+          try {
+            const { data: tugAssignments } = await supabase
+              .rpc('get_tug_assignments_for_date', { target_date: effectiveForBreaks });
+            tugAssignments?.forEach(ta => {
+              tugMap[ta.user_id] = ta.tug_name;
+            });
+          } catch (e) {
+            console.warn('Could not fetch tug assignments:', e);
+          }
           
           // Only include breaks where we found a profile
           const breaksWithProfiles = breaksData
             .filter(b => b.user_id && profilesMap[b.user_id])
             .map(b => ({
               ...b,
-              profiles: profilesMap[b.user_id]
+              profiles: profilesMap[b.user_id],
+              tug_name: tugMap[b.user_id] || null
             }));
           
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
@@ -958,6 +971,11 @@ export default function ShiftDashboard({
                                     <p className="text-lg font-bold text-charcoal">
                                       {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
                                       {isMe && <span className="text-gray-600"> (You)</span>}
+                                      {b.tug_name && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                          {b.tug_name}
+                                        </span>
+                                      )}
                                     </p>
                                   </div>
                                   <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
