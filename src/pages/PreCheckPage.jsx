@@ -106,13 +106,7 @@ export default function PreCheckPage() {
     return null;
   };
 
-  const [step, setStepRaw] = useState(getInitialStep);
-  // #region agent log
-  const setStep = (newStep) => {
-    _dbgP('PreCheckPage:setStep','STEP CHANGE',{from:step,to:newStep,hypothesisId:'H-J'});
-    setStepRaw(newStep);
-  };
-  // #endregion
+  const [step, setStep] = useState(getInitialStep);
   const [selectedTug, setSelectedTug] = useState(getInitialTug);
   const [userLocationId, setUserLocationId] = useState(null);
   const [shiftChecks, setShiftChecks] = useState([]);
@@ -124,7 +118,6 @@ export default function PreCheckPage() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    _dbgP('PreCheckPage:initEffect','CALL initialize',{userId:user?.id,token:!!token,hypothesisId:'H-J'});
     initialize();
   }, [user, token]);
 
@@ -180,12 +173,6 @@ export default function PreCheckPage() {
     if (!initializedRef.current) {
       setLoading(true);
     }
-    let cameraFlag = null; let pendingPhotos = null; let savedPageRaw = null;
-    try { cameraFlag = sessionStorage.getItem('camera_intent_active'); } catch { /* */ }
-    try { pendingPhotos = JSON.parse(sessionStorage.getItem('pending_photos') || '[]').length; } catch { pendingPhotos = null; }
-    try { savedPageRaw = sessionStorage.getItem('precheck_page_state'); } catch { /* */ }
-    _dbgP('PreCheckPage:initialize','START',{initialized:initializedRef.current,loading,step,hasTug:!!selectedTug,cameraFlag,pendingPhotos,savedPageRawLength:savedPageRaw?.length || 0,hypothesisId:'H-J'});
-
     try {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -289,7 +276,6 @@ export default function PreCheckPage() {
     } finally {
       setLoading(false);
       initializedRef.current = true;
-      _dbgP('PreCheckPage:initialize','END',{loading:false,initialized:initializedRef.current,hypothesisId:'H-J'});
     }
   };
 
@@ -334,7 +320,6 @@ export default function PreCheckPage() {
 
   // ─── Loading ───
   if (loading) {
-    _dbgP('PreCheckPage:render','branch loading',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 animate-pulse space-y-4">
         <div className="h-8 bg-slate-200 rounded w-48" />
@@ -345,7 +330,6 @@ export default function PreCheckPage() {
 
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
-    _dbgP('PreCheckPage:render','branch completed',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
         <div className="space-y-3">
@@ -399,7 +383,6 @@ export default function PreCheckPage() {
 
   // ─── During shift damage report ───
   if (step === 'during_shift') {
-    _dbgP('PreCheckPage:render','branch during_shift',{step,loading,hypothesisId:'H-J'});
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         {(queueStatus.total > 0 || !isOnline) && (
@@ -470,7 +453,6 @@ export default function PreCheckPage() {
 
   // ─── Success screen ───
   if (step === 'success') {
-    _dbgP('PreCheckPage:render','branch success',{step,loading,hypothesisId:'H-J'});
     const isDamage = lastSubmitType === 'damage';
     const tugName = selectedTug?.display_name || selectedTug?.tug_number || '';
     const tugNumber = selectedTug?.tug_number || '';

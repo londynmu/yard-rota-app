@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
@@ -33,10 +33,6 @@ const clearFormState = () => {
   sessionStorage.removeItem(FORM_STORAGE_KEY);
 };
 
-// #region agent log
-const _dbgD = (loc, msg, data) => { try { const prev = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`); if(prev.length>30)prev.shift(); localStorage.setItem('_dbg_log', JSON.stringify(prev)); } catch {} };
-// #endregion
-
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
@@ -45,33 +41,9 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // #region agent log
-  const mountIdRef = useRef(`m-${Date.now()}`);
-  _dbgD('DuringShift:render','render',{imagesCount:images.length,mountId:mountIdRef.current,hypothesisId:'H-G'});
-  useEffect(() => {
-    _dbgD('DuringShift:MOUNT','MOUNTED',{mountId:mountIdRef.current,hypothesisId:'H-J'});
-    return () => {
-      _dbgD('DuringShift:UNMOUNT','UNMOUNTED!',{mountId:mountIdRef.current,hypothesisId:'H-J'});
-    };
-  }, []);
-  // #endregion
-
-  // #region agent log
   const handleImagesChange = useCallback((newImagesOrFn) => {
-    _dbgD('DuringShift:handleImagesChange','CALLED',{type:typeof newImagesOrFn,isFunction:typeof newImagesOrFn === 'function',mountId:mountIdRef.current,hypothesisId:'H-I'});
-    setImages(prev => {
-      const result = typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn;
-      _dbgD('DuringShift:setImages-inner','STATE UPDATER EXECUTING',{prevLen:prev.length,resultLen:Array.isArray(result)?result.length:'not-array',resultIds:Array.isArray(result)?result.map(i=>i.id):'n/a',mountId:mountIdRef.current,hypothesisId:'H-I'});
-      return result;
-    });
+    setImages(prev => (typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn));
   }, []);
-  // #endregion
-
-  // #region agent log
-  useEffect(() => {
-    _dbgD('DuringShift:imagesEffect','images state changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-G'});
-  }, [images]);
-  // #endregion
 
   // Persist form state on every change (so camera app return preserves data)
   const persistForm = useCallback(() => {
