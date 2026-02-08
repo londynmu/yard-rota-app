@@ -74,6 +74,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   _dbg('ImageUpload.jsx:mount','rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
   useEffect(() => {
     _dbg('ImageUpload.jsx:imagesEffect','images PROP changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-F'});
+    if (images.length > 0) {
+      try { sessionStorage.removeItem('pending_photos'); } catch { /* */ }
+    }
   }, [images]);
   // #endregion
 
@@ -145,7 +148,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       // Call parent state update FIRST, then local state update
       onImagesChange(prev => [...prev, ...newImages]);
       setCompressing(false);
-      try { sessionStorage.removeItem('pending_photos'); } catch { /* */ }
       // #region agent log
       _dbg('ImageUpload.jsx:processAndAddFiles','AFTER both state updates',{hypothesisId:'H-F'});
       // #endregion
