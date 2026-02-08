@@ -199,15 +199,16 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
 
       const restoreScroll = (attempt = 0) => {
         const curH = document.documentElement.scrollHeight;
-        const near = curH >= preH - 50; // allow small diff
-        if (!near && attempt < 10) {
-          requestAnimationFrame(() => restoreScroll(attempt + 1));
+        _dbgScroll('ImageUpload.jsx', 'restore attempt', { attempt, curH, preH, target: preY, hypothesisId: 'scroll' });
+        const near = curH >= preH * 0.9; // allow 10% diff
+        if (!near && attempt < 40) {
+          setTimeout(() => restoreScroll(attempt + 1), 80);
           return;
         }
         try { window.scrollTo({ top: preY, behavior: 'auto' }); } catch {}
         _dbgScroll('ImageUpload.jsx', 'process restore final', { y: window.scrollY, target: preY, preH, curH, attempt, hypothesisId: 'scroll' });
       };
-      requestAnimationFrame(() => restoreScroll(0));
+      setTimeout(() => restoreScroll(0), 0);
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
