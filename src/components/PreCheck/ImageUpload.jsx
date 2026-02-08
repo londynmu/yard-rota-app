@@ -48,7 +48,10 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
 };
 
 // #region agent log
-const _dbg = (loc, msg, data) => fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:loc,message:msg,data,timestamp:Date.now()})}).catch(()=>{});
+const _dbg = (loc, msg, data) => {
+  fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:loc,message:msg,data,timestamp:Date.now()})}).catch(()=>{});
+  try { const prev = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`); if(prev.length>20)prev.shift(); localStorage.setItem('_dbg_log', JSON.stringify(prev)); } catch {}
+};
 // #endregion
 
 export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
@@ -56,9 +59,12 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  // #region agent log
+  const [dbgLogs, setDbgLogs] = useState(() => { try { return JSON.parse(localStorage.getItem('_dbg_log') || '[]'); } catch { return []; } });
+  // #endregion
   const isNative = Capacitor.isNativePlatform();
   // #region agent log
-  _dbg('ImageUpload.jsx:mount','ImageUpload rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
+  _dbg('ImageUpload.jsx:mount','rendered',{isNative,imagesCount:images.length,maxImages,hypothesisId:'H-D'});
   // #endregion
 
   const processAndAddFiles = async (files) => {
@@ -110,6 +116,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
 
       // #region agent log
       _dbg('ImageUpload.jsx:processAndAddFiles','calling onImagesChange',{existingCount:images.length,newCount:newImages.length,newIds:newImages.map(i=>i.id),hasPreview:newImages.map(i=>!!i.preview),hypothesisId:'H-D'});
+      setDbgLogs(JSON.parse(localStorage.getItem('_dbg_log') || '[]'));
       // #endregion
       onImagesChange([...images, ...newImages]);
     } catch (err) {
@@ -122,6 +129,10 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   };
 
   const handleCameraCapture = async (file) => {
+    // #region agent log
+    _dbg('ImageUpload.jsx:handleCameraCapture','ENTRY',{hasFile:!!file,fileSize:file?.size,fileType:file?.type,hypothesisId:'H-E'});
+    setDbgLogs(JSON.parse(localStorage.getItem('_dbg_log') || '[]'));
+    // #endregion
     setShowCamera(false);
     if (file) {
       await processAndAddFiles([file]);
@@ -304,6 +315,16 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           ))}
         </div>
       )}
+
+      {/* #region agent log */}
+      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] font-mono text-yellow-800 max-h-32 overflow-y-auto">
+        <div className="flex justify-between items-center mb-1">
+          <span className="font-bold">DEBUG ({images.length} imgs, native={String(isNative)})</span>
+          <button type="button" onClick={() => { localStorage.removeItem('_dbg_log'); setDbgLogs([]); }} className="text-red-500 text-[9px]">clear</button>
+        </div>
+        {(() => { try { const logs = JSON.parse(localStorage.getItem('_dbg_log') || '[]'); return logs.slice(-8).map((l,i) => <div key={i}>{l}</div>); } catch { return null; } })()}
+      </div>
+      {/* #endregion */}
     </div>
   );
 }
