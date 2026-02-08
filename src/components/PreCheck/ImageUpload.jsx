@@ -82,12 +82,14 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   // On mount, recover pending photos (dataUrl) if any (handles reload/unmount during capture)
   useEffect(() => {
     (async () => {
+      let pendingRaw = null;
       let pending;
-      try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
+      try { pendingRaw = sessionStorage.getItem('pending_photos'); } catch { pendingRaw = null; }
+      try { pending = JSON.parse(pendingRaw || '[]'); } catch (err) { _dbg('ImageUpload.jsx:pending','parse error',{error:String(err),rawLength:pendingRaw?.length,hypothesisId:'H-K'}); pending = []; }
+      _dbg('ImageUpload.jsx:pending','raw read',{rawLength:pendingRaw?.length,count:Array.isArray(pending)?pending.length:'n/a',hypothesisId:'H-K'});
       if (!pending || pending.length === 0) return;
-      _dbg('ImageUpload.jsx:pending','found pending photos',{count:pending.length,hypothesisId:'H-K'});
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
-      sessionStorage.removeItem('pending_photos');
+      _dbg('ImageUpload.jsx:pending','processing files',{filesCount:files.length,hypothesisId:'H-K'});
       if (files.length > 0) {
         await processAndAddFiles(files);
       }
