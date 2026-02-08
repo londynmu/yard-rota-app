@@ -117,6 +117,7 @@ export default function PreCheckPage() {
   };
 
   const [step, setStep] = useState(getInitialStep);
+  const formScrolledRef = useRef(false);
   const [selectedTug, setSelectedTug] = useState(getInitialTug);
   const [userLocationId, setUserLocationId] = useState(null);
   const [shiftChecks, setShiftChecks] = useState([]);
@@ -279,6 +280,7 @@ export default function PreCheckPage() {
           // Check if THIS specific tug was already checked in this shift
           const alreadyChecked = checks.some(c => c.tug_id === tugByToken.id);
           if (!alreadyChecked) {
+            formScrolledRef.current = false;
             setStep('form');
           }
           // If already checked, will show the completed view
@@ -303,6 +305,7 @@ export default function PreCheckPage() {
       return;
     }
     clearPendingPhotos();
+    formScrolledRef.current = false;
     setStep('form');
     savePageState('form', selectedTug);
   };
@@ -553,11 +556,12 @@ export default function PreCheckPage() {
   }
 
   // ─── Form (pre-shift check) ───
-  if (step === 'form') {
+  if (step === 'form' && !formScrolledRef.current) {
     // #region agent log
-    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} scrollTo(0) FIRED scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
+    try{const prev=JSON.parse(localStorage.getItem('_dbg_log_HA')||'[]');prev.push(`${new Date().toLocaleTimeString()} scrollTo(0) FIRED (once) scrollY=${window.scrollY}`);if(prev.length>30)prev.shift();localStorage.setItem('_dbg_log_HA',JSON.stringify(prev));}catch{}
     // #endregion
     window.scrollTo({ top: 0 });
+    formScrolledRef.current = true;
   }
 
   return (
