@@ -50,6 +50,14 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   // #endregion
 
   // #region agent log
+  const handleImagesChange = useCallback((newImagesOrFn) => {
+    _dbgD('DuringShift:handleImagesChange','CALLED',{type:typeof newImagesOrFn,isFunction:typeof newImagesOrFn === 'function',isArray:Array.isArray(newImagesOrFn),length:Array.isArray(newImagesOrFn)?newImagesOrFn.length:'n/a',hypothesisId:'H-I'});
+    setImages(newImagesOrFn);
+    _dbgD('DuringShift:handleImagesChange','setImages DONE',{hypothesisId:'H-I'});
+  }, []);
+  // #endregion
+
+  // #region agent log
   useEffect(() => {
     _dbgD('DuringShift:imagesEffect','images state changed',{imagesCount:images.length,imageIds:images.map(i=>i.id),hypothesisId:'H-G'});
   }, [images]);
@@ -141,7 +149,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Photos</label>
             <ImageUpload
               images={images}
-              onImagesChange={setImages}
+              onImagesChange={handleImagesChange}
               maxImages={5}
             />
           </div>
