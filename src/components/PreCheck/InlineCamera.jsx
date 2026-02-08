@@ -36,12 +36,14 @@ export default function InlineCamera({ onCapture, onClose }) {
           source: CameraSource.Camera,
           saveToGallery: false,
           correctOrientation: true,
+          width: 1920,
         });
 
         if (cancelled) return;
         let file = null;
-        if (photo?.webPath) {
-          const response = await fetch(photo.webPath);
+        const webPath = photo?.webPath || (photo?.path ? Capacitor.convertFileSrc(photo.path) : null);
+        if (webPath) {
+          const response = await fetch(webPath);
           const blob = await response.blob();
           file = blobToFile(blob, `photo-${Date.now()}.jpg`);
         } else if (photo?.dataUrl) {

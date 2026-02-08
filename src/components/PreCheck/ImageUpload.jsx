@@ -57,13 +57,25 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const processAndAddFiles = async (files) => {
     if (!files || files.length === 0) return;
 
+    const rejected = { nonImage: 0, tooLarge: 0 };
     const newFiles = Array.from(files).filter(f => {
       if (f.type && !f.type.startsWith('image/')) return false;
-      if (f.size > 20 * 1024 * 1024) return false;
+      if (f.size > 40 * 1024 * 1024) return false;
       return true;
     });
 
-    if (newFiles.length === 0) return;
+    if (newFiles.length === 0) {
+      Array.from(files).forEach(f => {
+        if (f.type && !f.type.startsWith('image/')) rejected.nonImage += 1;
+        if (f.size > 40 * 1024 * 1024) rejected.tooLarge += 1;
+      });
+      if (rejected.tooLarge > 0) {
+        alert('Image is too large. Please use a smaller image.');
+      } else if (rejected.nonImage > 0) {
+        alert('Unsupported file type. Please choose an image.');
+      }
+      return;
+    }
 
     const remaining = maxImages - images.length;
     if (remaining <= 0) {
@@ -108,10 +120,12 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         source,
         saveToGallery: false,
         correctOrientation: true,
+        width: 1920,
       });
       let file = null;
-      if (photo?.webPath) {
-        const response = await fetch(photo.webPath);
+      const webPath = photo?.webPath || (photo?.path ? Capacitor.convertFileSrc(photo.path) : null);
+      if (webPath) {
+        const response = await fetch(webPath);
         const blob = await response.blob();
         file = blobToFile(blob, `photo-${Date.now()}.jpg`);
       } else if (photo?.dataUrl) {
