@@ -12,8 +12,6 @@ import {
   onPrecheckQueueUpdate,
   processPrecheckQueue,
 } from '../lib/precheckQueue';
-// TugDamageHistory used in TugSelector
-
 // ─── Persist state helpers ───
 const DURING_SHIFT_KEY = 'precheck_during_shift';
 const PAGE_STATE_KEY = 'precheck_page_state';
@@ -552,8 +550,6 @@ export default function PreCheckPage() {
   }
 
   // ─── Form (pre-shift check) ───
-  // scrollTo(0) removed from render body — now only in handleProceedToForm / QR flow
-
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
       {(queueStatus.total > 0 || !isOnline) && (

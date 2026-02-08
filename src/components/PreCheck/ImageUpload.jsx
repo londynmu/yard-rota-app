@@ -17,7 +17,9 @@ const fileToDataUrl = (file) => new Promise((resolve, reject) => {
 const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   return new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       let width = img.width;
       let height = img.height;
 
@@ -49,8 +51,8 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
         quality
       );
     };
-    img.onerror = () => resolve(file);
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
   });
 };
 
@@ -226,18 +228,17 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
             let pending = [];
-        if (storageKey) {
-          try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
-        }
-            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-          .then(arr => {
             if (storageKey) {
-              try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+              try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
             }
-          })
+            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
+              .then(arr => {
+                if (storageKey) {
+                  try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+                }
+              })
               .catch(() => {});
             processAndAddFiles(files);
-          } else {
           }
           e.target.value = '';
         }}
@@ -254,15 +255,15 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           const files = e.target.files;
           if (files && files.length > 0) {
             let pending = [];
-        if (storageKey) {
-          try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
-        }
-            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
-          .then(arr => {
             if (storageKey) {
-              try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+              try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
             }
-          })
+            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
+              .then(arr => {
+                if (storageKey) {
+                  try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+                }
+              })
               .catch(() => {});
             processAndAddFiles(files);
           }
