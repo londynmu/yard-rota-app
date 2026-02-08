@@ -4,6 +4,27 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
+// #region agent log helper
+const _dbgScroll = (loc, msg, data) => {
+  fetch('http://127.0.0.1:7242/ingest/3b8e496a-f18c-4030-a7e4-db065781ad49', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: loc,
+      message: msg,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  try {
+    const prev = JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]');
+    prev.push(`${new Date().toLocaleTimeString()} [${loc}] ${msg} ${JSON.stringify(data)}`);
+    if (prev.length > 30) prev.shift();
+    localStorage.setItem('_dbg_log_scroll', JSON.stringify(prev));
+  } catch { /* ignore */ }
+};
+// #endregion
+
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -59,6 +80,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [dbgScrollLogs, setDbgScrollLogs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]'); } catch { return []; }
+  });
   const isNative = Capacitor.isNativePlatform();
 
   // On mount, recover pending photos (dataUrl) if any (handles reload/unmount during capture)
@@ -84,6 +108,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
   }, []);
 
   const processAndAddFiles = async (files) => {
+    _dbgScroll('ImageUpload.jsx', 'process start', { y: window.scrollY, files: files?.length ?? 0, hypothesisId: 'scroll' });
     if (!files || files.length === 0) return;
 
     const rejected = { nonImage: 0, tooLarge: 0 };
@@ -145,9 +170,11 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         return merged;
       });
       setCompressing(false);
+      _dbgScroll('ImageUpload.jsx', 'process end', { y: window.scrollY, added: newImages.length, hypothesisId: 'scroll' });
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
       setCompressing(false);
+      _dbgScroll('ImageUpload.jsx', 'process error', { y: window.scrollY, error: String(err), hypothesisId: 'scroll' });
     }
   };
 
@@ -228,6 +255,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         capture="environment"
         onChange={(e) => {
           try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
+          _dbgScroll('ImageUpload.jsx', 'input onChange', { y: window.scrollY, files: e.target.files?.length ?? 0, hypothesisId: 'scroll' });
           const files = e.target.files;
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
@@ -282,6 +310,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         <button
           type="button"
           onClick={() => {
+            _dbgScroll('ImageUpload.jsx', 'take photo click', { y: window.scrollY, hypothesisId: 'scroll' });
             if (isNative) {
               setShowCamera(true);
             } else {
@@ -352,6 +381,30 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           ))}
         </div>
       )}
+
+      {/* Debug scroll panel (temporary) */}
+      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] font-mono text-yellow-800 max-h-32 overflow-y-auto">
+        <div className="flex justify-between items-center mb-1">
+          <span className="font-bold">DEBUG SCROLL</span>
+          <button
+            type="button"
+            className="text-red-500 text-[9px]"
+            onClick={() => { localStorage.removeItem('_dbg_log_scroll'); setDbgScrollLogs([]); }}
+          >
+            clear
+          </button>
+          <button
+            type="button"
+            className="text-blue-500 text-[9px]"
+            onClick={() => { try { setDbgScrollLogs(JSON.parse(localStorage.getItem('_dbg_log_scroll') || '[]')); } catch { setDbgScrollLogs([]); } }}
+          >
+            refresh
+          </button>
+        </div>
+        {dbgScrollLogs.slice(-8).map((l, i) => (
+          <div key={i}>{l}</div>
+        ))}
+      </div>
     </div>
   );
 }
