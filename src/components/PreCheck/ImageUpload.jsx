@@ -5,6 +5,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
+const InlineWebCamera = lazy(() => import('./InlineWebCamera'));
 
 // Compress image using canvas
 const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
@@ -53,6 +54,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   const [compressing, setCompressing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  const canUseWebCamera = !isNative && !!(navigator?.mediaDevices?.getUserMedia);
 
   const processAndAddFiles = async (files) => {
     if (!files || files.length === 0) return;
@@ -163,10 +165,17 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
             <div className="text-white">Opening camera...</div>
           </div>
         }>
-          <InlineCamera
-            onCapture={handleCameraCapture}
-            onClose={() => setShowCamera(false)}
-          />
+          {isNative ? (
+            <InlineCamera
+              onCapture={handleCameraCapture}
+              onClose={() => setShowCamera(false)}
+            />
+          ) : (
+            <InlineWebCamera
+              onCapture={handleCameraCapture}
+              onClose={() => setShowCamera(false)}
+            />
+          )}
         </Suspense>
       )}
 
@@ -209,6 +218,8 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           type="button"
           onClick={() => {
             if (isNative) {
+              setShowCamera(true);
+            } else if (canUseWebCamera) {
               setShowCamera(true);
             } else {
               cameraInputRef.current?.click();
