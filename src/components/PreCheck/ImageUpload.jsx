@@ -6,6 +6,13 @@ import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
+const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onloadend = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
 // Compress image using canvas
 const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   return new Promise((resolve) => {
@@ -70,6 +77,22 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
   }, [images]);
   // #endregion
 
+  // On mount, recover pending photos (dataUrl) if any (handles reload/unmount during capture)
+  useEffect(() => {
+    (async () => {
+      let pending;
+      try { pending = JSON.parse(sessionStorage.getItem('pending_photos') || '[]'); } catch { pending = []; }
+      if (!pending || pending.length === 0) return;
+      _dbg('ImageUpload.jsx:pending','found pending photos',{count:pending.length,hypothesisId:'H-K'});
+      const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
+      sessionStorage.removeItem('pending_photos');
+      if (files.length > 0) {
+        await processAndAddFiles(files);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const processAndAddFiles = async (files) => {
     // #region agent log
     _dbg('ImageUpload.jsx:processAndAddFiles','ENTRY',{filesLength:files?.length,fileTypes:files?Array.from(files).map(f=>({name:f.name,type:f.type,size:f.size})):null,hypothesisId:'H-B'});
@@ -122,6 +145,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
       // Call parent state update FIRST, then local state update
       onImagesChange(prev => [...prev, ...newImages]);
       setCompressing(false);
+      try { sessionStorage.removeItem('pending_photos'); } catch { /* */ }
       // #region agent log
       _dbg('ImageUpload.jsx:processAndAddFiles','AFTER both state updates',{hypothesisId:'H-F'});
       // #endregion
@@ -216,6 +240,10 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
           try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
           const files = e.target.files;
           if (files && files.length > 0) {
+            // persist dataUrls to survive reload/unmount
+            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
+              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify(arr)); } catch {} })
+              .catch(() => {});
             processAndAddFiles(files);
           } else {
             // #region agent log
@@ -236,6 +264,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5 }) {
         onChange={(e) => {
           const files = e.target.files;
           if (files && files.length > 0) {
+            Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
+              .then(arr => { try { sessionStorage.setItem('pending_photos', JSON.stringify(arr)); } catch {} })
+              .catch(() => {});
             processAndAddFiles(files);
           }
           e.target.value = '';
