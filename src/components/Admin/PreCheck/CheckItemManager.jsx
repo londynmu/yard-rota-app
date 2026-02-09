@@ -128,6 +128,21 @@ export default function CheckItemManager() {
     }
   };
 
+  // ─── Toggle allow_na (optimistic local update) ───
+  const toggleAllowNa = async (item) => {
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, allow_na: !i.allow_na } : i));
+    try {
+      const { error } = await supabase
+        .from('precheck_check_items')
+        .update({ allow_na: !item.allow_na })
+        .eq('id', item.id);
+      if (error) throw error;
+    } catch (err) {
+      console.error('[CheckItemManager] Toggle N/A error:', err);
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, allow_na: item.allow_na } : i));
+    }
+  };
+
   // ─── Reorder (optimistic local update) ───
   const moveItem = async (item, direction) => {
     const categoryItems = items
@@ -264,7 +279,19 @@ export default function CheckItemManager() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* N/A toggle */}
+          <button
+            type="button"
+            onClick={() => toggleAllowNa(item)}
+            className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors ${
+              item.allow_na ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+            }`}
+            title={item.allow_na ? 'N/A allowed - click to disallow' : 'N/A not allowed - click to allow'}
+          >
+            N/A
+          </button>
+
           {/* Active toggle */}
           <button
             type="button"

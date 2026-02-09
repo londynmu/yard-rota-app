@@ -412,17 +412,25 @@ export default function PreCheckList() {
                   />
                 ))}
               </div>
-              {/* Show count of OK items */}
+              {/* Show count of OK and N/A items */}
               {(() => {
                 const allItems = sub.precheck_items || [];
                 const okCount = allItems.filter(i => i.status === 'ok').length;
-                if (okCount === 0) return null;
+                const naCount = allItems.filter(i => i.status === 'na').length;
+                if (okCount === 0 && naCount === 0) return null;
                 return (
-                  <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100 text-xs text-green-600 font-medium">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {okCount} other check{okCount !== 1 ? 's' : ''} passed
+                  <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-gray-100 text-xs font-medium">
+                    {okCount > 0 && (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {okCount} passed
+                      </span>
+                    )}
+                    {naCount > 0 && (
+                      <span className="text-slate-400">{naCount} N/A</span>
+                    )}
                   </div>
                 );
               })()}
