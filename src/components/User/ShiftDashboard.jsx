@@ -967,30 +967,23 @@ export default function ShiftDashboard({
                                 className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`}
                               >
                                 <div className="flex justify-between items-start gap-2">
-                                  <div>
-                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
-                                      {shiftType} shift
-                                    </p>
-                                    <p className="text-lg font-bold text-charcoal">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-bold text-charcoal">
                                       {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
-                                      {isMe && <span className="text-gray-600"> (You)</span>}
+                                      {isMe && <span className="text-gray-500"> (You)</span>}
                                     </p>
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                                      {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                    </span>
                                     {b.tug_name && (() => {
                                       const shift = userShiftMap.get(b.user_id);
                                       return shift && isNowWithinShift(shift.start_time, shift.end_time);
                                     })() && (
-                                      <div className="mt-1.5">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm">
-                                          {b.tug_name}
-                                        </span>
-                                      </div>
+                                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                        {b.tug_name}
+                                      </span>
                                     )}
                                   </div>
+                                  <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                                    {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                  </span>
                                 </div>
 
                                 <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
