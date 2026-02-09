@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
@@ -7,6 +7,7 @@ import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
+import QRScanner from '../components/PreCheck/QRScanner';
 import {
   getPrecheckQueueStatus,
   onPrecheckQueueUpdate,
@@ -121,6 +122,7 @@ export default function PreCheckPage() {
   const [lastSubmitQueued, setLastSubmitQueued] = useState(false);
   const [queueStatus, setQueueStatus] = useState({ total: 0, pending: 0, uploading: 0, failed: 0 });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
     initialize();
@@ -332,6 +334,19 @@ export default function PreCheckPage() {
     clearFormState();
   };
 
+  const handleQRScan = useCallback((decodedText) => {
+    setShowQRScanner(false);
+    // QR codes contain URLs like: https://domain.com/precheck/tug/abc123token
+    // Extract the token from the URL
+    const match = decodedText.match(/\/precheck\/tug\/([a-f0-9]+)/i);
+    if (match && match[1]) {
+      navigate(`/precheck/tug/${match[1]}`, { replace: true });
+    } else {
+      // If it's not a recognized URL format, show an error
+      setQrError('This QR code is not recognized. Please scan a valid tug QR code.');
+    }
+  }, [navigate]);
+
   // ─── Loading ───
   if (loading) {
     return (
@@ -514,6 +529,14 @@ export default function PreCheckPage() {
 
     return (
       <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+        {/* QR Scanner overlay */}
+        {showQRScanner && (
+          <QRScanner
+            onScan={handleQRScan}
+            onClose={() => setShowQRScanner(false)}
+          />
+        )}
+
         {/* Back to completed checks if any exist */}
         {shiftChecks.length > 0 && (
           <button
@@ -528,6 +551,21 @@ export default function PreCheckPage() {
         )}
 
         <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
+
+        {/* Scan QR Code button */}
+        <button
+          type="button"
+          onClick={() => {
+            setQrError(null);
+            setShowQRScanner(true);
+          }}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black active:scale-[0.98] transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+          Scan QR Code
+        </button>
 
         {qrError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600">
