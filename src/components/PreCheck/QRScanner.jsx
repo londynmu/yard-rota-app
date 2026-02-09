@@ -2,51 +2,19 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 /**
- * Gets the active video track from the html5-qrcode scanner instance.
- * Used to control torch/flashlight via MediaStream API.
- */
-function getVideoTrack(html5Qr) {
-  try {
-    // html5-qrcode uses a video element internally — grab its srcObject
-    const videoElem = document.querySelector('#qr-reader video');
-    if (!videoElem?.srcObject) return null;
-    const tracks = videoElem.srcObject.getVideoTracks();
-    return tracks.length > 0 ? tracks[0] : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * QR Code Scanner overlay component.
  * Opens the camera, scans for QR codes, and calls onScan with the decoded text.
- * Includes torch/flashlight toggle. Handles camera permissions, errors, and cleanup.
+ * Handles camera permissions, errors, and cleanup.
  */
 export default function QRScanner({ onScan, onClose }) {
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
   const [error, setError] = useState(null);
   const [isStarting, setIsStarting] = useState(true);
-  const [torchOn, setTorchOn] = useState(false);
-  const [torchSupported, setTorchSupported] = useState(false);
   const mountedRef = useRef(true);
-
-  const turnOffTorch = useCallback(async () => {
-    try {
-      const track = getVideoTrack(html5QrRef.current);
-      if (track) {
-        await track.applyConstraints({ advanced: [{ torch: false }] });
-      }
-    } catch {
-      // Ignore — torch may not be supported
-    }
-    setTorchOn(false);
-  }, []);
 
   const stopScanner = useCallback(async () => {
     try {
-      // Turn off torch before stopping
-      await turnOffTorch();
       if (html5QrRef.current) {
         const state = html5QrRef.current.getState();
         // State 2 = SCANNING
@@ -59,7 +27,7 @@ export default function QRScanner({ onScan, onClose }) {
     } catch (err) {
       console.warn('[QRScanner] Cleanup warning:', err);
     }
-  }, [turnOffTorch]);
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -91,15 +59,6 @@ export default function QRScanner({ onScan, onClose }) {
 
         if (!cancelled && mountedRef.current) {
           setIsStarting(false);
-
-          // Check if torch is supported on this device
-          const track = getVideoTrack(scanner);
-          if (track) {
-            const capabilities = track.getCapabilities?.();
-            if (capabilities?.torch) {
-              setTorchSupported(true);
-            }
-          }
         }
       } catch (err) {
         console.error('[QRScanner] Start error:', err);
@@ -129,61 +88,21 @@ export default function QRScanner({ onScan, onClose }) {
     stopScanner().then(() => onClose());
   }, [stopScanner, onClose]);
 
-  const toggleTorch = useCallback(async () => {
-    try {
-      const track = getVideoTrack(html5QrRef.current);
-      if (!track) return;
-      const newState = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: newState }] });
-      setTorchOn(newState);
-    } catch (err) {
-      console.warn('[QRScanner] Torch toggle error:', err);
-    }
-  }, [torchOn]);
-
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/80">
         <h2 className="text-white text-sm font-semibold">Scan QR Code</h2>
-        <div className="flex items-center gap-1">
-          {/* Torch toggle — only shown if device supports it */}
-          {torchSupported && (
-            <button
-              type="button"
-              onClick={toggleTorch}
-              className={`p-2 rounded-lg transition-colors ${
-                torchOn
-                  ? 'bg-amber-500 text-black'
-                  : 'text-white hover:bg-white/10'
-              }`}
-              aria-label={torchOn ? 'Turn off flashlight' : 'Turn on flashlight'}
-            >
-              {torchOn ? (
-                // Filled bolt icon — torch ON
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z" />
-                </svg>
-              ) : (
-                // Outline bolt icon — torch OFF
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              )}
-            </button>
-          )}
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Close scanner"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+          aria-label="Close scanner"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Scanner area */}
