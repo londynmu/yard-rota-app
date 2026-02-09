@@ -79,7 +79,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       try {
         const { data, error } = await supabase
           .from('precheck_check_items')
-          .select('item_key, label, tooltip, category')
+          .select('item_key, label, tooltip, category, allow_na')
           .eq('is_active', true)
           .order('sort_order');
 
@@ -87,10 +87,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
         const outside = (data || [])
           .filter(i => i.category === 'outside')
-          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip }));
+          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip, allowNa: !!i.allow_na }));
         const inside = (data || [])
           .filter(i => i.category === 'inside')
-          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip }));
+          .map(i => ({ key: i.item_key, label: i.label, tooltip: i.tooltip, allowNa: !!i.allow_na }));
 
         setOutsideItems(outside.length > 0 ? outside : FALLBACK_OUTSIDE);
         setInsideItems(inside.length > 0 ? inside : FALLBACK_INSIDE);
@@ -431,6 +431,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             itemKey={item.key}
             label={item.label}
             tooltip={item.tooltip}
+            allowNa={item.allowNa}
             value={checkItems[item.key]?.status || ''}
             onChange={(status) => handleCheckChange(item.key, status)}
             notes={checkItems[item.key]?.notes || ''}

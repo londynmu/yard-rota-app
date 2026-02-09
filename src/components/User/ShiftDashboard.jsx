@@ -967,11 +967,11 @@ export default function ShiftDashboard({
                                 className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`}
                               >
                                 <div className="flex justify-between items-start gap-2">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-sm font-bold text-charcoal">
-                                      {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
-                                      {isMe && <span className="text-gray-500"> (You)</span>}
-                                    </p>
+                                  <p className="text-sm font-bold text-charcoal">
+                                    {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
+                                    {isMe && <span className="text-gray-500"> (You)</span>}
+                                  </p>
+                                  <div className="flex items-center gap-2 shrink-0">
                                     {b.tug_name && (() => {
                                       const shift = userShiftMap.get(b.user_id);
                                       return shift && isNowWithinShift(shift.start_time, shift.end_time);
@@ -980,10 +980,10 @@ export default function ShiftDashboard({
                                         {b.tug_name}
                                       </span>
                                     )}
+                                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                                      {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
+                                    </span>
                                   </div>
-                                  <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                                    {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                  </span>
                                 </div>
 
                                 <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
