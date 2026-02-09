@@ -459,14 +459,30 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Sticky tug info + progress bar */}
+      {/* Sticky tug header with progress + legend */}
       {tugLabel && (
         <div className="sticky top-0 z-30 -mx-4 -mt-3">
-          <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-1.5 flex items-center justify-between">
-            <span className="text-xs font-bold text-charcoal">{tugLabel}</span>
-            <span className="text-[10px] font-semibold text-gray-400">{checkedCount}/{totalItems}</span>
+          <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-charcoal">{tugLabel}</span>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="w-4 h-4 rounded bg-red-500 text-white flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                  </span>
+                  Issue
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="w-4 h-4 rounded bg-green-500 text-white flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  </span>
+                  OK
+                </span>
+                <span className="text-[10px] font-semibold text-gray-400">{checkedCount}/{totalItems}</span>
+              </div>
+            </div>
           </div>
-          <div className="h-0.5 w-full bg-gray-100">
+          <div className="h-1 w-full bg-gray-100">
             <div
               className={`h-full transition-all duration-300 ${
                 progressPct === 100 ? 'bg-green-500' : 'bg-indigo-500'

@@ -593,35 +593,19 @@ export default function PreCheckPage() {
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => {
-            setStep('select');
-            clearPageState();
-            clearFormState();
-          }}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Change Tug
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-xs text-slate-400">
-            <span className="w-5 h-5 rounded bg-red-500 text-white flex items-center justify-center">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-            </span>
-            Issue
-          </span>
-          <span className="flex items-center gap-1 text-xs text-slate-400">
-            <span className="w-5 h-5 rounded bg-green-500 text-white flex items-center justify-center">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-            </span>
-            OK
-          </span>
-        </div>
-      </div>
+      <button
+        onClick={() => {
+          setStep('select');
+          clearPageState();
+          clearFormState();
+        }}
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Change Tug
+      </button>
 
       <PreCheckForm
         selectedTug={selectedTug}
