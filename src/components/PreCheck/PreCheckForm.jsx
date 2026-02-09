@@ -452,8 +452,31 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     checkItems[item.key]?.status === 'repair_needed' && !checkItems[item.key]?.notes?.trim()
   ).length;
 
+  const totalItems = allItems.length;
+  const checkedCount = allItems.filter(item => checkItems[item.key]?.status).length;
+  const progressPct = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
+  const tugLabel = selectedTug?.display_name || selectedTug?.tug_number || null;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Sticky tug info + progress bar */}
+      {tugLabel && (
+        <div className="sticky top-0 z-30 -mx-4 -mt-3">
+          <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-1.5 flex items-center justify-between">
+            <span className="text-xs font-bold text-charcoal">{tugLabel}</span>
+            <span className="text-[10px] font-semibold text-gray-400">{checkedCount}/{totalItems}</span>
+          </div>
+          <div className="h-0.5 w-full bg-gray-100">
+            <div
+              className={`h-full transition-all duration-300 ${
+                progressPct === 100 ? 'bg-green-500' : 'bg-indigo-500'
+              }`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {renderSection('Outside Check', outsideItems, outsideStatus, outsideRepairs)}
       {renderSection('Inside Check', insideItems, insideStatus, insideRepairs)}
 
