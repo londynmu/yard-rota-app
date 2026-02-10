@@ -986,13 +986,15 @@ export default function ShiftDashboard({
                                   </div>
                                 </div>
 
-                                <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                                  <span className="inline-flex items-center gap-1 font-semibold">
-                                    <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500' : 'bg-orange-400'}`}></span>
-                                    {isActive ? 'On break now' : 'Scheduled break'}
-                                  </span>
-                                  {isActive && <span className="text-green-700 font-semibold">{br.left}m left</span>}
-                                </div>
+                                {isActive && (
+                                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                                    <span className="inline-flex items-center gap-1 font-semibold">
+                                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                      On break now
+                                    </span>
+                                    <span className="text-green-700 font-semibold">{br.left}m left</span>
+                                  </div>
+                                )}
 
                                 {isActive && (
                                   <div className="mt-3">
