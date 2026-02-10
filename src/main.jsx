@@ -39,3 +39,28 @@ createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+// --- PWA Auto-Update (fixes iOS Safari caching) ---
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then((registration) => {
+    // Safety-net: check for SW updates once per day
+    setInterval(() => {
+      registration.update()
+    }, 24 * 60 * 60 * 1000)
+
+    // Main mechanism: check when user returns to app (iOS background resume)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        registration.update()
+      }
+    })
+  })
+
+  // Auto-reload when new SW takes control (works with skipWaiting + clientsClaim)
+  let refreshing = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return
+    refreshing = true
+    window.location.reload()
+  })
+}

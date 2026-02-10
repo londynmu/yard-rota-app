@@ -15,7 +15,19 @@ publish = "dist"
 
 # Service Worker - always check for updates
 [[headers]]
-  for = "/sw.js"
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# PWA registration script - always revalidate
+[[headers]]
+  for = "/registerSW.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# PWA manifest - always revalidate
+[[headers]]
+  for = "/manifest.webmanifest"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
