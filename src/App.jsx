@@ -115,7 +115,7 @@ function AppContent() {
     } else {
       setIsCheckingProfile(false);
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user ID - prevents re-check on token refresh
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {

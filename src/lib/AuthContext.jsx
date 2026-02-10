@@ -23,8 +23,10 @@ export function AuthProvider({ children }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Directly set the user state without delays or processing flag
-      setUser(session?.user || null);
+      const newUser = session?.user || null;
+      // Only update state if user identity changed (login/logout/switch user)
+      // Skip update on token refresh to prevent unnecessary re-renders across the app
+      setUser(prev => (prev?.id === newUser?.id) ? prev : newUser);
     });
 
     return () => {

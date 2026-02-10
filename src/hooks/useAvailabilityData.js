@@ -12,8 +12,11 @@ export function useAvailabilityData(currentDate, user) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Use stable user ID to prevent refetch on token refresh
+  const userId = user?.id;
+
   const fetchAvailability = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -34,7 +37,7 @@ export function useAvailabilityData(currentDate, user) {
       const { data, error: fetchError } = await supabase
         .from('availability')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0]);
       
@@ -53,7 +56,7 @@ export function useAvailabilityData(currentDate, user) {
     } finally {
       setLoading(false);
     }
-  }, [currentDate, user]);
+  }, [currentDate, userId]);
 
   useEffect(() => {
     fetchAvailability();

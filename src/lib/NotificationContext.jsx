@@ -31,10 +31,11 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(prev => prev + 1);
   }, []);
 
-  // Check if user is admin
+  // Check if user is admin - depend on user ID only to prevent re-check on token refresh
+  const userId = user?.id;
   useEffect(() => {
     async function checkIfAdmin() {
-      if (!user) {
+      if (!userId) {
         setIsAdmin(false);
         setLoading(false);
         return;
@@ -44,7 +45,7 @@ export const NotificationProvider = ({ children }) => {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single();
 
         if (error) throw error;
@@ -58,7 +59,7 @@ export const NotificationProvider = ({ children }) => {
     }
 
     checkIfAdmin();
-  }, [user]);
+  }, [userId]);
 
   // Fetch pending approvals count
   useEffect(() => {

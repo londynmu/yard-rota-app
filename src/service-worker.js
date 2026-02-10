@@ -1,9 +1,18 @@
-import { precacheAndRoute } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
+
+// Required by vite-plugin-pwa with registerType: 'autoUpdate'
+// Activates new SW immediately without waiting for tabs to close
+self.skipWaiting();
+clientsClaim();
+
+// Remove old cached assets from previous versions
+cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
