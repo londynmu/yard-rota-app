@@ -269,6 +269,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     userId: user.id,
     tugId: selectedTug.id,
     checkType,
+    formSessionId,
     remarks: remarks?.trim() || '',
     remarksImages: mapImagesToQueueEntries(remarksImages),
     items: allItems.map(item => ({

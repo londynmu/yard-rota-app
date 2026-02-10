@@ -157,6 +157,20 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
 };
 
 export const submitPrecheckPayload = async (payload, supabase) => {
+  // ─── Deduplication: check if this form session was already submitted ───
+  if (payload.formSessionId) {
+    const { data: existing } = await supabase
+      .from('precheck_submissions')
+      .select('id')
+      .eq('form_session_id', payload.formSessionId)
+      .maybeSingle();
+
+    if (existing) {
+      // Already submitted - return existing to prevent duplicate
+      return existing;
+    }
+  }
+
   const { data: submission, error: subError } = await supabase
     .from('precheck_submissions')
     .insert({
@@ -164,11 +178,23 @@ export const submitPrecheckPayload = async (payload, supabase) => {
       tug_id: payload.tugId,
       check_type: payload.checkType,
       remarks: payload.remarks || null,
+      form_session_id: payload.formSessionId || null,
     })
     .select()
     .single();
 
-  if (subError) throw subError;
+  if (subError) {
+    // Handle unique constraint violation (race condition - another request already inserted)
+    if (subError.code === '23505' && payload.formSessionId) {
+      const { data: existing } = await supabase
+        .from('precheck_submissions')
+        .select('id')
+        .eq('form_session_id', payload.formSessionId)
+        .maybeSingle();
+      if (existing) return existing;
+    }
+    throw subError;
+  }
 
   const items = payload.items || [];
   const allRows = items.map(item => ({
