@@ -268,11 +268,15 @@ export default function ShiftDashboard({
           setAllShifts([]);
         }
 
-        // Fetch ALL breaks for today (without profiles join)
+        // Fetch breaks for current effective date + next day (for night shift overlap)
+        const nextDate = toLocalYmd(new Date(
+          new Date(effectiveForBreaks + 'T12:00:00').getTime() + 86400000
+        ));
+
         const { data: breaksData, error: breaksError } = await supabase
           .from('scheduled_breaks')
           .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
-          .eq('date', effectiveForBreaks)
+          .in('date', [effectiveForBreaks, nextDate])
           .order('break_start_time');
           
         if (breaksError) throw breaksError;
@@ -661,36 +665,38 @@ export default function ShiftDashboard({
       return breakShiftType === currentShift;
     };
 
-    // Sort breaks: active first, then by time (considering night shift)
+    // Sort breaks: active on top, upcoming next (nearest first), past at bottom
     const sortBreaks = (breaks, shiftType) => {
-      return [...breaks].sort((a, b) => {
-        const aActive = isBreakActive(a.break_start_time, a.break_duration_minutes);
-        const bActive = isBreakActive(b.break_start_time, b.break_duration_minutes);
-        
-        // 1. Active breaks first
-        if (aActive && !bActive) return -1;
-        if (!aActive && bActive) return 1;
-        
-        // 2. Sort by time - handle night shift properly
-        const aTime = toMinutes(a.break_start_time);
-        const bTime = toMinutes(b.break_start_time);
-        
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        
-        // For night shift, times after 18:00 (1080 minutes) should come before times before 06:00 (360 minutes)
-        if (shiftType === 'night') {
-          // Night shift spans from 18:00 to 06:00 next day
-          // Times 18:00-23:59 (1080-1439) are "early" in the shift
-          // Times 00:00-05:59 (0-359) are "late" in the shift
-          const aAdjusted = aTime >= 18 * 60 ? aTime : aTime + 24 * 60; // Add 24h to early morning times
-          const bAdjusted = bTime >= 18 * 60 ? bTime : bTime + 24 * 60;
-          return aAdjusted - bAdjusted;
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const nowM = getNowMinutes();
+
+      // Date-aware absolute time (accounts for breaks on different dates + night shift)
+      const getAbsoluteTime = (b) => {
+        const t = toMinutes(b.break_start_time);
+        if (t == null) return Infinity;
+        const dateOffset = b.date > todayStr ? 24 * 60 : b.date < todayStr ? -24 * 60 : 0;
+        // Night shift: early morning times (before 06:00) on same date are after midnight
+        if (dateOffset === 0 && shiftType === 'night' && t < 6 * 60) {
+          return t + 24 * 60;
         }
-        
-        // For day and afternoon shifts, normal time sorting
-        return aTime - bTime;
+        return t + dateOffset;
+      };
+
+      const getCategory = (b) => {
+        const absStart = getAbsoluteTime(b);
+        const absEnd = absStart + (b.break_duration_minutes || 0);
+        if (nowM >= absStart && nowM < absEnd) return 0; // active - top
+        if (nowM < absStart) return 1;                    // upcoming - middle
+        return 2;                                          // past - bottom
+      };
+
+      return [...breaks].sort((a, b) => {
+        const catA = getCategory(a);
+        const catB = getCategory(b);
+        if (catA !== catB) return catA - catB;
+        // Within same category, sort by time ascending
+        return getAbsoluteTime(a) - getAbsoluteTime(b);
       });
     };
 
@@ -904,7 +910,28 @@ export default function ShiftDashboard({
                   return shiftOrder.map(shiftType => {
                     if (!selectedShifts.includes(shiftType)) return null;
 
-                    const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+                    const breaks = breaksByType[shiftType]
+                      .filter(b => userLocationMap.get(b.user_id) === teamLocation)
+                      .filter(b => {
+                        // Rolling calendar: show breaks within -10h to +10h window
+                        const startM = toMinutes(b.break_start_time);
+                        if (startM == null) return true;
+                        const endM = startM + (b.break_duration_minutes || 0);
+                        const nowM = getNowMinutes();
+                        // Date-aware offset + night shift adjustment
+                        const dateOffset = b.date > todayStr ? 24 * 60 : b.date < todayStr ? -24 * 60 : 0;
+                        const nightAdj = (dateOffset === 0 && shiftType === 'night' && startM < 6 * 60) ? 24 * 60 : 0;
+                        const adjStart = startM + dateOffset + nightAdj;
+                        const adjEnd = endM + dateOffset + nightAdj;
+                        // Hide breaks that ended more than 10 hours ago
+                        if (nowM - adjEnd >= 600) return false;
+                        // Hide breaks that start more than 10 hours from now
+                        if (adjStart - nowM > 600) return false;
+                        return true;
+                      });
                     if (breaks.length === 0) return null;
 
                     const sortedBreaks = sortBreaks(breaks, shiftType);
