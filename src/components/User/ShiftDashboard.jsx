@@ -982,10 +982,6 @@ export default function ShiftDashboard({
                     userLocationMap.get(b.user_id) === teamLocation
                   ));
 
-                  if (filteredBreaks.length === 0) {
-                    return <p className="text-gray-600 text-center py-4">No breaks match selected filters</p>;
-                  }
-
                   const activeBreaks = [];
                   const upcomingBreaks = [];
 
