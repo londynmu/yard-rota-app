@@ -40,6 +40,7 @@ export default function CalendarPage() {
   const [locationsLoaded, setLocationsLoaded] = useState(false);
   const [selectedShifts, setSelectedShifts] = useState(getInitialSelectedShifts);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
+  const [userBreakLabel, setUserBreakLabel] = useState('');
   
   // Use custom hook for availability data fetching
   const { dayData, loading, refetchAvailability } = useAvailabilityData(currentDate, user);
@@ -322,7 +323,14 @@ export default function CalendarPage() {
           
           {/* Today's Breaks Section - Title with Badges */}
           <div className="mb-3">
-            <h2 className="text-xl font-bold text-charcoal mb-2">Today's Breaks</h2>
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-bold text-charcoal">Today's Breaks</h2>
+              {userBreakLabel && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                  {userBreakLabel}
+                </span>
+              )}
+            </div>
             
             {/* Badges Row */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -380,6 +388,7 @@ export default function CalendarPage() {
             renderShiftBadges={true}
             selectedShifts={selectedShifts}
             onShiftCountsChange={setShiftCounts}
+            onUserBreakLabelChange={setUserBreakLabel}
           />
           
         </div>

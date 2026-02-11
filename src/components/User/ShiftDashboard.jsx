@@ -37,6 +37,22 @@ const getNightSortValue = (timeStr) => {
   return totalMinutes;
 };
 
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const normalized = timeStr.slice(0, 5);
+  const [hours, minutes] = normalized.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const normalizeTimelineMinutes = (minutes, nowMinutes) => {
+  if (minutes == null) return null;
+  if (nowMinutes < 6 * 60 && minutes >= 18 * 60) {
+    return minutes - 24 * 60;
+  }
+  return minutes;
+};
+
 export default function ShiftDashboard({ 
   initialView = 'shift', 
   hideTabSwitcher = false, 
@@ -44,7 +60,8 @@ export default function ShiftDashboard({
   selectedLocation = null,
   renderShiftBadges = false,
   selectedShifts = ['day', 'afternoon', 'night'],
-  onShiftCountsChange = null
+  onShiftCountsChange = null,
+  onUserBreakLabelChange = null
 }) {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
@@ -84,6 +101,55 @@ export default function ShiftDashboard({
       onShiftCountsChange(counts);
     }
   }, [allBreaks, allShifts, teamLocation, onShiftCountsChange]);
+
+  // Expose current user's break status for parent header (Calendar page)
+  useEffect(() => {
+    if (!onUserBreakLabelChange) return;
+    if (!user) {
+      onUserBreakLabelChange('');
+      return;
+    }
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const userBreaks = allBreaks.filter(
+      (b) => b.user_id === user.id && selectedShifts.includes(b.shift_type)
+    );
+
+    if (userBreaks.length === 0) {
+      onUserBreakLabelChange('You: no breaks today');
+      return;
+    }
+
+    const normalizedBreaks = userBreaks
+      .map((b) => {
+        const startRaw = parseTimeToMinutes(b.break_start_time);
+        const start = normalizeTimelineMinutes(startRaw, nowMinutes);
+        if (start == null) return null;
+        const duration = b.break_duration_minutes || 0;
+        return { breakItem: b, start, end: start + duration };
+      })
+      .filter(Boolean);
+
+    const activeBreak = normalizedBreaks.find((b) => nowMinutes >= b.start && nowMinutes < b.end);
+    if (activeBreak) {
+      const minutesLeft = Math.max(0, activeBreak.end - nowMinutes);
+      onUserBreakLabelChange(`You on break now (${minutesLeft}m left)`);
+      return;
+    }
+
+    const nextBreak = normalizedBreaks
+      .filter((b) => b.start > nowMinutes)
+      .sort((a, b) => a.start - b.start)[0];
+
+    if (nextBreak) {
+      const nextTime = nextBreak.breakItem.break_start_time?.substring(0, 5) || '??:??';
+      onUserBreakLabelChange(`You at ${nextTime}`);
+      return;
+    }
+
+    onUserBreakLabelChange('You: break finished');
+  }, [allBreaks, selectedShifts, user, onUserBreakLabelChange, currentTime]);
   
   // Fetch user profile to get shift preference
   useEffect(() => {
