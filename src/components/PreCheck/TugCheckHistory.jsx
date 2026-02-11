@@ -108,7 +108,7 @@ export default function TugCheckHistory({ tugId }) {
       .filter((damage) => !usedDamageIds.has(damage.id))
       .map((damage) => ({
         key: `damage-${damage.id}`,
-        itemName: 'Not specified',
+        itemName: 'Damage report',
         description: damage.description || '',
         imageUrls: damage.image_urls || [],
       }));
