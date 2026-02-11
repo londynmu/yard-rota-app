@@ -47,8 +47,13 @@ const parseTimeToMinutes = (timeStr) => {
 
 const normalizeTimelineMinutes = (minutes, nowMinutes) => {
   if (minutes == null) return null;
+  // Before 06:00: treat evening times (18:00+) as "yesterday" (negative)
   if (nowMinutes < 6 * 60 && minutes >= 18 * 60) {
     return minutes - 24 * 60;
+  }
+  // After 18:00: treat early-morning times (00:00-06:00) as "upcoming" (next day)
+  if (nowMinutes >= 18 * 60 && minutes < 6 * 60) {
+    return minutes + 24 * 60;
   }
   return minutes;
 };
@@ -630,10 +635,11 @@ export default function ShiftDashboard({
       return `${h}h ${m}m`;
     };
     const getBreakProgressFor = (start, duration) => {
-      const startM = toMinutes(start);
-      const endM = startM != null ? startM + (duration || 0) : null;
+      const startRaw = toMinutes(start);
       const nowM = getNowMinutes();
-      if (startM == null || endM == null || endM <= startM) return { active: false, pct: 0, left: 0 };
+      const startM = normalizeTimelineMinutes(startRaw, nowM);
+      const endM = startM != null ? startM + (duration || 0) : null;
+      if (startM == null || endM == null) return { active: false, pct: 0, left: 0 };
       if (nowM < startM) return { active: false, pct: 0, left: startM - nowM };
       if (nowM >= endM) return { active: false, pct: 100, left: 0 };
       const pct = Math.floor(((nowM - startM) / (endM - startM)) * 100);
@@ -644,28 +650,30 @@ export default function ShiftDashboard({
     const getNextBreakForUser = () => {
       if (!breakInfo || !breakInfo.myBreaks || breakInfo.myBreaks.length === 0) return null;
       const nowM = getNowMinutes();
-      const sorted = [...breakInfo.myBreaks].sort((a, b) => toMinutes(a.break_start_time) - toMinutes(b.break_start_time));
+      const withNorm = breakInfo.myBreaks.map((b) => {
+        const startRaw = toMinutes(b.break_start_time);
+        const start = normalizeTimelineMinutes(startRaw, nowM);
+        return { ...b, start, end: start != null ? start + (b.break_duration_minutes || 0) : null };
+      }).filter((b) => b.start != null);
+      const sorted = withNorm.sort((a, b) => a.start - b.start);
       // Check if currently on any break
       for (const b of sorted) {
-        const start = toMinutes(b.break_start_time);
-        const end = start + (b.break_duration_minutes || 0);
-        if (nowM >= start && nowM < end) {
+        if (nowM >= b.start && nowM < b.end) {
           return {
             type: 'active',
-            minutesLeft: end - nowM,
-            start,
-            end
+            minutesLeft: b.end - nowM,
+            start: b.start,
+            end: b.end
           };
         }
       }
       // Find next upcoming break
-      const upcoming = sorted.find(b => toMinutes(b.break_start_time) > nowM);
+      const upcoming = sorted.find((b) => b.start > nowM);
       if (!upcoming) return null;
-      const start = toMinutes(upcoming.break_start_time);
       return {
         type: 'upcoming',
-        minutesToStart: start - nowM,
-        start,
+        minutesToStart: upcoming.start - nowM,
+        start: upcoming.start,
         duration: upcoming.break_duration_minutes || 0
       };
     };
@@ -684,10 +692,12 @@ export default function ShiftDashboard({
     // Map user -> shift times for tug badge visibility (only show during active shift)
     const userShiftMap = new Map(allShifts.map(s => [s.user_id, { start_time: s.start_time, end_time: s.end_time }]));
 
-    // Helper function to check if break is currently active
+    // Helper function to check if break is currently active (handles overnight breaks)
     const isBreakActive = (breakStartTime, breakDurationMinutes) => {
       const now = getNowMinutes();
-      const start = toMinutes(breakStartTime);
+      const startRaw = toMinutes(breakStartTime);
+      const start = normalizeTimelineMinutes(startRaw, now);
+      if (start == null) return false;
       const end = start + (breakDurationMinutes || 0);
       return now >= start && now < end;
     };
@@ -961,9 +971,14 @@ export default function ShiftDashboard({
                     const baseMinutes = toMinutes(timeStr);
                     if (baseMinutes == null) return null;
 
-                    // Before 06:00 treat previous-evening breaks as already in the past.
+                    // Before 06:00: treat evening breaks (18:00+) as "yesterday" so they show active when spanning midnight
                     if (nowMinutes < 6 * 60 && baseMinutes >= 18 * 60) {
                       return baseMinutes - 24 * 60;
+                    }
+
+                    // After 18:00: treat early-morning breaks (00:00-06:00) as "upcoming" so they appear in the list
+                    if (nowMinutes >= 18 * 60 && baseMinutes < 6 * 60) {
+                      return baseMinutes + 24 * 60;
                     }
 
                     return baseMinutes;
