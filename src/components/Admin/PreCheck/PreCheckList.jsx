@@ -363,46 +363,42 @@ export default function PreCheckList() {
           hasDefect ? 'border-red-200' : 'border-green-200'
         } ${isExpanded ? 'shadow-md' : ''}`}
       >
-        {/* Card header – clickable, toggles expand */}
+        {/* Card header – mobile: 2 lines; desktop: single line */}
         <button
           type="button"
           onClick={() => setExpandedCardId(prev => prev === sub.id ? null : sub.id)}
-          className={`w-full px-4 py-2.5 flex items-center gap-2 flex-wrap text-left cursor-pointer ${
+          className={`w-full px-4 py-2.5 min-h-[4rem] md:min-h-0 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 items-center text-left cursor-pointer md:flex md:flex-row md:flex-nowrap md:gap-2 ${
             hasDefect ? 'bg-red-50' : 'bg-green-50'
           } hover:opacity-95 transition-opacity`}
         >
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            hasDefect ? 'bg-red-500' : 'bg-green-500'
-          }`} />
-
-          {viewMode === 'byDate' && (
-            <span className="font-semibold text-charcoal text-sm">
-              {sub.tugs?.display_name || sub.tugs?.tug_number}
-              {sub.tugs?.display_name && sub.tugs?.tug_number && (
-                <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
+          {/* Dot + tug/date + damage */}
+          <div className="flex items-center gap-2 min-w-0 md:order-1">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              hasDefect ? 'bg-red-500' : 'bg-green-500'
+            }`} />
+            <span className="font-semibold text-charcoal text-sm truncate">
+              {viewMode === 'byDate' && (
+                <>
+                  {sub.tugs?.display_name || sub.tugs?.tug_number}
+                  {sub.tugs?.display_name && sub.tugs?.tug_number && (
+                    <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
+                  )}
+                </>
+              )}
+              {viewMode === 'byTug' && (
+                new Date(sub.check_date + 'T12:00:00').toLocaleDateString('en-GB', {
+                  day: '2-digit', month: 'short', year: 'numeric',
+                })
+              )}
+              {hasFaults && (
+                <span className="text-red-600 font-medium">
+                  {' · '}{faults.length} damage{faults.length !== 1 ? 's' : ''}
+                </span>
               )}
             </span>
-          )}
-          {viewMode === 'byTug' && (
-            <span className="font-semibold text-charcoal text-sm">
-              {new Date(sub.check_date + 'T12:00:00').toLocaleDateString('en-GB', {
-                day: '2-digit', month: 'short', year: 'numeric',
-              })}
-            </span>
-          )}
-
-          <span className="text-xs text-gray-500">
-            by <span className="font-semibold text-charcoal">{userName}</span> · {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
-              hour: '2-digit', minute: '2-digit',
-            })}
-          </span>
-
-          <span className="ml-auto flex items-center gap-2">
-            {hasFaults && (
-              <span className="text-xs text-red-600 font-medium">
-                {faults.length} damage{faults.length !== 1 ? 's' : ''}
-              </span>
-            )}
+          </div>
+          {/* Badge + chevron */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 md:order-4">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               sub.check_type === 'pre_shift'
                 ? 'bg-blue-100 text-blue-700'
@@ -419,7 +415,18 @@ export default function PreCheckList() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
+          </div>
+          {/* by User · time – row 2 on mobile, inline on desktop */}
+          <span className="text-xs text-gray-500 truncate col-span-1 md:order-2 md:col-span-auto">
+            by <span className="font-semibold text-charcoal">{userName}</span>
+            {' · '}
+            {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </span>
+          {/* Spacer for desktop single line – pushes badge+chevron to the right */}
+          <span className="hidden md:inline-block md:flex-1 md:order-3" aria-hidden />
         </button>
 
         {/* Card body – only when expanded */}
