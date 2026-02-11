@@ -889,125 +889,168 @@ export default function ShiftDashboard({
             ) : (
               <div className="space-y-4">
                 {(() => {
-                  const currentShift = getCurrentShiftType();
-                  const shiftOrder = [currentShift, 'day', 'afternoon', 'night'].filter((v, i, a) => a.indexOf(v) === i);
+                  const nowMinutes = getNowMinutes();
+                  const normalizeBreakMinutes = (timeStr) => {
+                    const baseMinutes = toMinutes(timeStr);
+                    if (baseMinutes == null) return null;
 
-                  return shiftOrder.map(shiftType => {
-                    if (!selectedShifts.includes(shiftType)) return null;
+                    // Before 06:00 treat previous-evening breaks as already in the past.
+                    if (nowMinutes < 6 * 60 && baseMinutes >= 18 * 60) {
+                      return baseMinutes - 24 * 60;
+                    }
 
-                    const breaks = breaksByType[shiftType].filter(b => userLocationMap.get(b.user_id) === teamLocation);
-                    if (breaks.length === 0) return null;
+                    return baseMinutes;
+                  };
 
-                    const sortedBreaks = sortBreaks(breaks, shiftType);
-                    let orderedBreaks = [...sortedBreaks];
+                  const getBreakWindow = (breakItem) => {
+                    const start = normalizeBreakMinutes(breakItem.break_start_time);
+                    if (start == null) return null;
+                    const duration = breakItem.break_duration_minutes || 0;
+                    const end = start + duration;
+                    return { start, end, duration };
+                  };
 
-                    if (user?.id) {
-                      const myIndex = orderedBreaks.findIndex(b => b.user_id === user.id);
-                      if (myIndex !== -1) {
-                        const myBreak = orderedBreaks[myIndex];
-                        const myProgress = getBreakProgressFor(myBreak.break_start_time, myBreak.break_duration_minutes);
-                        // Only reposition when the user's break is not currently active
-                        if (!myProgress.active) {
-                          orderedBreaks.splice(myIndex, 1);
-                          const activeCount = orderedBreaks.reduce((count, b) => {
-                            const progress = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
-                            return progress.active ? count + 1 : count;
-                          }, 0);
-                          orderedBreaks.splice(activeCount, 0, myBreak);
-                        }
+                  const filteredBreaks = allBreaks.filter((b) => (
+                    selectedShifts.includes(b.shift_type) &&
+                    userLocationMap.get(b.user_id) === teamLocation
+                  ));
+
+                  if (filteredBreaks.length === 0) {
+                    return <p className="text-gray-600 text-center py-4">No breaks match selected filters</p>;
+                  }
+
+                  const activeBreaks = [];
+                  const upcomingBreaks = [];
+                  const pastBreaks = [];
+
+                  filteredBreaks.forEach((b) => {
+                    const window = getBreakWindow(b);
+                    if (!window) return;
+
+                    if (nowMinutes >= window.start && nowMinutes < window.end) {
+                      activeBreaks.push({ breakItem: b, window });
+                      return;
+                    }
+
+                    if (window.start > nowMinutes) {
+                      upcomingBreaks.push({ breakItem: b, window });
+                      return;
+                    }
+
+                    pastBreaks.push({ breakItem: b, window });
+                  });
+
+                  activeBreaks.sort((a, b) => a.window.start - b.window.start);
+                  upcomingBreaks.sort((a, b) => a.window.start - b.window.start);
+                  pastBreaks.sort((a, b) => b.window.start - a.window.start);
+
+                  const renderBreakCard = ({ breakItem, window }, isInCenter = false) => {
+                    const endTime = calculateEndTime(breakItem.break_start_time, breakItem.break_duration_minutes);
+                    const isMe = breakItem.user_id === user?.id;
+                    const isActive = nowMinutes >= window.start && nowMinutes < window.end;
+                    const total = Math.max(1, window.duration);
+                    const elapsed = Math.max(0, Math.min(total, nowMinutes - window.start));
+                    const pct = Math.floor((elapsed / total) * 100);
+                    const left = Math.max(0, window.end - nowMinutes);
+
+                    let cardColors = isActive
+                      ? 'bg-green-50 border-green-300 shadow-green-100'
+                      : 'bg-orange-50 border-orange-200 shadow-orange-100';
+                    let cardExtras = '';
+
+                    if (isMe) {
+                      if (isActive) {
+                        cardExtras = 'ring-2 ring-green-400 ring-offset-2 ring-offset-green-50';
+                      } else {
+                        cardColors = 'bg-amber-50 border-amber-300 shadow-amber-100';
+                        cardExtras = 'ring-2 ring-amber-300';
                       }
                     }
-                    const shiftColors = {
-                      day: 'bg-amber-100 text-amber-800 border-amber-300',
-                      afternoon: 'bg-orange-100 text-orange-800 border-orange-300',
-                      night: 'bg-blue-100 text-blue-800 border-blue-300'
-                    };
+
+                    if (!isInCenter && !isActive) {
+                      cardExtras = `${cardExtras} opacity-90`;
+                    }
 
                     return (
-                      <div 
-                        key={shiftType}
+                      <div
+                        key={breakItem.id}
+                        className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`.trim()}
                       >
-                        {!renderShiftBadges && (
-                          <h3 className={`text-xs font-bold uppercase mb-3 px-2 py-1 rounded inline-block border ${shiftColors[shiftType]}`}>
-                            {shiftType} Shift ({sortedBreaks.length})
-                          </h3>
-                        )}
-                        <div className="space-y-3 mb-4">
-                          {orderedBreaks.map((b, index) => {
-                            const endTime = calculateEndTime(b.break_start_time, b.break_duration_minutes);
-                            const isMe = b.user_id === user?.id;
-                            const br = getBreakProgressFor(b.break_start_time, b.break_duration_minutes);
-                            const isActive = br.active;
-                            let cardColors = isActive
-                              ? 'bg-green-50 border-green-300 shadow-green-100'
-                              : 'bg-orange-50 border-orange-200 shadow-orange-100';
-                            let cardExtras = '';
-
-                            if (isMe) {
-                              if (isActive) {
-                                cardExtras = 'ring-2 ring-green-400 ring-offset-2 ring-offset-green-50';
-                              } else {
-                                cardColors = 'bg-amber-50 border-amber-300 shadow-amber-100';
-                                cardExtras = 'ring-2 ring-amber-300';
-                              }
-                            }
-
-                            return (
-                              <div
-                                key={b.id}
-                                className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`}
-                              >
-                                <div className="flex justify-between items-start gap-2">
-                                  <p className="text-sm font-bold text-charcoal">
-                                    {b.profiles?.first_name || 'Unknown'} {b.profiles?.last_name || 'User'}
-                                    {isMe && <span className="text-gray-500"> (You)</span>}
-                                  </p>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    {b.tug_name && (() => {
-                                      const shift = userShiftMap.get(b.user_id);
-                                      return shift && isNowWithinShift(shift.start_time, shift.end_time);
-                                    })() && (
-                                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                        {b.tug_name}
-                                      </span>
-                                    )}
-                                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                                      {b.break_start_time?.substring(0,5) || '??:??'} - {endTime}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {isActive && (
-                                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                                    <span className="inline-flex items-center gap-1 font-semibold">
-                                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                      On break now
-                                    </span>
-                                    <span className="text-green-700 font-semibold">{br.left}m left</span>
-                                  </div>
-                                )}
-
-                                {isActive && (
-                                  <div className="mt-3">
-                                    <div className="flex justify-between text-[11px] text-gray-600 mb-1">
-                                      <span>Break progress</span>
-                                      <span>{br.pct}%</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-green-200">
-                                      <div
-                                        className="h-full bg-green-500 rounded-full transition-all duration-300"
-                                        style={{ width: `${br.pct}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm font-bold text-charcoal">
+                            {breakItem.profiles?.first_name || 'Unknown'} {breakItem.profiles?.last_name || 'User'}
+                            {isMe && <span className="text-gray-500"> (You)</span>}
+                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {breakItem.tug_name && (() => {
+                              const shift = userShiftMap.get(breakItem.user_id);
+                              return shift && isNowWithinShift(shift.start_time, shift.end_time);
+                            })() && (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                {breakItem.tug_name}
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                              {breakItem.break_start_time?.substring(0, 5) || '??:??'} - {endTime}
+                            </span>
+                          </div>
                         </div>
+
+                        {isActive && (
+                          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                            <span className="inline-flex items-center gap-1 font-semibold">
+                              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                              On break now
+                            </span>
+                            <span className="text-green-700 font-semibold">{left}m left</span>
+                          </div>
+                        )}
+
+                        {isActive && (
+                          <div className="mt-3">
+                            <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                              <span>Break progress</span>
+                              <span>{pct}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-green-200">
+                              <div
+                                className="h-full bg-green-500 rounded-full transition-all duration-300"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
-                  });
+                  };
+
+                  return (
+                    <div className="space-y-3 mb-4">
+                      {upcomingBreaks.length > 0 && (
+                        <div className="space-y-2">
+                          {[...upcomingBreaks].reverse().map((entry) => renderBreakCard(entry))}
+                        </div>
+                      )}
+
+                      <div className="rounded-2xl border-2 border-gray-300 bg-white p-2 shadow-sm">
+                        {activeBreaks.length > 0 ? (
+                          <div className="space-y-3">
+                            {activeBreaks.map((entry) => renderBreakCard(entry, true))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm font-medium text-gray-600">
+                            No active breaks now
+                          </div>
+                        )}
+                      </div>
+
+                      {pastBreaks.length > 0 && (
+                        <div className="space-y-2">
+                          {pastBreaks.map((entry) => renderBreakCard(entry))}
+                        </div>
+                      )}
+                    </div>
+                  );
                 })()}
               </div>
             )
