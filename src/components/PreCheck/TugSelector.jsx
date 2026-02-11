@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import PropTypes from 'prop-types';
 import TugDamageHistory from './TugDamageHistory';
+import TugCheckHistory from './TugCheckHistory';
 
 export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId, checkedTugIds = [] }) {
   const [tugs, setTugs] = useState([]);
@@ -135,6 +136,12 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
               {/* Expanded content */}
               {isExpanded && (
                 <div className="bg-white border-x border-b border-amber-200/60 rounded-b-xl px-4 py-3 space-y-3">
+                  {/* Check history */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Check History (30 days)</p>
+                    <TugCheckHistory tugId={tug.id} />
+                  </div>
+
                   {/* Damage history */}
                   <div>
                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>
