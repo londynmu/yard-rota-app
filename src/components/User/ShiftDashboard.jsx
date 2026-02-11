@@ -987,7 +987,6 @@ export default function ShiftDashboard({
 
                   const activeBreaks = [];
                   const upcomingBreaks = [];
-                  const pastBreaks = [];
 
                   filteredBreaks.forEach((b) => {
                     const window = getBreakWindow(b);
@@ -1003,15 +1002,14 @@ export default function ShiftDashboard({
                       return;
                     }
 
-                    pastBreaks.push({ breakItem: b, window });
+                    // Past breaks are intentionally omitted from the list.
                   });
 
                   activeBreaks.sort((a, b) => a.window.start - b.window.start);
                   upcomingBreaks.sort((a, b) => a.window.start - b.window.start);
-                  pastBreaks.sort((a, b) => b.window.start - a.window.start);
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
-                    const { isInCenter = false, drumDistance = 0 } = options;
+                    const { isActiveList = false } = options;
                     const endTime = calculateEndTime(breakItem.break_start_time, breakItem.break_duration_minutes);
                     const isMe = breakItem.user_id === user?.id;
                     const isActive = nowMinutes >= window.start && nowMinutes < window.end;
@@ -1034,22 +1032,14 @@ export default function ShiftDashboard({
                       }
                     }
 
-                    if (!isInCenter && !isActive) {
-                      cardExtras = `${cardExtras} opacity-90`;
+                    if (isActiveList) {
+                      cardExtras = `${cardExtras} ring-1 ring-green-300`;
                     }
-
-                    const clampedDistance = Math.max(0, Math.min(6, drumDistance));
-                    const scale = isInCenter ? 1 : Math.max(0.82, 1 - clampedDistance * 0.04);
-                    const opacity = isInCenter ? 1 : Math.max(0.5, 1 - clampedDistance * 0.1);
 
                     return (
                       <div
                         key={breakItem.id}
                         className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`.trim()}
-                        style={{
-                          transform: `scale(${scale})`,
-                          opacity
-                        }}
                       >
                         <div className="flex justify-between items-start gap-2">
                           <p className="text-sm font-bold text-charcoal">
@@ -1101,25 +1091,13 @@ export default function ShiftDashboard({
 
                   return (
                     <div className="space-y-3 mb-4">
-                      {upcomingBreaks.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
-                            Upcoming
-                          </div>
-                          {[...upcomingBreaks].reverse().map((entry, index, arr) => {
-                            const drumDistance = arr.length - index;
-                            return renderBreakCard(entry, { drumDistance });
-                          })}
-                        </div>
-                      )}
-
-                      <div className="rounded-2xl border-2 border-gray-300 bg-white p-2 shadow-sm">
-                        <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2 pb-1">
-                          Now
+                      <div className="space-y-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
+                          Active now
                         </div>
                         {activeBreaks.length > 0 ? (
                           <div className="space-y-3">
-                            {activeBreaks.map((entry) => renderBreakCard(entry, { isInCenter: true }))}
+                            {activeBreaks.map((entry) => renderBreakCard(entry, { isActiveList: true }))}
                           </div>
                         ) : (
                           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm font-medium text-gray-600">
@@ -1128,16 +1106,20 @@ export default function ShiftDashboard({
                         )}
                       </div>
 
-                      {pastBreaks.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
-                            Past
-                          </div>
-                          {pastBreaks.map((entry, index) => (
-                            renderBreakCard(entry, { drumDistance: index + 1 })
-                          ))}
+                      <div className="space-y-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
+                          Upcoming
                         </div>
-                      )}
+                        {upcomingBreaks.length > 0 ? (
+                          <div className="space-y-3">
+                            {upcomingBreaks.map((entry) => renderBreakCard(entry))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm font-medium text-gray-600">
+                            No upcoming breaks
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
