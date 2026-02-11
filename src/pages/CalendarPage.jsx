@@ -13,7 +13,8 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
-  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [availableLocations, setAvailableLocations] = useState([]);
   const [selectedShifts, setSelectedShifts] = useState(['day', 'afternoon', 'night']);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   
@@ -44,6 +45,48 @@ export default function CalendarPage() {
       }
     };
   }, []);
+
+  // Fetch active locations for the breaks filter
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('name')
+          .eq('is_active', true)
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+
+        const sortedLocations = (data || [])
+          .map((loc) => loc.name)
+          .filter(Boolean);
+
+        setAvailableLocations(sortedLocations);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+        setAvailableLocations([]);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Keep selected location in sync with currently active locations
+  useEffect(() => {
+    if (availableLocations.length === 0) {
+      if (selectedLocation !== '') {
+        setSelectedLocation('');
+      }
+      return;
+    }
+
+    const hasSelectedLocation = availableLocations.includes(selectedLocation);
+    if (!hasSelectedLocation) {
+      const defaultLocation = availableLocations[0];
+      setSelectedLocation(defaultLocation);
+    }
+  }, [availableLocations, selectedLocation]);
   
   const handlePreviousMonth = useCallback(() => {
     // Always allow navigation to previous months for viewing purposes
@@ -94,11 +137,11 @@ export default function CalendarPage() {
   
   // Handler for location toggle
   const handleLocationToggle = useCallback(() => {
-    const locations = ['Rugby', 'NRC', 'Nuneaton'];
-    const currentIndex = locations.indexOf(selectedLocation);
-    const nextIndex = (currentIndex + 1) % locations.length;
-    setSelectedLocation(locations[nextIndex]);
-  }, [selectedLocation]);
+    if (availableLocations.length === 0) return;
+    const currentIndex = availableLocations.indexOf(selectedLocation);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % availableLocations.length;
+    setSelectedLocation(availableLocations[nextIndex]);
+  }, [selectedLocation, availableLocations]);
   
   // Handler for shift filter toggle
   const handleShiftToggle = useCallback((shiftType) => {
@@ -240,9 +283,10 @@ export default function CalendarPage() {
               {/* Location Badge */}
               <button
                 onClick={handleLocationToggle}
+                disabled={availableLocations.length === 0}
                 className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
               >
-                {selectedLocation}
+                {selectedLocation || 'No locations'}
               </button>
               
               {/* Shift Badges - Clickable filters */}

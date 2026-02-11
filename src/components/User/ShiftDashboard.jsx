@@ -57,7 +57,7 @@ export default function ShiftDashboard({
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
-  const [teamLocation, setTeamLocation] = useState(selectedLocation || 'Rugby'); // location tab (Rugby default)
+  const [teamLocation, setTeamLocation] = useState(selectedLocation || ''); // location tab
   const [showLocationModal, setShowLocationModal] = useState(false);
   
   // Sync with external selectedLocation if provided
@@ -603,21 +603,12 @@ export default function ShiftDashboard({
       };
     };
 
-    // Locations list (prefer Rugby, NRC, Nuneaton order)
+    // Locations list sorted alphabetically from live shift data
     const allLocations = [...new Set(allShifts.map(s => s.location))];
-    const preferredOrder = ['Rugby', 'NRC', 'Nuneaton'];
-    const sortedLocations = allLocations.sort((a, b) => {
-      const ia = preferredOrder.indexOf(a);
-      const ib = preferredOrder.indexOf(b);
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return (a || '').localeCompare(b || '');
-    });
+    const sortedLocations = allLocations.sort((a, b) => (a || '').localeCompare(b || ''));
     // Ensure current tab is valid
     if (sortedLocations.length > 0 && !sortedLocations.includes(teamLocation)) {
-      // Default to Rugby if present, else first available
-      setTeamLocation(sortedLocations.includes('Rugby') ? 'Rugby' : sortedLocations[0]);
+      setTeamLocation(sortedLocations[0]);
     }
 
     // Map user -> location for breaks filtering
