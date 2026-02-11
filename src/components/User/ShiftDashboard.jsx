@@ -61,7 +61,8 @@ export default function ShiftDashboard({
   renderShiftBadges = false,
   selectedShifts = ['day', 'afternoon', 'night'],
   onShiftCountsChange = null,
-  onUserBreakLabelChange = null
+  onUserBreakLabelChange = null,
+  breakHeaderControls = null
 }) {
   const { user } = useAuth();
   const [shift, setShift] = useState(null);
@@ -1092,8 +1093,11 @@ export default function ShiftDashboard({
                   return (
                     <div className="space-y-3 mb-4">
                       <div className="space-y-2">
-                        <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
-                          Active now
+                        <div className="flex items-center justify-between gap-2 px-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                            Active now
+                          </div>
+                          {breakHeaderControls}
                         </div>
                         {activeBreaks.length > 0 ? (
                           <div className="space-y-3">

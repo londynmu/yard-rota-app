@@ -321,64 +321,6 @@ export default function CalendarPage() {
           {/* Pastel Divider Line */}
           <div className="border-t-2 border-blue-100"></div>
           
-          {/* Today's Breaks Section - Title with Badges */}
-          <div className="mb-3">
-            <div className="mb-2 flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-charcoal">Today's Breaks</h2>
-              {userBreakLabel && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                  {userBreakLabel}
-                </span>
-              )}
-            </div>
-            
-            {/* Badges Row */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Location Badge */}
-              <button
-                onClick={handleLocationToggle}
-                disabled={availableLocations.length === 0}
-                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
-              >
-                {selectedLocation || 'No locations'}
-              </button>
-              
-              {/* Shift Badges - Clickable filters */}
-              <button
-                onClick={() => handleShiftToggle('day')}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                  selectedShifts.includes('day')
-                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                Day {shiftCounts.day > 0 && `(${shiftCounts.day})`}
-              </button>
-              
-              <button
-                onClick={() => handleShiftToggle('afternoon')}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                  selectedShifts.includes('afternoon')
-                    ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                Afternoon {shiftCounts.afternoon > 0 && `(${shiftCounts.afternoon})`}
-              </button>
-              
-              <button
-                onClick={() => handleShiftToggle('night')}
-                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                  selectedShifts.includes('night')
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                    : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                Night {shiftCounts.night > 0 && `(${shiftCounts.night})`}
-              </button>
-            </div>
-          </div>
-          
           {/* Today's Breaks List - No container, full width like calendar */}
           <ShiftDashboard 
             initialView="breaks" 
@@ -389,6 +331,64 @@ export default function CalendarPage() {
             selectedShifts={selectedShifts}
             onShiftCountsChange={setShiftCounts}
             onUserBreakLabelChange={setUserBreakLabel}
+            breakHeaderControls={(
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleLocationToggle}
+                  disabled={availableLocations.length === 0}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] transition-colors ${
+                    availableLocations.length === 0
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${availableLocations.length === 0 ? 'bg-gray-300' : 'bg-green-400'}`} />
+                  {selectedLocation || 'No locations'}
+                </button>
+
+                <button
+                  onClick={() => handleShiftToggle('day')}
+                  title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                  aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                    selectedShifts.includes('day')
+                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                      : 'text-gray-300 hover:text-gray-500'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('day') ? 'bg-amber-400' : 'bg-gray-300'}`} />
+                  <span>Day</span>
+                </button>
+
+                <button
+                  onClick={() => handleShiftToggle('afternoon')}
+                  title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                  aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                    selectedShifts.includes('afternoon')
+                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                      : 'text-gray-300 hover:text-gray-500'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('afternoon') ? 'bg-orange-400' : 'bg-gray-300'}`} />
+                  <span>Afternoon</span>
+                </button>
+
+                <button
+                  onClick={() => handleShiftToggle('night')}
+                  title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                  aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                    selectedShifts.includes('night')
+                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                      : 'text-gray-300 hover:text-gray-500'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('night') ? 'bg-blue-400' : 'bg-gray-300'}`} />
+                  <span>Night</span>
+                </button>
+              </div>
+            )}
           />
           
         </div>
