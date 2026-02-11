@@ -104,6 +104,9 @@ export default function TugDamageHistory({ tugId }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-charcoal">{reporterName}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+                      Defect
+                    </span>
                     <span className="text-[10px] text-slate-400">{formatDate(damage.created_at)}</span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate mt-0.5">{damage.description}</p>

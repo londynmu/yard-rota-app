@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import PropTypes from 'prop-types';
-import TugDamageHistory from './TugDamageHistory';
 import TugCheckHistory from './TugCheckHistory';
 
 export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId, checkedTugIds = [] }) {
@@ -142,11 +141,6 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
                     <TugCheckHistory tugId={tug.id} />
                   </div>
 
-                  {/* Damage history */}
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Defects (30 days)</p>
-                    <TugDamageHistory tugId={tug.id} />
-                  </div>
                 </div>
               )}
             </div>
