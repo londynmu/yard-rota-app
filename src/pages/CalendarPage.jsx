@@ -7,15 +7,38 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useAvailabilityData } from '../hooks/useAvailabilityData';
 
+const CALENDAR_BREAKS_LOCATION_KEY = 'calendar_breaks_selected_location';
+const CALENDAR_BREAKS_SHIFT_FILTERS_KEY = 'calendar_breaks_selected_shifts';
+const VALID_SHIFT_TYPES = ['day', 'afternoon', 'night'];
+
+const getInitialSelectedShifts = () => {
+  try {
+    const savedValue = localStorage.getItem(CALENDAR_BREAKS_SHIFT_FILTERS_KEY);
+    if (!savedValue) return VALID_SHIFT_TYPES;
+
+    const parsed = JSON.parse(savedValue);
+    if (!Array.isArray(parsed)) return VALID_SHIFT_TYPES;
+
+    const normalized = parsed.filter((shift) => VALID_SHIFT_TYPES.includes(shift));
+    return [...new Set(normalized)];
+  } catch (error) {
+    console.warn('Failed to parse saved shift filters:', error);
+    return VALID_SHIFT_TYPES;
+  }
+};
+
 export default function CalendarPage() {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(
+    () => localStorage.getItem(CALENDAR_BREAKS_LOCATION_KEY) || ''
+  );
   const [availableLocations, setAvailableLocations] = useState([]);
-  const [selectedShifts, setSelectedShifts] = useState(['day', 'afternoon', 'night']);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
+  const [selectedShifts, setSelectedShifts] = useState(getInitialSelectedShifts);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   
   // Use custom hook for availability data fetching
@@ -50,6 +73,7 @@ export default function CalendarPage() {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
+        setLocationsLoaded(false);
         const { data, error } = await supabase
           .from('locations')
           .select('name')
@@ -66,6 +90,8 @@ export default function CalendarPage() {
       } catch (error) {
         console.error('Error fetching locations:', error);
         setAvailableLocations([]);
+      } finally {
+        setLocationsLoaded(true);
       }
     };
 
@@ -74,6 +100,8 @@ export default function CalendarPage() {
 
   // Keep selected location in sync with currently active locations
   useEffect(() => {
+    if (!locationsLoaded) return;
+
     if (availableLocations.length === 0) {
       if (selectedLocation !== '') {
         setSelectedLocation('');
@@ -86,7 +114,25 @@ export default function CalendarPage() {
       const defaultLocation = availableLocations[0];
       setSelectedLocation(defaultLocation);
     }
-  }, [availableLocations, selectedLocation]);
+  }, [availableLocations, selectedLocation, locationsLoaded]);
+
+  // Persist selected location so filter state survives page reload/navigation
+  useEffect(() => {
+    if (selectedLocation) {
+      localStorage.setItem(CALENDAR_BREAKS_LOCATION_KEY, selectedLocation);
+      return;
+    }
+
+    localStorage.removeItem(CALENDAR_BREAKS_LOCATION_KEY);
+  }, [selectedLocation]);
+
+  // Persist selected shift filters so toggles survive page reload/navigation
+  useEffect(() => {
+    localStorage.setItem(
+      CALENDAR_BREAKS_SHIFT_FILTERS_KEY,
+      JSON.stringify(selectedShifts)
+    );
+  }, [selectedShifts]);
   
   const handlePreviousMonth = useCallback(() => {
     // Always allow navigation to previous months for viewing purposes
