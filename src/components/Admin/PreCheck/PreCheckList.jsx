@@ -10,23 +10,14 @@ const TIME_RANGES = {
   '30d': { ms: 30 * 24 * 3600000, label: '30 days' },
 };
 
-const TUG_PAGE_SIZE = 20;
-
 export default function PreCheckList() {
   const { user } = useAuth();
 
   // ─── Core state ───
-  const [viewMode, setViewMode] = useState('byDate');
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-
-  // ─── By Date state ───
-  const [timeRange, setTimeRange] = useState('24h');
-
-  // ─── By Tug state ───
-  const [selectedTug, setSelectedTug] = useState('');
 
   // ─── Shared secondary filters ───
   const [filters, setFilters] = useState({
@@ -43,7 +34,6 @@ export default function PreCheckList() {
 
   // ─── Pagination cursors (refs to avoid stale closures) ───
   const windowEndRef = useRef(new Date().toISOString());
-  const tugCursorRef = useRef(null);
   const fetchGenRef = useRef(0); // generation counter to discard stale fetches
   const sentinelRef = useRef(null);
   const observerRef = useRef(null);
@@ -78,7 +68,6 @@ export default function PreCheckList() {
       setLoading(true);
       setHasMore(true);
       windowEndRef.current = new Date().toISOString();
-      tugCursorRef.current = null;
     }
 
     try {
@@ -93,34 +82,19 @@ export default function PreCheckList() {
         `)
         .order('created_at', { ascending: false });
 
-      if (viewMode === 'byDate') {
-        const rangeDuration = TIME_RANGES[timeRange].ms;
-        const rangeEnd = new Date(windowEndRef.current);
-        const rangeStart = new Date(rangeEnd.getTime() - rangeDuration);
+      const rangeDuration = TIME_RANGES['7d'].ms;
+      const rangeEnd = new Date(windowEndRef.current);
+      const rangeStart = new Date(rangeEnd.getTime() - rangeDuration);
 
-        query = query
-          .gte('check_time', rangeStart.toISOString())
-          .lt('check_time', rangeEnd.toISOString());
+      query = query
+        .gte('check_time', rangeStart.toISOString())
+        .lt('check_time', rangeEnd.toISOString());
 
-        // Secondary tug filter (By Date only)
-        if (filters.tug) {
-          query = query.eq('tug_id', filters.tug);
-        }
-
-        // Advance cursor for next load-more
-        windowEndRef.current = rangeStart.toISOString();
-      } else {
-        // By Tug mode
-        if (!selectedTug) {
-          setSubmissions([]);
-          setLoading(false);
-          return;
-        }
-        query = query.eq('tug_id', selectedTug).limit(TUG_PAGE_SIZE);
-        if (append && tugCursorRef.current) {
-          query = query.lt('created_at', tugCursorRef.current);
-        }
+      if (filters.tug) {
+        query = query.eq('tug_id', filters.tug);
       }
+
+      windowEndRef.current = rangeStart.toISOString();
 
       // Shared server-side filter
       if (filters.checkType) {
@@ -147,17 +121,7 @@ export default function PreCheckList() {
         });
       }
 
-      // Update By Tug cursor
-      if (viewMode === 'byTug' && data && data.length > 0) {
-        tugCursorRef.current = data[data.length - 1].created_at;
-      }
-
-      // Determine hasMore
-      if (viewMode === 'byTug') {
-        setHasMore((data || []).length >= TUG_PAGE_SIZE);
-      } else {
-        setHasMore((data || []).length > 0);
-      }
+      setHasMore((data || []).length > 0);
 
       if (append) {
         setSubmissions(prev => [...prev, ...results]);
@@ -172,7 +136,7 @@ export default function PreCheckList() {
         setLoadingMore(false);
       }
     }
-  }, [viewMode, timeRange, selectedTug, filters]);
+  }, [filters]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || loading) return;
@@ -225,22 +189,6 @@ export default function PreCheckList() {
     }
   };
 
-  // ─── Mode switching ───
-  const switchToByDate = () => {
-    if (viewMode === 'byDate') return;
-    setViewMode('byDate');
-    setSubmissions([]);
-    setSelectedTug('');
-    setTimeRange('24h');
-  };
-
-  const switchToByTug = () => {
-    if (viewMode === 'byTug') return;
-    setViewMode('byTug');
-    setSubmissions([]);
-    setFilters(prev => ({ ...prev, tug: '' }));
-  };
-
   // ─── Effects ───
   useEffect(() => { fetchFilterOptions(); }, [fetchFilterOptions]);
   useEffect(() => { fetchData(false); }, [fetchData]);
@@ -262,10 +210,8 @@ export default function PreCheckList() {
     return () => observerRef.current?.disconnect();
   }, [hasMore, loading, loadingMore, loadMore]);
 
-  // ─── Grouping (By Date only) ───
+  // ─── Grouping by date ───
   const grouped = useMemo(() => {
-    if (viewMode === 'byTug') return null;
-
     const map = {};
     submissions.forEach(sub => {
       const key = sub.check_date;
@@ -281,7 +227,7 @@ export default function PreCheckList() {
       map[key].items.push(sub);
     });
     return Object.values(map).sort((a, b) => b.key.localeCompare(a.key));
-  }, [submissions, viewMode]);
+  }, [submissions]);
 
   // ─── Build fault cards for a submission ───
   const getFaults = (sub) => {
@@ -377,18 +323,9 @@ export default function PreCheckList() {
               hasDefect ? 'bg-red-500' : 'bg-green-500'
             }`} />
             <span className="font-semibold text-charcoal text-sm truncate">
-              {viewMode === 'byDate' && (
-                <>
-                  {sub.tugs?.display_name || sub.tugs?.tug_number}
-                  {sub.tugs?.display_name && sub.tugs?.tug_number && (
-                    <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
-                  )}
-                </>
-              )}
-              {viewMode === 'byTug' && (
-                new Date(sub.check_date + 'T12:00:00').toLocaleDateString('en-GB', {
-                  day: '2-digit', month: 'short', year: 'numeric',
-                })
+              {sub.tugs?.display_name || sub.tugs?.tug_number}
+              {sub.tugs?.display_name && sub.tugs?.tug_number && (
+                <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
               )}
               {hasFaults && (
                 <span className="text-red-600 font-medium">
@@ -546,112 +483,95 @@ export default function PreCheckList() {
   // ─── Render ───
   return (
     <div className="space-y-4">
-      {/* ─── Single toolbar line ─── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Toggle pills */}
-        <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={switchToByDate}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-              viewMode === 'byDate'
-                ? 'bg-charcoal text-white shadow-sm'
-                : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            By Date
-          </button>
-          <button
-            type="button"
-            onClick={switchToByTug}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-              viewMode === 'byTug'
-                ? 'bg-charcoal text-white shadow-sm'
-                : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            By Tug
-          </button>
-        </div>
-
-        <span className="w-px h-5 bg-gray-200" />
-
-        {/* Mode-specific primary control */}
-        {viewMode === 'byDate' ? (
-          <div className="flex items-center gap-1">
-            {Object.entries(TIME_RANGES).map(([key, { label }]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTimeRange(key)}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
-                  timeRange === key
-                    ? 'bg-charcoal text-white'
-                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : (
+      {/* ─── Filters ─── */}
+      {/* Mobile: Type dropdown then Location + Search + All tugs */}
+      <div className="md:hidden space-y-3">
+        <div className="grid grid-cols-1 gap-2">
           <select
-            value={selectedTug}
-            onChange={(e) => setSelectedTug(e.target.value)}
-            className={`border rounded-lg px-2 py-1 text-xs font-medium ${
-              selectedTug ? 'border-charcoal text-charcoal' : 'border-gray-300 text-gray-400'
-            }`}
+            value={filters.checkType}
+            onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
+            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+            aria-label="Type"
           >
-            <option value="">Select tug...</option>
-            {tugs.map(t => (
-              <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
+            <option value="">All types</option>
+            <option value="pre_shift">Pre-Shift</option>
+            <option value="during_shift">During Shift</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <select
+            value={filters.location}
+            onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+            aria-label="Location"
+          >
+            <option value="">All locations</option>
+            {locations.map(loc => (
+              <option key={loc.id} value={loc.id}>{loc.name}</option>
             ))}
           </select>
-        )}
-
-        <span className="w-px h-5 bg-gray-200" />
-
-        {/* Inline filters */}
-        <select
-          value={filters.location}
-          onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
-        >
-          <option value="">All locations</option>
-          {locations.map(loc => (
-            <option key={loc.id} value={loc.id}>{loc.name}</option>
-          ))}
-        </select>
-
-        {viewMode === 'byDate' && (
+          <input
+            type="text"
+            value={filters.user}
+            onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
+            placeholder="Search user"
+            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 px-3 text-sm font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
+            aria-label="Search user"
+          />
           <select
             value={filters.tug}
             onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-            className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
+            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+            aria-label="Filter by tug"
           >
             <option value="">All tugs</option>
             {tugs.map(t => (
               <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
             ))}
           </select>
-        )}
+        </div>
+      </div>
 
+      {/* Desktop: inline filters */}
+      <div className="hidden md:flex flex-row flex-wrap items-center gap-2">
+        <select
+          value={filters.location}
+          onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
+        >
+          <option value="">All locations</option>
+          {locations.map(loc => (
+            <option key={loc.id} value={loc.id}>{loc.name}</option>
+          ))}
+        </select>
+        <select
+          value={filters.tug}
+          onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
+        >
+          <option value="">All tugs</option>
+          {tugs.map(t => (
+            <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
+          ))}
+        </select>
         <select
           value={filters.checkType}
           onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600"
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
         >
           <option value="">All types</option>
           <option value="pre_shift">Pre-Shift</option>
           <option value="during_shift">During Shift</option>
         </select>
-
         <input
           type="text"
           value={filters.user}
           onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
           placeholder="Search user..."
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600 w-24"
+          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600 w-28 bg-white"
         />
       </div>
 
@@ -660,21 +580,12 @@ export default function PreCheckList() {
         <div className="animate-pulse space-y-3">
           {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
         </div>
-      ) : viewMode === 'byTug' && !selectedTug ? (
-        <div className="text-center py-16 text-gray-400">
-          <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <p className="font-medium">Select a tug to view its history</p>
-          <p className="text-sm mt-1">Use the dropdown above to pick a tug.</p>
-        </div>
       ) : submissions.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium">No PreCheck reports found</p>
-          <p className="text-sm mt-1">Try adjusting your filters or time range.</p>
+          <p className="text-sm mt-1">Try adjusting your filters.</p>
         </div>
-      ) : viewMode === 'byDate' && grouped ? (
-        /* ─── By Date: grouped view ─── */
+      ) : grouped.length > 0 ? (
         <div className="space-y-8">
           {grouped.map((group) => (
             <div key={group.key}>
@@ -691,7 +602,6 @@ export default function PreCheckList() {
           ))}
         </div>
       ) : (
-        /* ─── By Tug: flat list ─── */
         <div className="space-y-3">
           {submissions.map(sub => renderSubmissionCard(sub))}
         </div>
