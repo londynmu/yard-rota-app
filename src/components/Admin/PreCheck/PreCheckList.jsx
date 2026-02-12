@@ -21,9 +21,9 @@ export default function PreCheckList() {
 
   // ─── Shared secondary filters ───
   const [filters, setFilters] = useState({
+    search: '',
     tug: '',
     checkType: '',
-    user: '',
   });
   const [tugs, setTugs] = useState([]);
 
@@ -103,12 +103,26 @@ export default function PreCheckList() {
 
       let results = data || [];
 
-      // Client-side filters
-      if (filters.user) {
-        const search = filters.user.toLowerCase();
+      // Client-side search: tug name/number/id, user name, date
+      if (filters.search?.trim()) {
+        const q = filters.search.trim().toLowerCase();
         results = results.filter(s => {
-          const name = `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.toLowerCase();
-          return name.includes(search);
+          const displayName = (s.tugs?.display_name || '').toLowerCase();
+          const tugNumber = (s.tugs?.tug_number || '').toLowerCase();
+          const tugId = (s.tug_id || '').toLowerCase();
+          const userName = `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim().toLowerCase();
+          const checkDate = s.check_date || '';
+          const dateFormatted = checkDate
+            ? new Date(checkDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase()
+            : '';
+          return (
+            displayName.includes(q) ||
+            tugNumber.includes(q) ||
+            tugId.includes(q) ||
+            userName.includes(q) ||
+            checkDate.includes(q) ||
+            dateFormatted.includes(q)
+          );
         });
       }
 
@@ -474,35 +488,21 @@ export default function PreCheckList() {
   // ─── Render ───
   return (
     <div className="space-y-4">
-      {/* ─── Filters ─── */}
-      {/* Mobile: Type dropdown then Location + Search + All tugs */}
-      <div className="md:hidden space-y-3">
-        <div className="grid grid-cols-1 gap-2">
-          <select
-            value={filters.checkType}
-            onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
-            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-            aria-label="Type"
-          >
-            <option value="">All types</option>
-            <option value="pre_shift">Pre-Shift</option>
-            <option value="during_shift">During Shift</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="text"
-            value={filters.user}
-            onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-            placeholder="Search user"
-            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 px-3 text-sm font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
-            aria-label="Search user"
-          />
+      {/* ─── Search + filters: one line on desktop, stacked on mobile ─── */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
+        <input
+          type="text"
+          value={filters.search}
+          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          placeholder="Search by tug name, number, user name, date..."
+          className="w-full md:flex-1 md:min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 px-4 md:px-3 text-sm md:text-xs font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
+          aria-label="Search"
+        />
+        <div className="grid grid-cols-2 gap-2 md:contents">
           <select
             value={filters.tug}
             onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
+            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 md:min-w-[8rem] appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
             style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
             aria-label="Filter by tug"
           >
@@ -511,37 +511,18 @@ export default function PreCheckList() {
               <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
             ))}
           </select>
+          <select
+            value={filters.checkType}
+            onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
+            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+            aria-label="Type"
+          >
+            <option value="">All types</option>
+            <option value="pre_shift">Pre-Shift</option>
+            <option value="during_shift">During Shift</option>
+          </select>
         </div>
-      </div>
-
-      {/* Desktop: inline filters */}
-      <div className="hidden md:flex flex-row flex-wrap items-center gap-2">
-        <select
-          value={filters.tug}
-          onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-        >
-          <option value="">All tugs</option>
-          {tugs.map(t => (
-            <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
-          ))}
-        </select>
-        <select
-          value={filters.checkType}
-          onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-        >
-          <option value="">All types</option>
-          <option value="pre_shift">Pre-Shift</option>
-          <option value="during_shift">During Shift</option>
-        </select>
-        <input
-          type="text"
-          value={filters.user}
-          onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-          placeholder="Search user..."
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600 w-28 bg-white"
-        />
       </div>
 
       {/* ─── Results ─── */}
