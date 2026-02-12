@@ -21,12 +21,10 @@ export default function PreCheckList() {
 
   // ─── Shared secondary filters ───
   const [filters, setFilters] = useState({
-    location: '',
-    tug: '',        // secondary tug filter (By Date mode only)
+    tug: '',
     checkType: '',
     user: '',
   });
-  const [locations, setLocations] = useState([]);
   const [tugs, setTugs] = useState([]);
 
   // ─── Expand/collapse (one card open at a time) ───
@@ -49,12 +47,8 @@ export default function PreCheckList() {
 
   // ─── Fetch filter options ───
   const fetchFilterOptions = useCallback(async () => {
-    const [locRes, tugRes] = await Promise.all([
-      supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
-    ]);
-    setLocations(locRes.data || []);
-    setTugs(tugRes.data || []);
+    const { data, error } = await supabase.from('tugs').select('id, tug_number, display_name').order('tug_number');
+    if (!error) setTugs(data || []);
   }, []);
 
   // ─── Core fetch function ───
@@ -110,9 +104,6 @@ export default function PreCheckList() {
       let results = data || [];
 
       // Client-side filters
-      if (filters.location) {
-        results = results.filter(s => s.tugs?.location_id === filters.location);
-      }
       if (filters.user) {
         const search = filters.user.toLowerCase();
         results = results.filter(s => {
@@ -499,19 +490,7 @@ export default function PreCheckList() {
             <option value="during_shift">During Shift</option>
           </select>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          <select
-            value={filters.location}
-            onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-sm font-medium text-charcoal bg-white shadow-sm appearance-none bg-[length:1rem_1rem] bg-[right_0.5rem_center] bg-no-repeat"
-            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-            aria-label="Location"
-          >
-            <option value="">All locations</option>
-            {locations.map(loc => (
-              <option key={loc.id} value={loc.id}>{loc.name}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-2">
           <input
             type="text"
             value={filters.user}
@@ -537,16 +516,6 @@ export default function PreCheckList() {
 
       {/* Desktop: inline filters */}
       <div className="hidden md:flex flex-row flex-wrap items-center gap-2">
-        <select
-          value={filters.location}
-          onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-          className="border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-700 bg-white"
-        >
-          <option value="">All locations</option>
-          {locations.map(loc => (
-            <option key={loc.id} value={loc.id}>{loc.name}</option>
-          ))}
-        </select>
         <select
           value={filters.tug}
           onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
