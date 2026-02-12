@@ -100,6 +100,7 @@ export default function CalendarPage() {
   }, []);
 
   // Keep selected location in sync with currently active locations
+  // When no valid selection (first visit or saved value missing): default to Rugby if available, else first location
   useEffect(() => {
     if (!locationsLoaded) return;
 
@@ -112,7 +113,9 @@ export default function CalendarPage() {
 
     const hasSelectedLocation = availableLocations.includes(selectedLocation);
     if (!hasSelectedLocation) {
-      const defaultLocation = availableLocations[0];
+      const defaultLocation = availableLocations.includes('Rugby')
+        ? 'Rugby'
+        : availableLocations[0];
       setSelectedLocation(defaultLocation);
     }
   }, [availableLocations, selectedLocation, locationsLoaded]);

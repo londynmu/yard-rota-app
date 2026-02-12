@@ -385,11 +385,15 @@ export default function PreCheckList() {
                     const isNa = item.status === 'na';
                     const isDefect = item.status === 'repair_needed' || item.status === 'completed';
                     const defectDesc = getItemDefectDescription(item, sub);
+                    const itemDamages = (sub.precheck_damages || []).filter(d => d.item_id === item.id);
+                    const itemImageUrls = itemDamages.flatMap(d => Array.isArray(d.image_urls) ? d.image_urls : []);
 
                     return (
                       <div
                         key={item.id}
-                        className="flex items-start gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm"
+                        className={`flex items-start gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm ${
+                          isDefect ? 'flex-col sm:min-h-[220px]' : ''
+                        }`}
                       >
                         {isOk && (
                           <span className="flex items-center gap-1.5 text-green-700 flex-1 min-w-0">
@@ -408,16 +412,39 @@ export default function PreCheckList() {
                           </span>
                         )}
                         {isDefect && (
-                          <span className="flex items-start gap-1.5 text-red-700 flex-1 min-w-0">
-                            <svg className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <span className="min-w-0">
-                              <span className="capitalize font-medium">Defect</span>
-                              <span className="text-charcoal font-normal"> – {label}</span>
-                              {defectDesc && <span className="block text-gray-600 text-xs mt-0.5">{defectDesc}</span>}
+                          <>
+                            <span className="flex items-start gap-1.5 text-red-700 flex-1 min-w-0 flex-shrink-0">
+                              <svg className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <span className="min-w-0">
+                                <span className="capitalize font-medium">Defect</span>
+                                <span className="text-charcoal font-normal"> – {label}</span>
+                                {defectDesc && <span className="block text-gray-600 text-xs mt-0.5">{defectDesc}</span>}
+                              </span>
                             </span>
-                          </span>
+                            {itemImageUrls.length > 0 && (
+                              <div className="w-full mt-2 pt-2 border-t border-gray-100 flex-shrink-0">
+                                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                                  {itemImageUrls.map((url, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block rounded-md overflow-hidden border border-gray-200 aspect-square sm:aspect-[4/3] bg-gray-50"
+                                    >
+                                      <img
+                                        src={url}
+                                        alt={`${label} ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
