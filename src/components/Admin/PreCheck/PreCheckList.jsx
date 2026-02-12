@@ -429,7 +429,9 @@ export default function PreCheckList() {
             {/* Damages / Fault cards */}
             {hasFaults ? (
               <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Damages & remarks</h4>
+                {sub.check_type !== 'during_shift' && (
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Damages & remarks</h4>
+                )}
                 <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
                   {faults.map(fault => (
                     <FaultCard
