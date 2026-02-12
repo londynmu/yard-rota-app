@@ -29,8 +29,12 @@ export default function CheckItemManager() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const outsideItems = items.filter(i => i.category === 'outside');
-  const insideItems = items.filter(i => i.category === 'inside');
+  const outsideItems = items
+    .filter(i => i.category === 'outside')
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const insideItems = items
+    .filter(i => i.category === 'inside')
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   // ─── Edit ───
   const startEdit = (item) => {
