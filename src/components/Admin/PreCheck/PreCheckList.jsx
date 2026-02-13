@@ -294,6 +294,25 @@ export default function PreCheckList() {
     return damage?.description?.trim() || '';
   };
 
+  // ─── Keep opened card aligned below top header ───
+  const scrollCardIntoView = useCallback((cardId) => {
+    const el = document.getElementById(`precheck-card-${cardId}`);
+    if (!el) return;
+    const topOffset = 84; // fixed top bar + small spacing
+    const targetTop = window.scrollY + el.getBoundingClientRect().top - topOffset;
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+  }, []);
+
+  const toggleCard = useCallback((cardId) => {
+    setExpandedCardId(prev => {
+      const next = prev === cardId ? null : cardId;
+      if (next) {
+        requestAnimationFrame(() => scrollCardIntoView(cardId));
+      }
+      return next;
+    });
+  }, [scrollCardIntoView]);
+
   // ─── Render a submission card ───
   const renderSubmissionCard = (sub) => {
     const faults = getFaults(sub);
@@ -310,6 +329,7 @@ export default function PreCheckList() {
     return (
       <div
         key={sub.id}
+        id={`precheck-card-${sub.id}`}
         className={`rounded-xl border overflow-hidden shadow-sm transition-shadow ${
           hasDefect ? 'border-red-200' : 'border-green-200'
         } ${isExpanded ? 'shadow-md' : ''}`}
@@ -317,7 +337,7 @@ export default function PreCheckList() {
         {/* Card header – mobile: 2 lines; desktop: single line */}
         <button
           type="button"
-          onClick={() => setExpandedCardId(prev => prev === sub.id ? null : sub.id)}
+          onClick={() => toggleCard(sub.id)}
           className={`w-full px-4 py-2.5 min-h-[4rem] md:min-h-0 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 items-center text-left cursor-pointer md:flex md:flex-row md:flex-nowrap md:gap-2 ${
             hasDefect ? 'bg-red-50' : 'bg-green-50'
           } hover:opacity-95 transition-opacity`}
