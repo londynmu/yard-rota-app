@@ -11,6 +11,7 @@ import { NotificationProvider } from './lib/NotificationContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
+import UpdateBanner from './components/UpdateBanner';
 
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
@@ -201,6 +202,7 @@ function AppContent() {
 function App() {
   return (
     <ErrorBoundary>
+      <UpdateBanner />
       <AuthProvider>
         <NotificationProvider>
           <PWAInstallPrompt />

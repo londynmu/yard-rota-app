@@ -31,6 +31,12 @@ publish = "dist"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Version check file - always revalidate
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 # HTML entry point - always check for latest version
 [[headers]]
   for = "/"

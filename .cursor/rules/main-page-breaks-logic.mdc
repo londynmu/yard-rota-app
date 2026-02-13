@@ -1,0 +1,28 @@
+---
+description: Main page break display logic rules
+alwaysApply: true
+---
+
+# Main Page Breaks Logic
+
+Persist and protect this behavior on the main page break list.
+
+## Core Rules
+
+1. Treat an operational day as `06:00 -> 05:59` next calendar day.
+2. Break data must include both anchor day and next day records.
+3. From next day, include only breaks in `00:00-05:59`.
+4. Do not split list with extra section labels (no "Earlier" style markers).
+5. Keep one continuous list with normal flow.
+6. Active breaks must always be shown at the top.
+
+## Ordering Rules
+
+1. Keep shift flow priority as `day -> afternoon -> night`.
+2. Inside the same priority level, sort chronologically.
+3. Post-midnight night breaks (`00:00-05:59`) must remain visible after day and afternoon in the same operational cycle.
+4. During day/afternoon view, post-midnight night breaks are treated as upcoming in that cycle, not as past.
+
+## Language Rules
+
+- UI labels and user-facing text in the app must remain in English.

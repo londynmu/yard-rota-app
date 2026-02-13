@@ -43,16 +43,21 @@ createRoot(document.getElementById('root')).render(
 // --- PWA Auto-Update (fixes iOS Safari caching) ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then((registration) => {
-    // Safety-net: check for SW updates once per day
+    // Safety-net: check for SW updates every 30 minutes
     setInterval(() => {
       registration.update()
-    }, 24 * 60 * 60 * 1000)
+    }, 30 * 60 * 1000)
 
-    // Main mechanism: check when user returns to app (iOS background resume)
+    // Check when user returns to app (iOS background resume, tab switch)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         registration.update()
       }
+    })
+
+    // Also check on window focus (covers more browser scenarios)
+    window.addEventListener('focus', () => {
+      registration.update()
     })
   })
 
