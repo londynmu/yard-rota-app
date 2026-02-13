@@ -113,9 +113,28 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [formInitialized, setFormInitialized] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [remarksImages, setRemarksImages] = useState([]);
+  const [remarksEnabled, setRemarksEnabled] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const formSessionId = useRef(getFormSessionId()).current;
+
+  useEffect(() => {
+    const fetchRemarksSetting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'pre_shift_remarks_enabled')
+          .maybeSingle();
+        if (error) throw error;
+        setRemarksEnabled(!data || data.value !== 'false');
+      } catch (err) {
+        console.error('[PreCheckForm] Settings fetch error:', err);
+        setRemarksEnabled(true);
+      }
+    };
+    fetchRemarksSetting();
+  }, []);
 
   // ─── Upload image to temp storage immediately ───
   const uploadTempImage = useCallback(async (file, imageId) => {
@@ -270,8 +289,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     tugId: selectedTug.id,
     checkType,
     formSessionId,
-    remarks: remarks?.trim() || '',
-    remarksImages: mapImagesToQueueEntries(remarksImages),
+    remarks: remarksEnabled ? (remarks?.trim() || '') : '',
+    remarksImages: remarksEnabled ? mapImagesToQueueEntries(remarksImages) : [],
     items: allItems.map(item => ({
       key: item.key,
       label: item.label,
@@ -501,26 +520,28 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       {renderSection('Inside Check', insideItems, insideStatus, insideRepairs)}
 
       {/* Section 3: Remarks + Photos */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
-          <h3 className="font-semibold text-charcoal text-sm">Remarks</h3>
+      {remarksEnabled && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 border-b border-gray-100">
+            <h3 className="font-semibold text-charcoal text-sm">Remarks</h3>
+          </div>
+          <div className="p-4 space-y-3">
+            <textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Any additional notes or observations..."
+              rows={2}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+            />
+            <ImageUpload
+              images={remarksImages}
+              onImagesChange={handleRemarksImagesChange}
+              maxImages={3}
+              storageKey="pending_photos_remarks"
+            />
+          </div>
         </div>
-        <div className="p-4 space-y-3">
-          <textarea
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Any additional notes or observations..."
-            rows={2}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-          />
-          <ImageUpload
-            images={remarksImages}
-            onImagesChange={handleRemarksImagesChange}
-            maxImages={3}
-            storageKey="pending_photos_remarks"
-          />
-        </div>
-      </div>
+      )}
 
       {/* Warning message when not all items checked */}
       {showWarning && (totalUnchecked > 0 || missingDescriptions > 0) && (

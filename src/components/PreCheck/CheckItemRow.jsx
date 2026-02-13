@@ -50,7 +50,7 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
           <button
             type="button"
             onClick={handleMarkNa}
-            className={`px-2 py-1.5 text-xs font-bold rounded-lg flex-shrink-0 transition-all ${
+            className={`w-10 h-10 text-xs font-bold rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
               value === 'na'
                 ? 'bg-slate-500 text-white'
                 : 'bg-gray-100 text-gray-400 hover:bg-slate-100 hover:text-slate-500'

@@ -4,6 +4,10 @@ import { supabase } from '../../../lib/supabaseClient';
 export default function CheckItemManager() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [preShiftRemarksEnabled, setPreShiftRemarksEnabled] = useState(true);
+  const [duringShiftDamageEnabled, setDuringShiftDamageEnabled] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ label: '', tooltip: '', category: 'outside' });
   const [adding, setAdding] = useState(null); // 'outside' | 'inside' | null
@@ -29,12 +33,74 @@ export default function CheckItemManager() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setSettingsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['pre_shift_remarks_enabled', 'during_shift_damage_report_enabled']);
+        if (error) throw error;
+
+        const map = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
+        setPreShiftRemarksEnabled(map.pre_shift_remarks_enabled !== 'false');
+        setDuringShiftDamageEnabled(map.during_shift_damage_report_enabled !== 'false');
+      } catch (err) {
+        console.error('[CheckItemManager] Settings fetch error:', err);
+        setPreShiftRemarksEnabled(true);
+        setDuringShiftDamageEnabled(true);
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const outsideItems = items
     .filter(i => i.category === 'outside')
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const insideItems = items
     .filter(i => i.category === 'inside')
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  const saveSetting = async (key, enabled, rollback) => {
+    setSettingsSaving(true);
+    try {
+      const descriptions = {
+        pre_shift_remarks_enabled: 'Show remarks block in pre-shift precheck form',
+        during_shift_damage_report_enabled: 'Enable during-shift damage reporting flow',
+      };
+      const { error } = await supabase
+        .from('settings')
+        .upsert({
+          key,
+          value: enabled ? 'true' : 'false',
+          description: descriptions[key],
+        }, { onConflict: 'key' });
+      if (error) throw error;
+    } catch (err) {
+      console.error('[CheckItemManager] Toggle setting error:', err);
+      rollback();
+      alert('Error saving form option.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const togglePreShiftRemarks = async () => {
+    if (settingsLoading || settingsSaving) return;
+    const nextValue = !preShiftRemarksEnabled;
+    setPreShiftRemarksEnabled(nextValue);
+    await saveSetting('pre_shift_remarks_enabled', nextValue, () => setPreShiftRemarksEnabled(!nextValue));
+  };
+
+  const toggleDuringShiftDamage = async () => {
+    if (settingsLoading || settingsSaving) return;
+    const nextValue = !duringShiftDamageEnabled;
+    setDuringShiftDamageEnabled(nextValue);
+    await saveSetting('during_shift_damage_report_enabled', nextValue, () => setDuringShiftDamageEnabled(!nextValue));
+  };
 
   // ─── Edit ───
   const startEdit = (item) => {
@@ -436,6 +502,68 @@ export default function CheckItemManager() {
       <p className="text-xs text-gray-500">
         Manage the checklist items shown during Pre-Shift checks. Edit labels, add tooltips, reorder, or deactivate items.
       </p>
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal">Form options</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Configure Pre-Shift and During Shift options independently.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <div>
+              <p className="text-xs font-semibold text-charcoal">Pre-Shift remarks block</p>
+              <p className="text-[11px] text-gray-500">Shows/hides the Remarks section in Pre-Shift form.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                {preShiftRemarksEnabled ? 'ON' : 'OFF'}
+              </span>
+              <button
+                type="button"
+                onClick={togglePreShiftRemarks}
+                disabled={settingsLoading || settingsSaving}
+                className={`w-10 h-6 rounded-full relative transition-colors ${
+                  preShiftRemarksEnabled ? 'bg-green-500' : 'bg-gray-300'
+                } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                title={preShiftRemarksEnabled ? 'Pre-Shift remarks enabled - click to disable' : 'Pre-Shift remarks disabled - click to enable'}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                  preShiftRemarksEnabled ? 'left-4.5' : 'left-0.5'
+                }`} />
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <div>
+              <p className="text-xs font-semibold text-charcoal">During Shift damage report</p>
+              <p className="text-[11px] text-gray-500">Shows/hides Report Damage flow in During Shift.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                {duringShiftDamageEnabled ? 'ON' : 'OFF'}
+              </span>
+              <button
+                type="button"
+                onClick={toggleDuringShiftDamage}
+                disabled={settingsLoading || settingsSaving}
+                className={`w-10 h-6 rounded-full relative transition-colors ${
+                  duringShiftDamageEnabled ? 'bg-green-500' : 'bg-gray-300'
+                } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                title={duringShiftDamageEnabled ? 'During Shift reporting enabled - click to disable' : 'During Shift reporting disabled - click to enable'}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                  duringShiftDamageEnabled ? 'left-4.5' : 'left-0.5'
+                }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {renderSection('Outside Check', outsideItems, 'outside')}
       {renderSection('Inside Check', insideItems, 'inside')}
     </div>

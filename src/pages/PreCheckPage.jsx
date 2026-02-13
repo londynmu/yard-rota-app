@@ -120,6 +120,7 @@ export default function PreCheckPage() {
   const [qrError, setQrError] = useState(null);
   const [lastSubmitType, setLastSubmitType] = useState(null);
   const [lastSubmitQueued, setLastSubmitQueued] = useState(false);
+  const [duringShiftDamageEnabled, setDuringShiftDamageEnabled] = useState(true);
   const [queueStatus, setQueueStatus] = useState({ total: 0, pending: 0, uploading: 0, failed: 0 });
   const [isSyncing, setIsSyncing] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -142,6 +143,25 @@ export default function PreCheckPage() {
     refreshStatus();
     const unsubscribe = onPrecheckQueueUpdate(refreshStatus);
     return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchDuringShiftSetting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'during_shift_damage_report_enabled')
+          .maybeSingle();
+        if (error) throw error;
+        setDuringShiftDamageEnabled(!data || data.value !== 'false');
+      } catch (err) {
+        console.error('[PreCheckPage] Settings fetch error:', err);
+        setDuringShiftDamageEnabled(true);
+      }
+    };
+    fetchDuringShiftSetting();
   }, [user?.id]);
 
   useEffect(() => {
@@ -319,6 +339,10 @@ export default function PreCheckPage() {
   };
 
   const handleStartDuringShift = (tug) => {
+    if (!duringShiftDamageEnabled) {
+      alert('Damage report is disabled by admin.');
+      return;
+    }
     clearPendingPhotos();
     setSelectedTug(tug);
     saveDuringShiftState(tug);
@@ -382,17 +406,19 @@ export default function PreCheckPage() {
                     </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleStartDuringShift({
-                    id: check.tug_id,
-                    tug_number: tugNumber,
-                    display_name: check.tugs?.display_name,
-                  })}
-                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
-                >
-                  Report Damage
-                </button>
+                {duringShiftDamageEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleStartDuringShift({
+                      id: check.tug_id,
+                      tug_number: tugNumber,
+                      display_name: check.tugs?.display_name,
+                    })}
+                    className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                  >
+                    Report Damage
+                  </button>
+                )}
               </div>
             );
           })}
@@ -412,6 +438,33 @@ export default function PreCheckPage() {
 
   // ─── During shift damage report ───
   if (step === 'during_shift') {
+    if (!duringShiftDamageEnabled) {
+      return (
+        <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-yellow-800">
+              Damage reporting is currently disabled by admin.
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              Please contact your supervisor if you need to report an issue.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              clearDuringShiftState();
+              setStep(shiftChecks.length > 0 ? 'completed' : 'select');
+            }}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-charcoal transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         {(queueStatus.total > 0 || !isOnline) && (
