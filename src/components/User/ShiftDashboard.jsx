@@ -997,28 +997,54 @@ export default function ShiftDashboard({
                     userLocationMap.get(b.user_id) === teamLocation
                   ));
 
-                  const activeBreaks = [];
-                  const upcomingBreaks = [];
+                  const currentShift = getCurrentShiftType();
+                  const shiftFlow = currentShift === 'day'
+                    ? ['day', 'afternoon', 'night']
+                    : currentShift === 'afternoon'
+                    ? ['afternoon', 'night']
+                    : ['night'];
 
-                  filteredBreaks.forEach((b) => {
-                    const window = getBreakWindow(b);
-                    if (!window) return;
+                  const entries = filteredBreaks
+                    .map((breakItem) => {
+                      const window = getBreakWindow(breakItem);
+                      if (!window) return null;
+                      return { breakItem, window };
+                    })
+                    .filter(Boolean);
 
-                    if (nowMinutes >= window.start && nowMinutes < window.end) {
-                      activeBreaks.push({ breakItem: b, window });
-                      return;
+                  const shiftPriority = ['day', 'afternoon', 'night'];
+                  const selectedShiftFlow = shiftPriority.filter((shiftType) => selectedShifts.includes(shiftType));
+                  const shiftWeight = (shiftType) => {
+                    const idx = selectedShiftFlow.indexOf(shiftType);
+                    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+                  };
+                  const getChronoStart = (entry) => {
+                    const baseStart = entry.window.start;
+                    // During day/afternoon, keep post-midnight night breaks in the visible future window.
+                    if (
+                      entry.breakItem.shift_type === 'night' &&
+                      baseStart < 6 * 60 &&
+                      nowMinutes >= 6 * 60
+                    ) {
+                      return baseStart + 24 * 60;
                     }
+                    return baseStart;
+                  };
 
-                    if (window.start > nowMinutes) {
-                      upcomingBreaks.push({ breakItem: b, window });
-                      return;
-                    }
+                  const activeEntries = entries
+                    .filter((entry) => nowMinutes >= entry.window.start && nowMinutes < entry.window.end)
+                    .sort((a, b) =>
+                      shiftWeight(a.breakItem.shift_type) - shiftWeight(b.breakItem.shift_type) ||
+                      getChronoStart(a) - getChronoStart(b)
+                    );
 
-                    // Past breaks are intentionally omitted from the list.
-                  });
-
-                  activeBreaks.sort((a, b) => a.window.start - b.window.start);
-                  upcomingBreaks.sort((a, b) => a.window.start - b.window.start);
+                  const upcomingEntries = entries
+                    .filter((entry) => getChronoStart(entry) > nowMinutes)
+                    .sort((a, b) =>
+                      shiftWeight(a.breakItem.shift_type) - shiftWeight(b.breakItem.shift_type) ||
+                      getChronoStart(a) - getChronoStart(b)
+                    );
+                  const displayBreaks = [...activeEntries, ...upcomingEntries];
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
                     const { isActiveList = false } = options;
@@ -1103,37 +1129,18 @@ export default function ShiftDashboard({
 
                   return (
                     <div className="space-y-3 mb-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2 px-2">
-                          <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                            Active now
-                          </div>
+                      {breakHeaderControls && (
+                        <div className="px-2">
                           {breakHeaderControls}
                         </div>
-                        {activeBreaks.length > 0 ? (
-                          <div className="space-y-3">
-                            {activeBreaks.map((entry) => renderBreakCard(entry, { isActiveList: true }))}
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm font-medium text-gray-600">
-                            No active breaks now
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 px-2">
-                          Upcoming
+                      )}
+                      {activeEntries.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-center text-sm font-medium text-gray-600">
+                          No active breaks at the moment
                         </div>
-                        {upcomingBreaks.length > 0 ? (
-                          <div className="space-y-3">
-                            {upcomingBreaks.map((entry) => renderBreakCard(entry))}
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm font-medium text-gray-600">
-                            No upcoming breaks
-                          </div>
-                        )}
+                      )}
+                      <div className="space-y-3">
+                        {displayBreaks.map((entry) => renderBreakCard(entry, { isActiveList: true }))}
                       </div>
                     </div>
                   );
