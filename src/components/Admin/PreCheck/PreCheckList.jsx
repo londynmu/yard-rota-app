@@ -374,33 +374,25 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
-            {/* Remarks from precheck form – always first at top, then check items below */}
+            {/* Remarks fault cards (without extra Remarks label/text box) */}
             {(() => {
               const remarksWithImage = faults.filter(
                 f => (f.header === 'Remarks' || f.header === 'Damage Report') && (f.imageUrls?.length || 0) > 0
               );
-              const hasRemarksText = !!sub.remarks?.trim();
-              const hasRemarksContent = hasRemarksText || remarksWithImage.length > 0;
-              if (!hasRemarksContent) return null;
+              if (remarksWithImage.length === 0) return null;
               return (
                 <div className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remarks</h4>
-                  {hasRemarksText && (
-                    <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200 mb-3">{sub.remarks}</p>
-                  )}
-                  {remarksWithImage.length > 0 && (
-                    <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                      {remarksWithImage.map(fault => (
-                        <FaultCard
-                          key={fault.id}
-                          fault={fault}
-                          onStatusChange={(newStatus) =>
-                            updateDamageStatus(fault.id, newStatus, sub.id)
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                    {remarksWithImage.map(fault => (
+                      <FaultCard
+                        key={fault.id}
+                        fault={fault}
+                        onStatusChange={(newStatus) =>
+                          updateDamageStatus(fault.id, newStatus, sub.id)
+                        }
+                      />
+                    ))}
+                  </div>
                 </div>
               );
             })()}
