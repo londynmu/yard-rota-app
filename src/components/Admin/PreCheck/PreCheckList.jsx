@@ -374,18 +374,22 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
-            {/* Remarks from precheck form – above all check items (cards with photo + standalone text) */}
+            {/* Remarks from precheck form – always first at top, then check items below */}
             {(() => {
               const remarksWithImage = faults.filter(
                 f => (f.header === 'Remarks' || f.header === 'Damage Report') && (f.imageUrls?.length || 0) > 0
               );
-              const hasStandaloneRemarks = sub.remarks?.trim() && !faults.some(f => f.description === sub.remarks?.trim());
-              if (remarksWithImage.length === 0 && !hasStandaloneRemarks) return null;
+              const hasRemarksText = !!sub.remarks?.trim();
+              const hasRemarksContent = hasRemarksText || remarksWithImage.length > 0;
+              if (!hasRemarksContent) return null;
               return (
                 <div className="mb-4">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remarks</h4>
+                  {hasRemarksText && (
+                    <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200 mb-3">{sub.remarks}</p>
+                  )}
                   {remarksWithImage.length > 0 && (
-                    <div className="grid gap-3 items-stretch mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                    <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
                       {remarksWithImage.map(fault => (
                         <FaultCard
                           key={fault.id}
@@ -397,19 +401,24 @@ export default function PreCheckList() {
                       ))}
                     </div>
                   )}
-                  {hasStandaloneRemarks && (
-                    <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200">{sub.remarks}</p>
-                  )}
                 </div>
               );
             })()}
 
-            {/* Check items – full list (OK / N/A / Defect) */}
+            {/* Check items – full list (defects first, then OK / N/A) */}
             {(sub.precheck_items?.length > 0) && (
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check items</h4>
                 <div className="grid gap-1.5 sm:grid-cols-2">
-                  {(sub.precheck_items || []).map(item => {
+                  {[...(sub.precheck_items || [])]
+                    .sort((a, b) => {
+                      const aDefect = a.status === 'repair_needed' || a.status === 'completed';
+                      const bDefect = b.status === 'repair_needed' || b.status === 'completed';
+                      if (aDefect && !bDefect) return -1;
+                      if (!aDefect && bDefect) return 1;
+                      return 0;
+                    })
+                    .map(item => {
                     const label = formatItemName(item.item_name);
                     const isOk = item.status === 'ok';
                     const isNa = item.status === 'na';
