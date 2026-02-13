@@ -374,26 +374,32 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
-            {/* Remarks from precheck form with photo – above all check items */}
+            {/* Remarks from precheck form – above all check items (cards with photo + standalone text) */}
             {(() => {
               const remarksWithImage = faults.filter(
                 f => (f.header === 'Remarks' || f.header === 'Damage Report') && (f.imageUrls?.length || 0) > 0
               );
-              if (remarksWithImage.length === 0) return null;
+              const hasStandaloneRemarks = sub.remarks?.trim() && !faults.some(f => f.description === sub.remarks?.trim());
+              if (remarksWithImage.length === 0 && !hasStandaloneRemarks) return null;
               return (
-                <div>
+                <div className="mb-4">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remarks</h4>
-                  <div className="grid gap-3 items-stretch mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                    {remarksWithImage.map(fault => (
-                      <FaultCard
-                        key={fault.id}
-                        fault={fault}
-                        onStatusChange={(newStatus) =>
-                          updateDamageStatus(fault.id, newStatus, sub.id)
-                        }
-                      />
-                    ))}
-                  </div>
+                  {remarksWithImage.length > 0 && (
+                    <div className="grid gap-3 items-stretch mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                      {remarksWithImage.map(fault => (
+                        <FaultCard
+                          key={fault.id}
+                          fault={fault}
+                          onStatusChange={(newStatus) =>
+                            updateDamageStatus(fault.id, newStatus, sub.id)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {hasStandaloneRemarks && (
+                    <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200">{sub.remarks}</p>
+                  )}
                 </div>
               );
             })()}
@@ -412,11 +418,12 @@ export default function PreCheckList() {
                     const itemDamages = (sub.precheck_damages || []).filter(d => d.item_id === item.id);
                     const itemImageUrls = itemDamages.flatMap(d => Array.isArray(d.image_urls) ? d.image_urls : []);
 
+                    const defectHasImages = isDefect && itemImageUrls.length > 0;
                     return (
                       <div
                         key={item.id}
                         className={`flex items-start gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm ${
-                          isDefect ? 'flex-col sm:min-h-[220px]' : ''
+                          defectHasImages ? 'flex-col sm:min-h-[220px]' : ''
                         }`}
                       >
                         {isOk && (
@@ -509,14 +516,6 @@ export default function PreCheckList() {
                 </div>
               );
             })()}
-
-            {/* Remarks (standalone if present and not already in faults) */}
-            {sub.remarks?.trim() && !faults.some(f => f.description === sub.remarks?.trim()) && (
-              <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Remarks</h4>
-                <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200">{sub.remarks}</p>
-              </div>
-            )}
           </div>
         )}
       </div>
