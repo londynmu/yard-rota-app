@@ -374,6 +374,30 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
+            {/* Remarks from precheck form with photo – above all check items */}
+            {(() => {
+              const remarksWithImage = faults.filter(
+                f => (f.header === 'Remarks' || f.header === 'Damage Report') && (f.imageUrls?.length || 0) > 0
+              );
+              if (remarksWithImage.length === 0) return null;
+              return (
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remarks</h4>
+                  <div className="grid gap-3 items-stretch mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                    {remarksWithImage.map(fault => (
+                      <FaultCard
+                        key={fault.id}
+                        fault={fault}
+                        onStatusChange={(newStatus) =>
+                          updateDamageStatus(fault.id, newStatus, sub.id)
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Check items – full list (OK / N/A / Defect) */}
             {(sub.precheck_items?.length > 0) && (
               <div>
@@ -453,53 +477,38 @@ export default function PreCheckList() {
               </div>
             )}
 
-            {/* Damages / Fault cards */}
-            {hasFaults ? (
-              <div>
-                {sub.check_type !== 'during_shift' && (
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Damages & remarks</h4>
-                )}
-                <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                  {faults.map(fault => (
-                    <FaultCard
-                      key={fault.id}
-                      fault={fault}
-                      onStatusChange={(newStatus) =>
-                        updateDamageStatus(fault.id, newStatus, sub.id)
-                      }
-                    />
-                  ))}
+            {/* Summary: passed / N/A (defects are shown on item cards; remarks with photo at top) */}
+            {(() => {
+              const allItems = sub.precheck_items || [];
+              const okCount = allItems.filter(i => i.status === 'ok').length;
+              const naCount = allItems.filter(i => i.status === 'na').length;
+              if (okCount === 0 && naCount === 0 && hasFaults) return null;
+              if (okCount === 0 && naCount === 0) {
+                return (
+                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium py-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    All checks passed
+                  </div>
+                );
+              }
+              return (
+                <div className="flex items-center gap-3 pt-2.5 border-t border-gray-200 text-xs font-medium">
+                  {okCount > 0 && (
+                    <span className="flex items-center gap-1 text-green-600">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {okCount} passed
+                    </span>
+                  )}
+                  {naCount > 0 && (
+                    <span className="text-slate-400">{naCount} N/A</span>
+                  )}
                 </div>
-                {(() => {
-                  const allItems = sub.precheck_items || [];
-                  const okCount = allItems.filter(i => i.status === 'ok').length;
-                  const naCount = allItems.filter(i => i.status === 'na').length;
-                  if (okCount === 0 && naCount === 0) return null;
-                  return (
-                    <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-gray-200 text-xs font-medium">
-                      {okCount > 0 && (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                          </svg>
-                          {okCount} passed
-                        </span>
-                      )}
-                      {naCount > 0 && (
-                        <span className="text-slate-400">{naCount} N/A</span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-green-600 font-medium py-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                All checks passed
-              </div>
-            )}
+              );
+            })()}
 
             {/* Remarks (standalone if present and not already in faults) */}
             {sub.remarks?.trim() && !faults.some(f => f.description === sub.remarks?.trim()) && (
