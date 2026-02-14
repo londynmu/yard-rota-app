@@ -57,6 +57,9 @@ const BrakesPage = lazyWithRetry(() => import('../pages/BrakesPage'));
 const PerformanceLeaderboard = lazyWithRetry(() => import('../pages/PerformanceLeaderboard'));
 const PreCheckPage = lazyWithRetry(() => import('../pages/PreCheckPage'));
 const VmuPage = lazyWithRetry(() => import('../pages/VmuPage'));
+const TugManager = lazyWithRetry(() => import('../components/Admin/PreCheck/TugManager'));
+const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/PreCheckList'));
+const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
@@ -183,12 +186,15 @@ export default function HomePage() {
     if (path === '/performance') return 'Performance';
     if (path.startsWith('/precheck')) return 'Tug PreCheck';
     if (path === '/vmu') return 'VMU';
+    if (path === '/vmu/tugs') return 'Tugs';
+    if (path === '/vmu/prechecks') return 'PreChecks';
+    if (path === '/vmu/check-items') return 'Check Items';
     
     return 'My Rota';
   }, [location.pathname]);
 
   if (location.pathname === '/' || location.pathname === '') {
-    return <Navigate to="/calendar" replace />;
+    return <Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
   }
 
   const renderDropdownMenu = () => {
@@ -251,7 +257,7 @@ export default function HomePage() {
           path === '/calendar' ||
           path === '/performance' ||
           path.startsWith('/precheck') ||
-          path === '/vmu';
+          path.startsWith('/vmu');
         const isAdminPage = path === '/admin';
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
@@ -281,69 +287,117 @@ export default function HomePage() {
               <div className="flex items-center space-x-4">
                 {/* Nawigacja - Solid slate style */}
                 <nav className="hidden md:flex space-x-2">
-                  <Link
-                    to="/calendar"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/calendar' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    Main Page
-                  </Link>
-                  <Link
-                    to="/my-rota"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/my-rota' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    My Rota
-                  </Link>
-                  <Link
-                    to="/performance"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/performance' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    Performance
-                  </Link>
-                  <Link
-                    to="/precheck"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname.startsWith('/precheck')
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    PreCheck
-                  </Link>
-                  {(isVmu || isAdmin) && (
-                    <Link
-                      to="/vmu"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/vmu' 
-                          ? 'bg-slate-100 text-slate-800' 
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      VMU
-                    </Link>
-                  )}
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/admin' 
-                          ? 'bg-slate-100 text-slate-800' 
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      Admin Panel
-                    </Link>
+                  {/* VMU-only users see VMU navigation */}
+                  {isVmu && !isAdmin ? (
+                    <>
+                      <Link
+                        to="/vmu"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/vmu' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        VMU
+                      </Link>
+                      <Link
+                        to="/vmu/tugs"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/vmu/tugs' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        Tugs
+                      </Link>
+                      <Link
+                        to="/vmu/prechecks"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/vmu/prechecks' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        PreChecks
+                      </Link>
+                      <Link
+                        to="/vmu/check-items"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/vmu/check-items' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        Check Items
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/calendar"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/calendar' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        Main Page
+                      </Link>
+                      <Link
+                        to="/my-rota"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/my-rota' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        My Rota
+                      </Link>
+                      <Link
+                        to="/performance"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === '/performance' 
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        Performance
+                      </Link>
+                      <Link
+                        to="/precheck"
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname.startsWith('/precheck')
+                            ? 'bg-slate-100 text-slate-800' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        PreCheck
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/vmu"
+                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            location.pathname === '/vmu' 
+                              ? 'bg-slate-100 text-slate-800' 
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          }`}
+                        >
+                          VMU
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            location.pathname === '/admin' 
+                              ? 'bg-slate-100 text-slate-800' 
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          }`}
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
+                    </>
                   )}
                 </nav>
                 
@@ -434,7 +488,31 @@ export default function HomePage() {
                 </ProtectedVmuRoute>
               } 
             />
-            <Route path="*" element={<Navigate to="/calendar" replace />} />
+            <Route 
+              path="/vmu/tugs" 
+              element={
+                <ProtectedVmuRoute>
+                  <div className="max-w-6xl mx-auto px-4 py-6"><TugManager /></div>
+                </ProtectedVmuRoute>
+              } 
+            />
+            <Route 
+              path="/vmu/prechecks" 
+              element={
+                <ProtectedVmuRoute>
+                  <div className="max-w-4xl mx-auto px-4 py-6"><PreCheckList /></div>
+                </ProtectedVmuRoute>
+              } 
+            />
+            <Route 
+              path="/vmu/check-items" 
+              element={
+                <ProtectedVmuRoute>
+                  <div className="max-w-4xl mx-auto px-4 py-6"><CheckItemManager /></div>
+                </ProtectedVmuRoute>
+              } 
+            />
+            <Route path="*" element={<Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />} />
           </Routes>
         </Suspense>
       </main>
@@ -444,72 +522,116 @@ export default function HomePage() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
-          {/* Home */}
-          <Link
-            to="/calendar"
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-              location.pathname === '/calendar' ? 'active' : ''
-            }`}
-          >
-            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-[10px] font-medium">Home</span>
-          </Link>
+          {/* VMU-only users see 4 VMU nav buttons */}
+          {isVmu && !isAdmin ? (
+            <>
+              {/* VMU Defects */}
+              <Link
+                to="/vmu"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/vmu' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-[10px] font-medium">VMU</span>
+              </Link>
 
-          {/* My Rota */}
-          <Link
-            to="/my-rota"
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-              location.pathname === '/my-rota' ? 'active' : ''
-            }`}
-          >
-            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="text-[10px] font-medium">My Rota</span>
-          </Link>
+              {/* Tugs */}
+              <Link
+                to="/vmu/tugs"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/vmu/tugs' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12l-2 5H8m0 0l-1.5 7H18M8 12H4.5L3 7m5 5V7m0 0H5" />
+                </svg>
+                <span className="text-[10px] font-medium">Tugs</span>
+              </Link>
 
-          {/* Performance */}
-          <Link
-            to="/performance"
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-              location.pathname === '/performance' ? 'active' : ''
-            }`}
-          >
-            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="text-[10px] font-medium">Stats</span>
-          </Link>
+              {/* PreChecks */}
+              <Link
+                to="/vmu/prechecks"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/vmu/prechecks' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span className="text-[10px] font-medium">PreChecks</span>
+              </Link>
 
-          {/* PreCheck */}
-          <Link
-            to="/precheck"
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-              location.pathname.startsWith('/precheck') ? 'active' : ''
-            }`}
-          >
-            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span className="text-[10px] font-medium">PreCheck</span>
-          </Link>
+              {/* Check Items */}
+              <Link
+                to="/vmu/check-items"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/vmu/check-items' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                <span className="text-[10px] font-medium">Items</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              {/* Home */}
+              <Link
+                to="/calendar"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/calendar' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span className="text-[10px] font-medium">Home</span>
+              </Link>
 
-          {/* VMU (only if vmu role, not admin) */}
-          {isVmu && !isAdmin && (
-            <Link
-              to="/vmu"
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                location.pathname === '/vmu' ? 'active' : ''
-              }`}
-            >
-              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-[10px] font-medium">VMU</span>
-            </Link>
+              {/* My Rota */}
+              <Link
+                to="/my-rota"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/my-rota' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-[10px] font-medium">My Rota</span>
+              </Link>
+
+              {/* Performance */}
+              <Link
+                to="/performance"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/performance' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="text-[10px] font-medium">Stats</span>
+              </Link>
+
+              {/* PreCheck */}
+              <Link
+                to="/precheck"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname.startsWith('/precheck') ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span className="text-[10px] font-medium">PreCheck</span>
+              </Link>
+            </>
           )}
 
           {/* Admin (only if admin) */}

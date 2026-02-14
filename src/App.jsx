@@ -92,8 +92,8 @@ function AppContent() {
             setError(error.message);
           }
         } else {
-          // Admin users bypass profile completion and approval checks
-          if (data?.role === 'admin') {
+          // Admin and VMU users bypass profile completion and approval checks
+          if (data?.role === 'admin' || data?.role === 'vmu') {
             setIsProfileComplete(true);
             setAccountStatus('approved');
           } else {

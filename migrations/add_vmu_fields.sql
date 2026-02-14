@@ -43,3 +43,41 @@ CREATE POLICY "precheck_damages_update" ON precheck_damages
 FOR UPDATE TO authenticated
 USING (is_admin_manager_or_vmu())
 WITH CHECK (is_admin_manager_or_vmu());
+
+-- 5. Helper: admin or vmu (without manager)
+CREATE OR REPLACE FUNCTION is_admin_or_vmu()
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid()
+    AND role IN ('admin', 'vmu')
+  );
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- 6. Update tugs RLS policies for VMU write access
+DROP POLICY IF EXISTS "tugs_insert_admin" ON tugs;
+DROP POLICY IF EXISTS "tugs_update_admin" ON tugs;
+DROP POLICY IF EXISTS "tugs_delete_admin" ON tugs;
+
+CREATE POLICY "tugs_insert_admin_vmu" ON tugs
+FOR INSERT TO authenticated WITH CHECK (is_admin_or_vmu());
+
+CREATE POLICY "tugs_update_admin_vmu" ON tugs
+FOR UPDATE TO authenticated USING (is_admin_or_vmu()) WITH CHECK (is_admin_or_vmu());
+
+CREATE POLICY "tugs_delete_admin_vmu" ON tugs
+FOR DELETE TO authenticated USING (is_admin_or_vmu());
+
+-- 7. Update precheck_check_items RLS policies for VMU write access
+DROP POLICY IF EXISTS "check_items_insert_admin" ON precheck_check_items;
+DROP POLICY IF EXISTS "check_items_update_admin" ON precheck_check_items;
+DROP POLICY IF EXISTS "check_items_delete_admin" ON precheck_check_items;
+
+CREATE POLICY "check_items_insert" ON precheck_check_items
+FOR INSERT TO authenticated WITH CHECK (is_admin_manager_or_vmu());
+
+CREATE POLICY "check_items_update" ON precheck_check_items
+FOR UPDATE TO authenticated USING (is_admin_manager_or_vmu()) WITH CHECK (is_admin_manager_or_vmu());
+
+CREATE POLICY "check_items_delete" ON precheck_check_items
+FOR DELETE TO authenticated USING (is_admin_manager_or_vmu());
