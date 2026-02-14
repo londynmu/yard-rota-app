@@ -27,6 +27,20 @@ export default function PreCheckList() {
   });
   const [tugs, setTugs] = useState([]);
 
+  // ─── Faults filter (persisted in localStorage) ───
+  const FAULTS_FILTER_KEY = 'precheck_faults_filter';
+  const [faultsFilter, setFaultsFilter] = useState(
+    () => localStorage.getItem(FAULTS_FILTER_KEY) || ''
+  );
+  const handleFaultsFilterChange = (value) => {
+    setFaultsFilter(value);
+    if (value) {
+      localStorage.setItem(FAULTS_FILTER_KEY, value);
+    } else {
+      localStorage.removeItem(FAULTS_FILTER_KEY);
+    }
+  };
+
   // ─── Expand/collapse (one card open at a time) ───
   const [expandedCardId, setExpandedCardId] = useState(null);
 
@@ -217,10 +231,18 @@ export default function PreCheckList() {
     return () => observerRef.current?.disconnect();
   }, [hasMore, loading, loadingMore, loadMore]);
 
+  // ─── Display submissions (filtered by faults filter) ───
+  const displaySubmissions = useMemo(() => {
+    if (faultsFilter !== 'faults_only') return submissions;
+    return submissions.filter(s =>
+      s.precheck_damages?.some(d => d.repair_status !== 'resolved')
+    );
+  }, [submissions, faultsFilter]);
+
   // ─── Grouping by date ───
   const grouped = useMemo(() => {
     const map = {};
-    submissions.forEach(sub => {
+    displaySubmissions.forEach(sub => {
       const key = sub.check_date;
       if (!map[key]) {
         map[key] = {
@@ -234,7 +256,7 @@ export default function PreCheckList() {
       map[key].items.push(sub);
     });
     return Object.values(map).sort((a, b) => b.key.localeCompare(a.key));
-  }, [submissions]);
+  }, [displaySubmissions]);
 
   // ─── Build fault cards for a submission ───
   const getFaults = (sub) => {
@@ -567,7 +589,7 @@ export default function PreCheckList() {
           className="w-full md:flex-1 md:min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 px-4 md:px-3 text-sm md:text-xs font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
           aria-label="Search"
         />
-        <div className="grid grid-cols-2 gap-2 md:contents">
+        <div className="grid grid-cols-3 gap-2 md:contents">
           <select
             value={filters.tug}
             onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
@@ -591,6 +613,16 @@ export default function PreCheckList() {
             <option value="pre_shift">Pre-Shift</option>
             <option value="during_shift">During Shift</option>
           </select>
+          <select
+            value={faultsFilter}
+            onChange={(e) => handleFaultsFilterChange(e.target.value)}
+            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+            aria-label="Faults filter"
+          >
+            <option value="">All reports</option>
+            <option value="faults_only">Faults only</option>
+          </select>
         </div>
       </div>
 
@@ -599,7 +631,7 @@ export default function PreCheckList() {
         <div className="animate-pulse space-y-3">
           {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
         </div>
-      ) : submissions.length === 0 ? (
+      ) : displaySubmissions.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium">No PreCheck reports found</p>
           <p className="text-sm mt-1">Try adjusting your filters.</p>
@@ -622,12 +654,12 @@ export default function PreCheckList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {submissions.map(sub => renderSubmissionCard(sub))}
+          {displaySubmissions.map(sub => renderSubmissionCard(sub))}
         </div>
       )}
 
       {/* ─── Infinite scroll sentinel + spinner ─── */}
-      {!loading && submissions.length > 0 && (
+      {!loading && displaySubmissions.length > 0 && (
         <>
           {loadingMore && (
             <div className="flex items-center justify-center py-4 gap-2 text-gray-400">
