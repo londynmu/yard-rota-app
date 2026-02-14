@@ -28,7 +28,7 @@ export default function TugCheckHistory({ tugId }) {
           check_type,
           profiles:user_id(first_name, last_name),
           precheck_items(id, status, item_name, notes),
-          precheck_damages(id, item_id, description, image_urls)
+          precheck_damages(id, item_id, description, image_urls, source)
         `)
         .eq('tug_id', tugId)
         .gte('check_time', thirtyDaysAgo.toISOString())
@@ -105,7 +105,7 @@ export default function TugCheckHistory({ tugId }) {
     });
 
     const unmatchedDamageProblems = uniqueDamages
-      .filter((damage) => !usedDamageIds.has(damage.id))
+      .filter((damage) => !usedDamageIds.has(damage.id) && (damage.source || 'check_item') !== 'remarks')
       .map((damage) => ({
         key: `damage-${damage.id}`,
         itemName: 'Damage report',

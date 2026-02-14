@@ -93,6 +93,9 @@ export default function PreCheckDetail({ submissionId, onBack }) {
   const performItems = items.filter(i => i.item_category === 'perform');
   const checkItems = items.filter(i => i.item_category === 'check');
   const repairItems = checkItems.filter(i => i.status === 'repair_needed');
+  const realDamages = damages.filter(d => (d.source || 'check_item') !== 'remarks');
+  const remarksDamage = damages.find(d => d.source === 'remarks' || (!d.source && !d.item_id && submission.check_type === 'pre_shift'));
+  const remarksImages = remarksDamage?.image_urls || [];
 
   return (
     <div className="space-y-6">
@@ -189,12 +192,12 @@ export default function PreCheckDetail({ submissionId, onBack }) {
         </div>
       </div>
 
-      {/* Damages */}
-      {damages.length > 0 && (
+      {/* Damages (excluding remarks — shown separately below) */}
+      {realDamages.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <h3 className="font-semibold text-charcoal text-sm mb-3">Damage Reports</h3>
           <div className="space-y-3">
-            {damages.map(damage => {
+            {realDamages.map(damage => {
               const resolvedBy = damage.resolved_profile
                 ? `${damage.resolved_profile.first_name || ''} ${damage.resolved_profile.last_name || ''}`.trim()
                 : null;
@@ -263,10 +266,21 @@ export default function PreCheckDetail({ submissionId, onBack }) {
       )}
 
       {/* Remarks */}
-      {submission.remarks && (
+      {(submission.remarks || remarksImages.length > 0) && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <h3 className="font-semibold text-charcoal text-sm mb-2">Remarks</h3>
-          <p className="text-sm text-gray-700">{submission.remarks}</p>
+          {submission.remarks && (
+            <p className="text-sm text-gray-700">{submission.remarks}</p>
+          )}
+          {remarksImages.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {remarksImages.map((url, idx) => (
+                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+                  <img src={url} alt={`Remarks ${idx + 1}`} className="w-full h-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

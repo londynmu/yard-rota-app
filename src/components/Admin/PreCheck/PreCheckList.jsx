@@ -39,9 +39,11 @@ export default function PreCheckList() {
   // ─── Stats (computed from loaded data) ───
   const stats = useMemo(() => ({
     total: submissions.length,
-    withDamages: submissions.filter(s => s.precheck_damages?.length > 0).length,
+    withDamages: submissions.filter(s =>
+      s.precheck_damages?.some(d => (d.source || 'check_item') !== 'remarks')
+    ).length,
     withRepairs: submissions.filter(s =>
-      s.precheck_damages?.some(d => d.repair_status === 'open')
+      s.precheck_damages?.some(d => d.repair_status === 'open' && (d.source || 'check_item') !== 'remarks')
     ).length,
   }), [submissions]);
 
@@ -241,24 +243,42 @@ export default function PreCheckList() {
     const remarksText = sub.remarks || '';
 
     const faults = damages.map(damage => {
+      const source = damage.source || null; // null for old records before backfill
       const linkedItem = damage.item_id
         ? items.find(i => i.id === damage.item_id)
         : null;
 
       let header;
-      if (linkedItem) {
-        header = linkedItem.item_name.replace(/_/g, ' ');
-      } else if (damage.location_on_tug) {
-        header = damage.location_on_tug;
-      } else if (damage.description === remarksText || damage.description === 'Additional photos') {
-        header = sub.check_type === 'during_shift' ? 'Damage Report' : 'Remarks';
+      if (source) {
+        // New logic: use source field
+        if (source === 'check_item' && linkedItem) {
+          header = linkedItem.item_name.replace(/_/g, ' ');
+        } else if (source === 'remarks') {
+          header = 'Remarks';
+        } else if (source === 'during_shift') {
+          header = 'Damage Report';
+        } else if (linkedItem) {
+          header = linkedItem.item_name.replace(/_/g, ' ');
+        } else {
+          header = 'Damage Report';
+        }
       } else {
-        const match = damage.description?.match(/^(.+?)\s*-\s*repair needed$/i);
-        header = match ? match[1] : 'Damage Report';
+        // Fallback for old records without source field
+        if (linkedItem) {
+          header = linkedItem.item_name.replace(/_/g, ' ');
+        } else if (damage.location_on_tug) {
+          header = damage.location_on_tug;
+        } else if (damage.description === remarksText || damage.description === 'Additional photos') {
+          header = sub.check_type === 'during_shift' ? 'Damage Report' : 'Remarks';
+        } else {
+          const match = damage.description?.match(/^(.+?)\s*-\s*repair needed$/i);
+          header = match ? match[1] : 'Damage Report';
+        }
       }
 
       return {
         id: damage.id,
+        source: source || (linkedItem ? 'check_item' : (sub.check_type === 'during_shift' ? 'during_shift' : 'remarks')),
         header,
         description: damage.description,
         imageUrls: damage.image_urls || [],
@@ -268,11 +288,15 @@ export default function PreCheckList() {
       };
     });
 
-    // Legacy: remarks without matching damage
-    if (remarksText && !damages.some(d => d.description === remarksText || d.description === 'Additional photos')) {
+    // Legacy: remarks text without matching damage record (only for old data without source)
+    const hasRemarksRecord = damages.some(d =>
+      d.source === 'remarks' || (!d.source && (d.description === remarksText || d.description === 'Additional photos'))
+    );
+    if (remarksText && !hasRemarksRecord) {
       faults.push({
         id: `remarks-${sub.id}`,
-        header: sub.check_type === 'during_shift' ? 'Damage Report' : 'Remarks',
+        source: 'remarks',
+        header: 'Remarks',
         description: remarksText,
         imageUrls: [],
         repairStatus: null,
@@ -316,15 +340,18 @@ export default function PreCheckList() {
   // ─── Render a submission card ───
   const renderSubmissionCard = (sub) => {
     const faults = getFaults(sub);
+    const realDamages = faults.filter(f => f.source !== 'remarks');
+    const remarksOnly = faults.filter(f => f.source === 'remarks');
     const profile = sub.profiles;
     const userName = profile
       ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
       : 'Unknown';
-    const hasFaults = faults.length > 0;
-    const hasOpen = sub.precheck_damages?.some(d => d.repair_status === 'open');
+    const hasRealDamages = realDamages.length > 0;
+    const hasRemarks = remarksOnly.length > 0;
+    const hasOpen = sub.precheck_damages?.some(d => d.repair_status === 'open' && (d.source || 'check_item') !== 'remarks');
     const isExpanded = expandedCardId === sub.id;
 
-    const hasDefect = hasOpen || hasFaults;
+    const hasDefect = hasOpen || hasRealDamages;
 
     return (
       <div
@@ -352,9 +379,14 @@ export default function PreCheckList() {
               {sub.tugs?.display_name && sub.tugs?.tug_number && (
                 <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
               )}
-              {hasFaults && (
+              {hasRealDamages && (
                 <span className="text-red-600 font-medium">
-                  {' · '}{faults.length} damage{faults.length !== 1 ? 's' : ''}
+                  {' · '}{realDamages.length} damage{realDamages.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {!hasRealDamages && hasRemarks && (
+                <span className="text-amber-600 font-medium">
+                  {' · '}has remarks
                 </span>
               )}
             </span>
@@ -394,16 +426,16 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
-            {/* Remarks fault cards (without extra Remarks label/text box) */}
+            {/* Remarks / during-shift fault cards (not linked to check items) */}
             {(() => {
-              const remarksWithImage = faults.filter(
-                f => (f.header === 'Remarks' || f.header === 'Damage Report') && (f.imageUrls?.length || 0) > 0
+              const standaloneWithImage = faults.filter(
+                f => (f.source === 'remarks' || f.source === 'during_shift') && (f.imageUrls?.length || 0) > 0
               );
-              if (remarksWithImage.length === 0) return null;
+              if (standaloneWithImage.length === 0) return null;
               return (
                 <div className="mb-4">
                   <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                    {remarksWithImage.map(fault => (
+                    {standaloneWithImage.map(fault => (
                       <FaultCard
                         key={fault.id}
                         fault={fault}
@@ -510,7 +542,7 @@ export default function PreCheckList() {
               const allItems = sub.precheck_items || [];
               const okCount = allItems.filter(i => i.status === 'ok').length;
               const naCount = allItems.filter(i => i.status === 'na').length;
-              if (okCount === 0 && naCount === 0 && hasFaults) return null;
+              if (okCount === 0 && naCount === 0 && faults.length > 0) return null;
               if (okCount === 0 && naCount === 0) {
                 return (
                   <div className="flex items-center gap-2 text-sm text-green-600 font-medium py-1">

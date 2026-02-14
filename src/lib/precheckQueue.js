@@ -230,6 +230,7 @@ export const submitPrecheckPayload = async (payload, supabase) => {
         description: payload.remarks || 'Additional photos',
         severity: 'minor',
         image_urls: remarksImageUrls,
+        source: 'remarks',
       });
     if (remarksError) throw remarksError;
   }
@@ -245,6 +246,7 @@ export const submitPrecheckPayload = async (payload, supabase) => {
           description: item.notes || `${item.label || item.key} - repair needed`,
           severity: 'minor',
           image_urls: imageUrls,
+          source: 'check_item',
         });
       if (damageError) throw damageError;
     }
@@ -280,6 +282,7 @@ export const submitDuringShiftPayload = async (payload, supabase) => {
       description: payload.description?.trim() || 'Damage report',
       severity: 'minor',
       image_urls: imageUrls,
+      source: 'during_shift',
     });
 
   if (damageError) throw damageError;

@@ -88,7 +88,8 @@ export default function PreCheckHistory() {
         <div className="space-y-3">
           {submissions.map(sub => {
             const repairItems = sub.precheck_items?.filter(i => i.status === 'repair_needed') || [];
-            const damageCount = sub.precheck_damages?.length || 0;
+            const realDamages = sub.precheck_damages?.filter(d => (d.source || 'check_item') !== 'remarks') || [];
+            const damageCount = realDamages.length;
             const isExpanded = expanded === sub.id;
 
             return (
@@ -179,11 +180,11 @@ export default function PreCheckHistory() {
                       </div>
                     )}
 
-                    {/* Damages */}
-                    {sub.precheck_damages?.length > 0 && (
+                    {/* Damages (exclude remarks — shown separately below) */}
+                    {realDamages.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="text-xs font-semibold text-gray-500 uppercase">Damages</h4>
-                        {sub.precheck_damages.map(damage => (
+                        {realDamages.map(damage => (
                           <div key={damage.id} className="bg-white p-3 rounded-lg border border-red-200">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-bold uppercase text-red-600">{damage.severity}</span>
@@ -207,12 +208,25 @@ export default function PreCheckHistory() {
                     )}
 
                     {/* Remarks */}
-                    {sub.remarks && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</h4>
-                        <p className="text-sm text-gray-700 bg-white p-2 rounded-lg border border-gray-200">{sub.remarks}</p>
-                      </div>
-                    )}
+                    {sub.remarks && (() => {
+                      const remarksDamage = sub.precheck_damages?.find(d => d.source === 'remarks' || (!d.source && !d.item_id && sub.check_type === 'pre_shift'));
+                      const remarksImages = remarksDamage?.image_urls || [];
+                      return (
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</h4>
+                          <p className="text-sm text-gray-700 bg-white p-2 rounded-lg border border-gray-200">{sub.remarks}</p>
+                          {remarksImages.length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                              {remarksImages.map((url, idx) => (
+                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

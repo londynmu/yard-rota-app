@@ -31,6 +31,7 @@ export default function TugDamageHistory({ tugId }) {
           )
         `)
         .eq('precheck_submissions.tug_id', tugId)
+        .neq('source', 'remarks')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false });
 
