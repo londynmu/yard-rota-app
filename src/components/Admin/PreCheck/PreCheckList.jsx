@@ -466,24 +466,22 @@ export default function PreCheckList() {
                 <div>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check items</h4>
                   <div className="grid gap-1.5 sm:grid-cols-2">
-                    {/* Defects without photos – prominent at top */}
+                    {/* Defects without photos – prominent at top with status controls */}
                     {defectsNoPhoto.map(item => {
                       const label = formatItemName(item.item_name);
                       const defectDesc = getItemDefectDescription(item, sub);
+                      const damage = (sub.precheck_damages || []).find(d => d.item_id === item.id);
                       return (
-                        <div
+                        <DefectItemCard
                           key={item.id}
-                          className="flex items-start gap-2 py-2.5 px-3 rounded-lg bg-red-50 border border-red-200 text-sm"
-                        >
-                          <svg className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          <span className="min-w-0">
-                            <span className="capitalize font-medium text-red-700">Defect</span>
-                            <span className="text-charcoal font-normal"> – {label}</span>
-                            {defectDesc && <span className="block text-gray-600 text-xs mt-0.5">{defectDesc}</span>}
-                          </span>
-                        </div>
+                          label={label}
+                          description={defectDesc}
+                          damage={damage}
+                          onStatusChange={damage
+                            ? (newStatus) => updateDamageStatus(damage.id, newStatus, sub.id)
+                            : undefined
+                          }
+                        />
                       );
                     })}
                     {/* OK and N/A items */}
@@ -781,6 +779,99 @@ function FaultCard({ fault, onStatusChange }) {
           Resolved by {resolvedByName} on {new Date(fault.resolvedAt).toLocaleDateString('en-GB')}
         </p>
       )}
+    </div>
+  );
+}
+
+// ─── Defect item card (no photo, with status controls) ───
+function DefectItemCard({ label, description, damage, onStatusChange }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  const repairStatus = damage?.repair_status || 'open';
+  const resolvedAt = damage?.resolved_at;
+  const resolvedProfile = damage?.resolved_profile;
+  const resolvedByName = resolvedProfile
+    ? `${resolvedProfile.first_name || ''} ${resolvedProfile.last_name || ''}`.trim()
+    : null;
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
+
+  const bgClass = repairStatus === 'resolved'
+    ? 'bg-green-50 border-green-200'
+    : repairStatus === 'in_progress'
+      ? 'bg-yellow-50 border-yellow-200'
+      : 'bg-red-50 border-red-200';
+
+  return (
+    <div className={`flex items-start gap-2 py-2.5 px-3 rounded-lg border text-sm ${bgClass}`}>
+      <svg className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="min-w-0">
+            <span className="capitalize font-medium text-red-700">Defect</span>
+            <span className="text-charcoal font-normal"> – {label}</span>
+          </span>
+          {/* Status menu */}
+          {onStatusChange && (
+            <span className="relative ml-auto flex-shrink-0" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setShowMenu(prev => !prev)}
+                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  repairStatus === 'resolved' ? 'bg-green-400'
+                    : repairStatus === 'in_progress' ? 'bg-yellow-400'
+                    : 'bg-red-400'
+                }`} />
+                <span>{repairStatus === 'open' ? 'Open' : repairStatus === 'in_progress' ? 'In Progress' : 'Resolved'}</span>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                  {[
+                    { value: 'open', label: 'Open', dot: 'bg-red-400' },
+                    { value: 'in_progress', label: 'In Progress', dot: 'bg-yellow-400' },
+                    { value: 'resolved', label: 'Resolved', dot: 'bg-green-400' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => { onStatusChange(opt.value); setShowMenu(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
+                        repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
+          )}
+        </span>
+        {description && <span className="block text-gray-600 text-xs mt-0.5">{description}</span>}
+        {resolvedAt && resolvedByName && (
+          <span className="block text-[10px] text-green-700 mt-1">
+            Resolved by {resolvedByName} on {new Date(resolvedAt).toLocaleDateString('en-GB')}
+          </span>
+        )}
+      </span>
     </div>
   );
 }
