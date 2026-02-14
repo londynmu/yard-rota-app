@@ -8,6 +8,7 @@ import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
+import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import PreCheckReminder from './PreCheck/PreCheckReminder';
 
 /**
@@ -55,10 +56,11 @@ const UserApprovalPage = lazyWithRetry(() => import('../pages/UserApprovalPage')
 const BrakesPage = lazyWithRetry(() => import('../pages/BrakesPage'));
 const PerformanceLeaderboard = lazyWithRetry(() => import('../pages/PerformanceLeaderboard'));
 const PreCheckPage = lazyWithRetry(() => import('../pages/PreCheckPage'));
+const VmuPage = lazyWithRetry(() => import('../pages/VmuPage'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
-  const { isAdmin } = useNotifications();
+  const { isAdmin, isVmu } = useNotifications();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileName, setProfileName] = useState('');
@@ -180,6 +182,7 @@ export default function HomePage() {
     if (path === '/brakes') return 'Breaks';
     if (path === '/performance') return 'Performance';
     if (path.startsWith('/precheck')) return 'Tug PreCheck';
+    if (path === '/vmu') return 'VMU';
     
     return 'My Rota';
   }, [location.pathname]);
@@ -247,7 +250,8 @@ export default function HomePage() {
           path === '/brakes' || 
           path === '/calendar' ||
           path === '/performance' ||
-          path.startsWith('/precheck');
+          path.startsWith('/precheck') ||
+          path === '/vmu';
         const isAdminPage = path === '/admin';
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
@@ -317,6 +321,18 @@ export default function HomePage() {
                   >
                     PreCheck
                   </Link>
+                  {(isVmu || isAdmin) && (
+                    <Link
+                      to="/vmu"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/vmu' 
+                          ? 'bg-slate-100 text-slate-800' 
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      VMU
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -410,6 +426,14 @@ export default function HomePage() {
             <Route path="/performance" element={<PerformanceLeaderboard />} />
             <Route path="/precheck" element={<PreCheckPage />} />
             <Route path="/precheck/tug/:token" element={<PreCheckPage />} />
+            <Route 
+              path="/vmu" 
+              element={
+                <ProtectedVmuRoute>
+                  <VmuPage />
+                </ProtectedVmuRoute>
+              } 
+            />
             <Route path="*" element={<Navigate to="/calendar" replace />} />
           </Routes>
         </Suspense>
@@ -472,6 +496,22 @@ export default function HomePage() {
             <span className="text-[10px] font-medium">PreCheck</span>
           </Link>
 
+          {/* VMU (only if vmu role, not admin) */}
+          {isVmu && !isAdmin && (
+            <Link
+              to="/vmu"
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                location.pathname === '/vmu' ? 'active' : ''
+              }`}
+            >
+              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-[10px] font-medium">VMU</span>
+            </Link>
+          )}
+
           {/* Admin (only if admin) */}
           {isAdmin && (
             <Link
@@ -488,8 +528,8 @@ export default function HomePage() {
             </Link>
           )}
 
-          {/* Profile (only for non-admin users) */}
-          {!isAdmin && (
+          {/* Profile (only for non-admin and non-vmu users) */}
+          {!isAdmin && !isVmu && (
             <Link
               to="/profile"
               className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${

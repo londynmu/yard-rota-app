@@ -3,6 +3,21 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/AuthContext';
 
+// ─── Shared status config for repair_status lifecycle ───
+export const STATUS_CONFIG = {
+  open:           { label: 'Open',           dot: 'bg-red-400',    border: 'border-red-200',    bg: 'bg-red-50' },
+  reported:       { label: 'Reported',       dot: 'bg-orange-400', border: 'border-orange-200', bg: 'bg-orange-50' },
+  awaiting_parts: { label: 'Awaiting Parts', dot: 'bg-amber-400',  border: 'border-amber-200',  bg: 'bg-amber-50' },
+  in_progress:    { label: 'In Progress',    dot: 'bg-yellow-400', border: 'border-yellow-200', bg: 'bg-yellow-50' },
+  resolved:       { label: 'Resolved',       dot: 'bg-green-400',  border: 'border-green-200',  bg: 'bg-green-50' },
+};
+
+const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
+  value,
+  label: cfg.label,
+  dot: cfg.dot,
+}));
+
 const TIME_RANGES = {
   '24h': { ms: 24 * 3600000, label: '24h' },
   '48h': { ms: 48 * 3600000, label: '48h' },
@@ -703,10 +718,8 @@ function FaultCard({ fault, onStatusChange }) {
 
   return (
     <div className={`rounded-lg border p-3 flex flex-col ${
-      fault.repairStatus === 'resolved' ? 'border-green-200 bg-green-50'
-        : fault.repairStatus === 'in_progress' ? 'border-yellow-200 bg-yellow-50'
-        : fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
-        : 'border-red-200 bg-red-50'
+      fault.repairStatus === null ? 'border-gray-200 bg-gray-50'
+        : `${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).border} ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).bg}`
     }`}>
       {/* Header: item name + status action */}
       <div className="flex items-center gap-2 mb-1">
@@ -721,24 +734,16 @@ function FaultCard({ fault, onStatusChange }) {
               onClick={() => setShowMenu(prev => !prev)}
               className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                fault.repairStatus === 'resolved' ? 'bg-green-400'
-                  : fault.repairStatus === 'in_progress' ? 'bg-yellow-400'
-                  : 'bg-red-400'
-              }`} />
-              <span>{fault.repairStatus === 'open' ? 'Open' : fault.repairStatus === 'in_progress' ? 'In Progress' : 'Resolved'}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).dot}`} />
+              <span>{(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).label}</span>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
-                {[
-                  { value: 'open', label: 'Open', dot: 'bg-red-400' },
-                  { value: 'in_progress', label: 'In Progress', dot: 'bg-yellow-400' },
-                  { value: 'resolved', label: 'Resolved', dot: 'bg-green-400' },
-                ].map(opt => (
+              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                {STATUS_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     type="button"
@@ -837,11 +842,8 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showMenu]);
 
-  const bgClass = repairStatus === 'resolved'
-    ? 'bg-green-50 border-green-200'
-    : repairStatus === 'in_progress'
-      ? 'bg-yellow-50 border-yellow-200'
-      : 'bg-red-50 border-red-200';
+  const cfg = STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open;
+  const bgClass = `${cfg.bg} ${cfg.border}`;
 
   return (
     <div className={`flex items-start gap-2 py-2.5 px-3 rounded-lg border text-sm ${bgClass}`}>
@@ -862,24 +864,16 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
                 onClick={() => setShowMenu(prev => !prev)}
                 className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  repairStatus === 'resolved' ? 'bg-green-400'
-                    : repairStatus === 'in_progress' ? 'bg-yellow-400'
-                    : 'bg-red-400'
-                }`} />
-                <span>{repairStatus === 'open' ? 'Open' : repairStatus === 'in_progress' ? 'In Progress' : 'Resolved'}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open).dot}`} />
+                <span>{(STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open).label}</span>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
-                  {[
-                    { value: 'open', label: 'Open', dot: 'bg-red-400' },
-                    { value: 'in_progress', label: 'In Progress', dot: 'bg-yellow-400' },
-                    { value: 'resolved', label: 'Resolved', dot: 'bg-green-400' },
-                  ].map(opt => (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+                  {STATUS_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       type="button"

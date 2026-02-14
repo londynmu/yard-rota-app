@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { STATUS_CONFIG } from '../Admin/PreCheck/PreCheckList';
 import PropTypes from 'prop-types';
 
 export default function TugDamageHistory({ tugId }) {
@@ -79,17 +80,16 @@ export default function TugDamageHistory({ tugId }) {
             : 'Unknown';
           const isOpen = expanded === damage.id;
 
-          const statusColor = damage.repair_status === 'resolved'
-            ? 'border-l-green-400 bg-green-50'
-            : damage.repair_status === 'in_progress'
-            ? 'border-l-yellow-400 bg-yellow-50'
-            : 'border-l-red-400 bg-red-50';
-
-          const dotColor = damage.repair_status === 'resolved'
-            ? 'bg-green-400'
-            : damage.repair_status === 'in_progress'
-            ? 'bg-yellow-400'
-            : 'bg-red-400';
+          const sCfg = STATUS_CONFIG[damage.repair_status] || STATUS_CONFIG.open;
+          const BORDER_LEFT_MAP = {
+            open: 'border-l-red-400 bg-red-50',
+            reported: 'border-l-orange-400 bg-orange-50',
+            awaiting_parts: 'border-l-amber-400 bg-amber-50',
+            in_progress: 'border-l-yellow-400 bg-yellow-50',
+            resolved: 'border-l-green-400 bg-green-50',
+          };
+          const statusColor = BORDER_LEFT_MAP[damage.repair_status] || BORDER_LEFT_MAP.open;
+          const dotColor = sCfg.dot;
 
           return (
             <div
