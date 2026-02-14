@@ -13,6 +13,45 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 const VMU_FILTERS_KEY = 'vmu_filters';
 const VMU_TAB_KEY = 'vmu_active_tab';
 
+const FIELD_LABELS = {
+  repair_status: 'Status',
+  defect_number: 'Defect Number',
+  reported_to_terberg_at: 'Reported to Terberg',
+  terberg_reference: 'Terberg Reference',
+  vmu_notes: 'VMU Notes',
+};
+
+const SKIP_LOG_FIELDS = new Set(['resolved_at', 'resolved_by']);
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return '';
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay === 1) return 'yesterday';
+  if (diffDay < 30) return `${diffDay}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function formatFieldValue(field, value) {
+  if (value == null || value === '') return null;
+  if (field === 'repair_status') {
+    return STATUS_CONFIG[value]?.label || value;
+  }
+  if (field === 'reported_to_terberg_at') {
+    try {
+      return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return value; }
+  }
+  return value;
+}
+
 function loadPersistedFilters() {
   try {
     const raw = localStorage.getItem(VMU_FILTERS_KEY);
@@ -37,14 +76,22 @@ export default function VmuPage() {
   // ─── Filters ───
   const [filters, setFilters] = useState(loadPersistedFilters);
 
-  // ─── Expanded cards ───
-  const [expandedId, setExpandedId] = useState(null);
+  // ─── Expanded tug groups (Set of tug IDs, allows multiple open) ───
+  const [expandedTugs, setExpandedTugs] = useState(new Set());
+
+  // ─── Expanded defect card (single defect detail view) ───
+  const [expandedDefectId, setExpandedDefectId] = useState(null);
 
   // ─── Image lightbox ───
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
   // ─── Editing state for inline fields ───
   const [editingFields, setEditingFields] = useState({});
+
+  // ─── Activity logs ───
+  const [activityLogs, setActivityLogs] = useState({});
+  const [activityLoading, setActivityLoading] = useState({});
+  const [showAllActivity, setShowAllActivity] = useState({});
 
   // ─── Persist filters ───
   useEffect(() => {
@@ -134,7 +181,10 @@ export default function VmuPage() {
 
   // ─── Update damage field ───
   const updateDamageField = async (damageId, updates) => {
-    // Optimistic update
+    // 1. Read old values BEFORE optimistic update
+    const currentDamage = damages.find(d => d.id === damageId);
+
+    // 2. Optimistic update
     setDamages(prev => prev.map(d => d.id === damageId ? { ...d, ...updates } : d));
 
     try {
@@ -155,6 +205,43 @@ export default function VmuPage() {
 
         if (fresh) {
           setDamages(prev => prev.map(d => d.id === damageId ? { ...d, ...fresh } : d));
+        }
+      }
+
+      // 3. Log changes AFTER successful DB update (fire-and-forget)
+      if (currentDamage && user?.id) {
+        const logEntries = [];
+        for (const [field, newVal] of Object.entries(updates)) {
+          if (SKIP_LOG_FIELDS.has(field)) continue;
+          const oldVal = currentDamage[field];
+          if (String(oldVal ?? '') !== String(newVal ?? '')) {
+            logEntries.push({
+              damage_id: damageId,
+              user_id: user.id,
+              action_type: field === 'repair_status' ? 'status_change' : 'field_update',
+              field_name: field,
+              old_value: oldVal != null ? String(oldVal) : null,
+              new_value: newVal != null ? String(newVal) : null,
+            });
+          }
+        }
+        if (logEntries.length > 0) {
+          // Fire-and-forget insert + optimistic cache update
+          supabase.from('defect_activity_log').insert(logEntries).then(({ data }) => {
+            // Don't block on this - just log errors
+          }).catch(err => console.error('[VmuPage] Activity log error:', err));
+
+          // Optimistic update of activity log cache
+          const optimisticEntries = logEntries.map(entry => ({
+            ...entry,
+            id: crypto.randomUUID(),
+            created_at: new Date().toISOString(),
+            profiles: { first_name: user.user_metadata?.first_name, last_name: user.user_metadata?.last_name },
+          }));
+          setActivityLogs(prev => ({
+            ...prev,
+            [damageId]: [...optimisticEntries, ...(prev[damageId] || [])],
+          }));
         }
       }
     } catch (err) {
@@ -185,6 +272,34 @@ export default function VmuPage() {
       return next;
     });
   };
+
+  // ─── Fetch activity log on-demand when defect card expands ───
+  const fetchActivityLog = useCallback(async (damageId) => {
+    if (!damageId || activityLogs[damageId]) return; // already cached
+    setActivityLoading(prev => ({ ...prev, [damageId]: true }));
+    try {
+      const { data, error } = await supabase
+        .from('defect_activity_log')
+        .select('*, profiles:user_id(first_name, last_name)')
+        .eq('damage_id', damageId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setActivityLogs(prev => ({ ...prev, [damageId]: data || [] }));
+    } catch (err) {
+      console.error('[VmuPage] Activity log fetch error:', err);
+      setActivityLogs(prev => ({ ...prev, [damageId]: [] }));
+    } finally {
+      setActivityLoading(prev => ({ ...prev, [damageId]: false }));
+    }
+  }, [activityLogs]);
+
+  useEffect(() => {
+    if (expandedDefectId) {
+      fetchActivityLog(expandedDefectId);
+    }
+  }, [expandedDefectId, fetchActivityLog]);
 
   // ─── Tug grouping for Tug View ───
   const tugGroups = useMemo(() => {
@@ -227,9 +342,22 @@ export default function VmuPage() {
     return `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown';
   };
 
+  // ─── Toggle tug group expansion ───
+  const toggleTugGroup = (tugId) => {
+    setExpandedTugs(prev => {
+      const next = new Set(prev);
+      if (next.has(tugId)) {
+        next.delete(tugId);
+      } else {
+        next.add(tugId);
+      }
+      return next;
+    });
+  };
+
   // ─── Render a defect card ───
   const renderDefectCard = (d, showTug = true) => {
-    const isExpanded = expandedId === d.id;
+    const isExpanded = expandedDefectId === d.id;
     const cfg = STATUS_CONFIG[d.repair_status] || STATUS_CONFIG.open;
     const resolvedName = d.resolved_profile
       ? `${d.resolved_profile.first_name || ''} ${d.resolved_profile.last_name || ''}`.trim()
@@ -243,7 +371,7 @@ export default function VmuPage() {
         {/* Header */}
         <button
           type="button"
-          onClick={() => setExpandedId(prev => prev === d.id ? null : d.id)}
+          onClick={() => setExpandedDefectId(prev => prev === d.id ? null : d.id)}
           className={`w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
         >
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
@@ -344,17 +472,21 @@ export default function VmuPage() {
               {/* Defect Number */}
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Defect Number</label>
-                <input
-                  type="text"
-                  defaultValue={d.defect_number || ''}
-                  placeholder="e.g. D-234567"
-                  onBlur={(e) => {
-                    const val = e.target.value.trim();
-                    if (val !== (d.defect_number || '')) saveField(d.id, 'defect_number', val);
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                  className="w-full text-sm rounded-lg px-3 py-2 border border-gray-200 bg-white font-mono placeholder:text-gray-300"
-                />
+                <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden">
+                  <span className="pl-3 pr-1 text-sm font-mono font-semibold text-gray-500 select-none">D-</span>
+                  <input
+                    type="text"
+                    defaultValue={(d.defect_number || '').replace(/^D-/i, '')}
+                    placeholder="234567"
+                    onBlur={(e) => {
+                      const num = e.target.value.trim().replace(/^D-/i, '');
+                      const full = num ? `D-${num}` : '';
+                      if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                    className="flex-1 text-sm py-2 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
+                  />
+                </div>
               </div>
 
               {/* Reported to Terberg */}
@@ -405,6 +537,88 @@ export default function VmuPage() {
                 className="w-full text-sm rounded-lg px-3 py-2 border border-gray-200 bg-white placeholder:text-gray-300 resize-none"
               />
             </div>
+
+            {/* Activity log */}
+            {(() => {
+              const logs = activityLogs[d.id];
+              const isLogLoading = activityLoading[d.id];
+              const showAll = showAllActivity[d.id];
+              const VISIBLE_COUNT = 5;
+
+              if (isLogLoading) {
+                return (
+                  <div className="text-xs text-gray-400 py-2">Loading activity...</div>
+                );
+              }
+
+              if (!logs || logs.length === 0) return null;
+
+              const visibleLogs = showAll ? logs : logs.slice(0, VISIBLE_COUNT);
+              const hasMore = logs.length > VISIBLE_COUNT;
+
+              return (
+                <div>
+                  <span className="text-xs text-gray-400 block mb-2">Activity</span>
+                  <div className="space-y-1.5">
+                    {visibleLogs.map((entry) => {
+                      const name = entry.profiles
+                        ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
+                        : 'Unknown';
+                      const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
+                      const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
+                      const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
+                      const time = formatRelativeTime(entry.created_at);
+
+                      let description;
+                      if (entry.action_type === 'status_change') {
+                        description = (
+                          <>
+                            changed status
+                            {oldDisplay && <> from <span className="font-medium">{oldDisplay}</span></>}
+                            {newDisplay && <> to <span className="font-medium">{newDisplay}</span></>}
+                          </>
+                        );
+                      } else if (!newDisplay) {
+                        description = (
+                          <>cleared <span className="font-medium">{fieldLabel}</span></>
+                        );
+                      } else {
+                        description = (
+                          <>
+                            updated <span className="font-medium">{fieldLabel}</span>
+                            {' '}to <span className="font-medium text-charcoal">{
+                              String(newDisplay).length > 40
+                                ? String(newDisplay).slice(0, 40) + '...'
+                                : newDisplay
+                            }</span>
+                          </>
+                        );
+                      }
+
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2 text-[11px] text-gray-500 leading-relaxed">
+                          <span className="w-1 h-1 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
+                          <span className="flex-1">
+                            <span className="font-semibold text-gray-700">{name}</span>{' '}
+                            {description}
+                            <span className="text-gray-400 ml-1">· {time}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {hasMore && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllActivity(prev => ({ ...prev, [d.id]: !showAll }))}
+                      className="text-[11px] text-blue-500 hover:text-blue-700 mt-1.5 cursor-pointer"
+                    >
+                      {showAll ? 'Show less' : `Show all ${logs.length} entries`}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Resolved info */}
             {d.repair_status === 'resolved' && resolvedName && (
@@ -530,7 +744,7 @@ export default function VmuPage() {
             {tugGroups.length} tug{tugGroups.length !== 1 ? 's' : ''} with defects
           </div>
           {tugGroups.map(group => {
-            const isGroupExpanded = expandedId === `tug-${group.id}`;
+            const isGroupExpanded = expandedTugs.has(group.id);
             const openDamages = group.damages.filter(d => d.repair_status !== 'resolved');
             const resolvedDamages = group.damages.filter(d => d.repair_status === 'resolved');
 
@@ -539,7 +753,7 @@ export default function VmuPage() {
                 {/* Tug header */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(prev => prev === `tug-${group.id}` ? null : `tug-${group.id}`)}
+                  onClick={() => toggleTugGroup(group.id)}
                   className="w-full px-4 py-3 flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
                 >
                   <span className="text-lg">🚛</span>
