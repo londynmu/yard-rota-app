@@ -383,12 +383,12 @@ export default function VmuPage() {
               {d.defect_number && (
                 <span className="text-xs font-mono bg-white/60 px-1.5 py-0.5 rounded text-gray-600">{d.defect_number}</span>
               )}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} border ${cfg.border}`}>
-                {cfg.label}
-              </span>
             </div>
             <p className="text-xs text-gray-600 truncate mt-0.5">{d.description}</p>
           </div>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${cfg.bg} border ${cfg.border}`}>
+            {cfg.label}
+          </span>
           <span className="text-[10px] text-gray-400 flex-shrink-0 whitespace-nowrap">{formatDate(d.created_at)}</span>
           <svg
             className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
