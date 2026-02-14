@@ -288,11 +288,12 @@ export default function PreCheckList() {
       };
     });
 
-    // Legacy: remarks text without matching damage record (only for old data without source)
+    // Legacy: remarks text without matching damage record (only for old pre-shift data without source)
+    // Skip for during_shift — the remarks field duplicates the damage description
     const hasRemarksRecord = damages.some(d =>
       d.source === 'remarks' || (!d.source && (d.description === remarksText || d.description === 'Additional photos'))
     );
-    if (remarksText && !hasRemarksRecord) {
+    if (remarksText && !hasRemarksRecord && sub.check_type !== 'during_shift') {
       faults.push({
         id: `remarks-${sub.id}`,
         source: 'remarks',
