@@ -427,116 +427,64 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
-            {/* Remarks / during-shift fault cards (not linked to check items) */}
+            {/* All faults as FaultCard boxes (remarks, during-shift, check item defects) */}
+            {faults.length > 0 && (
+              <div>
+                <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+                  {faults.map(fault => (
+                    <FaultCard
+                      key={fault.id}
+                      fault={fault}
+                      onStatusChange={typeof fault.id === 'string' && fault.id.startsWith('remarks-')
+                        ? undefined
+                        : (newStatus) => updateDamageStatus(fault.id, newStatus, sub.id)
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Check items – only OK and N/A (defects are shown as FaultCards above) */}
             {(() => {
-              const standaloneFaults = faults.filter(
-                f => f.source === 'remarks' || f.source === 'during_shift'
+              const passedItems = (sub.precheck_items || []).filter(
+                i => i.status === 'ok' || i.status === 'na'
               );
-              if (standaloneFaults.length === 0) return null;
+              if (passedItems.length === 0) return null;
               return (
-                <div className="mb-4">
-                  <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                    {standaloneFaults.map(fault => (
-                      <FaultCard
-                        key={fault.id}
-                        fault={fault}
-                        onStatusChange={(newStatus) =>
-                          updateDamageStatus(fault.id, newStatus, sub.id)
-                        }
-                      />
-                    ))}
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check items</h4>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {passedItems.map(item => {
+                      const label = formatItemName(item.item_name);
+                      const isNa = item.status === 'na';
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm"
+                        >
+                          {isNa ? (
+                            <span className="flex items-center gap-1.5 text-slate-500 flex-1 min-w-0">
+                              <span className="w-4 h-4 flex-shrink-0 rounded border border-slate-300 flex items-center justify-center text-[10px] font-medium">—</span>
+                              <span className="capitalize truncate">{label}</span>
+                              <span className="text-slate-400 flex-shrink-0">N/A</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-green-700 flex-1 min-w-0">
+                              <svg className="w-4 h-4 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span className="capitalize truncate">{label}</span>
+                              <span className="text-green-600 font-medium flex-shrink-0">OK</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })()}
-
-            {/* Check items – full list (defects first, then OK / N/A) */}
-            {(sub.precheck_items?.length > 0) && (
-              <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check items</h4>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {[...(sub.precheck_items || [])]
-                    .sort((a, b) => {
-                      const aDefect = a.status === 'repair_needed' || a.status === 'completed';
-                      const bDefect = b.status === 'repair_needed' || b.status === 'completed';
-                      if (aDefect && !bDefect) return -1;
-                      if (!aDefect && bDefect) return 1;
-                      return 0;
-                    })
-                    .map(item => {
-                    const label = formatItemName(item.item_name);
-                    const isOk = item.status === 'ok';
-                    const isNa = item.status === 'na';
-                    const isDefect = item.status === 'repair_needed' || item.status === 'completed';
-                    const defectDesc = getItemDefectDescription(item, sub);
-                    const itemDamages = (sub.precheck_damages || []).filter(d => d.item_id === item.id);
-                    const itemImageUrls = itemDamages.flatMap(d => Array.isArray(d.image_urls) ? d.image_urls : []);
-
-                    const defectHasImages = isDefect && itemImageUrls.length > 0;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex items-start gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm ${
-                          defectHasImages ? 'flex-col sm:min-h-[220px]' : ''
-                        }`}
-                      >
-                        {isOk && (
-                          <span className="flex items-center gap-1.5 text-green-700 flex-1 min-w-0">
-                            <svg className="w-4 h-4 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span className="capitalize truncate">{label}</span>
-                            <span className="text-green-600 font-medium flex-shrink-0">OK</span>
-                          </span>
-                        )}
-                        {isNa && (
-                          <span className="flex items-center gap-1.5 text-slate-500 flex-1 min-w-0">
-                            <span className="w-4 h-4 flex-shrink-0 rounded border border-slate-300 flex items-center justify-center text-[10px] font-medium">—</span>
-                            <span className="capitalize truncate">{label}</span>
-                            <span className="text-slate-400 flex-shrink-0">N/A</span>
-                          </span>
-                        )}
-                        {isDefect && (
-                          <>
-                            <span className="flex items-start gap-1.5 text-red-700 flex-1 min-w-0 flex-shrink-0">
-                              <svg className="w-4 h-4 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                              </svg>
-                              <span className="min-w-0">
-                                <span className="capitalize font-medium">Defect</span>
-                                <span className="text-charcoal font-normal"> – {label}</span>
-                                {defectDesc && <span className="block text-gray-600 text-xs mt-0.5">{defectDesc}</span>}
-                              </span>
-                            </span>
-                            {itemImageUrls.length > 0 && (
-                              <div className="w-full mt-2 pt-2 border-t border-gray-100 flex-shrink-0">
-                                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                                  {itemImageUrls.map((url, idx) => (
-                                    <a
-                                      key={idx}
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block rounded-md overflow-hidden border border-gray-200 aspect-square sm:aspect-[4/3] bg-gray-50"
-                                    >
-                                      <img
-                                        src={url}
-                                        alt={`${label} ${idx + 1}`}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </a>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Summary: passed / N/A (defects are shown on item cards; remarks with photo at top) */}
             {(() => {
