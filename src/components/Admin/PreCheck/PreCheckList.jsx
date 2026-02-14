@@ -428,14 +428,14 @@ export default function PreCheckList() {
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
             {/* Remarks / during-shift fault cards (not linked to check items) */}
             {(() => {
-              const standaloneWithImage = faults.filter(
-                f => (f.source === 'remarks' || f.source === 'during_shift') && (f.imageUrls?.length || 0) > 0
+              const standaloneFaults = faults.filter(
+                f => f.source === 'remarks' || f.source === 'during_shift'
               );
-              if (standaloneWithImage.length === 0) return null;
+              if (standaloneFaults.length === 0) return null;
               return (
                 <div className="mb-4">
                   <div className="grid gap-3 items-stretch" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                    {standaloneWithImage.map(fault => (
+                    {standaloneFaults.map(fault => (
                       <FaultCard
                         key={fault.id}
                         fault={fault}
