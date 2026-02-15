@@ -84,6 +84,7 @@ export default function VmuPage() {
 
   // ─── Image lightbox ───
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [showAllPhotos, setShowAllPhotos] = useState({});
 
   // ─── Editing state for inline fields ───
   const [editingFields, setEditingFields] = useState({});
@@ -107,12 +108,13 @@ export default function VmuPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [damagesRes, tugsRes] = await Promise.all([
+      const [damagesRes, tugsRes, checkItemsRes] = await Promise.all([
         supabase
           .from('precheck_damages')
           .select(`
             *,
             resolved_profile:resolved_by(first_name, last_name),
+            precheck_items(item_name),
             precheck_submissions!inner(
               id,
               check_date,
@@ -126,12 +128,28 @@ export default function VmuPage() {
           .neq('source', 'remarks')
           .order('created_at', { ascending: false }),
         supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
+        supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
       ]);
 
       if (damagesRes.error) throw damagesRes.error;
       if (tugsRes.error) throw tugsRes.error;
+      if (checkItemsRes.error) throw checkItemsRes.error;
 
-      setDamages(damagesRes.data || []);
+      // Create a map of item_key to label for check items
+      const checkItemLabels = {};
+      (checkItemsRes.data || []).forEach(item => {
+        checkItemLabels[item.item_key] = item.label;
+      });
+
+      // Enhance damages data with labels
+      const enhancedDamages = (damagesRes.data || []).map(damage => ({
+        ...damage,
+        check_item_label: damage.precheck_items?.item_name 
+          ? checkItemLabels[damage.precheck_items.item_name] 
+          : null
+      }));
+
+      setDamages(enhancedDamages);
       setTugs(tugsRes.data || []);
     } catch (err) {
       console.error('[VmuPage] Fetch error:', err);
@@ -384,7 +402,7 @@ export default function VmuPage() {
                 <span className="text-xs font-mono bg-white/60 px-1.5 py-0.5 rounded text-gray-600">{d.defect_number}</span>
               )}
             </div>
-            <p className="text-xs text-gray-600 truncate mt-0.5">{d.description}</p>
+            <p className="text-xs text-gray-600 truncate mt-0.5">{d.check_item_label || d.description}</p>
           </div>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${cfg.bg} border ${cfg.border}`}>
             {cfg.label}
@@ -400,145 +418,236 @@ export default function VmuPage() {
 
         {/* Expanded detail */}
         {isExpanded && (
-          <div className="border-t border-gray-200 bg-white p-4 space-y-4">
-            {/* Info row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <span className="text-gray-400 block">Reported by</span>
-                <span className="text-charcoal font-medium">{getReporterName(d)}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block">Date reported</span>
-                <span className="text-charcoal font-medium">{formatDate(d.created_at)}</span>
-              </div>
-              {d.location_on_tug && (
-                <div>
-                  <span className="text-gray-400 block">Location on tug</span>
-                  <span className="text-charcoal font-medium capitalize">{d.location_on_tug}</span>
-                </div>
-              )}
-              {d.severity && (
-                <div>
-                  <span className="text-gray-400 block">Severity</span>
-                  <span className={`font-medium capitalize ${
-                    d.severity === 'critical' ? 'text-red-600' : d.severity === 'major' ? 'text-orange-600' : 'text-yellow-600'
-                  }`}>{d.severity}</span>
-                </div>
-              )}
-            </div>
+          <div className="border-t border-gray-200 bg-white">
+            {/* Split View Layout */}
+            <div className="flex flex-col lg:flex-row">
+              {/* LEFT SIDE - Content Area */}
+              <div className="flex-1 p-4 space-y-4 lg:border-r border-gray-200">
+                {/* Photos Section */}
+                {d.image_urls && d.image_urls.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-gray-900">Photos ({d.image_urls.length})</h4>
+                    </div>
+                    <div className={`grid gap-3 ${showAllPhotos[d.id] ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
+                      {(showAllPhotos[d.id] ? d.image_urls : d.image_urls.slice(0, 4)).map((url, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setLightboxUrl(url)}
+                          className="aspect-square rounded-lg overflow-hidden bg-slate-100 cursor-pointer hover:opacity-80 transition-opacity group relative"
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                          </div>
+                        </button>
+                      ))}
+                      {!showAllPhotos[d.id] && d.image_urls.length > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllPhotos(prev => ({ ...prev, [d.id]: true }))}
+                          className="aspect-square rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer flex flex-col items-center justify-center text-gray-600"
+                        >
+                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span className="text-xs">+{d.image_urls.length - 4}</span>
+                        </button>
+                      )}
+                    </div>
+                    {showAllPhotos[d.id] && d.image_urls.length > 4 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllPhotos(prev => ({ ...prev, [d.id]: false }))}
+                        className="text-xs text-blue-600 hover:text-blue-800 mt-3 flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                        Show less
+                      </button>
+                    )}
+                  </div>
+                )}
 
-            {/* Photos */}
-            {d.image_urls && d.image_urls.length > 0 && (
-              <div>
-                <span className="text-xs text-gray-400 block mb-1">Photos</span>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                  {d.image_urls.map((url, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setLightboxUrl(url)}
-                      className="aspect-square rounded-lg overflow-hidden bg-slate-100 cursor-pointer hover:opacity-80 transition-opacity"
+                {/* Description Section */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Description</h4>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-700 leading-relaxed">{d.description}</p>
+                  </div>
+                </div>
+
+                {/* Metadata Section */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Details</h4>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                      <div>
+                        <span className="text-gray-500">Reported by</span>
+                        <p className="text-gray-900 font-medium">{getReporterName(d)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      <div>
+                        <span className="text-gray-500">Date reported</span>
+                        <p className="text-gray-900 font-medium">{formatDate(d.created_at)}</p>
+                      </div>
+                    </div>
+                    {d.location_on_tug && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></div>
+                        <div>
+                          <span className="text-gray-500">Location</span>
+                          <p className="text-gray-900 font-medium capitalize">{d.location_on_tug}</p>
+                        </div>
+                      </div>
+                    )}
+                    {d.severity && (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          d.severity === 'critical' ? 'bg-red-500' : d.severity === 'major' ? 'bg-orange-500' : 'bg-yellow-500'
+                        }`}></div>
+                        <div>
+                          <span className="text-gray-500">Severity</span>
+                          <p className={`font-medium capitalize ${
+                            d.severity === 'critical' ? 'text-red-600' : d.severity === 'major' ? 'text-orange-600' : 'text-yellow-600'
+                          }`}>{d.severity}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT SIDE - Action Area */}
+              <div className="w-full lg:w-80 p-4 bg-gray-50/50 space-y-4">
+                <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">VMU Actions</h4>
+                
+                {/* VMU fields */}
+                <div className="space-y-4">
+                  {/* Status */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Status
+                    </label>
+                    <select
+                      value={d.repair_status}
+                      onChange={(e) => handleStatusChange(d.id, e.target.value)}
+                      className={`w-full text-sm font-medium rounded-lg px-3 py-2.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.75rem_center] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors`}
+                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
                     >
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+                      {STATUS_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Defect Number */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                      Defect Number
+                    </label>
+                    <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-colors">
+                      <span className="pl-3 pr-1 text-sm font-mono font-semibold text-gray-500 select-none">D-</span>
+                      <input
+                        type="text"
+                        defaultValue={(d.defect_number || '').replace(/^D-/i, '')}
+                        placeholder="234567"
+                        onBlur={(e) => {
+                          const num = e.target.value.trim().replace(/^D-/i, '');
+                          const full = num ? `D-${num}` : '';
+                          if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
+                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                        className="flex-1 text-sm py-2.5 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Reported to Terberg */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0v1a3 3 0 106 0V7m-6 0h6M9 21v-8a2 2 0 012-2h2a2 2 0 012 2v8M9 21h6" />
+                      </svg>
+                      Reported to Terberg
+                    </label>
+                    <input
+                      type="date"
+                      defaultValue={d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : ''}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        const current = d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : '';
+                        if (val !== current) {
+                          saveField(d.id, 'reported_to_terberg_at', val ? new Date(val + 'T12:00:00').toISOString() : null);
+                        }
+                      }}
+                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Terberg Reference */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Terberg Reference
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue={d.terberg_reference || ''}
+                      placeholder="e.g. ref-895974"
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val !== (d.terberg_reference || '')) saveField(d.id, 'terberg_reference', val);
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white placeholder:text-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* VMU Notes */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      VMU Notes
+                    </label>
+                    <textarea
+                      defaultValue={d.vmu_notes || ''}
+                      placeholder="Add notes..."
+                      rows={3}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
+                      }}
+                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white placeholder:text-gray-300 resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Full description */}
-            <div>
-              <span className="text-xs text-gray-400 block mb-1">Description</span>
-              <p className="text-sm text-charcoal">{d.description}</p>
-            </div>
-
-            {/* VMU fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Status */}
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Status</label>
-                <select
-                  value={d.repair_status}
-                  onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                  className={`w-full text-sm font-medium rounded-lg px-3 py-2 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]`}
-                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-                >
-                  {STATUS_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Defect Number */}
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Defect Number</label>
-                <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden">
-                  <span className="pl-3 pr-1 text-sm font-mono font-semibold text-gray-500 select-none">D-</span>
-                  <input
-                    type="text"
-                    defaultValue={(d.defect_number || '').replace(/^D-/i, '')}
-                    placeholder="234567"
-                    onBlur={(e) => {
-                      const num = e.target.value.trim().replace(/^D-/i, '');
-                      const full = num ? `D-${num}` : '';
-                      if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                    className="flex-1 text-sm py-2 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Reported to Terberg */}
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Reported to Terberg</label>
-                <input
-                  type="date"
-                  defaultValue={d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : ''}
-                  onBlur={(e) => {
-                    const val = e.target.value;
-                    const current = d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : '';
-                    if (val !== current) {
-                      saveField(d.id, 'reported_to_terberg_at', val ? new Date(val + 'T12:00:00').toISOString() : null);
-                    }
-                  }}
-                  className="w-full text-sm rounded-lg px-3 py-2 border border-gray-200 bg-white"
-                />
-              </div>
-
-              {/* Terberg Reference */}
-              <div>
-                <label className="text-xs text-gray-400 block mb-1">Terberg Reference</label>
-                <input
-                  type="text"
-                  defaultValue={d.terberg_reference || ''}
-                  placeholder="e.g. ref-895974"
-                  onBlur={(e) => {
-                    const val = e.target.value.trim();
-                    if (val !== (d.terberg_reference || '')) saveField(d.id, 'terberg_reference', val);
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                  className="w-full text-sm rounded-lg px-3 py-2 border border-gray-200 bg-white placeholder:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* VMU Notes */}
-            <div>
-              <label className="text-xs text-gray-400 block mb-1">VMU Notes</label>
-              <textarea
-                defaultValue={d.vmu_notes || ''}
-                placeholder="Add notes..."
-                rows={2}
-                onBlur={(e) => {
-                  const val = e.target.value.trim();
-                  if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
-                }}
-                className="w-full text-sm rounded-lg px-3 py-2 border border-gray-200 bg-white placeholder:text-gray-300 resize-none"
-              />
-            </div>
-
-            {/* Activity log */}
+                {/* Activity Log */}
+                <div>
+                  <h4 className="text-xs font-medium text-gray-700 block mb-3 flex items-center gap-2 border-t border-gray-200 pt-4">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Activity Log
+                  </h4>
             {(() => {
               const logs = activityLogs[d.id];
               const isLogLoading = activityLoading[d.id];
@@ -618,14 +727,25 @@ export default function VmuPage() {
                   )}
                 </div>
               );
-            })()}
+                  })()}
 
-            {/* Resolved info */}
-            {d.repair_status === 'resolved' && resolvedName && (
-              <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
-                Resolved by <span className="font-semibold">{resolvedName}</span> on {formatDate(d.resolved_at)}
+                  {/* Resolved info */}
+                  {d.repair_status === 'resolved' && resolvedName && (
+                    <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <div className="font-semibold">Resolved</div>
+                          <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
