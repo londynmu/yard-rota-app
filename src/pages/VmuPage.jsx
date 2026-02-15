@@ -527,16 +527,11 @@ export default function VmuPage() {
 
               {/* RIGHT SIDE - Action Area */}
               <div className="w-full lg:w-80 p-4 bg-gray-50/50 space-y-4">
-                <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">VMU Actions</h4>
-                
                 {/* VMU fields */}
                 <div className="space-y-4">
                   {/* Status */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                    <label className="text-xs font-medium text-gray-700 block mb-2">
                       Status
                     </label>
                     <select
@@ -553,10 +548,7 @@ export default function VmuPage() {
 
                   {/* Defect Number */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                      </svg>
+                    <label className="text-xs font-medium text-gray-700 block mb-2">
                       Defect Number
                     </label>
                     <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-colors">
@@ -578,10 +570,7 @@ export default function VmuPage() {
 
                   {/* Reported to Terberg */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 0v1a3 3 0 106 0V7m-6 0h6M9 21v-8a2 2 0 012-2h2a2 2 0 012 2v8M9 21h6" />
-                      </svg>
+                    <label className="text-xs font-medium text-gray-700 block mb-2">
                       Reported to Terberg
                     </label>
                     <input
@@ -600,10 +589,7 @@ export default function VmuPage() {
 
                   {/* Terberg Reference */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                    <label className="text-xs font-medium text-gray-700 block mb-2">
                       Terberg Reference
                     </label>
                     <input
@@ -621,10 +607,7 @@ export default function VmuPage() {
 
                   {/* VMU Notes */}
                   <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
+                    <label className="text-xs font-medium text-gray-700 block mb-2">
                       VMU Notes
                     </label>
                     <textarea
@@ -642,10 +625,7 @@ export default function VmuPage() {
 
                 {/* Activity Log */}
                 <div>
-                  <h4 className="text-xs font-medium text-gray-700 block mb-3 flex items-center gap-2 border-t border-gray-200 pt-4">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                  <h4 className="text-xs font-medium text-gray-700 block mb-3 border-t border-gray-200 pt-4">
                     Activity Log
                   </h4>
             {(() => {
@@ -732,15 +712,8 @@ export default function VmuPage() {
                   {/* Resolved info */}
                   {d.repair_status === 'resolved' && resolvedName && (
                     <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div>
-                          <div className="font-semibold">Resolved</div>
-                          <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
-                        </div>
-                      </div>
+                      <div className="font-semibold">Resolved</div>
+                      <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
                     </div>
                   )}
                 </div>
