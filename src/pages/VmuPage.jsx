@@ -348,6 +348,14 @@ export default function VmuPage() {
     return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
   const getTugLabel = (d) => {
     const tug = d.precheck_submissions?.tugs;
     if (!tug) return 'Unknown';
@@ -431,7 +439,20 @@ export default function VmuPage() {
             <div className="flex flex-col lg:flex-row">
               {/* LEFT SIDE - Content Area */}
               <div className="flex-1 p-4 space-y-4 lg:border-r border-gray-200">
-                {/* Photos Section */}
+                {/* Reported by shunter line - above description */}
+                <p className="text-xs text-gray-600">
+                  Reported by shunter {getReporterName(d)} ({formatDateTime(d.precheck_submissions?.created_at || d.created_at)})
+                </p>
+
+                {/* Description Section - at top, above photos */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Description</h4>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-700 leading-relaxed">{d.description}</p>
+                  </div>
+                </div>
+
+                {/* Photos Section - below description */}
                 {d.image_urls && d.image_urls.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -480,14 +501,6 @@ export default function VmuPage() {
                     )}
                   </div>
                 )}
-
-                {/* Description Section */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Description</h4>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700 leading-relaxed">{d.description}</p>
-                  </div>
-                </div>
 
                 {/* Metadata Section */}
                 <div>
