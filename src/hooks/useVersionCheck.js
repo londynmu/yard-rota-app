@@ -6,9 +6,13 @@ import { Capacitor } from '@capacitor/core'
 const POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 const CURRENT_VERSION = __BUILD_TIMESTAMP__
 
+const AUTO_RELOAD_DELAY_MS = 2500 // 2.5 s – auto-reload without user action
+
 /**
  * Hook that polls /version.json to detect when a new build is deployed.
  * Independent of the service worker update mechanism - acts as a safety net.
+ * When a new version is detected, triggers an automatic reload after a short
+ * delay (no user click required).
  *
  * Returns { updateAvailable: boolean, triggerUpdate: () => Promise<void> }
  *
@@ -70,11 +74,18 @@ export function useVersionCheck() {
     window.location.reload()
   }, [])
 
+  // When new version is detected, auto-reload after short delay (no user action)
+  useEffect(() => {
+    if (!updateAvailable || isNative) return
+    const t = setTimeout(() => triggerUpdate(), AUTO_RELOAD_DELAY_MS)
+    return () => clearTimeout(t)
+  }, [updateAvailable, isNative, triggerUpdate])
+
   useEffect(() => {
     if (isNative) return
 
     // Initial check after short delay (let the app settle first)
-    const initialTimeout = setTimeout(checkVersion, 10_000)
+    const initialTimeout = setTimeout(checkVersion, 5000)
 
     // Poll every 5 minutes
     intervalRef.current = setInterval(checkVersion, POLL_INTERVAL_MS)

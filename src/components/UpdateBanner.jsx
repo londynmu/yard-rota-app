@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { useVersionCheck } from '../hooks/useVersionCheck'
 
 /**
- * Fixed banner at the top of the screen that appears when a new version
- * of the app is deployed. Completely hidden when the app is up to date.
+ * Fixed banner at the top when a new version is detected. The app will
+ * auto-reload after a few seconds; the banner shows "Updating…" so the
+ * reload is not surprising. Optional "Reload now" to skip the delay.
  *
  * Placed in App.jsx outside AuthProvider so it's visible even during
  * loading or on the login screen.
@@ -14,11 +15,10 @@ export default function UpdateBanner() {
 
   if (!updateAvailable) return null
 
-  const handleUpdate = async () => {
+  const handleReloadNow = async () => {
     setIsUpdating(true)
     await triggerUpdate()
-    // triggerUpdate ends with window.location.reload() so we won't reach here,
-    // but just in case:
+    // triggerUpdate ends with window.location.reload() so we won't reach here
     setIsUpdating(false)
   }
 
@@ -30,7 +30,7 @@ export default function UpdateBanner() {
     >
       <div className="flex items-center gap-2 min-w-0">
         <svg
-          className="w-5 h-5 flex-shrink-0"
+          className="w-5 h-5 flex-shrink-0 animate-spin"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -43,16 +43,16 @@ export default function UpdateBanner() {
           />
         </svg>
         <span className="text-sm font-medium truncate">
-          A new version is available
+          Updating…
         </span>
       </div>
 
       <button
-        onClick={handleUpdate}
+        onClick={handleReloadNow}
         disabled={isUpdating}
         className="flex-shrink-0 px-3 py-1 bg-white text-blue-600 text-sm font-semibold rounded-md hover:bg-blue-50 transition-colors disabled:opacity-70"
       >
-        {isUpdating ? 'Updating...' : 'Update Now'}
+        {isUpdating ? 'Updating…' : 'Reload now'}
       </button>
     </div>
   )
