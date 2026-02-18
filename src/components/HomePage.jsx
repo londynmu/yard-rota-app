@@ -259,13 +259,15 @@ export default function HomePage() {
           path.startsWith('/precheck') ||
           path.startsWith('/vmu');
         const isAdminPage = path === '/admin';
+        const isProfilePage = path === '/profile';
+        const hasStickyHeader = isAdminPage || isProfilePage;
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
         const borderClass = hasFilterButtons ? 'border-b border-slate-300 md:border-b-0' : 'border-b border-slate-300';
 
         return (
-          <header className={`${borderClass} bg-slate-200 ${isAdminPage ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <header className={`${borderClass} bg-slate-200 ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
               {/* Tytuł strony - zawsze widoczny */}
               <div className="flex items-center gap-3">
