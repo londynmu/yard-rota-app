@@ -17,6 +17,18 @@ cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 const supabaseUrlPattern = /^https:\/\/.*\.supabase\.co\/.*/i;
+// Never cache precheck_check_items – list must always be fresh (e.g. 26 vs 31 questions)
+const precheckCheckItemsPattern = /\/rest\/v1\/precheck_check_items(\?|$)/i;
+
+registerRoute(
+  ({ url, request }) => {
+    const href = typeof url === 'string' ? url : url.href;
+    const pathAndSearch = typeof url === 'string' ? url : (url.pathname + (url.search || ''));
+    return supabaseUrlPattern.test(href) && precheckCheckItemsPattern.test(pathAndSearch) && request.method === 'GET';
+  },
+  new NetworkOnly(),
+  'GET'
+);
 
 registerRoute(
   ({ url, request }) => supabaseUrlPattern.test(url.href) && request.method === 'GET',

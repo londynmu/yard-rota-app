@@ -3,6 +3,8 @@ import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
+import { useVersionCheck } from '../hooks/useVersionCheck';
+import { Capacitor } from '@capacitor/core';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -28,6 +30,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [preferredLocation, setPreferredLocation] = useState('');
   // Toast message for form validation
   const toast = useToast();
+  // Force refresh app (web/PWA only – clears caches and reloads)
+  const { triggerUpdate } = useVersionCheck();
+  const [refreshingApp, setRefreshingApp] = useState(false);
+  const isWeb = Capacitor.getPlatform() === 'web';
   // Available locations
   const [locations, setLocations] = useState([]);
   // Page visit timestamp to force location refresh
@@ -1081,6 +1087,24 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
           </div>
         </form>
+
+        {/* Refresh app (web/PWA only) – use if precheck shows wrong number of questions or app feels outdated */}
+        {isWeb && (
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-2xl">
+            <p className="text-sm text-gray-700 mb-2">If the app shows an old version (e.g. wrong number of precheck questions), refresh to get the latest.</p>
+            <button
+              type="button"
+              onClick={async () => {
+                setRefreshingApp(true);
+                await triggerUpdate();
+              }}
+              disabled={refreshingApp}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-xl disabled:opacity-70"
+            >
+              {refreshingApp ? 'Refreshing…' : 'Refresh app'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

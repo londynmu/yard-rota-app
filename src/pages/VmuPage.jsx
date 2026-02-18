@@ -17,7 +17,6 @@ const FIELD_LABELS = {
   repair_status: 'Status',
   defect_number: 'Defect Number',
   reported_to_terberg_at: 'Reported to Terberg',
-  terberg_reference: 'Terberg Reference',
   vmu_notes: 'VMU Notes',
 };
 
@@ -177,10 +176,9 @@ export default function VmuPage() {
         const defNum = (d.defect_number || '').toLowerCase();
         const tugName = (d.precheck_submissions?.tugs?.display_name || '').toLowerCase();
         const tugNum = (d.precheck_submissions?.tugs?.tug_number || '').toLowerCase();
-        const ref = (d.terberg_reference || '').toLowerCase();
         const notes = (d.vmu_notes || '').toLowerCase();
         return desc.includes(q) || defNum.includes(q) || tugName.includes(q) ||
-               tugNum.includes(q) || ref.includes(q) || notes.includes(q);
+               tugNum.includes(q) || notes.includes(q);
       });
     }
 
@@ -452,9 +450,9 @@ export default function VmuPage() {
                   </div>
                 </div>
 
-                {/* Photos Section - below description */}
+                {/* Photos Section - below description (50% size) */}
                 {d.image_urls && d.image_urls.length > 0 && (
-                  <div>
+                  <div className="max-w-[50%]">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-medium text-gray-900">Photos ({d.image_urls.length})</h4>
                     </div>
@@ -502,47 +500,88 @@ export default function VmuPage() {
                   </div>
                 )}
 
-                {/* Metadata Section */}
+                {/* Activity Log - under photos */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Details</h4>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                      <div>
-                        <span className="text-gray-500">Reported by</span>
-                        <p className="text-gray-900 font-medium">{getReporterName(d)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                      <div>
-                        <span className="text-gray-500">Date reported</span>
-                        <p className="text-gray-900 font-medium">{formatDate(d.created_at)}</p>
-                      </div>
-                    </div>
-                    {d.location_on_tug && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></div>
-                        <div>
-                          <span className="text-gray-500">Location</span>
-                          <p className="text-gray-900 font-medium capitalize">{d.location_on_tug}</p>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Activity Log</h4>
+            {(() => {
+              const logs = activityLogs[d.id];
+              const isLogLoading = activityLoading[d.id];
+              const showAll = showAllActivity[d.id];
+              const VISIBLE_COUNT = 5;
+
+              if (isLogLoading) {
+                return (
+                  <div className="text-xs text-gray-400 py-2">Loading activity...</div>
+                );
+              }
+
+              if (!logs || logs.length === 0) return null;
+
+              const visibleLogs = showAll ? logs : logs.slice(0, VISIBLE_COUNT);
+              const hasMore = logs.length > VISIBLE_COUNT;
+
+              return (
+                <div>
+                  <div className="space-y-1.5">
+                    {visibleLogs.map((entry) => {
+                      const name = entry.profiles
+                        ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
+                        : 'Unknown';
+                      const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
+                      const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
+                      const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
+                      const time = formatRelativeTime(entry.created_at);
+
+                      let description;
+                      if (entry.action_type === 'status_change') {
+                        description = (
+                          <>
+                            changed status
+                            {oldDisplay && <> from <span className="font-medium">{oldDisplay}</span></>}
+                            {newDisplay && <> to <span className="font-medium">{newDisplay}</span></>}
+                          </>
+                        );
+                      } else if (!newDisplay) {
+                        description = (
+                          <>cleared <span className="font-medium">{fieldLabel}</span></>
+                        );
+                      } else {
+                        description = (
+                          <>
+                            updated <span className="font-medium">{fieldLabel}</span>
+                            {' '}to <span className="font-medium text-charcoal">{
+                              String(newDisplay).length > 40
+                                ? String(newDisplay).slice(0, 40) + '...'
+                                : newDisplay
+                            }</span>
+                          </>
+                        );
+                      }
+
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2 text-xs text-gray-500 leading-relaxed">
+                          <span className="w-1 h-1 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
+                          <span className="flex-1">
+                            <span className="font-semibold text-gray-700">{name}</span>{' '}
+                            {description}
+                            <span className="text-gray-400 ml-1">· {time}</span>
+                          </span>
                         </div>
-                      </div>
-                    )}
-                    {d.severity && (
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          d.severity === 'critical' ? 'bg-red-500' : d.severity === 'major' ? 'bg-orange-500' : 'bg-yellow-500'
-                        }`}></div>
-                        <div>
-                          <span className="text-gray-500">Severity</span>
-                          <p className={`font-medium capitalize ${
-                            d.severity === 'critical' ? 'text-red-600' : d.severity === 'major' ? 'text-orange-600' : 'text-yellow-600'
-                          }`}>{d.severity}</p>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
+                  {hasMore && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllActivity(prev => ({ ...prev, [d.id]: !showAll }))}
+                      className="text-xs text-blue-500 hover:text-blue-700 mt-2 cursor-pointer"
+                    >
+                      {showAll ? 'Show less' : `Show all ${logs.length} entries`}
+                    </button>
+                  )}
+                </div>
+              );
+                  })()}
                 </div>
               </div>
 
@@ -608,24 +647,6 @@ export default function VmuPage() {
                     />
                   </div>
 
-                  {/* Terberg Reference */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Terberg Reference
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue={d.terberg_reference || ''}
-                      placeholder="e.g. ref-895974"
-                      onBlur={(e) => {
-                        const val = e.target.value.trim();
-                        if (val !== (d.terberg_reference || '')) saveField(d.id, 'terberg_reference', val);
-                      }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white placeholder:text-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-
                   {/* VMU Notes */}
                   <div>
                     <label className="text-xs font-medium text-gray-700 block mb-2">
@@ -644,100 +665,13 @@ export default function VmuPage() {
                   </div>
                 </div>
 
-                {/* Activity Log */}
-                <div>
-                  <h4 className="text-xs font-medium text-gray-700 block mb-3 border-t border-gray-200 pt-4">
-                    Activity Log
-                  </h4>
-            {(() => {
-              const logs = activityLogs[d.id];
-              const isLogLoading = activityLoading[d.id];
-              const showAll = showAllActivity[d.id];
-              const VISIBLE_COUNT = 5;
-
-              if (isLogLoading) {
-                return (
-                  <div className="text-xs text-gray-400 py-2">Loading activity...</div>
-                );
-              }
-
-              if (!logs || logs.length === 0) return null;
-
-              const visibleLogs = showAll ? logs : logs.slice(0, VISIBLE_COUNT);
-              const hasMore = logs.length > VISIBLE_COUNT;
-
-              return (
-                <div>
-                  <span className="text-xs text-gray-400 block mb-2">Activity</span>
-                  <div className="space-y-1.5">
-                    {visibleLogs.map((entry) => {
-                      const name = entry.profiles
-                        ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
-                        : 'Unknown';
-                      const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
-                      const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
-                      const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
-                      const time = formatRelativeTime(entry.created_at);
-
-                      let description;
-                      if (entry.action_type === 'status_change') {
-                        description = (
-                          <>
-                            changed status
-                            {oldDisplay && <> from <span className="font-medium">{oldDisplay}</span></>}
-                            {newDisplay && <> to <span className="font-medium">{newDisplay}</span></>}
-                          </>
-                        );
-                      } else if (!newDisplay) {
-                        description = (
-                          <>cleared <span className="font-medium">{fieldLabel}</span></>
-                        );
-                      } else {
-                        description = (
-                          <>
-                            updated <span className="font-medium">{fieldLabel}</span>
-                            {' '}to <span className="font-medium text-charcoal">{
-                              String(newDisplay).length > 40
-                                ? String(newDisplay).slice(0, 40) + '...'
-                                : newDisplay
-                            }</span>
-                          </>
-                        );
-                      }
-
-                      return (
-                        <div key={entry.id} className="flex items-start gap-2 text-[11px] text-gray-500 leading-relaxed">
-                          <span className="w-1 h-1 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
-                          <span className="flex-1">
-                            <span className="font-semibold text-gray-700">{name}</span>{' '}
-                            {description}
-                            <span className="text-gray-400 ml-1">· {time}</span>
-                          </span>
-                        </div>
-                      );
-                    })}
+                {/* Resolved info */}
+                {d.repair_status === 'resolved' && resolvedName && (
+                  <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+                    <div className="font-semibold">Resolved</div>
+                    <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
                   </div>
-                  {hasMore && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllActivity(prev => ({ ...prev, [d.id]: !showAll }))}
-                      className="text-[11px] text-blue-500 hover:text-blue-700 mt-1.5 cursor-pointer"
-                    >
-                      {showAll ? 'Show less' : `Show all ${logs.length} entries`}
-                    </button>
-                  )}
-                </div>
-              );
-                  })()}
-
-                  {/* Resolved info */}
-                  {d.repair_status === 'resolved' && resolvedName && (
-                    <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-                      <div className="font-semibold">Resolved</div>
-                      <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -804,7 +738,7 @@ export default function VmuPage() {
           type="text"
           value={filters.search}
           onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-          placeholder="Search defect number, description, tug, reference..."
+          placeholder="Search defect number, description, tug..."
           className="w-full md:flex-1 md:min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 px-4 md:px-3 text-sm md:text-xs font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
         />
         <div className="grid grid-cols-2 gap-2 md:contents">
