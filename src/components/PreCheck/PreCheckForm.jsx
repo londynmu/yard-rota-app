@@ -68,11 +68,21 @@ const loadSavedForm = () => {
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType = 'pre_shift' }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
+  /* global __PRECHECK_SCHEMA_VERSION__ */
+  const CLIENT_SCHEMA_VERSION = typeof __PRECHECK_SCHEMA_VERSION__ !== 'undefined'
+    ? __PRECHECK_SCHEMA_VERSION__
+    : '0';
 
   // ─── Dynamic items from DB ───
   const [outsideItems, setOutsideItems] = useState(null);
   const [insideItems, setInsideItems] = useState(null);
   const [itemsLoading, setItemsLoading] = useState(true);
+
+  // ─── Schema version guard ───
+  const [schemaStatus, setSchemaStatus] = useState('checking'); // checking | ok | mismatch | error
+  const [serverSchemaVersion, setServerSchemaVersion] = useState(null);
+  const [expectedActiveItems, setExpectedActiveItems] = useState(null);
+  const [schemaErrorMessage, setSchemaErrorMessage] = useState(null);
 
   useEffect(() => {
     const fetchCheckItems = async () => {
@@ -104,6 +114,52 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
     };
     fetchCheckItems();
   }, []);
+
+  // Fetch schema version (and optional expected item count) from app_config
+  useEffect(() => {
+    const fetchSchemaVersion = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('key, value')
+          .in('key', ['precheck_schema_version', 'precheck_expected_active_items']);
+
+        if (error) throw error;
+
+        let serverVersion = null;
+        let expectedCount = null;
+        (data || []).forEach(row => {
+          if (row.key === 'precheck_schema_version') serverVersion = row.value;
+          if (row.key === 'precheck_expected_active_items') expectedCount = row.value;
+        });
+
+        if (expectedCount !== null) {
+          const parsed = Number(expectedCount);
+          if (Number.isFinite(parsed)) setExpectedActiveItems(parsed);
+        }
+
+        if (serverVersion !== null) {
+          setServerSchemaVersion(serverVersion);
+          const serverNum = Number(serverVersion);
+          const clientNum = Number(CLIENT_SCHEMA_VERSION);
+          if (Number.isFinite(serverNum) && Number.isFinite(clientNum) && serverNum > clientNum) {
+            setSchemaStatus('mismatch');
+          } else {
+            setSchemaStatus('ok');
+          }
+        } else {
+          setSchemaStatus('error');
+          setSchemaErrorMessage('Schema version not found in config');
+        }
+      } catch (err) {
+        console.error('[PreCheckForm] Schema version fetch error:', err);
+        setSchemaStatus('error');
+        setSchemaErrorMessage(err?.message || 'Unknown error');
+      }
+    };
+
+    fetchSchemaVersion();
+  }, [CLIENT_SCHEMA_VERSION]);
 
   // Derived: all items combined (only available after fetch)
   const allItems = outsideItems && insideItems ? [...outsideItems, ...insideItems] : [];
@@ -412,6 +468,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
+  const isSchemaMismatch = schemaStatus === 'mismatch';
+  const countMismatch = expectedActiveItems !== null && allItems.length > 0 && allItems.length !== expectedActiveItems;
 
   const handleCheckChange = (key, status) => {
     const scrollY = window.scrollY;
@@ -480,6 +538,37 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Schema version guard messages */}
+      {isSchemaMismatch && (
+        <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 flex flex-col gap-2">
+          <div className="font-semibold">Your app is outdated</div>
+          <div className="text-xs text-red-700">
+            Please close and reopen the app (or refresh) to load the latest PreCheck form. If the issue persists, reinstall/update the app.
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors"
+            >
+              Refresh now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {schemaStatus === 'error' && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+          Could not verify latest form version (offline or network issue). Your current form will be used.
+        </div>
+      )}
+
+      {schemaStatus !== 'mismatch' && countMismatch && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+          Form items count differs from expected. You can continue, but please report if this persists.
+        </div>
+      )}
+
       {/* Sticky tug header with progress + legend */}
       {tugLabel && (
         <div className="sticky top-0 z-30 -mx-4 -mt-3">
@@ -577,10 +666,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       {/* Submit button */}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || isSchemaMismatch}
         className={`w-full py-4 rounded-xl font-bold text-white text-base transition-all shadow-lg ${
           submitting
             ? 'bg-gray-400 cursor-not-allowed'
+            : isSchemaMismatch
+              ? 'bg-red-400 cursor-not-allowed'
             : 'bg-charcoal hover:bg-black active:scale-[0.98]'
         }`}
       >

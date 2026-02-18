@@ -126,6 +126,23 @@ export default function PreCheckPage() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
+    // Soft revalidate version when entering /precheck to avoid stale chunks
+    const checkVersion = async () => {
+      try {
+        const res = await fetch(`/version.json?_=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.version && typeof __BUILD_TIMESTAMP__ !== 'undefined' && data.version !== __BUILD_TIMESTAMP__) {
+          window.location.reload();
+        }
+      } catch {
+        // ignore – do not block the user
+      }
+    };
+    checkVersion();
+  }, []);
+
+  useEffect(() => {
     initialize();
     return () => {
       clearPendingPhotos();

@@ -8,6 +8,7 @@ const buildTimestamp = new Date().toISOString()
 export default defineConfig({
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+    __PRECHECK_SCHEMA_VERSION__: JSON.stringify('3'),
   },
   plugins: [
     react(),
