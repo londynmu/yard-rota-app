@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 
 /* global __BUILD_TIMESTAMP__ */
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
+const POLL_INTERVAL_MS = 2 * 60 * 1000 // 2 minutes (first load already checked pre-render)
 const CURRENT_VERSION = __BUILD_TIMESTAMP__
 
 const AUTO_RELOAD_DELAY_MS = 2500 // 2.5 s – auto-reload without user action
@@ -84,10 +84,10 @@ export function useVersionCheck() {
   useEffect(() => {
     if (isNative) return
 
-    // Initial check after short delay (let the app settle first)
-    const initialTimeout = setTimeout(checkVersion, 5000)
+    // Initial check after short delay (pre-render already checked on first load)
+    const initialTimeout = setTimeout(checkVersion, 30000)
 
-    // Poll every 5 minutes
+    // Poll every 2 minutes
     intervalRef.current = setInterval(checkVersion, POLL_INTERVAL_MS)
 
     // Check when user returns to the tab / reopens PWA

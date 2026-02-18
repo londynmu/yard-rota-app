@@ -30,15 +30,35 @@ if (Capacitor.getPlatform() !== 'web') {
   setupStatusBar()
 }
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+/** Check for newer deploy before first paint (web/PWA only). If newer, reload and do not render. */
+/* global __BUILD_TIMESTAMP__ */
+async function ensureLatestVersion() {
+  if (Capacitor.getPlatform() !== 'web') return
+  try {
+    const res = await fetch(`/version.json?_=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.version && data.version !== __BUILD_TIMESTAMP__) {
+      location.reload()
+      return
+    }
+  } catch {
+    // Offline or network error – render current bundle
+  }
+}
+
+;(async function init() {
+  await ensureLatestVersion()
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <BrowserRouter>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </BrowserRouter>
+    </StrictMode>,
+  )
+})()
 
 // --- PWA Auto-Update (fixes iOS Safari caching) ---
 if ('serviceWorker' in navigator) {

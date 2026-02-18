@@ -47,3 +47,10 @@ publish = "dist"
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+# SPA routes (e.g. /profile, /precheck) – serve index.html with no-cache so browser gets fresh HTML
+# More specific paths (/assets/*, /service-worker.js, etc.) are defined above and take precedence
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
