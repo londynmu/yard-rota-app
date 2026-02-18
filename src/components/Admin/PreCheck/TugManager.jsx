@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
+import TugTabletsCard from './TugTabletsCard';
 
 export default function TugManager() {
+  const [activeTab, setActiveTab] = useState('tugs');
   const [tugs, setTugs] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -201,6 +203,31 @@ export default function TugManager() {
 
   return (
     <div className="space-y-6">
+      {/* Tab toggle */}
+      <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
+        {[
+          { id: 'tugs', label: 'Tugs' },
+          { id: 'tablets', label: 'Tablets' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+              activeTab === tab.id
+                ? 'bg-white text-charcoal shadow-sm'
+                : 'text-gray-500 hover:text-charcoal'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'tablets' ? (
+        <TugTabletsCard />
+      ) : (
+        <>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -476,6 +503,8 @@ export default function TugManager() {
             {filter !== 'all' ? 'Try changing the filter.' : 'Add your first tug above.'}
           </p>
         </div>
+      )}
+        </>
       )}
     </div>
   );
