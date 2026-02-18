@@ -785,9 +785,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   }
 
   // Standard view - Card-Based Layout (NEW DESIGN)
-  // pb-28 on mobile so content + fixed Save button sit above bottom nav; md:pb-24 for desktop
   return (
-    <div className="min-h-screen bg-offwhite pb-28 md:pb-24">
+    <div className="min-h-screen bg-offwhite pb-24">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Offline Warning */}
         {isOffline && (
@@ -1071,10 +1070,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             )}
           </div>
           
-          {/* Submit Button - Fixed at bottom on mobile, above bottom nav (bottom-20 ≈ 80px) */}
-          <div className="fixed md:sticky bottom-20 left-0 right-0 md:bottom-auto md:left-auto md:right-auto p-4 md:p-0 md:pt-2 bg-offwhite md:bg-transparent">
-            <div className="max-w-2xl mx-auto">
-              <button
+          {/* Submit Button - in flow at bottom of form */}
+          <div className="pt-4">
+            <button
                 type="submit"
                 id="submit-profile"
                 name="submit-profile"
@@ -1085,7 +1083,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               >
                 {loading ? 'Saving...' : isRequired ? 'Complete Profile' : 'Save Profile'}
               </button>
-            </div>
           </div>
         </form>
 
