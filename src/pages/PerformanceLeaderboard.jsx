@@ -635,7 +635,7 @@ const PerformanceLeaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50">
       {/* Sticky Badge Header (jak w My Rota) */}
       <div className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">

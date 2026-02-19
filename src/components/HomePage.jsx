@@ -267,7 +267,7 @@ export default function HomePage() {
         const borderClass = hasFilterButtons ? 'border-b border-slate-300 md:border-b-0' : 'border-b border-slate-300';
 
         return (
-          <header className={`${borderClass} bg-slate-200 ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <header className={`${borderClass} bg-slate-200 pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
             <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
               {/* Tytuł strony - zawsze widoczny */}
               <div className="flex items-center gap-3">
@@ -440,7 +440,7 @@ export default function HomePage() {
       
       {renderDropdownMenu()}
       
-      <main className="flex-1 relative z-0 mb-16 md:mb-0">
+      <main className="flex-1 relative z-0 pb-bottom-nav">
         <Suspense fallback={<div className="min-h-screen bg-slate-50"></div>}>
           <Routes>
             <Route

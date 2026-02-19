@@ -24,8 +24,7 @@ export default function UpdateBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[99999] bg-blue-600 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-lg"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.625rem)' }}
+      className="fixed top-0 left-0 right-0 z-[99999] bg-blue-600 text-white px-4 py-2.5 pt-safe flex items-center justify-between gap-3 shadow-lg"
       role="alert"
     >
       <div className="flex items-center gap-2 min-w-0">

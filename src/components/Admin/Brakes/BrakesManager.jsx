@@ -1071,7 +1071,7 @@ const BrakesManager = () => {
 
   // --- Rendering ---
   return (
-    <div className="bg-offwhite text-charcoal min-h-screen pb-32 md:pb-20">
+    <div className="bg-offwhite text-charcoal min-h-screen pb-4 md:pb-20">
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
