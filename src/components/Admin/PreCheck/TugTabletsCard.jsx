@@ -15,7 +15,7 @@ export default function TugTabletsCard() {
     try {
       const tugsRes = await supabase
         .from('tugs')
-        .select('id, tug_number, display_name')
+        .select('id, tug_number, display_name, status, locations(id, name)')
         .order('tug_number');
       if (tugsRes.error) throw tugsRes.error;
       setTugs(tugsRes.data || []);
@@ -108,10 +108,14 @@ export default function TugTabletsCard() {
   };
 
   // Tugs that don't have a tablet yet (or current tug when editing)
+  // Only active tugs when adding; when editing, include current tug even if inactive
   const assignedTugIds = new Set(tablets.map((t) => t.tug_id));
-  const availableTugs = tugs.filter(
-    (t) => !assignedTugIds.has(t.id) || (editingTablet?.tug_id === t.id)
-  );
+  const availableTugs = tugs.filter((t) => {
+    const isAssigned = assignedTugIds.has(t.id);
+    const isCurrentEdit = editingTablet?.tug_id === t.id;
+    if (isCurrentEdit) return true;
+    return t.status === 'active' && !isAssigned;
+  });
 
   if (loading) {
     return (
@@ -134,7 +138,9 @@ export default function TugTabletsCard() {
         <button
           onClick={() => {
             setEditingTablet(null);
-            const unassigned = tugs.filter((t) => !tablets.some((tab) => tab.tug_id === t.id));
+            const unassigned = tugs.filter(
+              (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
+            );
             setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
             setShowForm(true);
           }}
@@ -163,7 +169,12 @@ export default function TugTabletsCard() {
                 <option value="">-- Select tug --</option>
                 {availableTugs.map((tug) => (
                   <option key={tug.id} value={tug.id}>
-                    {tug.display_name ? `${tug.display_name} (${tug.tug_number})` : tug.tug_number}
+                    {[
+                      tug.display_name ? `${tug.display_name} (${tug.tug_number})` : tug.tug_number,
+                      tug.locations?.name,
+                    ]
+                      .filter(Boolean)
+                      .join(' – ')}
                   </option>
                 ))}
               </select>
@@ -255,7 +266,9 @@ export default function TugTabletsCard() {
           <p className="text-sm mt-1">Add a tablet to assign it to a tug.</p>
           <button
             onClick={() => {
-            const unassigned = tugs.filter((t) => !tablets.some((tab) => tab.tug_id === t.id));
+            const unassigned = tugs.filter(
+              (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
+            );
             setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
             setShowForm(true);
             }}
