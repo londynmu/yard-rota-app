@@ -105,7 +105,7 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
             value={notes || ''}
             onChange={(e) => onNotesChange(e.target.value)}
             placeholder="What's wrong? (required)"
-            className="w-full text-sm border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white"
+            className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white"
           />
           {onImagesChange && (
             <ImageUpload
