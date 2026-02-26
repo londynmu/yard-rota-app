@@ -241,7 +241,7 @@ const WeeklyRotaPage = () => {
         
         setDailyRotaData(grouped);
 
-        if (isAdmin && uniqueSlots.length > 0) {
+        if (uniqueSlots.length > 0) {
           const slotIds = uniqueSlots.map(s => s.id);
           const { data: attendanceData } = await supabase
             .from('attendance')
