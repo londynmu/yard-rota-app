@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
+import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -14,6 +16,7 @@ const getWeekStart = (date) => {
 
 const WeeklyRotaPage = () => {
   const { user } = useAuth();
+  const { isAdmin } = useNotifications();
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
   const [dailyRotaData, setDailyRotaData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,9 @@ const WeeklyRotaPage = () => {
   const [showWeekModal, setShowWeekModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
+  const [attendanceModalSlot, setAttendanceModalSlot] = useState(null);
+  const [attendanceSaving, setAttendanceSaving] = useState(false);
 
   // After changing expanded day on mobile, align the selected day just below the sticky header
   // When closing (expandedDayMobile becomes null), scroll back to top
@@ -234,6 +240,21 @@ const WeeklyRotaPage = () => {
         }
         
         setDailyRotaData(grouped);
+
+        if (isAdmin && uniqueSlots.length > 0) {
+          const slotIds = uniqueSlots.map(s => s.id);
+          const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('scheduled_rota_id, status')
+            .in('scheduled_rota_id', slotIds);
+          const bySlot = {};
+          (attendanceData || []).forEach((r) => {
+            bySlot[r.scheduled_rota_id] = { status: r.status };
+          });
+          setAttendanceBySlotId(bySlot);
+        } else {
+          setAttendanceBySlotId({});
+        }
       } catch (e) {
         console.error('Error fetching full rota:', e);
         setError(`Failed to load rota: ${e.message || 'Unknown error. Check permissions or connection.'}`);
@@ -243,7 +264,7 @@ const WeeklyRotaPage = () => {
     };
 
     fetchFullRota();
-  }, [weekStart, user, selectedLocation, selectedShiftType, sortSlots]);
+  }, [weekStart, user, selectedLocation, selectedShiftType, sortSlots, isAdmin]);
 
   // Format time from HH:MM:SS to HH:MM - memoized
   const fmtTime = useCallback((t) => (t ? t.slice(0, 5) : ''), []);
@@ -274,8 +295,52 @@ const WeeklyRotaPage = () => {
     setShowShiftModal(false);
   }, []);
 
+  const handleAttendanceSlotClick = useCallback((slot) => {
+    setAttendanceModalSlot(slot);
+  }, []);
+
+  const handleAttendanceSave = useCallback(async (status) => {
+    if (!attendanceModalSlot || !user) return;
+    setAttendanceSaving(true);
+    try {
+      if (status === null) {
+        const { error: delError } = await supabase
+          .from('attendance')
+          .delete()
+          .eq('scheduled_rota_id', attendanceModalSlot.id);
+        if (delError) throw delError;
+        setAttendanceBySlotId((prev) => {
+          const next = { ...prev };
+          delete next[attendanceModalSlot.id];
+          return next;
+        });
+      } else {
+        const { error: upsertError } = await supabase
+          .from('attendance')
+          .upsert(
+            {
+              scheduled_rota_id: attendanceModalSlot.id,
+              status,
+              recorded_by: user.id,
+            },
+            { onConflict: 'scheduled_rota_id' }
+          );
+        if (upsertError) throw upsertError;
+        setAttendanceBySlotId((prev) => ({
+          ...prev,
+          [attendanceModalSlot.id]: { status },
+        }));
+      }
+      setAttendanceModalSlot(null);
+    } catch (e) {
+      console.error('Error saving attendance:', e);
+    } finally {
+      setAttendanceSaving(false);
+    }
+  }, [attendanceModalSlot, user]);
+
   // Component to render the details for an expanded day - Memoized for performance
-  const DayDetails = React.memo(({ dateStr }) => {
+  const DayDetails = React.memo(({ dateStr, isAdmin, attendanceBySlotId, onSlotClick }) => {
     const daySlots = useMemo(() => 
       (dailyRotaData[dateStr] || []).filter(slot => slot.profiles),
       [dateStr]
@@ -400,16 +465,24 @@ const WeeklyRotaPage = () => {
                       <ul className="divide-y divide-gray-200">
                         {timeSlots.map((slot) => {
                           const isCurrentUser = slot.user_id === user?.id;
+                          const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
                           return (
-                            <li 
+                            <li
                               key={slot.id}
-                              className={`p-2 md:p-2 transition-colors ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : 'hover:bg-gray-50'}`}
+                              role={isAdmin ? 'button' : undefined}
+                              onClick={isAdmin ? (e) => { e.stopPropagation(); onSlotClick?.(slot); } : undefined}
+                              className={`p-2 md:p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-gray-100' : ''} ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-gray-50' : ''}`}
                             >
                               <div className="flex flex-col items-center">
                                 <div className="text-center">
                                   <span className={`text-[15px] md:text-base font-bold ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
                                     {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
                                   </span>
+                                  {attendanceStatus && (
+                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-red-100 text-red-800 border border-red-300">
+                                      {attendanceStatus === 'no_show' ? 'No show' : attendanceStatus === 'sick' ? 'Sick' : 'Late'}
+                                    </span>
+                                  )}
                                   {isCurrentUser && (
                                     <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
                                       You
@@ -443,6 +516,9 @@ const WeeklyRotaPage = () => {
   DayDetails.displayName = 'DayDetails';
   DayDetails.propTypes = {
     dateStr: PropTypes.string.isRequired,
+    isAdmin: PropTypes.bool,
+    attendanceBySlotId: PropTypes.object,
+    onSlotClick: PropTypes.func,
   };
 
   // Memoized Day Card Component
@@ -455,7 +531,10 @@ const WeeklyRotaPage = () => {
     userHasShift, 
     isExpanded,
     onHeaderClick,
-    setRef
+    setRef,
+    isAdmin,
+    attendanceBySlotId,
+    onAttendanceSlotClick
   }) => {
     return (
       <div
@@ -596,14 +675,14 @@ const WeeklyRotaPage = () => {
         {isExpanded && (
           <div className="overflow-auto md:hidden transition-all duration-200">
             <div className="p-3">
-              <DayDetails dateStr={dateStr} />
+              <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
             </div>
           </div>
         )}
 
         {/* Desktop: Always visible details area */}
         <div className="hidden md:block p-3 md:p-2">
-          <DayDetails dateStr={dateStr} />
+          <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
         </div>
       </div>
     );
@@ -620,6 +699,9 @@ const WeeklyRotaPage = () => {
     isExpanded: PropTypes.bool.isRequired,
     onHeaderClick: PropTypes.func.isRequired,
     setRef: PropTypes.func.isRequired,
+    isAdmin: PropTypes.bool,
+    attendanceBySlotId: PropTypes.object,
+    onAttendanceSlotClick: PropTypes.func,
   };
 
   // Skeleton loading component
@@ -786,6 +868,9 @@ const WeeklyRotaPage = () => {
                 isExpanded={isExpanded}
                 onHeaderClick={handleHeaderClick}
                 setRef={(el) => { dayRefs.current[dateStr] = el; }}
+                isAdmin={isAdmin}
+                attendanceBySlotId={attendanceBySlotId}
+                onAttendanceSlotClick={handleAttendanceSlotClick}
               />
             );
           })}
@@ -927,6 +1012,17 @@ const WeeklyRotaPage = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {attendanceModalSlot && (
+        <AttendanceStatusModal
+          open={!!attendanceModalSlot}
+          onClose={() => setAttendanceModalSlot(null)}
+          slot={attendanceModalSlot}
+          currentStatus={attendanceBySlotId[attendanceModalSlot.id]?.status ?? null}
+          onSave={handleAttendanceSave}
+          saving={attendanceSaving}
+        />
       )}
 
     </div>

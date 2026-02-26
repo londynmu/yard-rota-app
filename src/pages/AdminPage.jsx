@@ -13,6 +13,7 @@ import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManag
 import TugManager from '../components/Admin/PreCheck/TugManager';
 import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
 import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
+import AttendancePage from './AttendancePage';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -27,7 +28,7 @@ export default function AdminPage() {
     // Validate saved section
     const validSections = [
       'dashboard', 'users', 'approvals', 'availability', 
-      'rota-planner', 'breaks', 'performance', 'stats', 
+      'rota-planner', 'breaks', 'attendance', 'performance', 'stats', 
       'shunter-month', 'settings', 'tugs', 'prechecks', 'check-items'
     ];
     return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
@@ -47,6 +48,7 @@ export default function AdminPage() {
         'availability': 'Availability',
         'rota-planner': 'Rota Planner',
         'breaks': 'Breaks',
+        'attendance': 'Attendance',
         'performance': 'Performance',
         'stats': 'Statistics',
         'shunter-month': 'Shunter of the Month',
@@ -270,6 +272,7 @@ export default function AdminPage() {
     { id: 'availability', label: 'Availability', icon: '📅', description: 'User availability' },
     { id: 'rota-planner', label: 'Rota Planner', icon: '📋', description: 'Plan work schedules' },
     { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
+    { id: 'attendance', label: 'Attendance', icon: '📋', description: 'Attendance reports (no show, sick, late)' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
     { id: 'tugs', label: 'Tugs', icon: '🚛', description: 'Manage tug fleet & QR codes' },
@@ -332,6 +335,8 @@ export default function AdminPage() {
         return <RotaPlannerPage />;
       case 'breaks':
         return <BrakesManager />;
+      case 'attendance':
+        return <AttendancePage />;
       case 'tugs':
         return <TugManager />;
       case 'prechecks':
