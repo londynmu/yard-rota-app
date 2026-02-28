@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { HiOutlineHome, HiOutlineUsers, HiOutlineCheckCircle, HiOutlineCalendar, HiOutlineCalendarDays, HiOutlineUserMinus, HiOutlineChartBar, HiOutlineArrowTrendingUp, HiOutlineTruck, HiOutlineClipboardDocumentCheck, HiOutlineDocumentCheck, HiOutlineTrophy, HiOutlineCog } from 'react-icons/hi2';
+import { FiCoffee } from 'react-icons/fi';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import UserList from '../components/Admin/UserList';
@@ -264,22 +266,23 @@ export default function AdminPage() {
     );
   }
 
-  // Definicja menu sidebar
+  const iconClassName = 'w-6 h-6 flex-shrink-0';
+  // Definicja menu sidebar - HiOutline (thin lines) + FiCoffee
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠', description: 'Overview & Quick Stats' },
-    { id: 'users', label: 'Users', icon: '👥', description: 'Manage users' },
-    { id: 'approvals', label: 'Approvals', icon: '✓', description: 'Pending approvals', badge: pendingApprovals },
-    { id: 'availability', label: 'Availability', icon: '📅', description: 'User availability' },
-    { id: 'rota-planner', label: 'Rota Planner', icon: '📋', description: 'Plan work schedules' },
-    { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
-    { id: 'attendance', label: 'Black list', icon: '📋', description: 'Attendance & disciplinary notes' },
-    { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
-    { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
-    { id: 'tugs', label: 'Tugs', icon: '🚛', description: 'Manage tug fleet & QR codes' },
-    { id: 'prechecks', label: 'PreChecks', icon: '📝', description: 'Tug inspection reports' },
-    { id: 'check-items', label: 'Check Items', icon: '📋', description: 'Manage checklist & tooltips' },
-    { id: 'shunter-month', label: 'Shunter of the Month', icon: '🏆', description: 'Monthly Day & Night awards' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', description: 'Locations & Agencies' },
+    { id: 'dashboard', label: 'Dashboard', icon: <HiOutlineHome className={iconClassName} />, description: 'Overview & Quick Stats' },
+    { id: 'users', label: 'Users', icon: <HiOutlineUsers className={iconClassName} />, description: 'Manage users' },
+    { id: 'approvals', label: 'Approvals', icon: <HiOutlineCheckCircle className={iconClassName} />, description: 'Pending approvals', badge: pendingApprovals },
+    { id: 'availability', label: 'Availability', icon: <HiOutlineCalendar className={iconClassName} />, description: 'User availability' },
+    { id: 'rota-planner', label: 'Rota Planner', icon: <HiOutlineCalendarDays className={iconClassName} />, description: 'Plan work schedules' },
+    { id: 'breaks', label: 'Breaks', icon: <FiCoffee className={iconClassName} />, description: 'Manage employee breaks' },
+    { id: 'attendance', label: 'Black list', icon: <HiOutlineUserMinus className={iconClassName} />, description: 'Attendance & disciplinary notes' },
+    { id: 'performance', label: 'Performance', icon: <HiOutlineChartBar className={iconClassName} />, description: 'Import performance data' },
+    { id: 'stats', label: 'Statistics', icon: <HiOutlineArrowTrendingUp className={iconClassName} />, description: 'Login & activity stats' },
+    { id: 'tugs', label: 'Tugs', icon: <HiOutlineTruck className={iconClassName} />, description: 'Manage tug fleet & QR codes' },
+    { id: 'prechecks', label: 'PreChecks', icon: <HiOutlineClipboardDocumentCheck className={iconClassName} />, description: 'Tug inspection reports' },
+    { id: 'check-items', label: 'Check Items', icon: <HiOutlineDocumentCheck className={iconClassName} />, description: 'Manage checklist & tooltips' },
+    { id: 'shunter-month', label: 'Shunter of the Month', icon: <HiOutlineTrophy className={iconClassName} />, description: 'Monthly Day & Night awards' },
+    { id: 'settings', label: 'Settings', icon: <HiOutlineCog className={iconClassName} />, description: 'Locations & Agencies' },
   ];
 
   // Dashboard Component - pokazywany jako główny widok
@@ -296,7 +299,7 @@ export default function AdminPage() {
               className="bg-white rounded-xl shadow-md border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all text-left group"
             >
               <div className="flex items-center gap-4">
-                <div className="text-3xl group-hover:scale-110 transition-transform">
+                <div className="flex items-center justify-center group-hover:scale-110 transition-transform [&>svg]:w-8 [&>svg]:h-8">
                   {item.icon}
                 </div>
                 <div className="flex-1">
@@ -400,7 +403,7 @@ export default function AdminPage() {
                 title={!sidebarHovered ? item.label : ''}
               >
                 <div className="w-8 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">{item.icon}</span>
+                  {item.icon}
                 </div>
                 {sidebarHovered && (
                   <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn ml-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
