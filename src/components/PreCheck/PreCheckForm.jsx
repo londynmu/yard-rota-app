@@ -509,29 +509,19 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     setTimeout(restore, 80);
   };
 
-  // Render a section (always open, no collapse)
+  // Section: title on main container, floating cards below (no wrapper box)
   const renderSection = (title, items, status, repairCount) => (
-    <div className={`rounded-xl overflow-hidden border ${
-      status === 'done' ? 'border-green-300 bg-green-50'
-        : status === 'issues' ? 'border-red-300 bg-red-50'
-        : 'border-gray-200 bg-white'
-    }`}>
-      <div className={`px-4 py-3 flex items-center justify-between ${
-        status === 'done' ? 'bg-green-50'
-          : status === 'issues' ? 'bg-red-50'
-          : 'bg-slate-50'
-      }`}>
-        <h3 className="font-semibold text-charcoal text-sm">{title}</h3>
-        <div className="flex items-center gap-2">
-          {status === 'done' && (
-            <span className="text-xs text-green-700 font-semibold">All OK</span>
-          )}
-          {status === 'issues' && (
-            <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
-          )}
-        </div>
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-base font-semibold text-charcoal">{title}</h2>
+        {status === 'done' && (
+          <span className="text-xs text-green-700 font-semibold">All OK</span>
+        )}
+        {status === 'issues' && (
+          <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
+        )}
       </div>
-      <div className="p-3 space-y-4">
+      <div className="space-y-4">
         {items.map(item => (
           <CheckItemRow
             key={item.key}
