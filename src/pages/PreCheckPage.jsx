@@ -353,6 +353,12 @@ export default function PreCheckPage() {
     setStep('success');
     clearPageState();
     clearFormState();
+    // Scroll to top after success view paints (main has pt-safe for notch)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0 });
+      });
+    });
   };
 
   const handleStartDuringShift = (tug) => {
