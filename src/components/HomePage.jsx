@@ -246,6 +246,11 @@ export default function HomePage() {
     );
   }
 
+  const path = location.pathname;
+  const hideHeaderOnMobile =
+    path === '/my-rota' || path === '/brakes' || path === '/calendar' ||
+    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu');
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Top bar - always visible */}
@@ -440,7 +445,7 @@ export default function HomePage() {
       
       {renderDropdownMenu()}
       
-      <main className="flex-1 relative z-0 pb-bottom-nav">
+      <main className={`flex-1 relative z-0 pb-bottom-nav ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
         <Suspense fallback={<div className="min-h-screen bg-slate-50"></div>}>
           <Routes>
             <Route

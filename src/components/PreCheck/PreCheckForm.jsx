@@ -599,7 +599,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
       {/* Sticky tug info bar – rounded card with margins, Change Tug on the right */}
       {tugLabel && (
-        <div className="sticky top-0 z-30 pt-1">
+        <div className="sticky top-0 z-30 pt-safe pt-1">
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between">
               <span className="text-lg font-extrabold text-charcoal">{tugLabel}</span>
