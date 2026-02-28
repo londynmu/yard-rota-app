@@ -64,8 +64,8 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
           <p className="text-xs text-gray-500 leading-snug mt-1">{tooltip}</p>
         )}
 
-        {/* 3. Known defect (if any) */}
-        {knownDefects.length > 0 && (
+        {/* 3. Known defect (if any) – single box; when confirm OK open, merge into one */}
+        {knownDefects.length > 0 && !showConfirmOk && (
           <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
             <p className="font-semibold mb-1">Known defect – VMU is aware</p>
             {knownDefects.map((def) => (
@@ -76,24 +76,30 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
           </div>
         )}
 
-        {/* 4. Confirm OK when known defect – resolved? */}
+        {/* 4. Confirm OK when known defect – one combined yellow box: defect info + question + buttons */}
         {showConfirmOk && knownDefects.length > 0 && value !== 'repair_needed' && (
-          <div className="mt-3 px-3 py-3 rounded-lg bg-amber-50 border border-amber-300 text-xs">
-            <p className="font-semibold text-amber-900 mb-2">
-              A defect was previously reported for this item. Has it been resolved or no longer exists?
+          <div className="mt-3 px-3 py-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-sm">
+            <p className="font-semibold text-amber-900 mb-1">Known defect – VMU is aware</p>
+            {knownDefects.map((def) => (
+              <p key={def.id} className="text-amber-800 text-xs mb-3">
+                On {def.date}, {def.reporterName} reported: {def.description}
+              </p>
+            ))}
+            <p className="font-semibold text-amber-900 mb-3">
+              Has it been resolved or no longer exists?
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => { setShowConfirmOk(false); onChange('ok'); }}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700"
+                className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700 transition-all"
               >
                 Yes – resolved / no longer exists
               </button>
               <button
                 type="button"
                 onClick={() => setShowConfirmOk(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 transition-all"
               >
                 Cancel
               </button>
