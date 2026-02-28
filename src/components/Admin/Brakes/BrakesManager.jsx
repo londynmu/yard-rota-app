@@ -6,7 +6,7 @@ import { useToast } from '../../../components/ui/ToastContext';
 import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format as formatDate } from 'date-fns';
+import { format as formatDate, subDays } from 'date-fns';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -123,6 +123,15 @@ const BrakesManager = () => {
     loadLocations();
   }, [selectedLocation, toast]);
 
+  // Convert time to minutes for break preference sorting (00:00-05:59 treated as night continuation)
+  const timeToMinutes = (timeStr) => {
+    const s = (timeStr || '00:00').substring(0, 5);
+    const [h, m] = s.split(':').map(Number);
+    let min = h * 60 + (m || 0);
+    if (min < 360) min += 1440; // 00:00-05:59
+    return min;
+  };
+
   // Helper function to adjust time for night shift sorting
   const adjustTimeForNightShift = (timeStr, shiftType) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -146,7 +155,46 @@ const BrakesManager = () => {
     });
   };
 
+  // Fetch break history for last 30 days to compute preferred break time per user
+  useEffect(() => {
+    const loadPreferredBreakTimes = async () => {
+      if (!selectedShift) return;
+      try {
+        const fromDate = formatDate(subDays(new Date(), 30), 'yyyy-MM-dd');
+        const { data, error } = await supabase
+          .from('scheduled_breaks')
+          .select('user_id, break_start_time')
+          .gte('date', fromDate)
+          .eq('shift_type', selectedShift.toLowerCase())
+          .not('user_id', 'is', null);
+
+        if (error) throw error;
+
+        const byUser = {};
+        (data || []).forEach((row) => {
+          if (!row.user_id) return;
+          const min = timeToMinutes(row.break_start_time);
+          if (!byUser[row.user_id]) byUser[row.user_id] = [];
+          byUser[row.user_id].push(min);
+        });
+
+        const avgByUser = {};
+        Object.entries(byUser).forEach(([uid, mins]) => {
+          const avg = mins.reduce((a, b) => a + b, 0) / mins.length;
+          avgByUser[uid] = Math.round(avg);
+        });
+        setPreferredBreakMinutesByUserId(avgByUser);
+      } catch (err) {
+        console.error('[BrakesManager] Error loading preferred break times:', err);
+        setPreferredBreakMinutesByUserId({});
+      }
+    };
+
+    loadPreferredBreakTimes();
+  }, [selectedShift]);
+
   const [addSlotModalOpen, setAddSlotModalOpen] = useState(false);
+  const [preferredBreakMinutesByUserId, setPreferredBreakMinutesByUserId] = useState({});
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
@@ -470,10 +518,10 @@ const BrakesManager = () => {
       // Fetch available staff for the selected date (needs to run regardless of where assignments came from)
       try {
         // Step 1: Get user IDs of staff who are scheduled to work on the selected date
-        // Fetch all scheduled shifts for this date
+        // Fetch all scheduled shifts for this date (include id for attendance lookup)
         const { data: scheduledShifts, error: scheduledError } = await supabase
           .from('scheduled_rota')
-          .select('user_id, shift_type, location')
+          .select('id, user_id, shift_type, location')
           .eq('date', selectedDate)
           .not('user_id', 'is', null);
           
@@ -502,6 +550,22 @@ const BrakesManager = () => {
           })
           .map(record => record.user_id);
 
+        // Exclude users marked as absent (no show / sick / late) on this date
+        let absentUserIds = new Set();
+        const rotaIds = filteredShifts.map(r => r.id).filter(Boolean);
+        if (rotaIds.length > 0) {
+          const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('scheduled_rota_id')
+            .in('scheduled_rota_id', rotaIds);
+          const absentRotaIds = new Set((attendanceData || []).map(a => a.scheduled_rota_id));
+          filteredShifts.forEach(record => {
+            if (record.id && absentRotaIds.has(record.id) && record.user_id) {
+              absentUserIds.add(record.user_id);
+            }
+          });
+        }
+
         if (!filteredUserIds || filteredUserIds.length === 0) {
           setAvailableStaff([]);
           // We stop here if no one is scheduled for this shift on this date
@@ -519,17 +583,19 @@ const BrakesManager = () => {
             throw profilesError;
           }
             
-          // Step 3: Map profiles to our staff structure
-          const processedAvailable = profilesData.map(profile => {
-            return {
-              id: profile.id,
-              first_name: profile.first_name,
-              last_name: profile.last_name,
-              preferred_shift: profile.shift_preference || 'Unknown',
-              is_available: true, // They are scheduled, so they are "available" for breaks
-              location: locationMap.get(profile.id) || null
-            };
-          });
+          // Step 3: Map profiles to our staff structure (exclude absent users)
+          const processedAvailable = profilesData
+            .filter(profile => !absentUserIds.has(profile.id))
+            .map(profile => {
+              return {
+                id: profile.id,
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                preferred_shift: profile.shift_preference || 'Unknown',
+                is_available: true, // They are scheduled, so they are "available" for breaks
+                location: locationMap.get(profile.id) || null
+              };
+            });
 
           setAvailableStaff(processedAvailable); // Set base list
         }
@@ -1473,6 +1539,8 @@ const BrakesManager = () => {
           currentLocation={selectedLocation}
           isAllLocation={selectedLocation === ALL_LOCATIONS_VALUE}
           onSave={handleSaveAllBreaks}
+          preferredBreakMinutesByUserId={preferredBreakMinutesByUserId}
+          timeToMinutes={timeToMinutes}
         />
       )}
       
@@ -1521,7 +1589,7 @@ const BrakesManager = () => {
 
 // Staff Selection Modal Component - Enhance the staff removal functionality
 // eslint-disable-next-line no-unused-vars
-const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation, onSave }) => {
+const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedStaff, onAssignStaff, onRemoveStaff, currentLocation, isAllLocation, onSave, preferredBreakMinutesByUserId = {}, timeToMinutes }) => {
   const modalRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -1540,7 +1608,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   // Removed debug useEffect
   
   // Filter staff that are eligible for this slot - restore proper filtering
-  const eligibleStaff = availableStaff.filter(staff => {
+  const eligibleStaffRaw = availableStaff.filter(staff => {
     if (!staff) return false;
     
     // Check if staff is already assigned to THIS slot
@@ -1563,6 +1631,17 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
       return remainingMinutes >= slot.duration_minutes;
     }
   });
+
+  // Sort by preferred break time (avg from last 30 days) - closer to slot time first
+  const eligibleStaff = (() => {
+    if (!timeToMinutes || typeof preferredBreakMinutesByUserId !== 'object') return eligibleStaffRaw;
+    const slotMin = timeToMinutes(slot.start_time);
+    return [...eligibleStaffRaw].sort((a, b) => {
+      const prefA = preferredBreakMinutesByUserId[a.id] ?? 9999;
+      const prefB = preferredBreakMinutesByUserId[b.id] ?? 9999;
+      return Math.abs(prefA - slotMin) - Math.abs(prefB - slotMin);
+    });
+  })();
   
   // Check if we have no staff after filtering
   // Removed debug useEffect
@@ -2169,7 +2248,9 @@ StaffSelectionModal.propTypes = {
   onRemoveStaff: PropTypes.func.isRequired,
   currentLocation: PropTypes.string,
   isAllLocation: PropTypes.bool,
-  onSave: PropTypes.func.isRequired
+  onSave: PropTypes.func.isRequired,
+  preferredBreakMinutesByUserId: PropTypes.object,
+  timeToMinutes: PropTypes.func
 };
 
 AddSlotModal.propTypes = {
