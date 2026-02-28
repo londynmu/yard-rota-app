@@ -397,7 +397,7 @@ export default function PreCheckPage() {
   // ─── Loading ───
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 animate-pulse space-y-4">
+      <div className="max-w-lg mx-auto px-4 pt-safe py-6 animate-pulse space-y-4">
         <div className="h-8 bg-slate-200 rounded w-48" />
         <div className="h-40 bg-slate-200 rounded-xl" />
       </div>
@@ -407,7 +407,7 @@ export default function PreCheckPage() {
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
         <div className="space-y-3">
         {/* All checks grouped in one card */}
         <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
@@ -463,7 +463,7 @@ export default function PreCheckPage() {
   if (step === 'during_shift') {
     if (!duringShiftDamageEnabled) {
       return (
-        <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+        <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
             <p className="text-sm font-semibold text-yellow-800">
               Damage reporting is currently disabled by admin.
@@ -489,7 +489,7 @@ export default function PreCheckPage() {
     }
 
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
         {(queueStatus.total > 0 || !isOnline) && (
           <div className={`rounded-lg border px-3 py-2 text-xs ${
             !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'
@@ -565,7 +565,7 @@ export default function PreCheckPage() {
     const now = new Date();
 
     return (
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
         <div className={`${isDamage ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-5 space-y-4`}>
           <div>
             <h2 className={`text-base font-bold ${isDamage ? 'text-red-800' : 'text-green-800'}`}>
@@ -604,7 +604,7 @@ export default function PreCheckPage() {
     const checkedTugIds = shiftChecks.map(c => c.tug_id);
 
     return (
-      <div className="max-w-lg mx-auto px-4 py-4 pb-24 space-y-4">
+      <div className="max-w-lg mx-auto px-4 pt-safe py-4 pb-24 space-y-4">
         {/* QR Scanner overlay */}
         {showQRScanner && (
           <QRScanner
@@ -665,7 +665,7 @@ export default function PreCheckPage() {
 
   // ─── Form (pre-shift check) ───
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
+    <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
       {(queueStatus.total > 0 || !isOnline) && (
         <div className={`rounded-lg border px-3 py-2 text-xs ${
           !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'
