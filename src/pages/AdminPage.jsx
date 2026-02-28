@@ -48,7 +48,7 @@ export default function AdminPage() {
         'availability': 'Availability',
         'rota-planner': 'Rota Planner',
         'breaks': 'Breaks',
-        'attendance': 'Attendance',
+        'attendance': 'Black list',
         'performance': 'Performance',
         'stats': 'Statistics',
         'shunter-month': 'Shunter of the Month',
@@ -272,7 +272,7 @@ export default function AdminPage() {
     { id: 'availability', label: 'Availability', icon: '📅', description: 'User availability' },
     { id: 'rota-planner', label: 'Rota Planner', icon: '📋', description: 'Plan work schedules' },
     { id: 'breaks', label: 'Breaks', icon: '☕', description: 'Manage employee breaks' },
-    { id: 'attendance', label: 'Attendance', icon: '📋', description: 'Attendance reports (no show, sick, late)' },
+    { id: 'attendance', label: 'Black list', icon: '📋', description: 'Attendance & disciplinary notes' },
     { id: 'performance', label: 'Performance', icon: '📊', description: 'Import performance data' },
     { id: 'stats', label: 'Statistics', icon: '📈', description: 'Login & activity stats' },
     { id: 'tugs', label: 'Tugs', icon: '🚛', description: 'Manage tug fleet & QR codes' },
@@ -336,7 +336,7 @@ export default function AdminPage() {
       case 'breaks':
         return <BrakesManager />;
       case 'attendance':
-        return <AttendancePage />;
+        return <AttendancePage users={users} />;
       case 'tugs':
         return <TugManager />;
       case 'prechecks':

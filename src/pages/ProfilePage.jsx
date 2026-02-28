@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
 import { useVersionCheck } from '../hooks/useVersionCheck';
 import { Capacitor } from '@capacitor/core';
+import { format } from 'date-fns';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -41,6 +42,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Add agency state
   const [agencies, setAgencies] = useState([]);
   const [agencyId, setAgencyId] = useState(null);
+  // Attendance & disciplinary (own records only)
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [violations, setViolations] = useState([]);
 
   // Check for network connectivity
   useEffect(() => {
@@ -193,6 +197,52 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     
     fetchAgencies();
   }, [supabaseClient]);
+
+  // Fetch own attendance and disciplinary notes (standard view only)
+  useEffect(() => {
+    if (!user?.id || !supabaseClient || simplifiedView) return;
+    const fetchAttendanceAndViolations = async () => {
+      try {
+        const { data: rotaData, error: rotaErr } = await supabaseClient
+          .from('scheduled_rota')
+          .select('id, date')
+          .eq('user_id', user.id);
+        if (rotaErr) throw rotaErr;
+        const rotaIds = (rotaData || []).map((r) => r.id);
+        const rotaDateMap = (rotaData || []).reduce((acc, r) => {
+          acc[r.id] = r.date;
+          return acc;
+        }, {});
+        let attList = [];
+        if (rotaIds.length > 0) {
+          const { data: attData, error: attErr } = await supabaseClient
+            .from('attendance')
+            .select('scheduled_rota_id, status, recorded_at')
+            .in('scheduled_rota_id', rotaIds)
+            .order('recorded_at', { ascending: false });
+          if (attErr) throw attErr;
+          attList = (attData || []).map((a) => ({
+            date: rotaDateMap[a.scheduled_rota_id],
+            status: a.status,
+          }));
+        }
+        setAttendanceRecords(attList);
+
+        const { data: violData, error: violErr } = await supabaseClient
+          .from('shunter_violations')
+          .select('id, body, category, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (violErr) throw violErr;
+        setViolations(violData || []);
+      } catch (err) {
+        console.error('Error fetching attendance/violations:', err);
+        setAttendanceRecords([]);
+        setViolations([]);
+      }
+    };
+    fetchAttendanceAndViolations();
+  }, [user?.id, supabaseClient, simplifiedView]);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
@@ -923,6 +973,49 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
                 {formErrors.agency && <p className="text-xs text-red-500 mt-1">{formErrors.agency}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Attendance & disciplinary – read-only */}
+          <div className="bg-white rounded-xl border border-gray-200/80 shadow-sm overflow-hidden">
+            <div className="p-4">
+              <h3 className="text-charcoal font-semibold text-sm mb-3">Attendance & disciplinary</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Attendance</h4>
+                  {attendanceRecords.length === 0 ? (
+                    <p className="text-sm text-gray-500">No attendance records.</p>
+                  ) : (
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      {attendanceRecords.map((r, i) => (
+                        <li key={i}>
+                          {r.date ? format(new Date(r.date), 'd MMM yyyy') : '—'} —{' '}
+                          <span className="font-medium capitalize">{(r.status || '').replace('_', ' ')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Disciplinary notes</h4>
+                  {violations.length === 0 ? (
+                    <p className="text-sm text-gray-500">You have no disciplinary notes.</p>
+                  ) : (
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      {violations.map((v) => (
+                        <li key={v.id}>
+                          {v.created_at ? format(new Date(v.created_at), 'd MMM yyyy') : '—'} — {v.body}
+                          {v.category && (
+                            <span className="text-gray-500 ml-1">
+                              ({v.category === 'trailer_check' ? 'Trailer not checked' : v.category === 'radio' ? 'Not listening to radio' : v.category})
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
           </div>

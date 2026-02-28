@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import UserEditForm from './UserEditForm';
+import AddViolationModal from './AddViolationModal';
 import { formatDistanceToNow } from 'date-fns';
 
 // Create a modal portal component
@@ -379,6 +380,9 @@ export default function UserList({ users, onRefresh }) {
   // Desktop dropdown menu state
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef(null);
+  // Add violation modal (from UserList)
+  const [addViolationOpen, setAddViolationOpen] = useState(false);
+  const [addViolationUserId, setAddViolationUserId] = useState(null);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -998,6 +1002,20 @@ export default function UserList({ users, onRefresh }) {
                       </svg>
                       Info
               </button>
+              <button
+                type="button"
+                      onClick={() => {
+                        setOpenDropdownId(null);
+                        setAddViolationUserId(user.id);
+                        setAddViolationOpen(true);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Add violation
+                    </button>
               <button 
                 type="button"
                       onClick={() => {
@@ -1173,6 +1191,23 @@ export default function UserList({ users, onRefresh }) {
               
               <button
                 type="button"
+                onClick={() => {
+                  if (selectedUser) {
+                    setAddViolationUserId(selectedUser.id);
+                    setAddViolationOpen(true);
+                    closeBottomSheet();
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-charcoal text-charcoal hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Add violation
+              </button>
+              
+              <button
+                type="button"
                 onClick={handleBottomSheetDelete}
                 className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
               >
@@ -1185,6 +1220,15 @@ export default function UserList({ users, onRefresh }) {
           </div>
         )}
       </BottomSheet>
+      <AddViolationModal
+        open={addViolationOpen}
+        onClose={() => {
+          setAddViolationOpen(false);
+          setAddViolationUserId(null);
+        }}
+        initialUserId={addViolationUserId}
+        users={users}
+      />
     </>
   );
 }
