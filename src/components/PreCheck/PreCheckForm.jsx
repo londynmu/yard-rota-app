@@ -11,6 +11,7 @@ import {
   queuePrecheckSubmission,
   submitPrecheckPayload,
 } from '../../lib/precheckQueue';
+import { getOpenDefectsForTug } from '../../lib/precheckDefects';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
@@ -65,7 +66,7 @@ const loadSavedForm = () => {
   } catch { return null; }
 };
 
-export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType = 'pre_shift' }) {
+export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
   /* global __PRECHECK_SCHEMA_VERSION__ */
@@ -164,6 +165,9 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   // Derived: all items combined (only available after fetch)
   const allItems = outsideItems && insideItems ? [...outsideItems, ...insideItems] : [];
 
+  // ─── Known defects per item (fetched when tug selected) ───
+  const [knownDefectsByItem, setKnownDefectsByItem] = useState({});
+
   // ─── Form state (initialized after items load) ───
   const [checkItems, setCheckItems] = useState({});
   const [formInitialized, setFormInitialized] = useState(false);
@@ -173,6 +177,18 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
   const [submitting, setSubmitting] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const formSessionId = useRef(getFormSessionId()).current;
+
+  useEffect(() => {
+    if (!selectedTug?.id) {
+      setKnownDefectsByItem({});
+      return;
+    }
+    const load = async () => {
+      const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
+      setKnownDefectsByItem(byItem);
+    };
+    load();
+  }, [selectedTug?.id]);
 
   useEffect(() => {
     const fetchRemarksSetting = async () => {
@@ -217,7 +233,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
     const savedForm = loadSavedForm();
     const fresh = Object.fromEntries(
-      allItems.map(item => [item.key, { status: '', notes: '', images: [] }])
+      allItems.map(item => [item.key, { status: '', notes: '', images: [], linkedDamageId: null }])
     );
 
     if (savedForm?.checkItems) {
@@ -225,6 +241,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         if (savedForm.checkItems[key]) {
           fresh[key].status = savedForm.checkItems[key].status || '';
           fresh[key].notes = savedForm.checkItems[key].notes || '';
+          fresh[key].linkedDamageId = savedForm.checkItems[key].linkedDamageId || null;
           // Restore saved image URLs
           fresh[key].images = (savedForm.checkItems[key].imageUrls || []).map(img => ({
             id: img.id,
@@ -288,6 +305,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       stripped[key] = {
         status: checkItems[key].status,
         notes: checkItems[key].notes,
+        linkedDamageId: checkItems[key].linkedDamageId || null,
         imageUrls: (checkItems[key].images || [])
           .filter(img => img.url)
           .map(img => ({ id: img.id, url: img.url })),
@@ -322,10 +340,13 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       return false;
     }
 
-    // 2. Check all repair_needed items have a description
-    const missingNotes = allItems.filter(item => 
-      checkItems[item.key]?.status === 'repair_needed' && !checkItems[item.key]?.notes?.trim()
-    );
+    // 2. Check repair_needed items have description (except when linked to existing defect)
+    const missingNotes = allItems.filter(item => {
+      const ci = checkItems[item.key];
+      if (ci?.status !== 'repair_needed') return false;
+      if (ci?.linkedDamageId) return false;
+      return !ci?.notes?.trim();
+    });
     if (missingNotes.length > 0) {
       setShowWarning(true);
       // Scroll to the first item missing notes
@@ -352,6 +373,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
       label: item.label,
       status: checkItems[item.key]?.status || '',
       notes: checkItems[item.key]?.notes || '',
+      linkedDamageId: checkItems[item.key]?.linkedDamageId || null,
       images: mapImagesToQueueEntries(checkItems[item.key]?.images || []),
     })),
   });
@@ -473,7 +495,14 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   const handleCheckChange = (key, status) => {
     const scrollY = window.scrollY;
-    setCheckItems(prev => ({ ...prev, [key]: { ...prev[key], status } }));
+    setCheckItems(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        status,
+        linkedDamageId: status !== 'repair_needed' ? null : prev[key]?.linkedDamageId,
+      },
+    }));
     // Restore scroll: rAF for normal browsers, setTimeout for iOS Safari (adjusts scroll later)
     const restore = () => window.scrollTo({ top: scrollY, behavior: 'auto' });
     requestAnimationFrame(restore);
@@ -502,7 +531,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
           )}
         </div>
       </div>
-      <div className="px-2">
+      <div className="p-3 space-y-4">
         {items.map(item => (
           <CheckItemRow
             key={item.key}
@@ -515,10 +544,16 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
             notes={checkItems[item.key]?.notes || ''}
             onNotesChange={(notes) => setCheckItems(prev => ({
               ...prev,
-              [item.key]: { ...prev[item.key], notes }
+              [item.key]: { ...prev[item.key], notes },
             }))}
             images={checkItems[item.key]?.images || []}
             onImagesChange={(images) => handleItemImagesChange(item.key, images)}
+            knownDefects={knownDefectsByItem[item.key] || []}
+            linkedDamageId={checkItems[item.key]?.linkedDamageId}
+            onLinkDefect={(damageId) => setCheckItems(prev => ({
+              ...prev,
+              [item.key]: { ...prev[item.key], linkedDamageId: damageId || null },
+            }))}
           />
         ))}
       </div>
@@ -527,9 +562,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 
   // Count problems for warning message
   const totalUnchecked = allItems.filter(item => !checkItems[item.key]?.status).length;
-  const missingDescriptions = allItems.filter(item =>
-    checkItems[item.key]?.status === 'repair_needed' && !checkItems[item.key]?.notes?.trim()
-  ).length;
+  const missingDescriptions = allItems.filter(item => {
+    const ci = checkItems[item.key];
+    if (ci?.status !== 'repair_needed') return false;
+    if (ci?.linkedDamageId) return false;
+    return !ci?.notes?.trim();
+  }).length;
 
   const totalItems = allItems.length;
   const checkedCount = allItems.filter(item => checkItems[item.key]?.status).length;
@@ -569,37 +607,21 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
         </div>
       )}
 
-      {/* Sticky tug header with progress + legend */}
+      {/* Sticky tug info bar – rounded card with margins, Change Tug on the right */}
       {tugLabel && (
-        <div className="sticky top-0 z-30 -mx-4 -mt-3">
-          <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-extrabold text-charcoal">{tugLabel}</span>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-xs text-slate-400">
-                  <span className="w-5 h-5 rounded bg-red-500 text-white flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-                  </span>
-                  Issue
-                </span>
-                <span className="flex items-center gap-1 text-xs text-slate-400">
-                  <span className="w-5 h-5 rounded bg-green-500 text-white flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                  </span>
-                  OK
-                </span>
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    progressPct === 100 ? 'bg-green-500' : 'bg-indigo-500'
-                  }`}
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-semibold text-gray-400 whitespace-nowrap">{checkedCount}/{totalItems}</span>
+        <div className="sticky top-0 z-30 pt-1">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-4 py-3 flex items-center justify-between">
+              <span className="text-lg font-extrabold text-charcoal">{tugLabel}</span>
+              {onChangeTug && (
+                <button
+                  type="button"
+                  onClick={onChangeTug}
+                  className="text-sm font-medium text-slate-500 hover:text-charcoal transition-colors"
+                >
+                  Change Tug
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -694,5 +716,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, checkType =
 PreCheckForm.propTypes = {
   selectedTug: PropTypes.object,
   onSubmitSuccess: PropTypes.func,
+  onChangeTug: PropTypes.func,
   checkType: PropTypes.oneOf(['pre_shift', 'during_shift']),
 };

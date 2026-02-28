@@ -236,7 +236,37 @@ export const submitPrecheckPayload = async (payload, supabase) => {
   }
 
   for (const item of items) {
-    if (item.status === 'repair_needed' && (item.images?.length > 0 || item.notes)) {
+    if (item.status !== 'repair_needed') continue;
+
+    if (item.linkedDamageId) {
+      // Shunter confirmed "same problem – still exists" – add confirmation, no new damage
+      const { data: damage, error: dErr } = await supabase
+        .from('precheck_damages')
+        .select(`
+          id,
+          repair_status,
+          precheck_submissions!inner(tug_id),
+          precheck_items!inner(item_name)
+        `)
+        .eq('id', item.linkedDamageId)
+        .single();
+
+      const sub = damage?.precheck_submissions;
+      const pi = damage?.precheck_items;
+      const tugMatch = sub?.tug_id === payload.tugId;
+      const itemMatch = pi?.item_name === item.key;
+
+      if (!dErr && damage && damage.repair_status !== 'resolved' && tugMatch && itemMatch) {
+        const { error: confError } = await supabase
+          .from('precheck_damage_confirmations')
+          .insert({
+            damage_id: item.linkedDamageId,
+            user_id: payload.userId,
+            submission_id: submission.id,
+          });
+        if (confError) throw confError;
+      }
+    } else if (item.images?.length > 0 || item.notes) {
       const imageUrls = await uploadImages(supabase, submission.id, item.images);
       const { error: damageError } = await supabase
         .from('precheck_damages')
