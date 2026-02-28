@@ -90,6 +90,7 @@ export default function VmuPage() {
 
   // ─── Activity logs ───
   const [activityLogs, setActivityLogs] = useState({});
+  const [confirmationsByDamage, setConfirmationsByDamage] = useState({});
   const [activityLoading, setActivityLoading] = useState({});
   const [showAllActivity, setShowAllActivity] = useState({});
 
@@ -289,27 +290,38 @@ export default function VmuPage() {
     });
   };
 
-  // ─── Fetch activity log on-demand when defect card expands ───
+  // ─── Fetch activity log + confirmations when defect card expands ───
   const fetchActivityLog = useCallback(async (damageId) => {
-    if (!damageId || activityLogs[damageId]) return; // already cached
+    if (!damageId) return;
+    if (activityLogs[damageId] !== undefined && confirmationsByDamage[damageId] !== undefined) return; // already cached
     setActivityLoading(prev => ({ ...prev, [damageId]: true }));
     try {
-      const { data, error } = await supabase
-        .from('defect_activity_log')
-        .select('*, profiles:user_id(first_name, last_name)')
-        .eq('damage_id', damageId)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      const [logRes, confRes] = await Promise.all([
+        supabase
+          .from('defect_activity_log')
+          .select('*, profiles:user_id(first_name, last_name)')
+          .eq('damage_id', damageId)
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('precheck_damage_confirmations')
+          .select('id, created_at, profiles:user_id(first_name, last_name)')
+          .eq('damage_id', damageId)
+          .order('created_at', { ascending: false }),
+      ]);
 
-      if (error) throw error;
-      setActivityLogs(prev => ({ ...prev, [damageId]: data || [] }));
+      if (logRes.error) throw logRes.error;
+      if (confRes.error) throw confRes.error;
+      setActivityLogs(prev => ({ ...prev, [damageId]: logRes.data || [] }));
+      setConfirmationsByDamage(prev => ({ ...prev, [damageId]: confRes.data || [] }));
     } catch (err) {
-      console.error('[VmuPage] Activity log fetch error:', err);
-      setActivityLogs(prev => ({ ...prev, [damageId]: [] }));
+      console.error('[VmuPage] Activity/confirmations fetch error:', err);
+      setActivityLogs(prev => ({ ...prev, [damageId]: prev[damageId] ?? [] }));
+      setConfirmationsByDamage(prev => ({ ...prev, [damageId]: prev[damageId] ?? [] }));
     } finally {
       setActivityLoading(prev => ({ ...prev, [damageId]: false }));
     }
-  }, [activityLogs]);
+  }, [activityLogs, confirmationsByDamage]);
 
   useEffect(() => {
     if (expandedDefectId) {
@@ -504,7 +516,6 @@ export default function VmuPage() {
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-3">Activity Log</h4>
             {(() => {
-              const logs = activityLogs[d.id];
               const isLogLoading = activityLoading[d.id];
               const showAll = showAllActivity[d.id];
               const VISIBLE_COUNT = 5;
@@ -515,10 +526,27 @@ export default function VmuPage() {
                 );
               }
 
-              if (!logs || logs.length === 0) return null;
+              const initialEntry = {
+                type: 'initial_report',
+                created_at: d.precheck_submissions?.created_at || d.created_at,
+                id: `initial-${d.id}`,
+                profiles: d.precheck_submissions?.profiles,
+              };
+              const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({
+                type: 'confirmation',
+                id: c.id,
+                created_at: c.created_at,
+                profiles: c.profiles,
+              }));
+              const activityEntries = (activityLogs[d.id] || []).map(e => ({
+                ...e,
+                type: e.action_type,
+              }));
+              const merged = [initialEntry, ...confirmations, ...activityEntries]
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-              const visibleLogs = showAll ? logs : logs.slice(0, VISIBLE_COUNT);
-              const hasMore = logs.length > VISIBLE_COUNT;
+              const visibleLogs = showAll ? merged : merged.slice(0, VISIBLE_COUNT);
+              const hasMore = merged.length > VISIBLE_COUNT;
 
               return (
                 <div>
@@ -527,13 +555,20 @@ export default function VmuPage() {
                       const name = entry.profiles
                         ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
                         : 'Unknown';
-                      const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
-                      const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
-                      const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
                       const time = formatRelativeTime(entry.created_at);
+                      const dateFormatted = entry.created_at
+                        ? formatDateTime(entry.created_at)
+                        : '';
 
                       let description;
-                      if (entry.action_type === 'status_change') {
+                      if (entry.type === 'initial_report') {
+                        description = <>reported this defect on {dateFormatted}</>;
+                      } else if (entry.type === 'confirmation') {
+                        description = <>reported that the problem still exists on {dateFormatted}</>;
+                      } else if (entry.type === 'status_change') {
+                        const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
+                        const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
+                        const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
                         description = (
                           <>
                             changed status
@@ -541,21 +576,25 @@ export default function VmuPage() {
                             {newDisplay && <> to <span className="font-medium">{newDisplay}</span></>}
                           </>
                         );
-                      } else if (!newDisplay) {
-                        description = (
-                          <>cleared <span className="font-medium">{fieldLabel}</span></>
-                        );
                       } else {
-                        description = (
-                          <>
-                            updated <span className="font-medium">{fieldLabel}</span>
-                            {' '}to <span className="font-medium text-charcoal">{
-                              String(newDisplay).length > 40
-                                ? String(newDisplay).slice(0, 40) + '...'
-                                : newDisplay
-                            }</span>
-                          </>
-                        );
+                        const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
+                        const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
+                        if (!newDisplay) {
+                          description = (
+                            <>cleared <span className="font-medium">{fieldLabel}</span></>
+                          );
+                        } else {
+                          description = (
+                            <>
+                              updated <span className="font-medium">{fieldLabel}</span>
+                              {' '}to <span className="font-medium text-charcoal">{
+                                String(newDisplay).length > 40
+                                  ? String(newDisplay).slice(0, 40) + '...'
+                                  : newDisplay
+                              }</span>
+                            </>
+                          );
+                        }
                       }
 
                       return (
@@ -576,7 +615,7 @@ export default function VmuPage() {
                       onClick={() => setShowAllActivity(prev => ({ ...prev, [d.id]: !showAll }))}
                       className="text-xs text-blue-500 hover:text-blue-700 mt-2 cursor-pointer"
                     >
-                      {showAll ? 'Show less' : `Show all ${logs.length} entries`}
+                      {showAll ? 'Show less' : `Show all ${merged.length} entries`}
                     </button>
                   )}
                 </div>
