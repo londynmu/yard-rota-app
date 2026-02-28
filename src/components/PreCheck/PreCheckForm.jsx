@@ -177,6 +177,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const [submitting, setSubmitting] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const formSessionId = useRef(getFormSessionId()).current;
+  const [markedResolvedDamageIds, setMarkedResolvedDamageIds] = useState([]);
 
   useEffect(() => {
     if (!selectedTug?.id) {
@@ -189,6 +190,19 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     };
     load();
   }, [selectedTug?.id]);
+
+  const handleMarkResolved = useCallback((damageId, itemKey) => {
+    if (!damageId) return;
+    setMarkedResolvedDamageIds(prev => {
+      const next = prev.includes(damageId) ? prev : [...prev, damageId];
+      const defectsForItem = knownDefectsByItem[itemKey] || [];
+      const allMarked = defectsForItem.length > 0 && defectsForItem.every(d => next.includes(d.id));
+      if (allMarked) {
+        setCheckItems(prevItems => ({ ...prevItems, [itemKey]: { ...prevItems[itemKey], status: 'ok' } }));
+      }
+      return next;
+    });
+  }, [knownDefectsByItem]);
 
   useEffect(() => {
     const fetchRemarksSetting = async () => {
@@ -330,8 +344,14 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   }, [saveToStorage]);
 
   const validate = () => {
-    // 1. Check all items are marked
-    const allChecked = allItems.every(item => checkItems[item.key]?.status);
+    // 1. Check all items are marked (or all known defects for that item are marked as fixed)
+    const allChecked = allItems.every(item => {
+      const status = checkItems[item.key]?.status;
+      if (status) return true;
+      const defects = knownDefectsByItem[item.key] || [];
+      if (defects.length === 0) return false;
+      return defects.every(d => markedResolvedDamageIds.includes(d.id));
+    });
     if (!allChecked) {
       setShowWarning(true);
       setTimeout(() => {
@@ -368,14 +388,20 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     formSessionId,
     remarks: remarksEnabled ? (remarks?.trim() || '') : '',
     remarksImages: remarksEnabled ? mapImagesToQueueEntries(remarksImages) : [],
-    items: allItems.map(item => ({
-      key: item.key,
-      label: item.label,
-      status: checkItems[item.key]?.status || '',
-      notes: checkItems[item.key]?.notes || '',
-      linkedDamageId: checkItems[item.key]?.linkedDamageId || null,
-      images: mapImagesToQueueEntries(checkItems[item.key]?.images || []),
-    })),
+    items: allItems.map(item => {
+      const status = checkItems[item.key]?.status;
+      const defects = knownDefectsByItem[item.key] || [];
+      const allDefectsMarked = defects.length > 0 && defects.every(d => markedResolvedDamageIds.includes(d.id));
+      const effectiveStatus = status || (allDefectsMarked ? 'ok' : '');
+      return {
+        key: item.key,
+        label: item.label,
+        status: effectiveStatus,
+        notes: checkItems[item.key]?.notes || '',
+        linkedDamageId: checkItems[item.key]?.linkedDamageId || null,
+        images: mapImagesToQueueEntries(checkItems[item.key]?.images || []),
+      };
+    }),
   });
 
   const handleSubmit = async (e) => {
@@ -401,7 +427,14 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         return;
       }
 
+      for (const damageId of markedResolvedDamageIds) {
+        const { error } = await supabase.rpc('mark_precheck_damage_resolved', { damage_id: damageId });
+        if (error) throw error;
+      }
       const submission = await submitPrecheckPayload(payload, supabase);
+      setMarkedResolvedDamageIds([]);
+      const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
+      setKnownDefectsByItem(byItem);
       try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
@@ -544,6 +577,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
               ...prev,
               [item.key]: { ...prev[item.key], linkedDamageId: damageId || null },
             }))}
+            onMarkResolved={handleMarkResolved}
+            pendingResolvedDamageIds={markedResolvedDamageIds}
           />
         ))}
       </div>
@@ -551,7 +586,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   );
 
   // Count problems for warning message
-  const totalUnchecked = allItems.filter(item => !checkItems[item.key]?.status).length;
+  const totalUnchecked = allItems.filter(item => {
+    if (checkItems[item.key]?.status) return false;
+    const defects = knownDefectsByItem[item.key] || [];
+    return defects.length === 0 || !defects.every(d => markedResolvedDamageIds.includes(d.id));
+  }).length;
   const missingDescriptions = allItems.filter(item => {
     const ci = checkItems[item.key];
     if (ci?.status !== 'repair_needed') return false;
@@ -560,7 +599,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   }).length;
 
   const totalItems = allItems.length;
-  const checkedCount = allItems.filter(item => checkItems[item.key]?.status).length;
+  const checkedCount = allItems.filter(item => {
+    if (checkItems[item.key]?.status) return true;
+    const defects = knownDefectsByItem[item.key] || [];
+    return defects.length > 0 && defects.every(d => markedResolvedDamageIds.includes(d.id));
+  }).length;
   const progressPct = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
   const tugLabel = selectedTug?.display_name || selectedTug?.tug_number || null;
 

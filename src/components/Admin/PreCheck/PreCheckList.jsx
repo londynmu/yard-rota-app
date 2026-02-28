@@ -411,9 +411,9 @@ export default function PreCheckList() {
       <div
         key={sub.id}
         id={`precheck-card-${sub.id}`}
-        className={`rounded-xl border overflow-hidden shadow-sm transition-shadow ${
+        className={`rounded-xl border shadow-sm transition-shadow ${
           hasDefect ? 'border-red-200' : 'border-green-200'
-        } ${isExpanded ? 'shadow-md' : ''}`}
+        } ${isExpanded ? 'shadow-md relative z-10' : ''} overflow-visible`}
       >
         {/* Card header – mobile: tug left, user/time right; desktop: 5 equal columns */}
         <button

@@ -2,8 +2,24 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 
-export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, onChange, notes, onNotesChange, images, onImagesChange, knownDefects = [], linkedDamageId, onLinkDefect }) {
-  const [showConfirmOk, setShowConfirmOk] = useState(false);
+export default function CheckItemRow({
+  itemKey,
+  label,
+  tooltip,
+  allowNa,
+  value,
+  onChange,
+  notes,
+  onNotesChange,
+  images,
+  onImagesChange,
+  knownDefects = [],
+  linkedDamageId,
+  onLinkDefect,
+  onMarkResolved,
+  pendingResolvedDamageIds = [],
+}) {
+  const [showStillExistNewProblem, setShowStillExistNewProblem] = useState(false);
 
   const blurActive = () => {
     if (document.activeElement && document.activeElement !== document.body) {
@@ -19,7 +35,6 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
   const handleMarkOk = () => {
     blurActive();
     if (knownDefects.length > 0) {
-      setShowConfirmOk(true);
       return;
     }
     onChange('ok');
@@ -31,6 +46,20 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
     onChange(value === 'na' ? '' : 'na');
   };
 
+  const handleMarkResolvedClick = (damageId) => {
+    if (!onMarkResolved) return;
+    blurActive();
+    onMarkResolved(damageId, itemKey);
+  };
+
+  const handleClearSameDefect = () => {
+    blurActive();
+    if (onLinkDefect) onLinkDefect(null);
+    onChange('');
+  };
+
+  const isPendingResolved = (defId) => pendingResolvedDamageIds.includes(defId);
+
   const cardBg =
     value === 'repair_needed' ? 'bg-red-50/50'
       : value === 'na' ? 'bg-slate-50/50'
@@ -40,77 +69,140 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
       : value === 'na' ? 'border-slate-200'
       : 'border-gray-200';
 
+  const hasKnownDefects = knownDefects.length > 0;
+  const showAlternativeFooter = hasKnownDefects && value !== 'repair_needed' && !showStillExistNewProblem;
+  const showSameProblemConfirmed = hasKnownDefects && value === 'repair_needed' && linkedDamageId;
+
   return (
     <div
       id={itemKey ? `check-item-${itemKey}` : undefined}
       className={`rounded-xl border-2 ${cardBorder} ${cardBg} overflow-hidden shadow-sm`}
     >
-      {/* Card content – top to bottom */}
       <div className="px-4 pt-4 pb-2">
-        {/* 1. Label at top */}
-        <h3
-          className={`text-base font-semibold ${
-            value === 'ok' ? 'text-green-700'
-              : value === 'repair_needed' ? 'text-red-700'
-              : value === 'na' ? 'text-slate-400 line-through'
-              : 'text-charcoal'
-          }`}
-        >
-          {label}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3
+            className={`text-base font-semibold flex-1 min-w-0 ${
+              value === 'ok' ? 'text-green-700'
+                : value === 'repair_needed' ? 'text-red-700'
+                : value === 'na' ? 'text-slate-400 line-through'
+                : 'text-charcoal'
+            }`}
+          >
+            {label}
+          </h3>
+          {showSameProblemConfirmed && onLinkDefect && (
+            <button
+              type="button"
+              onClick={handleClearSameDefect}
+              className="flex-shrink-0 p-2 rounded-full text-charcoal hover:bg-gray-100 transition-colors"
+              title="Change selection"
+              aria-label="Change selection"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
+        </div>
 
-        {/* 2. Tooltip – what to check */}
         {tooltip && value !== 'na' && (
           <p className="text-xs text-gray-500 leading-snug mt-1">{tooltip}</p>
         )}
 
-        {/* 3. Known defect (if any) – single box; when confirm OK open, merge into one */}
-        {knownDefects.length > 0 && !showConfirmOk && (
+        {/* Known defect info – with per-defect Fixed? when multiple */}
+        {hasKnownDefects && value !== 'repair_needed' && (
           <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
             <p className="font-semibold mb-1">Known defect – VMU is aware</p>
             {knownDefects.map((def) => (
-              <p key={def.id} className="text-amber-800">
-                On {def.date}, {def.reporterName} reported: {def.description}
-              </p>
+              <div key={def.id} className="flex items-start justify-between gap-2 text-amber-800">
+                <span>On {def.date}, {def.reporterName} reported: {def.description}</span>
+                {onMarkResolved && (
+                  isPendingResolved(def.id) ? (
+                    <span className="flex-shrink-0 text-xs font-medium text-green-700">Marked as fixed (on submit)</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkResolvedClick(def.id)}
+                      className="flex-shrink-0 py-1 px-2 rounded text-xs font-semibold bg-amber-200 text-amber-900 hover:bg-amber-300 transition-colors"
+                    >
+                      Fixed?
+                    </button>
+                  )
+                )}
+              </div>
             ))}
           </div>
         )}
 
-        {/* 4. Confirm OK when known defect – one combined yellow box: defect info + question + buttons */}
-        {showConfirmOk && knownDefects.length > 0 && value !== 'repair_needed' && (
-          <div className="mt-3 px-3 py-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-sm">
-            <p className="font-semibold text-amber-900 mb-1">Known defect – VMU is aware</p>
-            {knownDefects.map((def) => (
-              <p key={def.id} className="text-amber-800 text-xs mb-3">
-                On {def.date}, {def.reporterName} reported: {def.description}
-              </p>
-            ))}
-            <p className="font-semibold text-amber-900 mb-3">
-              Has it been resolved or no longer exists?
-            </p>
+        {/* Expanded: Same problem | New problem (after clicking Still exist / New problem) */}
+        {hasKnownDefects && showStillExistNewProblem && value !== 'repair_needed' && onLinkDefect && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-600">Same problem or new?</p>
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => { setShowConfirmOk(false); onChange('ok'); }}
-                className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700 transition-all"
-              >
-                Yes – resolved / no longer exists
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowConfirmOk(false)}
-                className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 transition-all"
-              >
-                Cancel
-              </button>
+              {knownDefects.length === 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLinkDefect(knownDefects[0].id);
+                      onChange('repair_needed');
+                      setShowStillExistNewProblem(false);
+                    }}
+                    className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 transition-all"
+                  >
+                    Same problem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLinkDefect(null);
+                      onChange('repair_needed');
+                      setShowStillExistNewProblem(false);
+                    }}
+                    className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-red-100 text-red-800 border-red-200 hover:bg-red-200 transition-all"
+                  >
+                    New problem
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {knownDefects.map((def) => (
+                      <button
+                        key={def.id}
+                        type="button"
+                        onClick={() => {
+                          onLinkDefect(def.id);
+                          onChange('repair_needed');
+                          setShowStillExistNewProblem(false);
+                        }}
+                        className="flex-1 min-w-0 py-2.5 px-3 rounded-xl text-sm font-medium border-2 bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                      >
+                        Still: {def.description.slice(0, 28)}{def.description.length > 28 ? '…' : ''}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLinkDefect(null);
+                      onChange('repair_needed');
+                      setShowStillExistNewProblem(false);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold border-2 bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
+                  >
+                    New problem
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
 
-        {/* 5. Issue details when repair_needed */}
-        {value === 'repair_needed' && (
+        {/* Same defect confirmed: message only in footer; refresh button in header */}
+        {value === 'repair_needed' && !showSameProblemConfirmed && (
           <div className="mt-3 space-y-2">
-            {knownDefects.length > 0 && onLinkDefect && (
+            {hasKnownDefects && onLinkDefect && !showStillExistNewProblem && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-600">Same problem?</p>
                 <div className="flex gap-3">
@@ -195,62 +287,101 @@ export default function CheckItemRow({ itemKey, label, tooltip, allowNa, value, 
         )}
       </div>
 
-      {/* 6. Bottom: always 3 buttons – Warning (left), N/A (center), OK (right) */}
-      <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
-        {/* Issue / Warning – left */}
-        <button
-          type="button"
-          onClick={handleMarkIssue}
-          disabled={value === 'na'}
-          className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
-            value === 'repair_needed'
-              ? 'bg-red-500 text-white'
-              : value === 'na'
-              ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-              : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
-          }`}
-        >
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <span className="truncate">Issue</span>
-        </button>
-
-        {/* N/A – center (grayed when not allowed) */}
-        <button
-          type="button"
-          onClick={handleMarkNa}
-          disabled={!allowNa}
-          className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center text-sm font-semibold transition-all overflow-hidden ${
-            allowNa
-              ? value === 'na'
-                ? 'bg-slate-500 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-slate-100 hover:text-slate-600'
-              : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-60'
-          }`}
-        >
-          <span className="truncate">N/A</span>
-        </button>
-
-        {/* OK – right */}
-        <button
-          type="button"
-          onClick={handleMarkOk}
-          disabled={value === 'na'}
-          className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
-            value === 'ok'
-              ? 'bg-green-500 text-white'
-              : value === 'na'
-              ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-              : 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600'
-          }`}
-        >
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="truncate">OK</span>
-        </button>
-      </div>
+      {/* Footer: second stage (Back only) | first stage (Fixed? | Still exist / New problem) | standard 3 buttons */}
+      {showStillExistNewProblem ? (
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => setShowStillExistNewProblem(false)}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+          >
+            Back
+          </button>
+        </div>
+      ) : showAlternativeFooter ? (
+        <div className="px-4 pb-4 pt-2 flex items-center gap-3 border-t border-gray-100">
+          {knownDefects.length === 1 && onMarkResolved && !isPendingResolved(knownDefects[0].id) && (
+            <button
+              type="button"
+              onClick={() => handleMarkResolvedClick(knownDefects[0].id)}
+              className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-all"
+            >
+              Fixed?
+            </button>
+          )}
+          {knownDefects.length === 1 && onMarkResolved && isPendingResolved(knownDefects[0].id) && (
+            <span className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold text-green-700">
+              Marked as fixed (on submit)
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowStillExistNewProblem(!showStillExistNewProblem)}
+            className={`flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all ${
+              showStillExistNewProblem
+                ? 'bg-amber-500 text-white border-amber-500'
+                : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+            }`}
+          >
+            {showStillExistNewProblem ? 'Same problem / New problem' : 'Still exist / New problem'}
+          </button>
+        </div>
+      ) : showSameProblemConfirmed ? (
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+          <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
+        </div>
+      ) : (
+        <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={handleMarkIssue}
+            disabled={value === 'na'}
+            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
+              value === 'repair_needed'
+                ? 'bg-red-500 text-white'
+                : value === 'na'
+                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
+            }`}
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span className="truncate">Issue</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleMarkNa}
+            disabled={!allowNa}
+            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center text-sm font-semibold transition-all overflow-hidden ${
+              allowNa
+                ? value === 'na'
+                  ? 'bg-slate-500 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-slate-100 hover:text-slate-600'
+                : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-60'
+            }`}
+          >
+            <span className="truncate">N/A</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleMarkOk}
+            disabled={value === 'na'}
+            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
+              value === 'ok'
+                ? 'bg-green-500 text-white'
+                : value === 'na'
+                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                : 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600'
+            }`}
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="truncate">OK</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -274,4 +405,6 @@ CheckItemRow.propTypes = {
   })),
   linkedDamageId: PropTypes.string,
   onLinkDefect: PropTypes.func,
+  onMarkResolved: PropTypes.func,
+  pendingResolvedDamageIds: PropTypes.arrayOf(PropTypes.string),
 };
