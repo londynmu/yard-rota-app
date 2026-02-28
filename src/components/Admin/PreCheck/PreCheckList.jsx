@@ -41,6 +41,7 @@ export default function PreCheckList() {
     checkType: '',
   });
   const [tugs, setTugs] = useState([]);
+  const [checkItemLabels, setCheckItemLabels] = useState({});
 
   // ─── Faults filter (persisted in localStorage) ───
   const FAULTS_FILTER_KEY = 'precheck_faults_filter';
@@ -76,10 +77,18 @@ export default function PreCheckList() {
     ).length,
   }), [submissions]);
 
-  // ─── Fetch filter options ───
+  // ─── Fetch filter options and check item labels ───
   const fetchFilterOptions = useCallback(async () => {
-    const { data, error } = await supabase.from('tugs').select('id, tug_number, display_name').order('tug_number');
-    if (!error) setTugs(data || []);
+    const [tugsRes, checkItemsRes] = await Promise.all([
+      supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
+      supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
+    ]);
+    if (!tugsRes.error) setTugs(tugsRes.data || []);
+    if (!checkItemsRes.error) {
+      const map = {};
+      (checkItemsRes.data || []).forEach((item) => { map[item.item_key] = item.label; });
+      setCheckItemLabels(map);
+    }
   }, []);
 
   // ─── Core fetch function ───
@@ -289,20 +298,20 @@ export default function PreCheckList() {
       if (source) {
         // New logic: use source field
         if (source === 'check_item' && linkedItem) {
-          header = linkedItem.item_name.replace(/_/g, ' ');
+          header = getItemLabel(linkedItem.item_name);
         } else if (source === 'remarks') {
           header = 'Remarks';
         } else if (source === 'during_shift') {
           header = 'Damage Report';
         } else if (linkedItem) {
-          header = linkedItem.item_name.replace(/_/g, ' ');
+          header = getItemLabel(linkedItem.item_name);
         } else {
           header = 'Damage Report';
         }
       } else {
         // Fallback for old records without source field
         if (linkedItem) {
-          header = linkedItem.item_name.replace(/_/g, ' ');
+          header = getItemLabel(linkedItem.item_name);
         } else if (damage.location_on_tug) {
           header = damage.location_on_tug;
         } else if (damage.description === remarksText || damage.description === 'Additional photos') {
@@ -346,8 +355,9 @@ export default function PreCheckList() {
     return faults;
   };
 
-  // ─── Format item name for display ───
+  // ─── Format item name for display (fallback when label not found) ───
   const formatItemName = (name) => (name || '').replace(/_/g, ' ');
+  const getItemLabel = (itemKey) => checkItemLabels[itemKey] ?? formatItemName(itemKey);
 
   // ─── Get defect description for an item (notes or linked damage) ───
   const getItemDefectDescription = (item, sub) => {
@@ -505,7 +515,7 @@ export default function PreCheckList() {
                   <div className="grid gap-1.5 sm:grid-cols-2">
                     {/* Defects without photos – prominent at top with status controls */}
                     {defectsNoPhoto.map(item => {
-                      const label = formatItemName(item.item_name);
+                      const label = getItemLabel(item.item_name);
                       const defectDesc = getItemDefectDescription(item, sub);
                       const damage = (sub.precheck_damages || []).find(d => d.item_id === item.id);
                       return (
@@ -523,7 +533,7 @@ export default function PreCheckList() {
                     })}
                     {/* OK and N/A items */}
                     {passedItems.map(item => {
-                      const label = formatItemName(item.item_name);
+                      const label = getItemLabel(item.item_name);
                       const isNa = item.status === 'na';
                       return (
                         <div

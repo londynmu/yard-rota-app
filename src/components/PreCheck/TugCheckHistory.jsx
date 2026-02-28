@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function TugCheckHistory({ tugId }) {
   const [checks, setChecks] = useState([]);
+  const [checkItemLabels, setCheckItemLabels] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [expandedCheckId, setExpandedCheckId] = useState(null);
@@ -19,23 +20,31 @@ export default function TugCheckHistory({ tugId }) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data, error } = await supabase
-        .from('precheck_submissions')
-        .select(`
-          id,
-          check_time,
-          created_at,
-          check_type,
-          profiles:user_id(first_name, last_name),
-          precheck_items(id, status, item_name, notes),
-          precheck_damages(id, item_id, description, image_urls, source)
-        `)
-        .eq('tug_id', tugId)
-        .gte('check_time', thirtyDaysAgo.toISOString())
-        .order('check_time', { ascending: false });
+      const [checksRes, checkItemsRes] = await Promise.all([
+        supabase
+          .from('precheck_submissions')
+          .select(`
+            id,
+            check_time,
+            created_at,
+            check_type,
+            profiles:user_id(first_name, last_name),
+            precheck_items(id, status, item_name, notes),
+            precheck_damages(id, item_id, description, image_urls, source)
+          `)
+          .eq('tug_id', tugId)
+          .gte('check_time', thirtyDaysAgo.toISOString())
+          .order('check_time', { ascending: false }),
+        supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
+      ]);
 
-      if (error) throw error;
-      setChecks(data || []);
+      if (checksRes.error) throw checksRes.error;
+      setChecks(checksRes.data || []);
+      if (!checkItemsRes.error) {
+        const map = {};
+        (checkItemsRes.data || []).forEach((item) => { map[item.item_key] = item.label; });
+        setCheckItemLabels(map);
+      }
     } catch (err) {
       console.error('[TugCheckHistory] Error:', err);
     } finally {
@@ -98,7 +107,7 @@ export default function TugCheckHistory({ tugId }) {
 
       return {
         key: `item-${item.id}`,
-        itemName: formatItemName(item.item_name),
+        itemName: checkItemLabels[item.item_name] ?? formatItemName(item.item_name),
         description: match?.description || item.notes || '',
         imageUrls: match?.image_urls || [],
       };

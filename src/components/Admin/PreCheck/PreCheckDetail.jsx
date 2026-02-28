@@ -8,6 +8,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
   const [submission, setSubmission] = useState(null);
   const [items, setItems] = useState([]);
   const [damages, setDamages] = useState([]);
+  const [checkItemLabels, setCheckItemLabels] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
   const fetchDetail = async () => {
     setLoading(true);
     try {
-      const [subRes, itemsRes, damagesRes] = await Promise.all([
+      const [subRes, itemsRes, damagesRes, checkItemsRes] = await Promise.all([
         supabase
           .from('precheck_submissions')
           .select('*, profiles:user_id(first_name, last_name), tugs(tug_number, locations(name))')
@@ -32,12 +33,18 @@ export default function PreCheckDetail({ submissionId, onBack }) {
           .from('precheck_damages')
           .select('*, resolved_profile:resolved_by(first_name, last_name)')
           .eq('submission_id', submissionId),
+        supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
       ]);
 
       if (subRes.error) throw subRes.error;
       setSubmission(subRes.data);
       setItems(itemsRes.data || []);
       setDamages(damagesRes.data || []);
+      if (!checkItemsRes.error) {
+        const map = {};
+        (checkItemsRes.data || []).forEach((item) => { map[item.item_key] = item.label; });
+        setCheckItemLabels(map);
+      }
     } catch (err) {
       console.error('[PreCheckDetail] Error:', err);
     } finally {
@@ -153,7 +160,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               </span>
-              <span className="text-gray-700 capitalize">{item.item_name.replace(/_/g, ' ')}</span>
+              <span className="text-gray-700 capitalize">{checkItemLabels[item.item_name] ?? item.item_name.replace(/_/g, ' ')}</span>
             </div>
           ))}
         </div>
@@ -177,7 +184,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
               item.status === 'repair_needed' ? 'bg-red-50' : ''
             }`}>
               <span className={`capitalize ${item.status === 'repair_needed' ? 'text-red-700 font-medium' : 'text-gray-700'}`}>
-                {item.item_name.replace(/_/g, ' ')}
+                {checkItemLabels[item.item_name] ?? item.item_name.replace(/_/g, ' ')}
               </span>
               <div className="flex items-center gap-2">
                 {item.notes && <span className="text-xs text-gray-500">{item.notes}</span>}

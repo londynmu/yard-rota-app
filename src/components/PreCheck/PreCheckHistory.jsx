@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/AuthContext';
 export default function PreCheckHistory() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState([]);
+  const [checkItemLabels, setCheckItemLabels] = useState({});
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [expandedItems, setExpandedItems] = useState({});
@@ -17,20 +18,28 @@ export default function PreCheckHistory() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('precheck_submissions')
-        .select(`
-          *,
-          tugs(tug_number, locations(name)),
-          precheck_items(*),
-          precheck_damages(*)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(30);
+      const [subRes, checkItemsRes] = await Promise.all([
+        supabase
+          .from('precheck_submissions')
+          .select(`
+            *,
+            tugs(tug_number, locations(name)),
+            precheck_items(*),
+            precheck_damages(*)
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
+      ]);
 
-      if (error) throw error;
-      setSubmissions(data || []);
+      if (subRes.error) throw subRes.error;
+      setSubmissions(subRes.data || []);
+      if (!checkItemsRes.error) {
+        const map = {};
+        (checkItemsRes.data || []).forEach((item) => { map[item.item_key] = item.label; });
+        setCheckItemLabels(map);
+      }
     } catch (err) {
       console.error('[PreCheckHistory] Error:', err);
     } finally {
@@ -167,7 +176,7 @@ export default function PreCheckHistory() {
                             <div key={item.id} className="flex items-center gap-2 text-sm">
                               <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
                               <span className="text-red-700 font-medium capitalize">
-                                {item.item_name.replace(/_/g, ' ')}
+                                {checkItemLabels[item.item_name] ?? item.item_name.replace(/_/g, ' ')}
                               </span>
                               {item.notes && (
                                 <span className="text-gray-500 text-xs">- {item.notes}</span>
