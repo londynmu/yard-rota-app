@@ -59,6 +59,8 @@ export default function PreCheckList() {
 
   // ─── Expand/collapse (one card open at a time) ───
   const [expandedCardId, setExpandedCardId] = useState(null);
+  // ─── OK items sub-card expand (per submission) – collapsed by default ───
+  const [okItemsExpandedByCard, setOkItemsExpandedByCard] = useState({});
 
   // ─── Pagination cursors (refs to avoid stale closures) ───
   const windowEndRef = useRef(new Date().toISOString());
@@ -385,6 +387,10 @@ export default function PreCheckList() {
     });
   }, [scrollCardIntoView]);
 
+  const toggleOkItems = useCallback((subId) => {
+    setOkItemsExpandedByCard(prev => ({ ...prev, [subId]: !prev[subId] }));
+  }, []);
+
   // ─── Render a submission card ───
   const renderSubmissionCard = (sub) => {
     const faults = getFaults(sub);
@@ -409,66 +415,69 @@ export default function PreCheckList() {
           hasDefect ? 'border-red-200' : 'border-green-200'
         } ${isExpanded ? 'shadow-md' : ''}`}
       >
-        {/* Card header – mobile: 2 lines; desktop: single line */}
+        {/* Card header – mobile: tug left, user/time right; desktop: 5 equal columns */}
         <button
           type="button"
           onClick={() => toggleCard(sub.id)}
-          className={`w-full px-4 py-2.5 min-h-[4rem] md:min-h-0 grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 items-center text-left cursor-pointer md:flex md:flex-row md:flex-nowrap md:gap-2 ${
+          className={`w-full px-4 py-2 md:py-2.5 text-left cursor-pointer ${
             hasDefect ? 'bg-red-50' : 'bg-green-50'
           } hover:opacity-95 transition-opacity`}
         >
-          {/* Dot + tug/date + damage */}
-          <div className="flex items-center gap-2 min-w-0 md:order-1">
+          {/* Mobile: tug left, user/time right */}
+          <div className="flex items-center justify-between gap-3 md:hidden">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                hasDefect ? 'bg-red-500' : 'bg-green-500'
+              }`} aria-hidden />
+              <div className="min-w-0">
+                <div className="font-semibold text-charcoal text-base truncate leading-tight">{sub.tugs?.display_name || sub.tugs?.tug_number}</div>
+                <div className="text-sm text-gray-500 mt-0.5 leading-tight">{sub.tugs?.tug_number || '—'}</div>
+              </div>
+            </div>
+            <div className="flex flex-col items-end flex-shrink-0 flex-1 min-w-0">
+              <div className="font-semibold text-charcoal text-base text-right truncate leading-tight">{userName}</div>
+              <div className="text-sm text-gray-500 mt-0.5 leading-tight">
+                {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+            </div>
+          </div>
+          {/* Desktop: 5 equal columns + dot */}
+          <div className="hidden md:grid md:grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] md:items-center md:gap-3 md:min-h-0">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
               hasDefect ? 'bg-red-500' : 'bg-green-500'
-            }`} />
-            <span className="font-semibold text-charcoal text-sm truncate">
+            }`} aria-hidden />
+            <div className="min-w-0 font-semibold text-charcoal text-sm truncate">
               {sub.tugs?.display_name || sub.tugs?.tug_number}
-              {sub.tugs?.display_name && sub.tugs?.tug_number && (
-                <span className="text-gray-400 font-normal"> ({sub.tugs.tug_number})</span>
-              )}
-              {hasRealDamages && (
-                <span className="text-red-600 font-medium">
-                  {' · '}{realDamages.length} damage{realDamages.length !== 1 ? 's' : ''}
-                </span>
-              )}
               {!hasRealDamages && hasRemarks && (
-                <span className="text-amber-600 font-medium">
-                  {' · '}has remarks
+                <span className="text-amber-600 font-medium ml-1">· has remarks</span>
+              )}
+            </div>
+            <div className="min-w-0 text-sm text-gray-500 truncate">{sub.tugs?.tug_number || '—'}</div>
+            <div className="min-w-0 font-semibold text-charcoal text-sm truncate">{userName}</div>
+            <div className="min-w-0 text-sm text-gray-500 truncate">
+              {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+            <span className="min-w-0 flex flex-wrap items-center gap-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium w-fit ${
+                sub.check_type === 'pre_shift'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-orange-100 text-orange-700'
+              }`}>
+                {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
+              </span>
+              {hasRealDamages && (
+                <span className="text-xs text-red-600 font-medium">
+                  {realDamages.length} issue{realDamages.length !== 1 ? 's' : ''}
                 </span>
               )}
             </span>
           </div>
-          {/* Badge + chevron */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 md:order-4">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              sub.check_type === 'pre_shift'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-orange-100 text-orange-700'
-            }`}>
-              {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
-            </span>
-            <svg
-              className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          {/* by User · time – row 2 on mobile, inline on desktop */}
-          <span className="text-xs text-gray-500 truncate col-span-1 md:order-2 md:col-span-auto">
-            by <span className="font-semibold text-charcoal">{userName}</span>
-            {' · '}
-            {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-          {/* Spacer for desktop single line – pushes badge+chevron to the right */}
-          <span className="hidden md:inline-block md:flex-1 md:order-3" aria-hidden />
         </button>
 
         {/* Card body – only when expanded */}
@@ -498,7 +507,7 @@ export default function PreCheckList() {
               );
             })()}
 
-            {/* Check items list: defects without photos (top, bigger) + OK + N/A */}
+            {/* Check items list: defects at top, OK/N/A in collapsible sub-card */}
             {(() => {
               const allItems = sub.precheck_items || [];
               const defectsNoPhoto = allItems.filter(i => {
@@ -508,7 +517,16 @@ export default function PreCheckList() {
                 return !hasPhotos;
               });
               const passedItems = allItems.filter(i => i.status === 'ok' || i.status === 'na');
+              const okCount = allItems.filter(i => i.status === 'ok').length;
+              const naCount = allItems.filter(i => i.status === 'na').length;
+              const isOkItemsExpanded = okItemsExpandedByCard[sub.id] ?? false;
+
               if (defectsNoPhoto.length === 0 && passedItems.length === 0) return null;
+
+              const okLabel = okCount > 0 ? `${okCount} OK` : '';
+              const naLabel = naCount > 0 ? `${naCount} N/A` : '';
+              const collapsedLabel = [okLabel, naLabel].filter(Boolean).join(', ');
+
               return (
                 <div>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check items</h4>
@@ -531,66 +549,61 @@ export default function PreCheckList() {
                         />
                       );
                     })}
-                    {/* OK and N/A items */}
-                    {passedItems.map(item => {
-                      const label = getItemLabel(item.item_name);
-                      const isNa = item.status === 'na';
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white border border-gray-100 text-sm"
+                  </div>
+                  {/* OK/N/A items – collapsible sub-card, collapsed by default */}
+                  {passedItems.length > 0 && (
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-white overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleOkItems(sub.id); }}
+                        className="w-full flex items-center justify-between gap-2 py-2 px-3 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <span className="flex items-center gap-2 text-sm font-medium text-green-700">
+                          <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {collapsedLabel}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isOkItemsExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          {isNa ? (
-                            <span className="flex items-center gap-1.5 text-slate-500 flex-1 min-w-0">
-                              <span className="w-4 h-4 flex-shrink-0 rounded border border-slate-300 flex items-center justify-center text-[10px] font-medium">—</span>
-                              <span className="capitalize truncate">{label}</span>
-                              <span className="text-slate-400 flex-shrink-0">N/A</span>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1.5 text-green-700 flex-1 min-w-0">
-                              <svg className="w-4 h-4 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                              </svg>
-                              <span className="capitalize truncate">{label}</span>
-                              <span className="text-green-600 font-medium flex-shrink-0">OK</span>
-                            </span>
-                          )}
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {isOkItemsExpanded && (
+                        <div className="grid gap-1.5 sm:grid-cols-2 border-t border-gray-100 p-2 pt-2">
+                          {passedItems.map(item => {
+                            const label = getItemLabel(item.item_name);
+                            const isNa = item.status === 'na';
+                            return (
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 text-sm"
+                              >
+                                {isNa ? (
+                                  <span className="flex items-center gap-1.5 text-slate-500 flex-1 min-w-0">
+                                    <span className="w-4 h-4 flex-shrink-0 rounded border border-slate-300 flex items-center justify-center text-[10px] font-medium">—</span>
+                                    <span className="capitalize truncate">{label}</span>
+                                    <span className="text-slate-400 flex-shrink-0">N/A</span>
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1.5 text-green-700 flex-1 min-w-0">
+                                    <svg className="w-4 h-4 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span className="capitalize truncate">{label}</span>
+                                    <span className="text-green-600 font-medium flex-shrink-0">OK</span>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Summary: passed / N/A (defects are shown on item cards; remarks with photo at top) */}
-            {(() => {
-              const allItems = sub.precheck_items || [];
-              const okCount = allItems.filter(i => i.status === 'ok').length;
-              const naCount = allItems.filter(i => i.status === 'na').length;
-              if (okCount === 0 && naCount === 0 && faults.length > 0) return null;
-              if (okCount === 0 && naCount === 0) {
-                return (
-                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium py-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    All checks passed
-                  </div>
-                );
-              }
-              return (
-                <div className="flex items-center gap-3 pt-2.5 border-t border-gray-200 text-xs font-medium">
-                  {okCount > 0 && (
-                    <span className="flex items-center gap-1 text-green-600">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {okCount} passed
-                    </span>
-                  )}
-                  {naCount > 0 && (
-                    <span className="text-slate-400">{naCount} N/A</span>
+                      )}
+                    </div>
                   )}
                 </div>
               );
