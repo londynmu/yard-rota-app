@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 
@@ -21,6 +21,7 @@ export default function CheckItemRow({
   onReload,
 }) {
   const [showStillExistNewProblem, setShowStillExistNewProblem] = useState(false);
+  const notesTextareaRef = useRef(null);
 
   const blurActive = () => {
     if (document.activeElement && document.activeElement !== document.body) {
@@ -74,7 +75,15 @@ export default function CheckItemRow({
   const singleDefectPendingResolved = hasKnownDefects && knownDefects.length === 1 && isPendingResolved(knownDefects[0].id);
   const showAlternativeFooter = hasKnownDefects && value !== 'repair_needed' && !showStillExistNewProblem && !singleDefectPendingResolved;
   const showSameProblemConfirmed = hasKnownDefects && value === 'repair_needed' && linkedDamageId;
-  const showReloadInHeader = Boolean(onReload) && singleDefectPendingResolved;
+  const showSimplifiedRepairView = value === 'repair_needed' && !linkedDamageId;
+  const showReloadInHeader = Boolean(onReload) && (singleDefectPendingResolved || showStillExistNewProblem || showSimplifiedRepairView || value === 'ok');
+
+  useEffect(() => {
+    const el = notesTextareaRef.current;
+    if (!el || !showSimplifiedRepairView) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+  }, [notes, showSimplifiedRepairView]);
 
   return (
     <div
@@ -97,7 +106,10 @@ export default function CheckItemRow({
             {showReloadInHeader && (
               <button
                 type="button"
-                onClick={() => onReload(itemKey)}
+                onClick={() => {
+                  onReload(itemKey);
+                  setShowStillExistNewProblem(false);
+                }}
                 className="p-2 rounded-full text-charcoal hover:bg-gray-100 transition-colors"
                 title="Reload"
                 aria-label="Reload"
@@ -141,8 +153,7 @@ export default function CheckItemRow({
         {/* Expanded: Same problem | New problem (after clicking Still exist / New problem) */}
         {hasKnownDefects && showStillExistNewProblem && value !== 'repair_needed' && onLinkDefect && (
           <div className="mt-3 space-y-2">
-            <p className="text-xs font-semibold text-slate-600">Same problem or new?</p>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3">
               {knownDefects.length === 1 ? (
                 <>
                   <button
@@ -156,6 +167,7 @@ export default function CheckItemRow({
                   >
                     Same problem
                   </button>
+                  <span className="text-xs font-medium text-slate-500 flex-shrink-0">OR</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -170,7 +182,7 @@ export default function CheckItemRow({
                 </>
               ) : (
                 <>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 flex-1 min-w-0">
                     {knownDefects.map((def) => (
                       <button
                         key={def.id}
@@ -186,6 +198,7 @@ export default function CheckItemRow({
                       </button>
                     ))}
                   </div>
+                  <span className="text-xs font-medium text-slate-500 flex-shrink-0">OR</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -193,7 +206,7 @@ export default function CheckItemRow({
                       onChange('repair_needed');
                       setShowStillExistNewProblem(false);
                     }}
-                    className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold border-2 bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
+                    className="py-2.5 px-4 rounded-xl text-sm font-semibold border-2 bg-red-100 text-red-800 border-red-200 hover:bg-red-200"
                   >
                     New problem
                   </button>
@@ -206,7 +219,7 @@ export default function CheckItemRow({
         {/* Same defect confirmed: message only in footer; refresh button in header */}
         {value === 'repair_needed' && !showSameProblemConfirmed && (
           <div className="mt-3 space-y-2">
-            {hasKnownDefects && onLinkDefect && !showStillExistNewProblem && (
+            {hasKnownDefects && onLinkDefect && !showStillExistNewProblem && linkedDamageId != null && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-600">Same problem?</p>
                 <div className="flex gap-3">
@@ -267,12 +280,18 @@ export default function CheckItemRow({
             )}
             {!linkedDamageId && (
               <>
-                <input
-                  type="text"
+                <textarea
+                  ref={notesTextareaRef}
                   value={notes || ''}
                   onChange={(e) => onNotesChange(e.target.value)}
+                  onInput={(e) => {
+                    const el = e.target;
+                    el.style.height = 'auto';
+                    el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
+                  }}
                   placeholder="What's wrong? (required)"
-                  className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white"
+                  rows={4}
+                  className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white resize-y min-h-[6rem] max-h-[300px]"
                 />
                 {onImagesChange && (
                   <ImageUpload
@@ -280,6 +299,7 @@ export default function CheckItemRow({
                     onImagesChange={onImagesChange}
                     maxImages={2}
                     storageKey={itemKey ? `pending_photos_item_${itemKey}` : undefined}
+                    hideGallery={showSimplifiedRepairView}
                   />
                 )}
               </>
@@ -291,18 +311,8 @@ export default function CheckItemRow({
         )}
       </div>
 
-      {/* Footer: second stage (Back only) | first stage (Fixed? | Still exist / New problem) | none when marked fixed | standard 3 buttons */}
-      {showStillExistNewProblem ? (
-        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => setShowStillExistNewProblem(false)}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
-          >
-            Back
-          </button>
-        </div>
-      ) : showAlternativeFooter ? (
+      {/* Footer: first stage (Fixed? | Still exist / New problem) | marked fixed message | standard 3 buttons (no Back) */}
+      {showStillExistNewProblem ? null : showAlternativeFooter ? (
         <div className="px-4 pb-4 pt-2 flex items-stretch gap-3 border-t border-gray-100">
           {knownDefects.length === 1 && onMarkResolved && !isPendingResolved(knownDefects[0].id) && (
             <button
@@ -337,6 +347,10 @@ export default function CheckItemRow({
       ) : showSameProblemConfirmed ? (
         <div className="px-4 pb-4 pt-2 border-t border-gray-100">
           <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
+        </div>
+      ) : showSimplifiedRepairView ? null : value === 'ok' ? (
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+          <p className="text-center text-base font-semibold text-green-700">ALL OK</p>
         </div>
       ) : (
         <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">

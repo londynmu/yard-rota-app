@@ -56,7 +56,7 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
   });
 };
 
-export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos' }) {
+export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos', hideGallery = false }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
@@ -285,7 +285,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         className="hidden"
       />
 
-      {/* Two buttons: Camera + Gallery */}
+      {/* Camera + optional Gallery */}
       <div className="flex gap-2">
         <button
           type="button"
@@ -294,7 +294,6 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
             if (isNative) {
               setShowCamera(true);
             } else {
-              // Set flag so app knows we're returning from system camera
               try { sessionStorage.setItem('camera_intent_active', 'true'); } catch { /* */ }
               cameraInputRef.current?.click();
             }
@@ -308,6 +307,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           </svg>
           Take Photo
         </button>
+        {!hideGallery && (
         <button
           type="button"
           onClick={() => {
@@ -325,6 +325,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           </svg>
           Gallery
         </button>
+        )}
       </div>
 
       {/* Compression indicator */}
@@ -371,4 +372,5 @@ ImageUpload.propTypes = {
   onImagesChange: PropTypes.func.isRequired,
   maxImages: PropTypes.number,
   storageKey: PropTypes.string,
+  hideGallery: PropTypes.bool,
 };
