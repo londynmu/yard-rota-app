@@ -191,6 +191,19 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     load();
   }, [selectedTug?.id]);
 
+  const refetchKnownDefects = useCallback(async () => {
+    if (!selectedTug?.id) return;
+    const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
+    setKnownDefectsByItem(byItem);
+  }, [selectedTug?.id]);
+
+  const handleReloadCheckItem = useCallback((itemKey) => {
+    const idsForItem = (knownDefectsByItem[itemKey] || []).map(d => d.id);
+    setMarkedResolvedDamageIds(prev => prev.filter(id => !idsForItem.includes(id)));
+    setCheckItems(prev => ({ ...prev, [itemKey]: { ...prev[itemKey], status: '' } }));
+    refetchKnownDefects();
+  }, [knownDefectsByItem, refetchKnownDefects]);
+
   const handleMarkResolved = useCallback((damageId, itemKey) => {
     if (!damageId) return;
     setMarkedResolvedDamageIds(prev => {
@@ -579,6 +592,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
             }))}
             onMarkResolved={handleMarkResolved}
             pendingResolvedDamageIds={markedResolvedDamageIds}
+            onReload={handleReloadCheckItem}
           />
         ))}
       </div>

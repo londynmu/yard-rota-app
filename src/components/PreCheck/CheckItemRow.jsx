@@ -18,6 +18,7 @@ export default function CheckItemRow({
   onLinkDefect,
   onMarkResolved,
   pendingResolvedDamageIds = [],
+  onReload,
 }) {
   const [showStillExistNewProblem, setShowStillExistNewProblem] = useState(false);
 
@@ -70,8 +71,10 @@ export default function CheckItemRow({
       : 'border-gray-200';
 
   const hasKnownDefects = knownDefects.length > 0;
-  const showAlternativeFooter = hasKnownDefects && value !== 'repair_needed' && !showStillExistNewProblem;
+  const singleDefectPendingResolved = hasKnownDefects && knownDefects.length === 1 && isPendingResolved(knownDefects[0].id);
+  const showAlternativeFooter = hasKnownDefects && value !== 'repair_needed' && !showStillExistNewProblem && !singleDefectPendingResolved;
   const showSameProblemConfirmed = hasKnownDefects && value === 'repair_needed' && linkedDamageId;
+  const showReloadInHeader = Boolean(onReload) && singleDefectPendingResolved;
 
   return (
     <div
@@ -90,7 +93,21 @@ export default function CheckItemRow({
           >
             {label}
           </h3>
-          {showSameProblemConfirmed && onLinkDefect && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {showReloadInHeader && (
+              <button
+                type="button"
+                onClick={() => onReload(itemKey)}
+                className="p-2 rounded-full text-charcoal hover:bg-gray-100 transition-colors"
+                title="Reload"
+                aria-label="Reload"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            )}
+            {showSameProblemConfirmed && onLinkDefect && (
             <button
               type="button"
               onClick={handleClearSameDefect}
@@ -103,33 +120,20 @@ export default function CheckItemRow({
               </svg>
             </button>
           )}
+          </div>
         </div>
 
         {tooltip && value !== 'na' && (
           <p className="text-xs text-gray-500 leading-snug mt-1">{tooltip}</p>
         )}
 
-        {/* Known defect info – with per-defect Fixed? when multiple */}
+        {/* Known defect info – no per-defect Fixed? badge (action is in footer) */}
         {hasKnownDefects && value !== 'repair_needed' && (
-          <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
-            <p className="font-semibold mb-1">Known defect – VMU is aware</p>
+          <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
             {knownDefects.map((def) => (
-              <div key={def.id} className="flex items-start justify-between gap-2 text-amber-800">
-                <span>On {def.date}, {def.reporterName} reported: {def.description}</span>
-                {onMarkResolved && (
-                  isPendingResolved(def.id) ? (
-                    <span className="flex-shrink-0 text-xs font-medium text-green-700">Marked as fixed (on submit)</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkResolvedClick(def.id)}
-                      className="flex-shrink-0 py-1 px-2 rounded text-xs font-semibold bg-amber-200 text-amber-900 hover:bg-amber-300 transition-colors"
-                    >
-                      Fixed?
-                    </button>
-                  )
-                )}
-              </div>
+              <p key={def.id} className="text-sm text-amber-800">
+                On {def.date}, {def.reporterName} reported: {def.description}
+              </p>
             ))}
           </div>
         )}
@@ -287,7 +291,7 @@ export default function CheckItemRow({
         )}
       </div>
 
-      {/* Footer: second stage (Back only) | first stage (Fixed? | Still exist / New problem) | standard 3 buttons */}
+      {/* Footer: second stage (Back only) | first stage (Fixed? | Still exist / New problem) | none when marked fixed | standard 3 buttons */}
       {showStillExistNewProblem ? (
         <div className="px-4 pb-4 pt-2 border-t border-gray-100">
           <button
@@ -299,25 +303,25 @@ export default function CheckItemRow({
           </button>
         </div>
       ) : showAlternativeFooter ? (
-        <div className="px-4 pb-4 pt-2 flex items-center gap-3 border-t border-gray-100">
+        <div className="px-4 pb-4 pt-2 flex items-stretch gap-3 border-t border-gray-100">
           {knownDefects.length === 1 && onMarkResolved && !isPendingResolved(knownDefects[0].id) && (
             <button
               type="button"
               onClick={() => handleMarkResolvedClick(knownDefects[0].id)}
-              className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-all"
+              className="flex-1 min-w-0 min-h-[3.25rem] flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border-2 bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-all"
             >
               Fixed?
             </button>
           )}
           {knownDefects.length === 1 && onMarkResolved && isPendingResolved(knownDefects[0].id) && (
-            <span className="flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold text-green-700">
+            <span className="flex-1 min-w-0 min-h-[3.25rem] flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold text-green-700">
               Marked as fixed (on submit)
             </span>
           )}
           <button
             type="button"
             onClick={() => setShowStillExistNewProblem(!showStillExistNewProblem)}
-            className={`flex-1 min-w-0 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all ${
+            className={`flex-1 min-w-0 min-h-[3.25rem] flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all text-center ${
               showStillExistNewProblem
                 ? 'bg-amber-500 text-white border-amber-500'
                 : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
@@ -325,6 +329,10 @@ export default function CheckItemRow({
           >
             {showStillExistNewProblem ? 'Same problem / New problem' : 'Still exist / New problem'}
           </button>
+        </div>
+      ) : singleDefectPendingResolved ? (
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+          <p className="text-center text-base font-semibold text-green-700">You marked defect as fixed (on submit)</p>
         </div>
       ) : showSameProblemConfirmed ? (
         <div className="px-4 pb-4 pt-2 border-t border-gray-100">
@@ -407,4 +415,5 @@ CheckItemRow.propTypes = {
   onLinkDefect: PropTypes.func,
   onMarkResolved: PropTypes.func,
   pendingResolvedDamageIds: PropTypes.arrayOf(PropTypes.string),
+  onReload: PropTypes.func,
 };
