@@ -66,6 +66,44 @@ const loadSavedForm = () => {
   } catch { return null; }
 };
 
+// ─── Per-defect state keys (Plan B) ───
+const getStateKeysForItem = (item, knownDefectsByItem) => {
+  const defects = knownDefectsByItem[item.key] || [];
+  if (defects.length <= 1) return [item.key];
+  return defects.map(d => `${item.key}::${d.id}`);
+};
+
+const getEffectiveItemStatus = (item, checkItems, knownDefectsByItem, markedResolvedDamageIds) => {
+  const defects = knownDefectsByItem[item.key] || [];
+  if (defects.length === 0) return checkItems[item.key]?.status || '';
+  if (defects.length === 1) {
+    const status = checkItems[item.key]?.status;
+    const allDefectsMarked = defects.every(d => markedResolvedDamageIds.includes(d.id));
+    return status || (allDefectsMarked ? 'ok' : '');
+  }
+  const stateKeys = defects.map(d => `${item.key}::${d.id}`);
+  const hasRepairNeeded = stateKeys.some(sk => checkItems[sk]?.status === 'repair_needed');
+  if (hasRepairNeeded) return 'repair_needed';
+  const allMarked = defects.every(d => markedResolvedDamageIds.includes(d.id));
+  return allMarked ? 'ok' : '';
+};
+
+const isItemChecked = (item, checkItems, knownDefectsByItem, markedResolvedDamageIds) => {
+  const defects = knownDefectsByItem[item.key] || [];
+  if (defects.length === 0) return Boolean(checkItems[item.key]?.status);
+  if (defects.length === 1) {
+    if (checkItems[item.key]?.status) return true;
+    return defects.every(d => markedResolvedDamageIds.includes(d.id));
+  }
+  const stateKeys = defects.map(d => `${item.key}::${d.id}`);
+  return stateKeys.every(sk => {
+    const ci = checkItems[sk];
+    if (ci?.status) return true;
+    const defId = sk.split('::')[1];
+    return markedResolvedDamageIds.includes(defId);
+  });
+};
+
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
@@ -197,11 +235,22 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     setKnownDefectsByItem(byItem);
   }, [selectedTug?.id]);
 
-  const handleReloadCheckItem = useCallback((itemKey) => {
-    const idsForItem = (knownDefectsByItem[itemKey] || []).map(d => d.id);
-    setMarkedResolvedDamageIds(prev => prev.filter(id => !idsForItem.includes(id)));
-    setCheckItems(prev => ({ ...prev, [itemKey]: { ...prev[itemKey], status: '' } }));
-    refetchKnownDefects();
+  const handleReloadCheckItem = useCallback((itemKey, defectId) => {
+    if (defectId != null) {
+      const stateKey = `${itemKey}::${defectId}`;
+      setMarkedResolvedDamageIds(prev => prev.filter(id => id !== defectId));
+      setCheckItems(prev => {
+        const next = { ...prev };
+        next[stateKey] = { status: '', notes: '', images: [], linkedDamageId: null };
+        return next;
+      });
+      refetchKnownDefects();
+    } else {
+      const idsForItem = (knownDefectsByItem[itemKey] || []).map(d => d.id);
+      setMarkedResolvedDamageIds(prev => prev.filter(id => !idsForItem.includes(id)));
+      setCheckItems(prev => ({ ...prev, [itemKey]: { ...prev[itemKey], status: '' } }));
+      refetchKnownDefects();
+    }
   }, [knownDefectsByItem, refetchKnownDefects]);
 
   const handleMarkResolved = useCallback((damageId, itemKey) => {
@@ -212,6 +261,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       const allMarked = defectsForItem.length > 0 && defectsForItem.every(d => next.includes(d.id));
       if (allMarked) {
         setCheckItems(prevItems => ({ ...prevItems, [itemKey]: { ...prevItems[itemKey], status: 'ok' } }));
+      }
+      if (defectsForItem.length >= 2) {
+        const stateKey = `${itemKey}::${damageId}`;
+        setCheckItems(prevItems => ({ ...prevItems, [stateKey]: { ...prevItems[stateKey], status: 'ok' } }));
       }
       return next;
     });
@@ -264,18 +317,20 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     );
 
     if (savedForm?.checkItems) {
-      for (const key of Object.keys(fresh)) {
-        if (savedForm.checkItems[key]) {
-          fresh[key].status = savedForm.checkItems[key].status || '';
-          fresh[key].notes = savedForm.checkItems[key].notes || '';
-          fresh[key].linkedDamageId = savedForm.checkItems[key].linkedDamageId || null;
-          // Restore saved image URLs
-          fresh[key].images = (savedForm.checkItems[key].imageUrls || []).map(img => ({
-            id: img.id,
-            url: img.url,
-            preview: img.url,
-          }));
+      for (const key of Object.keys(savedForm.checkItems)) {
+        const saved = savedForm.checkItems[key];
+        if (!saved) continue;
+        if (!(key in fresh)) {
+          fresh[key] = { status: '', notes: '', images: [], linkedDamageId: null };
         }
+        fresh[key].status = saved.status || '';
+        fresh[key].notes = saved.notes || '';
+        fresh[key].linkedDamageId = saved.linkedDamageId || null;
+        fresh[key].images = (saved.imageUrls || []).map(img => ({
+          id: img.id,
+          url: img.url,
+          preview: img.url,
+        }));
       }
     }
 
@@ -294,14 +349,39 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     setFormInitialized(true);
   }, [itemsLoading, formInitialized, allItems]);
 
+  // Add defect keys for multi-defect items when knownDefectsByItem changes
+  useEffect(() => {
+    if (!formInitialized || allItems.length === 0) return;
+    setCheckItems(prev => {
+      let updated = false;
+      const next = { ...prev };
+      for (const item of allItems) {
+        const defects = knownDefectsByItem[item.key] || [];
+        if (defects.length >= 2) {
+          for (const def of defects) {
+            const sk = `${item.key}::${def.id}`;
+            if (!(sk in next)) {
+              next[sk] = { status: '', notes: '', images: [], linkedDamageId: null };
+              updated = true;
+            }
+          }
+        }
+      }
+      return updated ? next : prev;
+    });
+  }, [formInitialized, allItems, knownDefectsByItem]);
+
   // ─── Restore scroll position after form is fully rendered (handles camera/gallery return) ───
   useEffect(() => {
     if (!formInitialized) return;
-    // Check all possible scroll keys for a saved position
-    const scrollKeys = [
-      'pending_photos_remarks_scrollY',
-      ...allItems.map(item => `pending_photos_item_${item.key}_scrollY`),
-    ];
+    const scrollKeys = ['pending_photos_remarks_scrollY'];
+    for (const item of allItems) {
+      const stateKeys = getStateKeysForItem(item, knownDefectsByItem);
+      for (const sk of stateKeys) {
+        const key = sk.includes('::') ? `pending_photos_item_${sk.replace(/::/g, '_')}_scrollY` : `pending_photos_item_${sk}_scrollY`;
+        scrollKeys.push(key);
+      }
+    }
     let savedY = null;
     for (const key of scrollKeys) {
       try {
@@ -357,14 +437,9 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   }, [saveToStorage]);
 
   const validate = () => {
-    // 1. Check all items are marked (or all known defects for that item are marked as fixed)
-    const allChecked = allItems.every(item => {
-      const status = checkItems[item.key]?.status;
-      if (status) return true;
-      const defects = knownDefectsByItem[item.key] || [];
-      if (defects.length === 0) return false;
-      return defects.every(d => markedResolvedDamageIds.includes(d.id));
-    });
+    const allChecked = allItems.every(item =>
+      isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
+    );
     if (!allChecked) {
       setShowWarning(true);
       setTimeout(() => {
@@ -373,21 +448,24 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       return false;
     }
 
-    // 2. Check repair_needed items have description (except when linked to existing defect)
-    const missingNotes = allItems.filter(item => {
-      const ci = checkItems[item.key];
-      if (ci?.status !== 'repair_needed') return false;
-      if (ci?.linkedDamageId) return false;
-      return !ci?.notes?.trim();
-    });
-    if (missingNotes.length > 0) {
-      setShowWarning(true);
-      // Scroll to the first item missing notes
-      const firstKey = missingNotes[0].key;
-      setTimeout(() => {
-        document.getElementById(`check-item-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      return false;
+    // 2. Check repair_needed cards have description (except when linked to existing defect)
+    for (const item of allItems) {
+      const defects = knownDefectsByItem[item.key] || [];
+      const stateKeys = getStateKeysForItem(item, knownDefectsByItem);
+      for (let i = 0; i < stateKeys.length; i++) {
+        const sk = stateKeys[i];
+        const ci = checkItems[sk];
+        if (ci?.status !== 'repair_needed') continue;
+        if (ci?.linkedDamageId) continue;
+        if (!ci?.notes?.trim()) {
+          setShowWarning(true);
+          const cardId = defects.length <= 1 ? `check-item-${item.key}` : (i === 0 ? `check-item-${item.key}` : `check-item-${item.key}-${defects[i].id}`);
+          setTimeout(() => {
+            document.getElementById(cardId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+          return false;
+        }
+      }
     }
 
     setShowWarning(false);
@@ -402,17 +480,43 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     remarks: remarksEnabled ? (remarks?.trim() || '') : '',
     remarksImages: remarksEnabled ? mapImagesToQueueEntries(remarksImages) : [],
     items: allItems.map(item => {
-      const status = checkItems[item.key]?.status;
       const defects = knownDefectsByItem[item.key] || [];
-      const allDefectsMarked = defects.length > 0 && defects.every(d => markedResolvedDamageIds.includes(d.id));
-      const effectiveStatus = status || (allDefectsMarked ? 'ok' : '');
+      let effectiveStatus, notes, linkedDamageId, images;
+      if (defects.length === 0) {
+        effectiveStatus = checkItems[item.key]?.status || '';
+        notes = checkItems[item.key]?.notes || '';
+        linkedDamageId = checkItems[item.key]?.linkedDamageId || null;
+        images = mapImagesToQueueEntries(checkItems[item.key]?.images || []);
+      } else if (defects.length === 1) {
+        effectiveStatus = getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds);
+        notes = checkItems[item.key]?.notes || '';
+        linkedDamageId = checkItems[item.key]?.linkedDamageId || null;
+        images = mapImagesToQueueEntries(checkItems[item.key]?.images || []);
+      } else {
+        const stateKeys = defects.map(d => `${item.key}::${d.id}`);
+        effectiveStatus = getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds);
+        const repairEntry = stateKeys.find(sk => {
+          const ci = checkItems[sk];
+          return ci?.status === 'repair_needed';
+        });
+        if (repairEntry) {
+          const ci = checkItems[repairEntry];
+          linkedDamageId = ci?.linkedDamageId || null;
+          notes = ci?.notes || '';
+          images = mapImagesToQueueEntries(ci?.images || []);
+        } else {
+          linkedDamageId = null;
+          notes = '';
+          images = [];
+        }
+      }
       return {
         key: item.key,
         label: item.label,
         status: effectiveStatus,
-        notes: checkItems[item.key]?.notes || '',
-        linkedDamageId: checkItems[item.key]?.linkedDamageId || null,
-        images: mapImagesToQueueEntries(checkItems[item.key]?.images || []),
+        notes,
+        linkedDamageId,
+        images,
       };
     }),
   });
@@ -529,10 +633,18 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     );
   }
 
-  const outsideDone = (outsideItems || []).every(item => checkItems[item.key]?.status);
-  const insideDone = (insideItems || []).every(item => checkItems[item.key]?.status);
-  const outsideRepairs = (outsideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
-  const insideRepairs = (insideItems || []).filter(item => checkItems[item.key]?.status === 'repair_needed').length;
+  const outsideDone = (outsideItems || []).every(item =>
+    isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
+  );
+  const insideDone = (insideItems || []).every(item =>
+    isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
+  );
+  const outsideRepairs = (outsideItems || []).filter(item =>
+    getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds) === 'repair_needed'
+  ).length;
+  const insideRepairs = (insideItems || []).filter(item =>
+    getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds) === 'repair_needed'
+  ).length;
 
   const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
@@ -556,68 +668,102 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   };
 
   // Section: title on main container, floating cards below (no wrapper box)
-  const renderSection = (title, items, status, repairCount) => (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-base font-semibold text-charcoal">{title}</h2>
-        {status === 'done' && (
-          <span className="text-xs text-green-700 font-semibold">All OK</span>
-        )}
-        {status === 'issues' && (
-          <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
-        )}
+  // Multi-defect items: render one card per defect (each card has own stateKey)
+  const renderSection = (title, items, status, repairCount) => {
+    const rowsToRender = [];
+    for (const item of items || []) {
+      const defects = knownDefectsByItem[item.key] || [];
+      if (defects.length === 0) {
+        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: [], cardId: `check-item-${item.key}` });
+      } else if (defects.length === 1) {
+        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: defects, cardId: `check-item-${item.key}` });
+      } else {
+        defects.forEach((def, idx) => {
+          const isFirst = idx === 0;
+          rowsToRender.push({
+            stateKey: `${item.key}::${def.id}`,
+            itemKey: item.key,
+            item,
+            knownDefects: [def],
+            cardId: isFirst ? `check-item-${item.key}` : `check-item-${item.key}-${def.id}`,
+          });
+        });
+      }
+    }
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-base font-semibold text-charcoal">{title}</h2>
+          {status === 'done' && (
+            <span className="text-xs text-green-700 font-semibold">All OK</span>
+          )}
+          {status === 'issues' && (
+            <span className="text-xs text-red-700 font-semibold">{repairCount} issue{repairCount !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="space-y-4">
+          {rowsToRender.map(({ stateKey, itemKey, item, knownDefects, cardId }) => (
+            <CheckItemRow
+              key={stateKey}
+              itemKey={itemKey}
+              cardId={cardId}
+              label={item.label}
+              tooltip={item.tooltip}
+              allowNa={item.allowNa}
+              value={checkItems[stateKey]?.status || ''}
+              onChange={(s) => handleCheckChange(stateKey, s)}
+              notes={checkItems[stateKey]?.notes || ''}
+              onNotesChange={(notes) => setCheckItems(prev => ({
+                ...prev,
+                [stateKey]: { ...prev[stateKey], notes },
+              }))}
+              images={checkItems[stateKey]?.images || []}
+              onImagesChange={(images) => handleItemImagesChange(stateKey, images)}
+              knownDefects={knownDefects}
+              linkedDamageId={checkItems[stateKey]?.linkedDamageId}
+              onLinkDefect={(damageId) => setCheckItems(prev => ({
+                ...prev,
+                [stateKey]: { ...prev[stateKey], linkedDamageId: damageId || null },
+              }))}
+              onMarkResolved={handleMarkResolved}
+              pendingResolvedDamageIds={markedResolvedDamageIds}
+              onReload={knownDefects.length === 1
+                ? () => handleReloadCheckItem(itemKey, knownDefects[0].id)
+                : knownDefects.length === 0
+                  ? () => handleReloadCheckItem(itemKey)
+                  : () => handleReloadCheckItem(itemKey, knownDefects[0].id)
+              }
+              storageKey={`pending_photos_item_${stateKey.replace(/::/g, '_')}`}
+            />
+          ))}
+        </div>
       </div>
-      <div className="space-y-4">
-        {items.map(item => (
-          <CheckItemRow
-            key={item.key}
-            itemKey={item.key}
-            label={item.label}
-            tooltip={item.tooltip}
-            allowNa={item.allowNa}
-            value={checkItems[item.key]?.status || ''}
-            onChange={(status) => handleCheckChange(item.key, status)}
-            notes={checkItems[item.key]?.notes || ''}
-            onNotesChange={(notes) => setCheckItems(prev => ({
-              ...prev,
-              [item.key]: { ...prev[item.key], notes },
-            }))}
-            images={checkItems[item.key]?.images || []}
-            onImagesChange={(images) => handleItemImagesChange(item.key, images)}
-            knownDefects={knownDefectsByItem[item.key] || []}
-            linkedDamageId={checkItems[item.key]?.linkedDamageId}
-            onLinkDefect={(damageId) => setCheckItems(prev => ({
-              ...prev,
-              [item.key]: { ...prev[item.key], linkedDamageId: damageId || null },
-            }))}
-            onMarkResolved={handleMarkResolved}
-            pendingResolvedDamageIds={markedResolvedDamageIds}
-            onReload={handleReloadCheckItem}
-          />
-        ))}
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Count problems for warning message
-  const totalUnchecked = allItems.filter(item => {
-    if (checkItems[item.key]?.status) return false;
-    const defects = knownDefectsByItem[item.key] || [];
-    return defects.length === 0 || !defects.every(d => markedResolvedDamageIds.includes(d.id));
-  }).length;
-  const missingDescriptions = allItems.filter(item => {
-    const ci = checkItems[item.key];
-    if (ci?.status !== 'repair_needed') return false;
-    if (ci?.linkedDamageId) return false;
-    return !ci?.notes?.trim();
-  }).length;
+  const totalUnchecked = allItems.filter(item =>
+    !isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
+  ).length;
+  const missingDescriptions = (() => {
+    let count = 0;
+    for (const item of allItems) {
+      const stateKeys = getStateKeysForItem(item, knownDefectsByItem);
+      for (const sk of stateKeys) {
+        const ci = checkItems[sk];
+        if (ci?.status !== 'repair_needed') continue;
+        if (ci?.linkedDamageId) continue;
+        if (!ci?.notes?.trim()) count++;
+      }
+    }
+    return count;
+  })();
 
   const totalItems = allItems.length;
-  const checkedCount = allItems.filter(item => {
-    if (checkItems[item.key]?.status) return true;
-    const defects = knownDefectsByItem[item.key] || [];
-    return defects.length > 0 && defects.every(d => markedResolvedDamageIds.includes(d.id));
-  }).length;
+  const checkedCount = allItems.filter(item =>
+    isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
+  ).length;
   const progressPct = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
   const tugLabel = selectedTug?.display_name || selectedTug?.tug_number || null;
 

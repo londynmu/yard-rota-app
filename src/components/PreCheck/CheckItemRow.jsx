@@ -4,6 +4,8 @@ import ImageUpload from './ImageUpload';
 
 export default function CheckItemRow({
   itemKey,
+  cardId,
+  storageKey: storageKeyProp,
   label,
   tooltip,
   allowNa,
@@ -87,7 +89,7 @@ export default function CheckItemRow({
 
   return (
     <div
-      id={itemKey ? `check-item-${itemKey}` : undefined}
+      id={cardId || (itemKey ? `check-item-${itemKey}` : undefined)}
       className={`rounded-xl border-2 ${cardBorder} ${cardBg} overflow-hidden shadow-sm`}
     >
       <div className="px-4 pt-4 pb-2">
@@ -309,7 +311,7 @@ export default function CheckItemRow({
                     images={images || []}
                     onImagesChange={onImagesChange}
                     maxImages={2}
-                    storageKey={itemKey ? `pending_photos_item_${itemKey}` : undefined}
+                    storageKey={storageKeyProp || (itemKey ? `pending_photos_item_${itemKey}` : undefined)}
                     hideGallery={showSimplifiedRepairView}
                   />
                 )}
@@ -421,6 +423,8 @@ export default function CheckItemRow({
 
 CheckItemRow.propTypes = {
   itemKey: PropTypes.string,
+  cardId: PropTypes.string,
+  storageKey: PropTypes.string,
   label: PropTypes.string.isRequired,
   tooltip: PropTypes.string,
   allowNa: PropTypes.bool,
