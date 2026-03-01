@@ -3,8 +3,6 @@ import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
-import { useVersionCheck } from '../hooks/useVersionCheck';
-import { Capacitor } from '@capacitor/core';
 import { format } from 'date-fns';
 
 // Helper function to capitalize first letter
@@ -31,10 +29,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [preferredLocation, setPreferredLocation] = useState('');
   // Toast message for form validation
   const toast = useToast();
-  // Force refresh app (web/PWA only – clears caches and reloads)
-  const { triggerUpdate } = useVersionCheck();
-  const [refreshingApp, setRefreshingApp] = useState(false);
-  const isWeb = Capacitor.getPlatform() === 'web';
   // Available locations
   const [locations, setLocations] = useState([]);
   // Page visit timestamp to force location refresh
@@ -532,25 +526,31 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // For required profile, show form immediately to avoid flashing skeleton
   if (loading && !isRequired && !simplifiedView) {
     return (
-      <div className="min-h-screen bg-offwhite p-6 animate-pulse">
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Avatar skeleton */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-32 h-32 bg-slate-300 rounded-full mb-4" />
-            <div className="h-8 w-48 bg-slate-300 rounded" />
-          </div>
-          
-          {/* Form fields skeleton */}
-          <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200 space-y-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-4 w-32 bg-slate-300 rounded" />
-                <div className="h-10 bg-slate-200 rounded" />
+      <div className="min-h-screen bg-gray-50 px-4 py-6 animate-pulse">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="h-[52px] bg-gray-50 border-b border-gray-200" />
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-slate-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-slate-200 rounded" />
+                  <div className="h-4 w-24 bg-slate-200 rounded" />
+                </div>
               </div>
-            ))}
-            
-            {/* Button skeleton */}
-            <div className="h-12 bg-slate-300 rounded-lg w-full" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-10 bg-slate-200 rounded-lg" />
+                <div className="h-10 bg-slate-200 rounded-lg" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="h-[52px] bg-gray-50 border-b border-gray-200" />
+            <div className="p-4 space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 bg-slate-200 rounded-lg" />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -836,23 +836,23 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
 
   // Standard view – compact, modern card layout
   const inputClass = (hasError) =>
-    `w-full px-3 py-2.5 text-sm rounded-lg border bg-white text-charcoal focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors ${
+    `w-full px-3 py-2 text-sm rounded-lg border bg-white text-charcoal focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-colors ${
       hasError ? 'border-red-400' : 'border-gray-200'
     }`;
-  const labelClass = 'block text-gray-700 font-medium mb-1.5 text-sm';
+  const labelClass = 'block text-gray-700 font-medium mb-1 text-sm';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="max-w-xl mx-auto px-4 py-4">
+      <div className="max-w-4xl mx-auto px-4 py-4 space-y-4">
         {/* Alerts – compact */}
         {isOffline && (
-          <div className="mb-3 p-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="p-2.5 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl text-sm">
             <svg className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z" clipRule="evenodd" />
             </svg>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-amber-800">You appear to be offline.</p>
-              <button type="button" onClick={handleRetry} className="mt-1.5 text-sm font-medium text-amber-700 hover:underline">
+              <button type="button" onClick={handleRetry} className="mt-1 text-sm font-medium text-amber-700 hover:underline">
                 Try again
               </button>
             </div>
@@ -860,88 +860,67 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         )}
 
         {isRequired && (
-          <div className="mb-3 p-3 bg-sky-50 border border-sky-200 rounded-lg">
-            <p className="text-sm font-medium text-sky-800">Welcome to Shunters.net!</p>
+          <div className="p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-sm">
+            <p className="font-medium text-sky-800">Welcome to Shunters.net!</p>
             <p className="text-xs text-sky-700 mt-0.5">Complete your profile. Fields marked with * are required.</p>
           </div>
         )}
 
         {message.text && (
-          <div className={`mb-3 p-3 rounded-lg text-sm ${
+          <div className={`p-2.5 rounded-xl text-sm ${
             message.type === 'error'
               ? 'bg-red-50 text-red-700 border border-red-200'
               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
           }`}>
             {message.text}
             {message.type === 'error' && (
-              <button type="button" onClick={handleRetry} className="mt-1.5 text-sm font-medium hover:underline" id="retry-button" name="retry-button">
+              <button type="button" onClick={handleRetry} className="mt-1 text-sm font-medium hover:underline" id="retry-button" name="retry-button">
                 Retry
               </button>
             )}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Profile + name row – single compact card */}
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-sm overflow-hidden">
-            <div className="p-4 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0 ring-2 ring-white shadow-sm">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <svg className="w-7 h-7 text-gray-400 m-auto mt-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <input type="file" id="avatar" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-                <label htmlFor="avatar" className="inline-block px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors">
-                  Change photo
-                </label>
-                <p className="text-xs text-gray-500 mt-1">Max 7MB</p>
-                {avatar && <p className="text-xs text-emerald-600 font-medium mt-0.5">✓ {avatar.name}</p>}
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile – personal details + shift & preferences in one container */}
+          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
+            <div className="px-3 py-2 min-h-[44px] bg-red-50 border-b border-red-200 flex items-center">
+              <h3 className="text-sm font-semibold text-red-800">Profile</h3>
             </div>
-            <div className="px-4 pb-4 grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass} htmlFor="firstName">First name {isRequired && <span className="text-red-500">*</span>}</label>
-                <input id="firstName" type="text" value={firstName} onChange={handleFirstNameChange} placeholder="First name" className={inputClass(!!formErrors.firstName)} />
-                {formErrors.firstName && <p className="text-xs text-red-500 mt-1">{formErrors.firstName}</p>}
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="lastName">Last name {isRequired && <span className="text-red-500">*</span>}</label>
-                <input id="lastName" type="text" value={lastName} onChange={handleLastNameChange} placeholder="Last name" className={inputClass(!!formErrors.lastName)} />
-                {formErrors.lastName && <p className="text-xs text-red-500 mt-1">{formErrors.lastName}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Shift + Rota + Agency – one card, sections */}
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-sm overflow-hidden">
-            <div className="p-4 space-y-4">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500" id="shift-preference-label">Shift preference {isRequired && <span className="text-red-500">*</span>}</span>
-                <div className="grid grid-cols-3 gap-2 mt-2" role="radiogroup" aria-labelledby="shift-preference-label">
-                  {['day', 'afternoon', 'night'].map((shift) => (
-                    <label
-                      key={shift}
-                      className={`flex items-center justify-center py-2.5 px-2 rounded-lg text-sm font-medium cursor-pointer transition-all border ${
-                        shiftPreference === shift
-                          ? 'bg-black text-white border-black'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                      }`}
-                      htmlFor={`shift-${shift}`}
-                    >
-                      <input type="radio" id={`shift-${shift}`} name="shiftPreference" value={shift} checked={shiftPreference === shift} onChange={() => setShiftPreference(shift)} className="sr-only" aria-labelledby="shift-preference-label" />
-                      {shift.charAt(0).toUpperCase() + shift.slice(1)}
-                    </label>
-                  ))}
+            <div className="p-3 bg-yellow-50/50 space-y-3">
+              {/* Row 1: First name, Last name */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[100px] flex gap-2 flex-wrap">
+                  <div className="flex-1 min-w-[100px]">
+                    <label className={labelClass} htmlFor="firstName">First name {isRequired && <span className="text-red-500">*</span>}</label>
+                    <input id="firstName" type="text" value={firstName} onChange={handleFirstNameChange} placeholder="First name" className={inputClass(!!formErrors.firstName)} />
+                    {formErrors.firstName && <p className="text-xs text-red-500 mt-0.5">{formErrors.firstName}</p>}
+                  </div>
+                  <div className="flex-1 min-w-[100px]">
+                    <label className={labelClass} htmlFor="lastName">Last name {isRequired && <span className="text-red-500">*</span>}</label>
+                    <input id="lastName" type="text" value={lastName} onChange={handleLastNameChange} placeholder="Last name" className={inputClass(!!formErrors.lastName)} />
+                    {formErrors.lastName && <p className="text-xs text-red-500 mt-0.5">{formErrors.lastName}</p>}
+                  </div>
                 </div>
-                {formErrors.shiftPreference && <p className="text-xs text-red-500 mt-1">{formErrors.shiftPreference}</p>}
               </div>
+              {avatar && <p className="text-xs text-emerald-600 font-medium">✓ {avatar.name}</p>}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Row 2: Shift & preferences – 4 dropdowns */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div>
+                  <label className={labelClass} htmlFor="shift-preference">Shift preference {isRequired && <span className="text-red-500">*</span>}</label>
+                  <select
+                    id="shift-preference"
+                    value={shiftPreference}
+                    onChange={(e) => setShiftPreference(e.target.value)}
+                    className={inputClass(!!formErrors.shiftPreference)}
+                  >
+                    <option value="day">Day</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="night">Night</option>
+                  </select>
+                  {formErrors.shiftPreference && <p className="text-xs text-red-500 mt-0.5">{formErrors.shiftPreference}</p>}
+                </div>
                 <div>
                   <label className={labelClass} htmlFor="customStartTime">Start time {isRequired && <span className="text-red-500">*</span>}</label>
                   <select id="customStartTime" value={customStartTime ? customStartTime.slice(0, 5) : ''} onChange={handleCustomStartTimeChange} className={inputClass(!!formErrors.customStartTime)}>
@@ -952,7 +931,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                       return `${h}:${m}`;
                     }).map((time) => <option key={time} value={time}>{time}</option>)}
                   </select>
-                  {formErrors.customStartTime && <p className="text-xs text-red-500 mt-1">{formErrors.customStartTime}</p>}
+                  {formErrors.customStartTime && <p className="text-xs text-red-500 mt-0.5">{formErrors.customStartTime}</p>}
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="preferredLocation">Location {isRequired && <span className="text-red-500">*</span>}</label>
@@ -962,28 +941,50 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                       <><option value="Main Hub">Main Hub</option><option value="NRC">NRC</option></>
                     )}
                   </select>
-                  {formErrors.preferredLocation && <p className="text-xs text-red-500 mt-1">{formErrors.preferredLocation}</p>}
+                  {formErrors.preferredLocation && <p className="text-xs text-red-500 mt-0.5">{formErrors.preferredLocation}</p>}
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="agency">Agency {isRequired && <span className="text-red-500">*</span>}</label>
+                  <select id="agency" value={agencyId || ''} onChange={(e) => setAgencyId(e.target.value || null)} className={inputClass(!!formErrors.agency)}>
+                    <option value="">Select agency</option>
+                    {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  {formErrors.agency && <p className="text-xs text-red-500 mt-0.5">{formErrors.agency}</p>}
                 </div>
               </div>
-
-              <div>
-                <label className={labelClass} htmlFor="agency">Agency {isRequired && <span className="text-red-500">*</span>}</label>
-                <select id="agency" value={agencyId || ''} onChange={(e) => setAgencyId(e.target.value || null)} className={inputClass(!!formErrors.agency)}>
-                  <option value="">Select agency</option>
-                  {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                {formErrors.agency && <p className="text-xs text-red-500 mt-1">{formErrors.agency}</p>}
-              </div>
+            </div>
+            {/* Footer: Change profile photo + Save profile */}
+            <div className="px-3 py-2 min-h-[44px] border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2 flex-wrap">
+              <input type="file" id="avatar" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              <label
+                htmlFor="avatar"
+                className="inline-flex items-center justify-center h-8 px-3 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+              >
+                Change profile photo
+              </label>
+              <button
+                type="submit"
+                id="submit-profile"
+                name="submit-profile"
+                disabled={loading}
+                className={`h-8 px-4 text-xs font-semibold text-charcoal bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors ${
+                  loading ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.99]'
+                }`}
+              >
+                {loading ? 'Saving…' : isRequired ? 'Complete profile' : 'Save profile'}
+              </button>
             </div>
           </div>
 
-          {/* Attendance & disciplinary – read-only */}
-          <div className="bg-white rounded-xl border border-gray-200/80 shadow-sm overflow-hidden">
-            <div className="p-4">
-              <h3 className="text-charcoal font-semibold text-sm mb-3">Attendance & disciplinary</h3>
-              <div className="space-y-4">
+          {/* Attendance & disciplinary */}
+          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
+            <div className="px-3 py-2 min-h-[44px] bg-red-50 border-b border-red-200 flex items-center">
+              <h3 className="text-sm font-semibold text-red-800">Attendance & disciplinary</h3>
+            </div>
+            <div className="p-3 bg-yellow-50/50">
+              <div className="space-y-3">
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Attendance</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Attendance</h4>
                   {attendanceRecords.length === 0 ? (
                     <p className="text-sm text-gray-500">No attendance records.</p>
                   ) : (
@@ -998,7 +999,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                   )}
                 </div>
                 <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Disciplinary notes</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Disciplinary notes</h4>
                   {violations.length === 0 ? (
                     <p className="text-sm text-gray-500">You have no disciplinary notes.</p>
                   ) : (
@@ -1019,35 +1020,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               </div>
             </div>
           </div>
-
-          <div className="pt-1">
-            <button
-              type="submit"
-              id="submit-profile"
-              name="submit-profile"
-              disabled={loading}
-              className={`w-full py-3 px-4 text-sm font-semibold text-white bg-black hover:bg-gray-800 rounded-xl transition-all ${
-                loading ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.99]'
-              }`}
-            >
-              {loading ? 'Saving…' : isRequired ? 'Complete profile' : 'Save profile'}
-            </button>
-          </div>
         </form>
-
-        {isWeb && (
-          <div className="mt-4 p-3 bg-gray-100 border border-gray-200 rounded-lg">
-            <p className="text-xs text-gray-600 mb-2">If the app shows an old version (e.g. wrong precheck questions), refresh to get the latest.</p>
-            <button
-              type="button"
-              onClick={async () => { setRefreshingApp(true); await triggerUpdate(); }}
-              disabled={refreshingApp}
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-70"
-            >
-              {refreshingApp ? 'Refreshing…' : 'Refresh app'}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
