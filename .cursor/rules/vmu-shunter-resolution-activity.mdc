@@ -1,0 +1,26 @@
+---
+description: VMU shunter resolution activity log – why and how
+alwaysApply: false
+---
+
+# VMU Shunter Resolution Activity Log
+
+## Context
+
+When a shunter marks a defect as "Fixed" during PreCheck (form submit), the RPC `mark_precheck_damage_resolved` is called. Previously this only updated `precheck_damages` and did not write to `defect_activity_log`, so the VMU Activity Log did not show "X shunter confirmed defect has been resolved at Y time".
+
+## Fix (20260303)
+
+The RPC `mark_precheck_damage_resolved` was extended to INSERT into `defect_activity_log` when the defect is successfully marked as resolved. This uses `SECURITY DEFINER` (owner postgres) so the INSERT bypasses RLS (which otherwise only allows admin/manager/VMU to insert).
+
+## Flow
+
+1. PreCheckForm calls `mark_precheck_damage_resolved(damage_id)` for each `markedResolvedDamageIds`
+2. RPC: SELECT old repair_status → UPDATE precheck_damages → if FOUND, INSERT into defect_activity_log (action_type='status_change', field_name='repair_status', old_value, new_value='resolved')
+3. VmuPage fetches defect_activity_log with profiles join and merges with initial_report + precheck_damage_confirmations
+4. Activity Log shows "X changed status from [old] to Resolved" (or similar)
+
+## Notes
+
+- Offline queue does NOT call mark_precheck_damage_resolved – resolutions are only persisted when submit is online.
+- VMU/admin status changes still go through updateDamageField in VmuPage, which inserts into defect_activity_log from the frontend.
