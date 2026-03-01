@@ -524,15 +524,9 @@ export default function VmuPage() {
             </div>
             <span className="text-xs font-mono text-gray-600 truncate">{d.defect_number || '—'}</span>
             <span className="text-[11px] text-gray-500 truncate">{getLastActivityEntryShort(d)}</span>
-            <div className="flex items-center gap-2 justify-end">
-              <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatLastChangeDateTime(getLastChangeTimestamp(d))}</span>
-              <svg
-                className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+            <span className="text-[10px] text-gray-400 whitespace-nowrap sm:justify-self-end">
+              {formatLastChangeDateTime(getLastChangeTimestamp(d))}
+            </span>
           </div>
         </button>
 
@@ -819,31 +813,37 @@ export default function VmuPage() {
             const isGroupExpanded = expandedTugs.has(group.id);
             const openDamages = group.damages.filter(d => d.repair_status !== 'resolved');
             const resolvedDamages = group.damages.filter(d => d.repair_status === 'resolved');
+            const hasAwaiting = group.openCount > 0;
+            const cardStyle = hasAwaiting
+              ? 'border border-red-200 bg-red-50/50'
+              : 'border border-green-200 bg-green-50/50';
+            const btnStyle = hasAwaiting
+              ? 'bg-red-50/50 hover:bg-red-100/70'
+              : 'bg-green-50/50 hover:bg-green-100/70';
+
+            const latestActivityTs = group.damages.reduce((best, d) => {
+              const ts = getLastChangeTimestamp(d);
+              if (!ts) return best;
+              if (!best) return ts;
+              return new Date(ts) > new Date(best) ? ts : best;
+            }, null);
 
             return (
-              <div key={group.id} className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                {/* Tug header */}
+              <div key={group.id} className={`rounded-xl border overflow-hidden shadow-sm ${cardStyle}`}>
+                {/* Tug header – equal columns, no truck icon */}
                 <button
                   type="button"
                   onClick={() => toggleTugGroup(group.id)}
-                  className="w-full px-4 py-3 flex items-center gap-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center transition-colors text-left ${btnStyle}`}
                 >
-                  <span className="text-lg">🚛</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-charcoal text-sm">{group.name}</span>
-                    {group.name !== group.number && (
-                      <span className="text-gray-400 text-xs ml-1">({group.number})</span>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    {group.damages.length} total
+                  <span className="text-sm font-semibold text-charcoal truncate">{group.name}</span>
+                  <span className="text-xs text-gray-600 font-mono truncate">{group.number}</span>
+                  <span className="text-xs text-gray-500 truncate">
+                    {group.openCount} awaiting repair
                   </span>
-                  <svg
-                    className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="text-[10px] text-gray-500 truncate sm:justify-self-end">
+                    {formatLastChangeDateTime(latestActivityTs)}
+                  </span>
                 </button>
 
                 {/* Tug damages */}
@@ -856,7 +856,7 @@ export default function VmuPage() {
                     )}
                     {resolvedDamages.length > 0 && (
                       <details className="mt-2">
-                        <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 py-1">
+                        <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 py-1 list-none">
                           {resolvedDamages.length} resolved defect{resolvedDamages.length !== 1 ? 's' : ''}
                         </summary>
                         <div className="space-y-2 mt-2">
@@ -871,6 +871,11 @@ export default function VmuPage() {
           })}
         </div>
       )}
+
+      {/* Footer */}
+      <footer className="text-center py-6 text-gray-400 text-sm">
+        tap to open
+      </footer>
 
       {/* ─── Lightbox ─── */}
       {lightboxUrl && createPortal(
