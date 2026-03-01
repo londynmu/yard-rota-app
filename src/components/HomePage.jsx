@@ -220,14 +220,6 @@ export default function HomePage() {
           </div>
         )}
         
-        <Link
-          to="/profile"
-          onClick={() => setShowDropdown(false)}
-          className="block w-full text-left px-4 py-2 text-sm text-charcoal hover:bg-gray-100"
-        >
-          Profile
-        </Link>
-        
         <button
           onClick={handleSignOut}
           className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
@@ -273,7 +265,94 @@ export default function HomePage() {
 
         return (
           <header className={`${borderClass} bg-slate-200 pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
-            <div className="w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div className={isVmu && !isAdmin ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+              {isVmu && !isAdmin ? (
+                <>
+                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
+                    <Link
+                      to="/vmu"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/vmu'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      VMU
+                    </Link>
+                    <Link
+                      to="/vmu/tugs"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/vmu/tugs'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Tugs
+                    </Link>
+                    <Link
+                      to="/vmu/prechecks"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/vmu/prechecks'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      PreChecks
+                    </Link>
+                    <Link
+                      to="/vmu/check-items"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/vmu/check-items'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Check Items
+                    </Link>
+                  </nav>
+                  <div className="flex-1" aria-hidden="true" />
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <Link
+                      to="/profile"
+                      className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        path === '/profile'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Profile
+                    </Link>
+                    <div className="relative">
+                      <button
+                        ref={avatarButtonRef}
+                        onClick={toggleDropdown}
+                        className="flex items-center focus:outline-none"
+                        aria-label="User menu"
+                        aria-haspopup="true"
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
+                          {avatarUrl && (
+                            <img
+                              src={avatarUrl}
+                              alt="Profile"
+                              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
+                              onLoad={() => setAvatarLoaded(true)}
+                            />
+                          )}
+                          {(!avatarUrl || !avatarLoaded) && (
+                            <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                              <span className="text-slate-700 font-medium text-sm">
+                                {user?.email?.charAt(0).toUpperCase() || '?'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
               {/* Tytuł strony - zawsze widoczny */}
               <div className="flex items-center gap-3">
                 {/* Hamburger for admin sidebar - TYLKO na mobile gdy jesteśmy na admin */}
@@ -438,6 +517,8 @@ export default function HomePage() {
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </div>
           </header>
         );
