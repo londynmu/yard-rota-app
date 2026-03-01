@@ -21,6 +21,7 @@ export default function CheckItemRow({
   onMarkResolved,
   pendingResolvedDamageIds = [],
   onReload,
+  onCollapseComplete,
 }) {
   const [showStillExistNewProblem, setShowStillExistNewProblem] = useState(false);
   const notesTextareaRef = useRef(null);
@@ -82,6 +83,8 @@ export default function CheckItemRow({
   const showSimplifiedRepairView = value === 'repair_needed' && !linkedDamageId;
   const showReloadInHeader = Boolean(onReload) && (singleDefectPendingResolved || showStillExistNewProblem || showSimplifiedRepairView || value === 'ok');
 
+  const isCompleted = value === 'ok' || singleDefectPendingResolved || showSameProblemConfirmed;
+
   useEffect(() => {
     const el = notesTextareaRef.current;
     if (!el || !showSimplifiedRepairView) return;
@@ -139,6 +142,10 @@ export default function CheckItemRow({
           </div>
         </div>
 
+        <div
+          className={`transition-all duration-300 ease-out overflow-hidden ${isCompleted ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
+          onTransitionEnd={() => { if (isCompleted) onCollapseComplete?.(); }}
+        >
         {tooltip && value !== 'na' && (
           <p className="text-sm text-gray-600 leading-snug mt-1">{tooltip}</p>
         )}
@@ -324,6 +331,7 @@ export default function CheckItemRow({
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Footer: first stage (Fixed? | Still exist / New problem) | marked fixed message | standard 3 buttons (no Back) */}
@@ -364,8 +372,10 @@ export default function CheckItemRow({
           <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
         </div>
       ) : showSimplifiedRepairView ? null : value === 'ok' ? (
-        <div className="px-4 pb-4 pt-2 border-t border-gray-100">
-          <p className="text-center text-base font-semibold text-green-700">ALL OK</p>
+        <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex justify-center">
+          <svg className="w-14 h-14 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 13l4 4L19 7" />
+          </svg>
         </div>
       ) : (
         <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
@@ -448,4 +458,5 @@ CheckItemRow.propTypes = {
   onMarkResolved: PropTypes.func,
   pendingResolvedDamageIds: PropTypes.arrayOf(PropTypes.string),
   onReload: PropTypes.func,
+  onCollapseComplete: PropTypes.func,
 };

@@ -222,6 +222,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const [showWarning, setShowWarning] = useState(false);
   const formSessionId = useRef(getFormSessionId()).current;
   const [markedResolvedDamageIds, setMarkedResolvedDamageIds] = useState([]);
+  const [reloadKey, setReloadKey] = useState({});
 
   useEffect(() => {
     if (!selectedTug?.id) {
@@ -247,9 +248,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       setMarkedResolvedDamageIds(prev => prev.filter(id => id !== defectId));
       setCheckItems(prev => {
         const next = { ...prev };
-        next[stateKey] = { status: '', notes: '', images: [], linkedDamageId: null };
+        const blank = { status: '', notes: '', images: [], linkedDamageId: null };
+        next[stateKey] = blank;
+        next[itemKey] = blank;
         return next;
       });
+      setReloadKey(prev => ({ ...prev, [itemKey]: (prev[itemKey] || 0) + 1 }));
       refetchKnownDefects();
     } else {
       const defects = knownDefectsByItem[itemKey] || [];
@@ -264,10 +268,11 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
           stateKeys.forEach(sk => { next[sk] = blank; });
           next[newKey] = blank;
         } else {
-          next[itemKey] = { ...prev[itemKey], status: '' };
+          next[itemKey] = { ...prev[itemKey], status: '', notes: '', images: [], linkedDamageId: null };
         }
         return next;
       });
+      setReloadKey(prev => ({ ...prev, [itemKey]: (prev[itemKey] || 0) + 1 }));
       refetchKnownDefects();
     }
   }, [knownDefectsByItem, refetchKnownDefects]);
@@ -700,6 +705,14 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // Section: title on main container, floating cards below (no wrapper box)
   // 0-1 defect: single CheckItemRow. 2+ defects: single CheckItemRowMultiDefect (one card, per-defect options)
+  const handleCollapseComplete = (itemKey) => {
+    const el = document.querySelector(`[data-precheck-card="${itemKey}"]`);
+    const next = el?.nextElementSibling;
+    if (next) {
+      next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const renderSection = (title, items, status, repairCount) => {
     const rowsToRender = [];
     for (const item of items || []) {
@@ -727,23 +740,26 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         <div className="space-y-4">
           {rowsToRender.map(({ stateKey, itemKey, item, knownDefects, cardId, multi }) =>
             multi ? (
-              <CheckItemRowMultiDefect
-                key={itemKey}
-                itemKey={itemKey}
-                item={item}
-                defects={knownDefects}
-                checkItems={checkItems}
-                onCheckChange={handleCheckChange}
-                onNotesChange={(sk, notes) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], notes } }))}
-                onImagesChange={(sk, images) => handleItemImagesChange(sk, images)}
-                onLinkDefect={(sk, damageId) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], linkedDamageId: damageId || null } }))}
-                onMarkResolved={handleMarkResolved}
-                markedResolvedDamageIds={markedResolvedDamageIds}
-                onReload={() => handleReloadCheckItem(itemKey)}
-                cardId={cardId}
-                storageKey={`pending_photos_item_${itemKey.replace(/::/g, '_')}`}
-              />
+              <div key={`${itemKey}-${reloadKey[itemKey] ?? 0}`} data-precheck-card={itemKey} className="scroll-mt-20">
+                <CheckItemRowMultiDefect
+                  itemKey={itemKey}
+                  item={item}
+                  defects={knownDefects}
+                  checkItems={checkItems}
+                  onCheckChange={handleCheckChange}
+                  onNotesChange={(sk, notes) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], notes } }))}
+                  onImagesChange={(sk, images) => handleItemImagesChange(sk, images)}
+                  onLinkDefect={(sk, damageId) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], linkedDamageId: damageId || null } }))}
+                  onMarkResolved={handleMarkResolved}
+                  markedResolvedDamageIds={markedResolvedDamageIds}
+                  onReload={() => handleReloadCheckItem(itemKey)}
+                  cardId={cardId}
+                  storageKey={`pending_photos_item_${itemKey.replace(/::/g, '_')}`}
+                  onCollapseComplete={() => handleCollapseComplete(itemKey)}
+                />
+              </div>
             ) : (
+              <div key={`${stateKey}-${reloadKey[itemKey] ?? 0}`} data-precheck-card={itemKey} className="scroll-mt-20">
               <CheckItemRow
                 key={stateKey}
                 itemKey={itemKey}
@@ -775,7 +791,9 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                     : () => handleReloadCheckItem(itemKey, knownDefects[0].id)
                 }
                 storageKey={`pending_photos_item_${stateKey.replace(/::/g, '_')}`}
+                onCollapseComplete={() => handleCollapseComplete(itemKey)}
               />
+              </div>
             )
           )}
         </div>
@@ -845,7 +863,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
       {/* Sticky tug info bar – rounded card with margins, Change Tug on the right */}
       {tugLabel && (
-        <div className="sticky top-0 z-30 pt-safe pt-1">
+        <div className="sticky top-[10px] z-30 pt-safe pt-1">
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-3 flex items-center justify-between">
               <span className="text-lg font-extrabold text-charcoal">{tugLabel}</span>

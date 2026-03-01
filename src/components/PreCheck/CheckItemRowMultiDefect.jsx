@@ -18,6 +18,7 @@ export default function CheckItemRowMultiDefect({
   onReload,
   cardId,
   storageKey,
+  onCollapseComplete,
 }) {
   const notesTextareaRef = useRef(null);
 
@@ -63,6 +64,8 @@ export default function CheckItemRowMultiDefect({
   const cardBg = cardHasIssue ? 'bg-red-50/50' : (allDefectsResolved ? 'bg-green-50' : 'bg-white');
   const cardBorder = cardHasIssue ? 'border-red-200' : (allDefectsResolved ? 'border-green-200' : 'border-gray-200');
 
+  const isCompleted = allDefectsResolved;
+
   return (
     <div
       id={cardId || `check-item-${itemKey}`}
@@ -91,6 +94,10 @@ export default function CheckItemRowMultiDefect({
           )}
         </div>
 
+        <div
+          className={`transition-all duration-300 ease-out overflow-hidden ${isCompleted ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
+          onTransitionEnd={() => { if (isCompleted) onCollapseComplete?.(); }}
+        >
         {defects.map((def) => {
           const stateKey = `${itemKey}::${def.id}`;
           const ci = checkItems[stateKey] || {};
@@ -178,6 +185,7 @@ export default function CheckItemRowMultiDefect({
             )}
           </div>
         )}
+        </div>
       </div>
 
       <div className="px-4 pb-4 pt-2 flex flex-col gap-2 border-t border-gray-100">
@@ -222,4 +230,5 @@ CheckItemRowMultiDefect.propTypes = {
   onReload: PropTypes.func,
   cardId: PropTypes.string,
   storageKey: PropTypes.string,
+  onCollapseComplete: PropTypes.func,
 };
