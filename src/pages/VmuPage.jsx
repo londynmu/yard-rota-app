@@ -779,31 +779,8 @@ export default function VmuPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="text-lg font-bold text-charcoal">VMU Defect Management</h2>
-        <button
-          type="button"
-          onClick={fetchData}
-          className="text-xs text-gray-400 hover:text-charcoal transition-colors px-2 py-1"
-        >
-          Refresh
-        </button>
-      </div>
-
-      {/* Stats bar */}
-      <div className="flex flex-wrap gap-2 text-xs">
-        {[
-          { label: 'Total', count: stats.total, color: 'bg-gray-100 text-gray-700' },
-          { label: 'Open', count: stats.open, color: 'bg-red-100 text-red-700' },
-          { label: 'Reported', count: stats.reported, color: 'bg-orange-100 text-orange-700' },
-          { label: 'Awaiting Parts', count: stats.awaiting, color: 'bg-amber-100 text-amber-700' },
-          { label: 'In Progress', count: stats.inProgress, color: 'bg-yellow-100 text-yellow-700' },
-          { label: 'Resolved', count: stats.resolved, color: 'bg-green-100 text-green-700' },
-        ].map(s => (
-          <span key={s.label} className={`px-2.5 py-1 rounded-full font-medium ${s.color}`}>
-            {s.label}: {s.count}
-          </span>
-        ))}
       </div>
 
       {/* Tab toggle */}
@@ -875,17 +852,11 @@ export default function VmuPage() {
       ) : activeTab === 'register' ? (
         /* ─── Defect Register View ─── */
         <div className="space-y-3">
-          <div className="text-xs text-gray-400">
-            {filteredDamages.length} defect{filteredDamages.length !== 1 ? 's' : ''}
-          </div>
           {filteredDamages.map(d => renderDefectCard(d, true))}
         </div>
       ) : (
         /* ─── Tug View ─── */
         <div className="space-y-4">
-          <div className="text-xs text-gray-400">
-            {tugGroups.length} tug{tugGroups.length !== 1 ? 's' : ''} with defects
-          </div>
           {tugGroups.map(group => {
             const isGroupExpanded = expandedTugs.has(group.id);
             const openDamages = group.damages.filter(d => d.repair_status !== 'resolved');
@@ -906,11 +877,6 @@ export default function VmuPage() {
                       <span className="text-gray-400 text-xs ml-1">({group.number})</span>
                     )}
                   </div>
-                  {group.openCount > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
-                      {group.openCount} open
-                    </span>
-                  )}
                   <span className="text-xs text-gray-400">
                     {group.damages.length} total
                   </span>
