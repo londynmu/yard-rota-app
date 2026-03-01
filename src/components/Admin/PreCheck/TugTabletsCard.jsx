@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 
-export default function TugTabletsCard() {
+export default function TugTabletsCard({ showForm: showFormProp, setShowForm: setShowFormProp }) {
   const [tablets, setTablets] = useState([]);
   const [tugs, setTugs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [internalShowForm, setInternalShowForm] = useState(false);
   const [editingTablet, setEditingTablet] = useState(null);
   const [formData, setFormData] = useState({ tug_id: '', serial_number: '' });
   const [saving, setSaving] = useState(false);
+
+  const isControlled = showFormProp !== undefined && setShowFormProp !== undefined;
+  const showForm = isControlled ? showFormProp : internalShowForm;
+  const setShowForm = isControlled ? setShowFormProp : setInternalShowForm;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -39,6 +43,16 @@ export default function TugTabletsCard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // When form opens (e.g. from parent toolbar), set formData to first unassigned tug
+  useEffect(() => {
+    if (showForm && !editingTablet && tugs.length > 0 && tablets.length >= 0) {
+      const unassigned = tugs.filter(
+        (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
+      );
+      setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
+    }
+  }, [showForm, editingTablet, tugs, tablets]);
 
   const handleSave = async () => {
     if (!formData.tug_id || !formData.serial_number?.trim()) {
@@ -119,9 +133,9 @@ export default function TugTabletsCard() {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-10 bg-slate-200 rounded w-48" />
-        {[1, 2, 3].map((i) => (
+      <div className="animate-pulse space-y-3">
+        <div className="h-8 bg-slate-200 rounded-xl w-48" />
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-16 bg-slate-200 rounded-xl" />
         ))}
       </div>
@@ -130,32 +144,9 @@ export default function TugTabletsCard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="font-semibold text-charcoal">Tablets</h3>
-          <p className="text-sm text-gray-500">{tablets.length} tablets assigned</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingTablet(null);
-            const unassigned = tugs.filter(
-              (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
-            );
-            setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
-            setShowForm(true);
-          }}
-          className="px-4 py-2 text-sm font-semibold bg-charcoal text-white rounded-lg hover:bg-black transition-colors flex items-center gap-2 w-fit"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Tablet
-        </button>
-      </div>
-
       {showForm && (
         <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
-          <h4 className="font-semibold text-charcoal">
+          <h4 className="text-sm font-semibold text-charcoal">
             {editingTablet ? 'Edit Tablet' : 'Add New Tablet'}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -194,13 +185,13 @@ export default function TugTabletsCard() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
+              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border-2 border-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : editingTablet ? 'Update' : 'Add Tablet'}
             </button>
             <button
               onClick={cancelForm}
-              className="px-5 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+              className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
@@ -208,72 +199,65 @@ export default function TugTabletsCard() {
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {tablets.map((tablet) => (
           <div
             key={tablet.id}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-4"
+            className="rounded-xl border border-red-200 bg-red-50/50 overflow-hidden shadow-sm"
           >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-charcoal">{tablet.serial_number}</span>
-                <span className="text-xs text-gray-400">→</span>
-                <span className="text-sm text-gray-600">
-                  {tablet.tugs?.display_name || tablet.tugs?.tug_number || 'Unknown tug'}
-                </span>
-                {tablet.tugs?.tug_number && tablet.tugs?.display_name && (
-                  <span className="text-xs text-gray-400">({tablet.tugs.tug_number})</span>
-                )}
+            <div className="px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center min-h-[52px]">
+              <span className="text-sm font-semibold text-charcoal truncate">
+                {tablet.serial_number}
+              </span>
+              <span className="text-xs text-gray-600 font-mono truncate">
+                {tablet.tugs?.tug_number || '—'}
+              </span>
+              <span className="text-xs text-gray-500 truncate">
+                {tablet.tugs?.display_name || tablet.tugs?.tug_number || 'Unknown tug'}
+              </span>
+              <div className="flex items-center justify-end gap-0.5 flex-shrink-0">
+                <button
+                  onClick={() => handleEdit(tablet)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Edit"
+                >
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => handleDelete(tablet)}
+                  className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                >
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => handleEdit(tablet)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Edit"
-              >
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => handleDelete(tablet)}
-                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete"
-              >
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
             </div>
           </div>
         ))}
       </div>
 
       {tablets.length === 0 && !showForm && (
-        <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
+        <div className="text-center py-12 text-gray-400">
           <p className="font-medium">No tablets assigned</p>
           <p className="text-sm mt-1">Add a tablet to assign it to a tug.</p>
           <button
             onClick={() => {
-            const unassigned = tugs.filter(
-              (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
-            );
-            setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
-            setShowForm(true);
+              setEditingTablet(null);
+              const unassigned = tugs.filter(
+                (t) => t.status === 'active' && !tablets.some((tab) => tab.tug_id === t.id)
+              );
+              setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
+              setShowForm(true);
             }}
-            className="mt-3 px-4 py-2 text-sm font-medium bg-charcoal text-white rounded-lg hover:bg-black transition-colors"
+            className="mt-3 h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors border-2 border-charcoal inline-flex items-center gap-1.5"
           >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
             Add Tablet
           </button>
         </div>

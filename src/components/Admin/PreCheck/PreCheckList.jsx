@@ -430,13 +430,13 @@ export default function PreCheckList() {
                 hasDefect ? 'bg-red-500' : 'bg-green-500'
               }`} aria-hidden />
               <div className="min-w-0">
-                <div className="font-semibold text-charcoal text-base truncate leading-tight">{sub.tugs?.display_name || sub.tugs?.tug_number}</div>
-                <div className="text-sm text-gray-500 mt-0.5 leading-tight">{sub.tugs?.tug_number || '—'}</div>
+                <div className="font-semibold text-charcoal text-sm truncate leading-tight">{sub.tugs?.display_name || sub.tugs?.tug_number}</div>
+                <div className="text-xs text-gray-500 mt-0.5 leading-tight">{sub.tugs?.tug_number || '—'}</div>
               </div>
             </div>
             <div className="flex flex-col items-end flex-shrink-0 flex-1 min-w-0">
-              <div className="font-semibold text-charcoal text-base text-right truncate leading-tight">{userName}</div>
-              <div className="text-sm text-gray-500 mt-0.5 leading-tight">
+              <div className="font-semibold text-charcoal text-sm text-right truncate leading-tight">{userName}</div>
+              <div className="text-xs text-gray-500 mt-0.5 leading-tight">
                 {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -444,26 +444,30 @@ export default function PreCheckList() {
               </div>
             </div>
           </div>
-          {/* Desktop: 5 equal columns + dot */}
-          <div className="hidden md:grid md:grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] md:items-center md:gap-3 md:min-h-0">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              hasDefect ? 'bg-red-500' : 'bg-green-500'
-            }`} aria-hidden />
-            <div className="min-w-0 font-semibold text-charcoal text-sm truncate">
-              {sub.tugs?.display_name || sub.tugs?.tug_number}
-              {!hasRealDamages && hasRemarks && (
-                <span className="text-amber-600 font-medium ml-1">· has remarks</span>
-              )}
+          {/* Desktop: 4 columns like VMU main page */}
+          <div className="hidden md:grid md:grid-cols-4 md:items-center md:gap-2 md:gap-x-3 md:min-h-0">
+            <div className="flex items-center gap-2 min-w-0 col-span-1">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                hasDefect ? 'bg-red-500' : 'bg-green-500'
+              }`} aria-hidden />
+              <span className="font-semibold text-charcoal text-sm truncate">
+                {sub.tugs?.display_name || sub.tugs?.tug_number}
+                {!hasRealDamages && hasRemarks && (
+                  <span className="text-amber-600 font-medium ml-1">· has remarks</span>
+                )}
+              </span>
             </div>
-            <div className="min-w-0 text-sm text-gray-500 truncate">{sub.tugs?.tug_number || '—'}</div>
-            <div className="min-w-0 font-semibold text-charcoal text-sm truncate">{userName}</div>
-            <div className="min-w-0 text-sm text-gray-500 truncate">
-              {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+            <span className="min-w-0 text-xs text-gray-600 font-mono truncate">{sub.tugs?.tug_number || '—'}</span>
+            <div className="min-w-0 flex flex-col sm:flex-row sm:gap-2 truncate">
+              <span className="font-semibold text-charcoal text-sm truncate">{userName}</span>
+              <span className="text-xs text-gray-500 truncate">
+                {new Date(sub.check_time || sub.created_at).toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
             </div>
-            <span className="min-w-0 flex flex-wrap items-center gap-2">
+            <span className="min-w-0 flex flex-wrap items-center gap-2 justify-end">
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium w-fit ${
                 sub.check_type === 'pre_shift'
                   ? 'bg-blue-100 text-blue-700'
@@ -667,7 +671,7 @@ export default function PreCheckList() {
       {/* ─── Results ─── */}
       {loading ? (
         <div className="animate-pulse space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-200 rounded-xl" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-slate-200 rounded-xl" />)}
         </div>
       ) : displaySubmissions.length === 0 ? (
         <div className="text-center py-12 text-gray-400">

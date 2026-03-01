@@ -341,10 +341,10 @@ export default function CheckItemManager() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-charcoal">{item.label}</span>
-            <span className="text-[10px] text-gray-400 font-mono">{item.item_key}</span>
+            <span className="text-xs text-gray-500 font-mono">{item.item_key}</span>
           </div>
           {item.tooltip && (
-            <p className="text-[11px] text-gray-400 truncate">{item.tooltip}</p>
+            <p className="text-xs text-gray-500 truncate mt-0.5">{item.tooltip}</p>
           )}
         </div>
 
@@ -475,7 +475,7 @@ export default function CheckItemManager() {
       <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-charcoal">{title}</h3>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-500">
             {categoryItems.filter(i => i.is_active).length} active / {categoryItems.length} total
           </span>
         </div>
@@ -489,8 +489,8 @@ export default function CheckItemManager() {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-slate-200 rounded w-48" />
+      <div className="animate-pulse space-y-3">
+        <div className="h-8 bg-slate-200 rounded-xl w-48" />
         <div className="h-64 bg-slate-200 rounded-xl" />
         <div className="h-48 bg-slate-200 rounded-xl" />
       </div>
@@ -499,11 +499,11 @@ export default function CheckItemManager() {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-gray-500">
+      <p className="text-sm text-gray-500">
         Manage the checklist items shown during Pre-Shift checks. Edit labels, add tooltips, reorder, or deactivate items.
       </p>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 overflow-hidden">
         <div className="flex items-center justify-between gap-4 mb-3">
           <div>
             <h3 className="text-sm font-semibold text-charcoal">Form options</h3>
@@ -513,10 +513,10 @@ export default function CheckItemManager() {
           </div>
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
             <div>
-              <p className="text-xs font-semibold text-charcoal">Pre-Shift remarks block</p>
-              <p className="text-[11px] text-gray-500">Shows/hides the Remarks section in Pre-Shift form.</p>
+              <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
+              <p className="text-xs text-gray-500 mt-0.5">Shows/hides the Remarks section in Pre-Shift form.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-xs font-semibold ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
@@ -526,7 +526,7 @@ export default function CheckItemManager() {
                 type="button"
                 onClick={togglePreShiftRemarks}
                 disabled={settingsLoading || settingsSaving}
-                className={`w-10 h-6 rounded-full relative transition-colors ${
+                className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
                   preShiftRemarksEnabled ? 'bg-green-500' : 'bg-gray-300'
                 } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 title={preShiftRemarksEnabled ? 'Pre-Shift remarks enabled - click to disable' : 'Pre-Shift remarks disabled - click to enable'}
@@ -537,10 +537,10 @@ export default function CheckItemManager() {
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
             <div>
-              <p className="text-xs font-semibold text-charcoal">During Shift damage report</p>
-              <p className="text-[11px] text-gray-500">Shows/hides Report Damage flow in During Shift.</p>
+              <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
+              <p className="text-xs text-gray-500 mt-0.5">Shows/hides Report Damage flow in During Shift.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-xs font-semibold ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
@@ -550,7 +550,7 @@ export default function CheckItemManager() {
                 type="button"
                 onClick={toggleDuringShiftDamage}
                 disabled={settingsLoading || settingsSaving}
-                className={`w-10 h-6 rounded-full relative transition-colors ${
+                className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
                   duringShiftDamageEnabled ? 'bg-green-500' : 'bg-gray-300'
                 } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 title={duringShiftDamageEnabled ? 'During Shift reporting enabled - click to disable' : 'During Shift reporting disabled - click to enable'}

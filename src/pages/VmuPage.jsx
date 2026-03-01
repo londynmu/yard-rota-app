@@ -807,7 +807,7 @@ export default function VmuPage() {
                 <button
                   type="button"
                   onClick={() => toggleTugGroup(group.id)}
-                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center transition-colors text-left ${headerStyle}`}
+                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center min-h-[52px] transition-colors text-left ${headerStyle}`}
                 >
                   <span className="text-sm font-semibold text-charcoal truncate">{group.name}</span>
                   <span className="text-xs text-gray-600 font-mono truncate">{group.number}</span>
