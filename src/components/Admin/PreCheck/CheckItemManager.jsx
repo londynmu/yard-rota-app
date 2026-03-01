@@ -259,46 +259,51 @@ export default function CheckItemManager() {
     }
   };
 
-  // ─── Render item row ───
+  // ─── Render item row (as card, same style as PreChecks/Tugs) ───
   const renderItemRow = (item, idx, listLength) => {
     const isEditing = editingId === item.id;
 
     if (isEditing) {
       return (
-        <div key={item.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
-              <input
-                type="text"
-                value={editForm.label}
-                onChange={(e) => setEditForm(prev => ({ ...prev, label: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
-              />
+        <div
+          key={item.id}
+          className="rounded-xl border border-blue-200 bg-blue-50 shadow-sm overflow-hidden"
+        >
+          <div className="p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
+                <input
+                  type="text"
+                  value={editForm.label}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, label: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Tooltip</label>
+                <input
+                  type="text"
+                  value={editForm.tooltip}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, tooltip: e.target.value }))}
+                  placeholder="Description shown to user..."
+                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Tooltip</label>
-              <input
-                type="text"
-                value={editForm.tooltip}
-                onChange={(e) => setEditForm(prev => ({ ...prev, tooltip: e.target.value }))}
-                placeholder="Description shown to user..."
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
-              />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving}
+                className="px-3 py-1.5 text-xs font-medium bg-charcoal text-white rounded-lg hover:bg-black disabled:opacity-50 h-8"
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
             </div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button type="button" onClick={cancelEdit} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveEdit}
-              disabled={saving}
-              className="px-3 py-1 text-xs font-medium bg-charcoal text-white rounded-lg hover:bg-black disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
           </div>
         </div>
       );
@@ -307,111 +312,113 @@ export default function CheckItemManager() {
     return (
       <div
         key={item.id}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+        className={`rounded-xl border shadow-sm overflow-hidden transition-all ${
           item.is_active
-            ? 'bg-white border-gray-200'
-            : 'bg-gray-50 border-gray-100 opacity-60'
+            ? 'border-green-200 bg-green-50'
+            : 'border-gray-200 bg-gray-50 opacity-60'
         }`}
       >
-        {/* Reorder arrows */}
-        <div className="flex flex-col gap-0.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => moveItem(item, 'up')}
-            disabled={idx === 0}
-            className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => moveItem(item, 'down')}
-            disabled={idx === listLength - 1}
-            className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-charcoal">{item.label}</span>
-            <span className="text-xs text-gray-500 font-mono">{item.item_key}</span>
+        <div className="min-h-[52px] px-4 py-3 flex items-center gap-2">
+          {/* Reorder arrows */}
+          <div className="flex flex-col gap-0.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => moveItem(item, 'up')}
+              disabled={idx === 0}
+              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveItem(item, 'down')}
+              disabled={idx === listLength - 1}
+              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
-          {item.tooltip && (
-            <p className="text-xs text-gray-500 truncate mt-0.5">{item.tooltip}</p>
-          )}
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* N/A toggle */}
-          <button
-            type="button"
-            onClick={() => toggleAllowNa(item)}
-            className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors ${
-              item.allow_na ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-            }`}
-            title={item.allow_na ? 'N/A allowed - click to disallow' : 'N/A not allowed - click to allow'}
-          >
-            N/A
-          </button>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-charcoal">{item.label}</span>
+              <span className="text-xs text-gray-500 font-mono">{item.item_key}</span>
+            </div>
+            {item.tooltip && (
+              <p className="text-xs text-gray-500 truncate mt-0.5">{item.tooltip}</p>
+            )}
+          </div>
 
-          {/* Active toggle */}
-          <button
-            type="button"
-            onClick={() => toggleActive(item)}
-            className={`w-8 h-5 rounded-full relative transition-colors ${
-              item.is_active ? 'bg-green-500' : 'bg-gray-300'
-            }`}
-            title={item.is_active ? 'Active - click to deactivate' : 'Inactive - click to activate'}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
-              item.is_active ? 'left-3.5' : 'left-0.5'
-            }`} />
-          </button>
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* N/A toggle */}
+            <button
+              type="button"
+              onClick={() => toggleAllowNa(item)}
+              className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors h-8 flex items-center ${
+                item.allow_na ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+              title={item.allow_na ? 'N/A allowed - click to disallow' : 'N/A not allowed - click to allow'}
+            >
+              N/A
+            </button>
 
-          {/* Edit */}
-          <button
-            type="button"
-            onClick={() => startEdit(item)}
-            className="p-1 text-gray-400 hover:text-charcoal"
-            title="Edit"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
+            {/* Active toggle */}
+            <button
+              type="button"
+              onClick={() => toggleActive(item)}
+              className={`w-8 h-5 rounded-full relative transition-colors flex-shrink-0 ${
+                item.is_active ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+              title={item.is_active ? 'Active - click to deactivate' : 'Inactive - click to activate'}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                item.is_active ? 'left-3.5' : 'left-0.5'
+              }`} />
+            </button>
 
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={() => deleteItem(item)}
-            className="p-1 text-gray-400 hover:text-red-600"
-            title="Delete"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+            {/* Edit */}
+            <button
+              type="button"
+              onClick={() => startEdit(item)}
+              className="p-1.5 text-gray-400 hover:text-charcoal border border-transparent hover:border-gray-200 rounded"
+              title="Edit"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+
+            {/* Delete */}
+            <button
+              type="button"
+              onClick={() => deleteItem(item)}
+              className="p-1.5 text-gray-400 hover:text-red-600 border border-transparent hover:border-red-200 rounded"
+              title="Delete"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     );
   };
 
-  // ─── Render add form ───
+  // ─── Render add form (card style) ───
   const renderAddForm = (category) => {
     if (adding !== category) {
       return (
         <button
           type="button"
           onClick={() => startAdd(category)}
-          className="w-full py-2 text-xs text-gray-400 hover:text-charcoal border border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+          className="w-full min-h-[52px] py-3 text-xs text-gray-400 hover:text-charcoal border border-dashed border-gray-300 rounded-xl hover:border-gray-400 transition-colors flex items-center justify-center"
         >
           + Add item
         </button>
@@ -419,51 +426,53 @@ export default function CheckItemManager() {
     }
 
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Key (unique)</label>
-            <input
-              type="text"
-              value={addForm.item_key}
-              onChange={(e) => setAddForm(prev => ({ ...prev, item_key: e.target.value }))}
-              placeholder="e.g. horn"
-              className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm font-mono"
-            />
+      <div className="rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden">
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Key (unique)</label>
+              <input
+                type="text"
+                value={addForm.item_key}
+                onChange={(e) => setAddForm(prev => ({ ...prev, item_key: e.target.value }))}
+                placeholder="e.g. horn"
+                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
+              <input
+                type="text"
+                value={addForm.label}
+                onChange={(e) => setAddForm(prev => ({ ...prev, label: e.target.value }))}
+                placeholder="e.g. Horn"
+                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Tooltip</label>
+              <input
+                type="text"
+                value={addForm.tooltip}
+                onChange={(e) => setAddForm(prev => ({ ...prev, tooltip: e.target.value }))}
+                placeholder="Check horn works..."
+                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
-            <input
-              type="text"
-              value={addForm.label}
-              onChange={(e) => setAddForm(prev => ({ ...prev, label: e.target.value }))}
-              placeholder="e.g. Horn"
-              className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
-            />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={cancelAdd} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveAdd}
+              disabled={saving}
+              className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 h-8"
+            >
+              {saving ? 'Adding...' : 'Add Item'}
+            </button>
           </div>
-          <div>
-            <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Tooltip</label>
-            <input
-              type="text"
-              value={addForm.tooltip}
-              onChange={(e) => setAddForm(prev => ({ ...prev, tooltip: e.target.value }))}
-              placeholder="Check horn works..."
-              className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
-            />
-          </div>
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={cancelAdd} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={saveAdd}
-            disabled={saving}
-            className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-          >
-            {saving ? 'Adding...' : 'Add Item'}
-          </button>
         </div>
       </div>
     );
@@ -471,16 +480,14 @@ export default function CheckItemManager() {
 
   // ─── Render section ───
   const renderSection = (title, categoryItems, category) => (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-charcoal">{title}</h3>
-          <span className="text-xs text-gray-500">
-            {categoryItems.filter(i => i.is_active).length} active / {categoryItems.length} total
-          </span>
-        </div>
+    <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 min-h-[52px] bg-red-50 border-b border-red-200 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-red-800">{title}</h3>
+        <span className="text-xs text-red-600/80">
+          {categoryItems.filter(i => i.is_active).length} active / {categoryItems.length} total
+        </span>
       </div>
-      <div className="p-3 space-y-1.5">
+      <div className="p-3 space-y-2 bg-yellow-50/50">
         {categoryItems.map((item, idx) => renderItemRow(item, idx, categoryItems.length))}
         {renderAddForm(category)}
       </div>
@@ -498,22 +505,18 @@ export default function CheckItemManager() {
   }
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-gray-500">
-        Manage the checklist items shown during Pre-Shift checks. Edit labels, add tooltips, reorder, or deactivate items.
-      </p>
-
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 overflow-hidden">
-        <div className="flex items-center justify-between gap-4 mb-3">
+    <div className="space-y-6 bg-yellow-50">
+      <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 min-h-[52px] bg-red-50 border-b border-red-200 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-charcoal">Form options</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h3 className="text-sm font-semibold text-red-800">Form options</h3>
+            <p className="text-xs text-red-600/80 mt-0.5">
               Configure Pre-Shift and During Shift options independently.
             </p>
           </div>
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div className="p-3 space-y-2 bg-yellow-50/50">
+          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
               <p className="text-xs text-gray-500 mt-0.5">Shows/hides the Remarks section in Pre-Shift form.</p>
@@ -537,7 +540,7 @@ export default function CheckItemManager() {
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
               <p className="text-xs text-gray-500 mt-0.5">Shows/hides Report Damage flow in During Shift.</p>
