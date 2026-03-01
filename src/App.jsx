@@ -27,6 +27,7 @@ function AppContent() {
   usePageTracking();
   const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [profileCheckCompleted, setProfileCheckCompleted] = useState(false); // true only after first check has run (prevents profile page flash)
   const [accountStatus, setAccountStatus] = useState(null);
   const [error, setError] = useState(null);
   const location = useLocation();
@@ -40,8 +41,8 @@ function AppContent() {
   
   const profileCheckRef = useRef(false); // Ref to prevent multiple profile checks
   
-  // Combined loading state: auth loading OR profile checking
-  const isLoading = authLoading || (hasAuthHash && !user) || (user && isCheckingProfile);
+  // Combined loading state: auth loading OR profile checking OR profile check not yet run
+  const isLoading = authLoading || (hasAuthHash && !user) || (user && isCheckingProfile) || (user && !profileCheckCompleted);
 
   // Handle URL detection on mount and URL changes
   useEffect(() => {
@@ -68,6 +69,7 @@ function AppContent() {
     if (!user || profileCheckRef.current) {
       if (!user) {
         setIsCheckingProfile(false);
+        setProfileCheckCompleted(false);
       }
       return;
     }
@@ -107,6 +109,7 @@ function AppContent() {
         setError(error.message);
       } finally {
         setIsCheckingProfile(false);
+        setProfileCheckCompleted(true); // Mark that we've run the check (prevents profile page flash before check)
         profileCheckRef.current = false;
       }
     };
@@ -166,7 +169,8 @@ function AppContent() {
   }
 
   // If user exists but profile is not complete, show profile completion page
-  if (user && !isProfileComplete) {
+  // Only after profile check has run (profileCheckCompleted) to avoid flashing profile on load
+  if (user && profileCheckCompleted && !isProfileComplete) {
     return (
       <ProfilePage isRequired={true} supabaseClient={supabase} simplifiedView={true} />
     );
