@@ -411,17 +411,17 @@ export default function PreCheckList() {
       <div
         key={sub.id}
         id={`precheck-card-${sub.id}`}
-        className={`rounded-xl border shadow-sm transition-shadow ${
+        className={`rounded-xl border shadow-sm transition-shadow overflow-hidden ${
           hasDefect ? 'border-red-200' : 'border-green-200'
-        } ${isExpanded ? 'shadow-md relative z-10' : ''} overflow-visible`}
+        } ${isExpanded ? 'shadow-md relative z-10' : ''}`}
       >
-        {/* Card header – mobile: tug left, user/time right; desktop: 5 equal columns */}
+        {/* Card header – same height when closed (min-h-[52px]) like VMU/Tugs */}
         <button
           type="button"
           onClick={() => toggleCard(sub.id)}
-          className={`w-full px-4 py-2 md:py-2.5 text-left cursor-pointer ${
+          className={`w-full px-4 py-3 min-h-[52px] text-left cursor-pointer rounded-t-xl ${
             hasDefect ? 'bg-red-50' : 'bg-green-50'
-          } hover:opacity-95 transition-opacity`}
+          } hover:opacity-95 transition-opacity flex flex-col justify-center`}
         >
           {/* Mobile: tug left, user/time right */}
           <div className="flex items-center justify-between gap-3 md:hidden">

@@ -185,7 +185,7 @@ export default function TugTabletsCard({ showForm: showFormProp, setShowForm: se
             <button
               onClick={handleSave}
               disabled={saving}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border-2 border-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : editingTablet ? 'Update' : 'Add Tablet'}
             </button>
@@ -253,7 +253,7 @@ export default function TugTabletsCard({ showForm: showFormProp, setShowForm: se
               setFormData({ tug_id: unassigned[0]?.id || '', serial_number: '' });
               setShowForm(true);
             }}
-            className="mt-3 h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors border-2 border-charcoal inline-flex items-center gap-1.5"
+            className="mt-3 h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 inline-flex items-center gap-1.5"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

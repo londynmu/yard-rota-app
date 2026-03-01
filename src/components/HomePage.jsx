@@ -499,7 +499,11 @@ export default function HomePage() {
               path="/vmu/tugs" 
               element={
                 <ProtectedVmuRoute>
-                  <div className="max-w-4xl mx-auto px-4 py-6"><TugManager /></div>
+                  <div className="min-h-screen flex flex-col max-w-4xl mx-auto px-4 py-6">
+                    <div className="flex-1 flex flex-col gap-4">
+                      <TugManager />
+                    </div>
+                  </div>
                 </ProtectedVmuRoute>
               } 
             />

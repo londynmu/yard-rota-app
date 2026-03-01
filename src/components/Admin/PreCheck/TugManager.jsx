@@ -253,7 +253,7 @@ export default function TugManager() {
           <div className="flex gap-2 flex-shrink-0 h-8">
             <button
               onClick={() => setShowTabletForm(true)}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 border-2 border-charcoal"
+              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-gray-200"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -267,7 +267,7 @@ export default function TugManager() {
       {activeTab === 'tablets' ? (
         <TugTabletsCard showForm={showTabletForm} setShowForm={setShowTabletForm} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 -mt-px">
       {/* Add New form (only when adding, not editing) */}
       {showForm && !editingTug && (
         <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
@@ -326,13 +326,13 @@ export default function TugManager() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
+              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Add Tug'}
             </button>
             <button
               onClick={() => { setShowForm(false); setEditingTug(null); }}
-              className="px-5 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+              className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
@@ -409,13 +409,13 @@ export default function TugManager() {
                 <div className="flex gap-2 justify-center mt-3">
                   <button
                     onClick={() => downloadQR(tug)}
-                    className="px-3 py-1.5 text-xs font-medium bg-charcoal text-white rounded-lg hover:bg-black transition-colors"
+                    className="h-8 px-4 text-xs font-medium bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                   >
                     Download PNG
                   </button>
                   <button
                     onClick={() => handleRegenerateQR(tug)}
-                    className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-gray-700"
+                    className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Regenerate QR
                   </button>
@@ -476,13 +476,13 @@ export default function TugManager() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-4 py-1.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-black transition-colors disabled:bg-gray-400"
+                    className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? 'Saving...' : 'Update'}
                   </button>
                   <button
                     onClick={() => { setEditingTug(null); setShowForm(false); }}
-                    className="px-4 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                    className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Cancel
                   </button>
