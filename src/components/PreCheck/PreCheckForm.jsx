@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import CheckItemRow from './CheckItemRow';
+import CheckItemRowMultiDefect from './CheckItemRowMultiDefect';
 import ImageUpload from './ImageUpload';
 import { FORM_STATE_KEY } from '../../pages/PreCheckPage';
 import useNetworkStatus from '../../lib/useNetworkStatus';
@@ -82,8 +83,10 @@ const getEffectiveItemStatus = (item, checkItems, knownDefectsByItem, markedReso
     return status || (allDefectsMarked ? 'ok' : '');
   }
   const stateKeys = defects.map(d => `${item.key}::${d.id}`);
+  const newKey = `${item.key}::new`;
   const hasRepairNeeded = stateKeys.some(sk => checkItems[sk]?.status === 'repair_needed');
-  if (hasRepairNeeded) return 'repair_needed';
+  const hasNewDefect = checkItems[newKey]?.status === 'repair_needed';
+  if (hasRepairNeeded || hasNewDefect) return 'repair_needed';
   const allMarked = defects.every(d => markedResolvedDamageIds.includes(d.id));
   return allMarked ? 'ok' : '';
 };
@@ -96,12 +99,15 @@ const isItemChecked = (item, checkItems, knownDefectsByItem, markedResolvedDamag
     return defects.every(d => markedResolvedDamageIds.includes(d.id));
   }
   const stateKeys = defects.map(d => `${item.key}::${d.id}`);
-  return stateKeys.every(sk => {
+  const newKey = `${item.key}::new`;
+  const allDefectsHandled = stateKeys.every(sk => {
     const ci = checkItems[sk];
-    if (ci?.status) return true;
+    if (ci?.status === 'repair_needed' && ci?.linkedDamageId) return true;
     const defId = sk.split('::')[1];
     return markedResolvedDamageIds.includes(defId);
   });
+  const newDefectComplete = Boolean(checkItems[newKey]?.status === 'repair_needed' && checkItems[newKey]?.notes?.trim());
+  return allDefectsHandled || newDefectComplete;
 };
 
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
@@ -246,9 +252,22 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       });
       refetchKnownDefects();
     } else {
-      const idsForItem = (knownDefectsByItem[itemKey] || []).map(d => d.id);
+      const defects = knownDefectsByItem[itemKey] || [];
+      const idsForItem = defects.map(d => d.id);
       setMarkedResolvedDamageIds(prev => prev.filter(id => !idsForItem.includes(id)));
-      setCheckItems(prev => ({ ...prev, [itemKey]: { ...prev[itemKey], status: '' } }));
+      setCheckItems(prev => {
+        const next = { ...prev };
+        if (defects.length >= 2) {
+          const stateKeys = defects.map(d => `${itemKey}::${d.id}`);
+          const newKey = `${itemKey}::new`;
+          const blank = { status: '', notes: '', images: [], linkedDamageId: null };
+          stateKeys.forEach(sk => { next[sk] = blank; });
+          next[newKey] = blank;
+        } else {
+          next[itemKey] = { ...prev[itemKey], status: '' };
+        }
+        return next;
+      });
       refetchKnownDefects();
     }
   }, [knownDefectsByItem, refetchKnownDefects]);
@@ -452,14 +471,15 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     for (const item of allItems) {
       const defects = knownDefectsByItem[item.key] || [];
       const stateKeys = getStateKeysForItem(item, knownDefectsByItem);
-      for (let i = 0; i < stateKeys.length; i++) {
-        const sk = stateKeys[i];
+      const keysToCheck = defects.length >= 2 ? [...stateKeys, `${item.key}::new`] : stateKeys;
+      for (let i = 0; i < keysToCheck.length; i++) {
+        const sk = keysToCheck[i];
         const ci = checkItems[sk];
         if (ci?.status !== 'repair_needed') continue;
         if (ci?.linkedDamageId) continue;
         if (!ci?.notes?.trim()) {
           setShowWarning(true);
-          const cardId = defects.length <= 1 ? `check-item-${item.key}` : (i === 0 ? `check-item-${item.key}` : `check-item-${item.key}-${defects[i].id}`);
+          const cardId = defects.length <= 1 ? `check-item-${item.key}` : `check-item-${item.key}`;
           setTimeout(() => {
             document.getElementById(cardId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 100);
@@ -494,14 +514,21 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         images = mapImagesToQueueEntries(checkItems[item.key]?.images || []);
       } else {
         const stateKeys = defects.map(d => `${item.key}::${d.id}`);
+        const newKey = `${item.key}::new`;
         effectiveStatus = getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds);
         const repairEntry = stateKeys.find(sk => {
           const ci = checkItems[sk];
           return ci?.status === 'repair_needed';
         });
+        const newDefectEntry = checkItems[newKey]?.status === 'repair_needed' ? newKey : null;
         if (repairEntry) {
           const ci = checkItems[repairEntry];
           linkedDamageId = ci?.linkedDamageId || null;
+          notes = ci?.notes || '';
+          images = mapImagesToQueueEntries(ci?.images || []);
+        } else if (newDefectEntry) {
+          const ci = checkItems[newKey];
+          linkedDamageId = null;
           notes = ci?.notes || '';
           images = mapImagesToQueueEntries(ci?.images || []);
         } else {
@@ -668,26 +695,17 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   };
 
   // Section: title on main container, floating cards below (no wrapper box)
-  // Multi-defect items: render one card per defect (each card has own stateKey)
+  // 0-1 defect: single CheckItemRow. 2+ defects: single CheckItemRowMultiDefect (one card, per-defect options)
   const renderSection = (title, items, status, repairCount) => {
     const rowsToRender = [];
     for (const item of items || []) {
       const defects = knownDefectsByItem[item.key] || [];
       if (defects.length === 0) {
-        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: [], cardId: `check-item-${item.key}` });
+        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: [], cardId: `check-item-${item.key}`, multi: false });
       } else if (defects.length === 1) {
-        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: defects, cardId: `check-item-${item.key}` });
+        rowsToRender.push({ stateKey: item.key, itemKey: item.key, item, knownDefects: defects, cardId: `check-item-${item.key}`, multi: false });
       } else {
-        defects.forEach((def, idx) => {
-          const isFirst = idx === 0;
-          rowsToRender.push({
-            stateKey: `${item.key}::${def.id}`,
-            itemKey: item.key,
-            item,
-            knownDefects: [def],
-            cardId: isFirst ? `check-item-${item.key}` : `check-item-${item.key}-${def.id}`,
-          });
-        });
+        rowsToRender.push({ stateKey: `${item.key}::${defects[0].id}`, itemKey: item.key, item, knownDefects: defects, cardId: `check-item-${item.key}`, multi: true });
       }
     }
 
@@ -703,40 +721,59 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
           )}
         </div>
         <div className="space-y-4">
-          {rowsToRender.map(({ stateKey, itemKey, item, knownDefects, cardId }) => (
-            <CheckItemRow
-              key={stateKey}
-              itemKey={itemKey}
-              cardId={cardId}
-              label={item.label}
-              tooltip={item.tooltip}
-              allowNa={item.allowNa}
-              value={checkItems[stateKey]?.status || ''}
-              onChange={(s) => handleCheckChange(stateKey, s)}
-              notes={checkItems[stateKey]?.notes || ''}
-              onNotesChange={(notes) => setCheckItems(prev => ({
-                ...prev,
-                [stateKey]: { ...prev[stateKey], notes },
-              }))}
-              images={checkItems[stateKey]?.images || []}
-              onImagesChange={(images) => handleItemImagesChange(stateKey, images)}
-              knownDefects={knownDefects}
-              linkedDamageId={checkItems[stateKey]?.linkedDamageId}
-              onLinkDefect={(damageId) => setCheckItems(prev => ({
-                ...prev,
-                [stateKey]: { ...prev[stateKey], linkedDamageId: damageId || null },
-              }))}
-              onMarkResolved={handleMarkResolved}
-              pendingResolvedDamageIds={markedResolvedDamageIds}
-              onReload={knownDefects.length === 1
-                ? () => handleReloadCheckItem(itemKey, knownDefects[0].id)
-                : knownDefects.length === 0
-                  ? () => handleReloadCheckItem(itemKey)
-                  : () => handleReloadCheckItem(itemKey, knownDefects[0].id)
-              }
-              storageKey={`pending_photos_item_${stateKey.replace(/::/g, '_')}`}
-            />
-          ))}
+          {rowsToRender.map(({ stateKey, itemKey, item, knownDefects, cardId, multi }) =>
+            multi ? (
+              <CheckItemRowMultiDefect
+                key={itemKey}
+                itemKey={itemKey}
+                item={item}
+                defects={knownDefects}
+                checkItems={checkItems}
+                onCheckChange={handleCheckChange}
+                onNotesChange={(sk, notes) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], notes } }))}
+                onImagesChange={(sk, images) => handleItemImagesChange(sk, images)}
+                onLinkDefect={(sk, damageId) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], linkedDamageId: damageId || null } }))}
+                onMarkResolved={handleMarkResolved}
+                markedResolvedDamageIds={markedResolvedDamageIds}
+                onReload={() => handleReloadCheckItem(itemKey)}
+                cardId={cardId}
+                storageKey={`pending_photos_item_${itemKey.replace(/::/g, '_')}`}
+              />
+            ) : (
+              <CheckItemRow
+                key={stateKey}
+                itemKey={itemKey}
+                cardId={cardId}
+                label={item.label}
+                tooltip={item.tooltip}
+                allowNa={item.allowNa}
+                value={checkItems[stateKey]?.status || ''}
+                onChange={(s) => handleCheckChange(stateKey, s)}
+                notes={checkItems[stateKey]?.notes || ''}
+                onNotesChange={(notes) => setCheckItems(prev => ({
+                  ...prev,
+                  [stateKey]: { ...prev[stateKey], notes },
+                }))}
+                images={checkItems[stateKey]?.images || []}
+                onImagesChange={(images) => handleItemImagesChange(stateKey, images)}
+                knownDefects={knownDefects}
+                linkedDamageId={checkItems[stateKey]?.linkedDamageId}
+                onLinkDefect={(damageId) => setCheckItems(prev => ({
+                  ...prev,
+                  [stateKey]: { ...prev[stateKey], linkedDamageId: damageId || null },
+                }))}
+                onMarkResolved={handleMarkResolved}
+                pendingResolvedDamageIds={markedResolvedDamageIds}
+                onReload={knownDefects.length === 1
+                  ? () => handleReloadCheckItem(itemKey, knownDefects[0].id)
+                  : knownDefects.length === 0
+                    ? () => handleReloadCheckItem(itemKey)
+                    : () => handleReloadCheckItem(itemKey, knownDefects[0].id)
+                }
+                storageKey={`pending_photos_item_${stateKey.replace(/::/g, '_')}`}
+              />
+            )
+          )}
         </div>
       </div>
     );
@@ -749,8 +786,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const missingDescriptions = (() => {
     let count = 0;
     for (const item of allItems) {
+      const defects = knownDefectsByItem[item.key] || [];
       const stateKeys = getStateKeysForItem(item, knownDefectsByItem);
-      for (const sk of stateKeys) {
+      const keysToCheck = defects.length >= 2 ? [...stateKeys, `${item.key}::new`] : stateKeys;
+      for (const sk of keysToCheck) {
         const ci = checkItems[sk];
         if (ci?.status !== 'repair_needed') continue;
         if (ci?.linkedDamageId) continue;
