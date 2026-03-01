@@ -6,6 +6,7 @@ export default function CheckItemManager() {
   const [loading, setLoading] = useState(true);
   const [preShiftRemarksEnabled, setPreShiftRemarksEnabled] = useState(true);
   const [duringShiftDamageEnabled, setDuringShiftDamageEnabled] = useState(true);
+  const [defectResolveConfirmationsRequired, setDefectResolveConfirmationsRequired] = useState(1);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -40,16 +41,19 @@ export default function CheckItemManager() {
         const { data, error } = await supabase
           .from('settings')
           .select('key, value')
-          .in('key', ['pre_shift_remarks_enabled', 'during_shift_damage_report_enabled']);
+          .in('key', ['pre_shift_remarks_enabled', 'during_shift_damage_report_enabled', 'defect_resolve_confirmations_required']);
         if (error) throw error;
 
         const map = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
         setPreShiftRemarksEnabled(map.pre_shift_remarks_enabled !== 'false');
         setDuringShiftDamageEnabled(map.during_shift_damage_report_enabled !== 'false');
+        const n = parseInt(map.defect_resolve_confirmations_required, 10);
+        setDefectResolveConfirmationsRequired(Number.isFinite(n) && n >= 1 ? n : 1);
       } catch (err) {
         console.error('[CheckItemManager] Settings fetch error:', err);
         setPreShiftRemarksEnabled(true);
         setDuringShiftDamageEnabled(true);
+        setDefectResolveConfirmationsRequired(1);
       } finally {
         setSettingsLoading(false);
       }
@@ -100,6 +104,28 @@ export default function CheckItemManager() {
     const nextValue = !duringShiftDamageEnabled;
     setDuringShiftDamageEnabled(nextValue);
     await saveSetting('during_shift_damage_report_enabled', nextValue, () => setDuringShiftDamageEnabled(!nextValue));
+  };
+
+  const saveDefectResolveConfirmations = async (value) => {
+    const num = Math.max(1, Math.min(99, Math.floor(Number(value)) || 1));
+    if (settingsLoading || settingsSaving) return;
+    setSettingsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'defect_resolve_confirmations_required',
+          value: String(num),
+          description: 'Number of shunter "Fixed?" confirmations (on submit) required before a defect is marked resolved. VMU/admin resolve immediately.',
+        }, { onConflict: 'key' });
+      if (error) throw error;
+      setDefectResolveConfirmationsRequired(num);
+    } catch (err) {
+      console.error('[CheckItemManager] Save defect resolve confirmations error:', err);
+      alert('Error saving setting.');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   // ─── Edit ───
@@ -562,6 +588,28 @@ export default function CheckItemManager() {
                   duringShiftDamageEnabled ? 'left-4.5' : 'left-0.5'
                 }`} />
               </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-charcoal">Defect resolve confirmations</p>
+              <p className="text-xs text-gray-500 mt-0.5">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={defectResolveConfirmationsRequired}
+                onChange={(e) => setDefectResolveConfirmationsRequired(Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1)))}
+                onBlur={(e) => {
+                  const v = Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1));
+                  setDefectResolveConfirmationsRequired(v);
+                  saveDefectResolveConfirmations(v);
+                }}
+                disabled={settingsLoading || settingsSaving}
+                className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center"
+              />
             </div>
           </div>
         </div>

@@ -343,7 +343,17 @@ export const processPrecheckQueue = async ({ supabase, userId }) => {
 
       try {
         if (job.type === 'precheck') {
-          await submitPrecheckPayload(job.payload, supabase);
+          const submission = await submitPrecheckPayload(job.payload, supabase);
+          const ids = job.payload.markedResolvedDamageIds;
+          if (Array.isArray(ids) && ids.length > 0) {
+            for (const damageId of ids) {
+              const { error } = await supabase.rpc('record_precheck_damage_fixed_confirmation', {
+                damage_id: damageId,
+                submission_id: submission.id,
+              });
+              if (error) throw error;
+            }
+          }
         } else if (job.type === 'during_shift') {
           await submitDuringShiftPayload(job.payload, supabase);
         }

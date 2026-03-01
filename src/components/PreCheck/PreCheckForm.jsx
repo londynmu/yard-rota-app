@@ -546,6 +546,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         images,
       };
     }),
+    markedResolvedDamageIds: [...markedResolvedDamageIds],
   });
 
   const handleSubmit = async (e) => {
@@ -571,11 +572,14 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         return;
       }
 
+      const submission = await submitPrecheckPayload(payload, supabase);
       for (const damageId of markedResolvedDamageIds) {
-        const { error } = await supabase.rpc('mark_precheck_damage_resolved', { damage_id: damageId });
+        const { error } = await supabase.rpc('record_precheck_damage_fixed_confirmation', {
+          damage_id: damageId,
+          submission_id: submission.id,
+        });
         if (error) throw error;
       }
-      const submission = await submitPrecheckPayload(payload, supabase);
       setMarkedResolvedDamageIds([]);
       const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
       setKnownDefectsByItem(byItem);
