@@ -631,6 +631,19 @@ export default function HomePage() {
                 </svg>
                 <span className="text-[10px] font-medium">PreChecks</span>
               </Link>
+
+              {/* Profile (VMU user) */}
+              <Link
+                to="/profile"
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                  location.pathname === '/profile' ? 'active' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-[10px] font-medium">Profile</span>
+              </Link>
             </>
           ) : (
             <>
