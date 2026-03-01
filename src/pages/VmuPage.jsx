@@ -11,7 +11,6 @@ const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
 }));
 
 const VMU_FILTERS_KEY = 'vmu_filters';
-const VMU_TAB_KEY = 'vmu_active_tab';
 
 const FIELD_LABELS = {
   repair_status: 'Status',
@@ -62,11 +61,6 @@ function loadPersistedFilters() {
 export default function VmuPage() {
   const { user } = useAuth();
 
-  // ─── Tab state ───
-  const [activeTab, setActiveTab] = useState(
-    () => localStorage.getItem(VMU_TAB_KEY) || 'register'
-  );
-
   // ─── Data ───
   const [damages, setDamages] = useState([]);
   const [tugs, setTugs] = useState([]);
@@ -98,11 +92,6 @@ export default function VmuPage() {
   useEffect(() => {
     localStorage.setItem(VMU_FILTERS_KEY, JSON.stringify(filters));
   }, [filters]);
-
-  // ─── Persist tab ───
-  useEffect(() => {
-    localStorage.setItem(VMU_TAB_KEY, activeTab);
-  }, [activeTab]);
 
   // ─── Fetch data ───
   const fetchData = useCallback(async () => {
@@ -778,32 +767,6 @@ export default function VmuPage() {
   // ─── Render ───
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-bold text-charcoal">VMU Defect Management</h2>
-      </div>
-
-      {/* Tab toggle */}
-      <div className="flex bg-gray-100 rounded-lg p-1 w-fit">
-        {[
-          { id: 'register', label: 'Defect Register' },
-          { id: 'tugs', label: 'Tug View' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === tab.id
-                ? 'bg-white text-charcoal shadow-sm'
-                : 'text-gray-500 hover:text-charcoal'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* Filters */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
         <input
@@ -849,13 +812,8 @@ export default function VmuPage() {
           <p className="font-medium">No defects found</p>
           <p className="text-sm mt-1">Try adjusting your filters.</p>
         </div>
-      ) : activeTab === 'register' ? (
-        /* ─── Defect Register View ─── */
-        <div className="space-y-3">
-          {filteredDamages.map(d => renderDefectCard(d, true))}
-        </div>
       ) : (
-        /* ─── Tug View ─── */
+        /* ─── Tug View (default) ─── */
         <div className="space-y-4">
           {tugGroups.map(group => {
             const isGroupExpanded = expandedTugs.has(group.id);
