@@ -329,6 +329,51 @@ export default function VmuPage() {
     }
   }, [expandedDefectId, fetchActivityLog]);
 
+  // ─── Fetch activity logs for all damages on page load (for closed cards) ───
+  useEffect(() => {
+    if (!damages.length) return;
+    const damageIds = damages.map(d => d.id);
+    if (damageIds.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [logRes, confRes] = await Promise.all([
+          supabase
+            .from('defect_activity_log')
+            .select('*, profiles:user_id(first_name, last_name)')
+            .in('damage_id', damageIds)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('precheck_damage_confirmations')
+            .select('id, damage_id, created_at, profiles:user_id(first_name, last_name)')
+            .in('damage_id', damageIds)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        if (cancelled) return;
+        if (logRes.error || confRes.error) return;
+
+        const logsByDamage = {};
+        (logRes.data || []).forEach(row => {
+          if (!logsByDamage[row.damage_id]) logsByDamage[row.damage_id] = [];
+          logsByDamage[row.damage_id].push(row);
+        });
+        const confByDamage = {};
+        (confRes.data || []).forEach(row => {
+          if (!confByDamage[row.damage_id]) confByDamage[row.damage_id] = [];
+          confByDamage[row.damage_id].push(row);
+        });
+
+        setActivityLogs(prev => ({ ...prev, ...logsByDamage }));
+        setConfirmationsByDamage(prev => ({ ...prev, ...confByDamage }));
+      } catch (err) {
+        if (!cancelled) console.error('[VmuPage] Bulk activity fetch error:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [damages]);
+
   // ─── Tug grouping for Tug View ───
   const tugGroups = useMemo(() => {
     const map = {};
@@ -372,6 +417,77 @@ export default function VmuPage() {
     return tug.display_name || tug.tug_number;
   };
 
+  const getTugNumber = (d) => {
+    const tug = d.precheck_submissions?.tugs;
+    return tug?.tug_number || '—';
+  };
+
+  const formatLastChangeDateTime = (dateStr) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const month = d.toLocaleString('en-GB', { month: 'short' });
+    const year = String(d.getFullYear()).slice(-2);
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${day} ${month} ${year} at ${h}:${m}`;
+  };
+
+  const getLastActivityEntryShort = (d) => {
+    const initialEntry = {
+      type: 'initial_report',
+      created_at: d.precheck_submissions?.created_at || d.created_at,
+      profiles: d.precheck_submissions?.profiles,
+    };
+    const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({
+      type: 'confirmation',
+      created_at: c.created_at,
+      profiles: c.profiles,
+    }));
+    const activityEntries = (activityLogs[d.id] || []).map(e => ({
+      ...e,
+      type: e.action_type,
+    }));
+    const merged = [initialEntry, ...confirmations, ...activityEntries]
+      .filter(e => e.created_at)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const latest = merged[0];
+    if (!latest) {
+      const name = getReporterName(d);
+      return `Reported by ${name}`;
+    }
+    const name = latest.profiles
+      ? `${latest.profiles.first_name || ''} ${latest.profiles.last_name || ''}`.trim()
+      : 'Unknown';
+    if (latest.type === 'initial_report') return `${name} reported`;
+    if (latest.type === 'confirmation') return `${name} confirmed still exists`;
+    if (latest.type === 'status_change') {
+      const newVal = formatFieldValue('repair_status', latest.new_value);
+      return `${name} → ${newVal || 'status'}`;
+    }
+    return `${name} updated`;
+  };
+
+  const getLastChangeTimestamp = (d) => {
+    const initialEntry = {
+      type: 'initial_report',
+      created_at: d.precheck_submissions?.created_at || d.created_at,
+    };
+    const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({ created_at: c.created_at }));
+    const activityEntries = (activityLogs[d.id] || []).map(e => ({ created_at: e.created_at }));
+    const merged = [initialEntry, ...confirmations, ...activityEntries]
+      .filter(e => e.created_at)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const latest = merged[0];
+    return latest?.created_at || d.updated_at || d.resolved_at || d.created_at;
+  };
+
+  const getLastActivityShort = (d) => {
+    const at = d.precheck_submissions?.created_at || d.created_at;
+    if (!at) return '—';
+    return new Date(at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   const getReporterName = (d) => {
     const p = d.precheck_submissions?.profiles;
     if (!p) return 'Unknown';
@@ -404,84 +520,56 @@ export default function VmuPage() {
         key={d.id}
         className={`rounded-xl border overflow-hidden shadow-sm transition-shadow ${cfg.border} ${isExpanded ? 'shadow-md' : ''}`}
       >
-        {/* Header */}
+        {/* Header – closed sub-card: check item, defect number, last activity, date/time */}
         <button
           type="button"
           onClick={() => setExpandedDefectId(prev => prev === d.id ? null : d.id)}
-          className={`w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
+          className={`w-full px-4 py-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
         >
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {showTug && (
-                <span className="font-semibold text-charcoal text-sm">{getTugLabel(d)}</span>
-              )}
-              {d.defect_number && (
-                <span className="text-xs font-mono bg-white/60 px-1.5 py-0.5 rounded text-gray-600">{d.defect_number}</span>
-              )}
-              {d.check_item_label ? (
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                  {d.check_item_label}
-                </span>
-              ) : d.description ? (
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 border border-gray-200 truncate max-w-[200px]">
-                  {d.description}
-                </span>
-              ) : null}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 items-center">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+              <span className="text-xs font-medium text-charcoal truncate">
+                {d.check_item_label || d.description || '—'}
+              </span>
+            </div>
+            <span className="text-xs font-mono text-gray-600 truncate">{d.defect_number || '—'}</span>
+            <span className="text-[11px] text-gray-500 truncate">{getLastActivityEntryShort(d)}</span>
+            <div className="flex items-center gap-2 justify-end">
+              <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatLastChangeDateTime(getLastChangeTimestamp(d))}</span>
+              <svg
+                className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${cfg.bg} border ${cfg.border}`}>
-            {cfg.label}
-          </span>
-          <span className="text-[10px] text-gray-400 flex-shrink-0 whitespace-nowrap">{formatDate(d.created_at)}</span>
-          <svg
-            className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
         </button>
 
         {/* Expanded detail */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-white">
-            {/* Split View Layout */}
-            <div className="flex flex-col lg:flex-row">
-              {/* LEFT SIDE - Content Area */}
-              <div className="flex-1 p-4 space-y-4 lg:border-r border-gray-200">
-                {/* Reported by shunter line - above description */}
-                <p className="text-xs text-gray-600">
-                  Reported by shunter {getReporterName(d)} ({formatDateTime(d.precheck_submissions?.created_at || d.created_at)})
-                </p>
-
-                {/* Description Section - at top, above photos */}
+            {/* Row 1: Two equal columns – left: Description+Photos, right: Form */}
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              {/* LEFT: Description + Photos */}
+              <div className="p-3 lg:pr-4 lg:border-r border-gray-100 space-y-3">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Description</h4>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700 leading-relaxed">{d.description}</p>
-                  </div>
+                  <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</h4>
+                  <p className="text-sm text-gray-700 leading-snug">{d.description}</p>
                 </div>
-
-                {/* Photos Section - below description (50% size) */}
                 {d.image_urls && d.image_urls.length > 0 && (
-                  <div className="max-w-[50%]">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-gray-900">Photos ({d.image_urls.length})</h4>
-                    </div>
-                    <div className={`grid gap-3 ${showAllPhotos[d.id] ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
+                  <div>
+                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Photos ({d.image_urls.length})</h4>
+                    <div className={`grid gap-1.5 ${showAllPhotos[d.id] ? 'grid-cols-3' : 'grid-cols-2'}`}>
                       {(showAllPhotos[d.id] ? d.image_urls : d.image_urls.slice(0, 4)).map((url, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setLightboxUrl(url)}
-                          className="aspect-square rounded-lg overflow-hidden bg-slate-100 cursor-pointer hover:opacity-80 transition-opacity group relative"
+                          className="aspect-square rounded overflow-hidden bg-slate-100 cursor-pointer hover:opacity-85 transition-opacity"
                         >
                           <img src={url} alt="" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                            </svg>
-                          </div>
                         </button>
                       ))}
                       {!showAllPhotos[d.id] && d.image_urls.length > 4 && (
@@ -501,7 +589,7 @@ export default function VmuPage() {
                       <button
                         type="button"
                         onClick={() => setShowAllPhotos(prev => ({ ...prev, [d.id]: false }))}
-                        className="text-xs text-blue-600 hover:text-blue-800 mt-3 flex items-center gap-1"
+                        className="text-[10px] text-blue-600 hover:text-blue-800 mt-1 flex items-center gap-0.5"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -511,14 +599,84 @@ export default function VmuPage() {
                     )}
                   </div>
                 )}
+              </div>
 
-                {/* Activity Log - under photos */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Activity Log</h4>
-            {(() => {
+              {/* RIGHT: Form fields – actions & inputs */}
+              <div className="p-3 lg:pl-4 bg-gray-50/40">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 mb-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-500 block mb-1">Status</label>
+                    <select
+                        value={d.repair_status}
+                        onChange={(e) => handleStatusChange(d.id, e.target.value)}
+                        className={`w-full text-sm font-medium rounded-lg px-3 py-2.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.75rem_center] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors`}
+                        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+                      >
+                        {STATUS_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-500 block mb-1">Defect Number</label>
+                      <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-colors">
+                        <span className="pl-3 pr-1 text-sm font-mono font-semibold text-gray-500 select-none">D-</span>
+                        <input
+                          type="text"
+                          defaultValue={(d.defect_number || '').replace(/^D-/i, '')}
+                          placeholder="234567"
+                          onBlur={(e) => {
+                            const num = e.target.value.trim().replace(/^D-/i, '');
+                            const full = num ? `D-${num}` : '';
+                            if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                          className="flex-1 text-sm py-2 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
+                        />
+                      </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-500 block mb-1">Reported to Terberg</label>
+                      <input
+                        type="date"
+                        defaultValue={d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : ''}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          const current = d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : '';
+                          if (val !== current) {
+                            saveField(d.id, 'reported_to_terberg_at', val ? new Date(val + 'T12:00:00').toISOString() : null);
+                          }
+                        }}
+                        className="w-full text-sm rounded px-2.5 py-2 border border-gray-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-medium text-gray-500 block mb-1">VMU Notes</label>
+                      <textarea
+                        defaultValue={d.vmu_notes || ''}
+                        placeholder="Add notes..."
+                        rows={2}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
+                        }}
+                        className="w-full text-sm rounded px-2.5 py-2 border border-gray-200 bg-white placeholder:text-gray-300 resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                </div>
+                {d.repair_status === 'resolved' && resolvedName && (
+                  <div className="text-[10px] text-green-700 bg-green-50 rounded px-2.5 py-1.5 border border-green-200">
+                    <span className="font-semibold">Resolved</span> by {resolvedName} on {formatDate(d.resolved_at)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: Activity Log – full width, max 15 lines visible, then scroll */}
+            <div className="border-t border-gray-100 p-3">
+              <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Activity Log</h4>
+              {(() => {
               const isLogLoading = activityLoading[d.id];
-              const showAll = showAllActivity[d.id];
-              const VISIBLE_COUNT = 5;
 
               if (isLogLoading) {
                 return (
@@ -545,13 +703,10 @@ export default function VmuPage() {
               const merged = [initialEntry, ...confirmations, ...activityEntries]
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-              const visibleLogs = showAll ? merged : merged.slice(0, VISIBLE_COUNT);
-              const hasMore = merged.length > VISIBLE_COUNT;
-
               return (
-                <div>
-                  <div className="space-y-1.5">
-                    {visibleLogs.map((entry) => {
+                <div className="max-h-[360px] overflow-y-auto pr-2">
+                <div className="space-y-1">
+                    {merged.map((entry, idx) => {
                       const name = entry.profiles
                         ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
                         : 'Unknown';
@@ -597,10 +752,11 @@ export default function VmuPage() {
                         }
                       }
 
+                      const isFirst = entry.type === 'initial_report';
                       return (
-                        <div key={entry.id} className="flex items-start gap-2 text-xs text-gray-500 leading-relaxed">
-                          <span className="w-1 h-1 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
-                          <span className="flex-1">
+                        <div key={entry.id} className="flex gap-2 text-[11px] text-gray-500 leading-tight py-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${isFirst ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                          <span className="flex-1 min-w-0">
                             <span className="font-semibold text-gray-700">{name}</span>{' '}
                             {description}
                             <span className="text-gray-400 ml-1">· {time}</span>
@@ -609,109 +765,9 @@ export default function VmuPage() {
                       );
                     })}
                   </div>
-                  {hasMore && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllActivity(prev => ({ ...prev, [d.id]: !showAll }))}
-                      className="text-xs text-blue-500 hover:text-blue-700 mt-2 cursor-pointer"
-                    >
-                      {showAll ? 'Show less' : `Show all ${merged.length} entries`}
-                    </button>
-                  )}
                 </div>
               );
-                  })()}
-                </div>
-              </div>
-
-              {/* RIGHT SIDE - Action Area */}
-              <div className="w-full lg:w-80 p-4 bg-gray-50/50 space-y-4">
-                {/* VMU fields */}
-                <div className="space-y-4">
-                  {/* Status */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={d.repair_status}
-                      onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                      className={`w-full text-sm font-medium rounded-lg px-3 py-2.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.75rem_center] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors`}
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-                    >
-                      {STATUS_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Defect Number */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Defect Number
-                    </label>
-                    <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-colors">
-                      <span className="pl-3 pr-1 text-sm font-mono font-semibold text-gray-500 select-none">D-</span>
-                      <input
-                        type="text"
-                        defaultValue={(d.defect_number || '').replace(/^D-/i, '')}
-                        placeholder="234567"
-                        onBlur={(e) => {
-                          const num = e.target.value.trim().replace(/^D-/i, '');
-                          const full = num ? `D-${num}` : '';
-                          if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
-                        }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                        className="flex-1 text-sm py-2.5 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Reported to Terberg */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      Reported to Terberg
-                    </label>
-                    <input
-                      type="date"
-                      defaultValue={d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : ''}
-                      onBlur={(e) => {
-                        const val = e.target.value;
-                        const current = d.reported_to_terberg_at ? d.reported_to_terberg_at.split('T')[0] : '';
-                        if (val !== current) {
-                          saveField(d.id, 'reported_to_terberg_at', val ? new Date(val + 'T12:00:00').toISOString() : null);
-                        }
-                      }}
-                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-
-                  {/* VMU Notes */}
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 block mb-2">
-                      VMU Notes
-                    </label>
-                    <textarea
-                      defaultValue={d.vmu_notes || ''}
-                      placeholder="Add notes..."
-                      rows={3}
-                      onBlur={(e) => {
-                        const val = e.target.value.trim();
-                        if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
-                      }}
-                      className="w-full text-sm rounded-lg px-3 py-2.5 border border-gray-200 bg-white placeholder:text-gray-300 resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                {/* Resolved info */}
-                {d.repair_status === 'resolved' && resolvedName && (
-                  <div className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-                    <div className="font-semibold">Resolved</div>
-                    <div>by {resolvedName} on {formatDate(d.resolved_at)}</div>
-                  </div>
-                )}
-              </div>
+            })()}
             </div>
           </div>
         )}
