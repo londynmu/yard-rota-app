@@ -280,16 +280,6 @@ export default function HomePage() {
                       VMU
                     </Link>
                     <Link
-                      to="/vmu/tugs"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/vmu/tugs'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      Tugs
-                    </Link>
-                    <Link
                       to="/vmu/prechecks"
                       className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                         location.pathname === '/vmu/prechecks'
@@ -298,16 +288,6 @@ export default function HomePage() {
                       }`}
                     >
                       PreChecks
-                    </Link>
-                    <Link
-                      to="/vmu/check-items"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/vmu/check-items'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      Check Items
                     </Link>
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
@@ -579,13 +559,17 @@ export default function HomePage() {
             <Route 
               path="/vmu/tugs" 
               element={
-                <ProtectedVmuRoute>
-                  <div className="min-h-screen flex flex-col max-w-4xl mx-auto px-4 py-6">
-                    <div className="flex-1 flex flex-col gap-4">
-                      <TugManager />
+                isAdmin ? (
+                  <ProtectedVmuRoute>
+                    <div className="min-h-screen flex flex-col max-w-4xl mx-auto px-4 py-6">
+                      <div className="flex-1 flex flex-col gap-4">
+                        <TugManager />
+                      </div>
                     </div>
-                  </div>
-                </ProtectedVmuRoute>
+                  </ProtectedVmuRoute>
+                ) : (
+                  <Navigate to="/vmu" replace />
+                )
               } 
             />
             <Route 
@@ -599,9 +583,13 @@ export default function HomePage() {
             <Route 
               path="/vmu/check-items" 
               element={
-                <ProtectedVmuRoute>
-                  <div className="max-w-4xl mx-auto px-4 py-6"><CheckItemManager /></div>
-                </ProtectedVmuRoute>
+                isAdmin ? (
+                  <ProtectedVmuRoute>
+                    <div className="max-w-4xl mx-auto px-4 py-6"><CheckItemManager /></div>
+                  </ProtectedVmuRoute>
+                ) : (
+                  <Navigate to="/vmu" replace />
+                )
               } 
             />
             <Route path="*" element={<Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />} />
@@ -614,7 +602,7 @@ export default function HomePage() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
-          {/* VMU-only users see 4 VMU nav buttons */}
+          {/* VMU-only users see VMU nav buttons (VMU, PreChecks) */}
           {isVmu && !isAdmin ? (
             <>
               {/* VMU Defects */}
@@ -631,19 +619,6 @@ export default function HomePage() {
                 <span className="text-[10px] font-medium">VMU</span>
               </Link>
 
-              {/* Tugs */}
-              <Link
-                to="/vmu/tugs"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/vmu/tugs' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12l-2 5H8m0 0l-1.5 7H18M8 12H4.5L3 7m5 5V7m0 0H5" />
-                </svg>
-                <span className="text-[10px] font-medium">Tugs</span>
-              </Link>
-
               {/* PreChecks */}
               <Link
                 to="/vmu/prechecks"
@@ -655,19 +630,6 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
                 <span className="text-[10px] font-medium">PreChecks</span>
-              </Link>
-
-              {/* Check Items */}
-              <Link
-                to="/vmu/check-items"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/vmu/check-items' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                <span className="text-[10px] font-medium">Items</span>
               </Link>
             </>
           ) : (
