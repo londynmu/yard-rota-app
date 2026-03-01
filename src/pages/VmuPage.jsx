@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
@@ -86,7 +86,6 @@ export default function VmuPage() {
   const [activityLogs, setActivityLogs] = useState({});
   const [confirmationsByDamage, setConfirmationsByDamage] = useState({});
   const [activityLoading, setActivityLoading] = useState({});
-  const [showAllActivity, setShowAllActivity] = useState({});
 
   // ─── Persist filters ───
   useEffect(() => {
@@ -174,16 +173,6 @@ export default function VmuPage() {
 
     return result;
   }, [damages, filters]);
-
-  // ─── Stats ───
-  const stats = useMemo(() => {
-    const open = damages.filter(d => d.repair_status === 'open').length;
-    const reported = damages.filter(d => d.repair_status === 'reported').length;
-    const awaiting = damages.filter(d => d.repair_status === 'awaiting_parts').length;
-    const inProgress = damages.filter(d => d.repair_status === 'in_progress').length;
-    const resolved = damages.filter(d => d.repair_status === 'resolved').length;
-    return { total: damages.length, open, reported, awaiting, inProgress, resolved };
-  }, [damages]);
 
   // ─── Update damage field ───
   const updateDamageField = async (damageId, updates) => {
@@ -400,17 +389,6 @@ export default function VmuPage() {
     });
   };
 
-  const getTugLabel = (d) => {
-    const tug = d.precheck_submissions?.tugs;
-    if (!tug) return 'Unknown';
-    return tug.display_name || tug.tug_number;
-  };
-
-  const getTugNumber = (d) => {
-    const tug = d.precheck_submissions?.tugs;
-    return tug?.tug_number || '—';
-  };
-
   const formatLastChangeDateTime = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -469,12 +447,6 @@ export default function VmuPage() {
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const latest = merged[0];
     return latest?.created_at || d.updated_at || d.resolved_at || d.created_at;
-  };
-
-  const getLastActivityShort = (d) => {
-    const at = d.precheck_submissions?.created_at || d.created_at;
-    if (!at) return '—';
-    return new Date(at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const getReporterName = (d) => {
@@ -760,7 +732,8 @@ export default function VmuPage() {
 
   // ─── Render ───
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+    <div className="min-h-screen flex flex-col max-w-4xl mx-auto px-4 py-6">
+      <div className="flex-1 flex flex-col gap-4">
       {/* Filters */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
         <input
@@ -871,11 +844,7 @@ export default function VmuPage() {
           })}
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="text-center py-6 text-gray-400 text-sm">
-        tap to open
-      </footer>
+      </div>
 
       {/* ─── Lightbox ─── */}
       {lightboxUrl && createPortal(
