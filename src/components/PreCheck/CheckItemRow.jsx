@@ -65,11 +65,13 @@ export default function CheckItemRow({
   const isPendingResolved = (defId) => pendingResolvedDamageIds.includes(defId);
 
   const cardBg =
-    value === 'repair_needed' ? 'bg-red-50/50'
+    value === 'ok' ? 'bg-green-50'
+      : value === 'repair_needed' ? 'bg-red-50/50'
       : value === 'na' ? 'bg-slate-50/50'
       : 'bg-white';
   const cardBorder =
-    value === 'repair_needed' ? 'border-red-200'
+    value === 'ok' ? 'border-green-200'
+      : value === 'repair_needed' ? 'border-red-200'
       : value === 'na' ? 'border-slate-200'
       : 'border-gray-200';
 
@@ -95,7 +97,7 @@ export default function CheckItemRow({
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-start justify-between gap-2">
           <h3
-            className={`text-base font-semibold flex-1 min-w-0 ${
+            className={`text-lg font-semibold flex-1 min-w-0 ${
               value === 'ok' ? 'text-green-700'
                 : value === 'repair_needed' ? 'text-red-700'
                 : value === 'na' ? 'text-slate-400 line-through'
@@ -138,7 +140,7 @@ export default function CheckItemRow({
         </div>
 
         {tooltip && value !== 'na' && (
-          <p className="text-xs text-gray-500 leading-snug mt-1">{tooltip}</p>
+          <p className="text-sm text-gray-600 leading-snug mt-1">{tooltip}</p>
         )}
 
         {/* Known defect info – no per-defect Fixed? badge (action is in footer) */}

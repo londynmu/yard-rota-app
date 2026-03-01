@@ -60,8 +60,8 @@ export default function CheckItemRowMultiDefect({
   }, [checkItems[newDefectStateKey]?.notes, showNewDefectForm]);
 
   const cardHasIssue = hasAnySameProblem || showNewDefectForm;
-  const cardBg = cardHasIssue ? 'bg-red-50/50' : 'bg-white';
-  const cardBorder = cardHasIssue ? 'border-red-200' : 'border-gray-200';
+  const cardBg = cardHasIssue ? 'bg-red-50/50' : (allDefectsResolved ? 'bg-green-50' : 'bg-white');
+  const cardBorder = cardHasIssue ? 'border-red-200' : (allDefectsResolved ? 'border-green-200' : 'border-gray-200');
 
   return (
     <div
@@ -71,9 +71,9 @@ export default function CheckItemRowMultiDefect({
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-charcoal">{item.label}</h3>
+            <h3 className="text-lg font-semibold text-charcoal">{item.label}</h3>
             {item.tooltip && (
-              <p className="text-xs text-gray-500 leading-snug mt-1">{item.tooltip}</p>
+              <p className="text-sm text-gray-600 leading-snug mt-1">{item.tooltip}</p>
             )}
           </div>
           {showReloadInHeader && onReload && (
