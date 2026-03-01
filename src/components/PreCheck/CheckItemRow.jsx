@@ -143,9 +143,20 @@ export default function CheckItemRow({
         {hasKnownDefects && value !== 'repair_needed' && (
           <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
             {knownDefects.map((def) => (
-              <p key={def.id} className="text-sm text-amber-800">
-                On {def.date}, {def.reporterName} reported: {def.description}
-              </p>
+              <div key={def.id} className="text-amber-800">
+                <p className="text-sm">
+                  On {def.date}, {def.reporterName} reported: {def.description}
+                </p>
+                {def.imageUrls?.length > 0 && (
+                  <div className="mt-2 rounded-lg overflow-hidden bg-amber-100/50 border border-amber-200">
+                    <img
+                      src={def.imageUrls[0]}
+                      alt="Defect"
+                      className="w-full max-w-full h-auto max-h-[40vh] object-contain"
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -424,6 +435,7 @@ CheckItemRow.propTypes = {
     description: PropTypes.string,
     reporterName: PropTypes.string,
     date: PropTypes.string,
+    imageUrls: PropTypes.arrayOf(PropTypes.string),
   })),
   linkedDamageId: PropTypes.string,
   onLinkDefect: PropTypes.func,

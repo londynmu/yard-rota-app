@@ -3,7 +3,7 @@
  * Used in PreCheckForm to show shunters existing known defects before they report.
  * @param {string} tugId
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
- * @returns {Promise<Record<string, Array<{ id: string; description: string; reporterName: string; date: string }>>>}
+ * @returns {Promise<Record<string, Array<{ id: string; description: string; reporterName: string; date: string; imageUrls: string[] }>>>}
  */
 export async function getOpenDefectsForTug(tugId, supabase) {
   if (!tugId || !supabase) return {};
@@ -13,6 +13,7 @@ export async function getOpenDefectsForTug(tugId, supabase) {
     .select(`
       id,
       description,
+      image_urls,
       created_at,
       precheck_submissions!inner(
         tug_id,
@@ -53,6 +54,7 @@ export async function getOpenDefectsForTug(tugId, supabase) {
       description: d.description || '',
       reporterName,
       date,
+      imageUrls: Array.isArray(d.image_urls) ? d.image_urls : [],
     };
 
     if (!byItem[itemName]) byItem[itemName] = [];
