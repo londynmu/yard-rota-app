@@ -828,14 +828,20 @@ export default function VmuPage() {
                       </div>
                     )}
                     {resolvedDamages.length > 0 && (
-                      <details className="mt-2">
-                        <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 py-1 list-none">
-                          {resolvedDamages.length} resolved defect{resolvedDamages.length !== 1 ? 's' : ''}
-                        </summary>
-                        <div className="space-y-2 mt-2">
+                      hasAwaiting ? (
+                        <details className="mt-2">
+                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 py-1 list-none">
+                            {resolvedDamages.length} resolved defect{resolvedDamages.length !== 1 ? 's' : ''}
+                          </summary>
+                          <div className="space-y-2 mt-2">
+                            {resolvedDamages.map(d => renderDefectCard(d, false))}
+                          </div>
+                        </details>
+                      ) : (
+                        <div className="space-y-2">
                           {resolvedDamages.map(d => renderDefectCard(d, false))}
                         </div>
-                      </details>
+                      )
                     )}
                   </div>
                 )}
