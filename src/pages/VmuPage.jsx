@@ -788,9 +788,9 @@ export default function VmuPage() {
             const resolvedDamages = group.damages.filter(d => d.repair_status === 'resolved');
             const hasAwaiting = group.openCount > 0;
             const cardStyle = hasAwaiting
-              ? 'border border-red-200 bg-red-50/50'
+              ? 'border border-amber-200 bg-amber-50/50'
               : 'border border-green-200 bg-green-50/50';
-            const btnStyle = hasAwaiting
+            const headerStyle = hasAwaiting
               ? 'bg-red-50/50 hover:bg-red-100/70'
               : 'bg-green-50/50 hover:bg-green-100/70';
 
@@ -807,7 +807,7 @@ export default function VmuPage() {
                 <button
                   type="button"
                   onClick={() => toggleTugGroup(group.id)}
-                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center transition-colors text-left ${btnStyle}`}
+                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center transition-colors text-left ${headerStyle}`}
                 >
                   <span className="text-sm font-semibold text-charcoal truncate">{group.name}</span>
                   <span className="text-xs text-gray-600 font-mono truncate">{group.number}</span>
