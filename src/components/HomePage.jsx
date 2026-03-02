@@ -164,8 +164,9 @@ export default function HomePage() {
   useEffect(() => {
     if (showDropdown && avatarButtonRef.current) {
       const rect = avatarButtonRef.current.getBoundingClientRect();
+      // position:fixed uses viewport coordinates - do NOT add scrollY
       setDropdownPosition({
-        top: rect.bottom + window.scrollY,
+        top: rect.bottom + 4,
         right: window.innerWidth - rect.right
       });
     }
@@ -213,11 +214,10 @@ export default function HomePage() {
   }, [isAdmin, isVmu]);
 
   const bottomNavLinks = useMemo(() => {
-    if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks' || n.path === '/profile');
+    if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
-    const withProfile = [...base, mainNavConfig.find((n) => n.path === '/profile')];
-    if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin'), mainNavConfig.find((n) => n.path === '/profile')];
-    return withProfile;
+    if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin')];
+    return base;
   }, [isAdmin, isVmu]);
 
   if (location.pathname === '/' || location.pathname === '') {
@@ -246,6 +246,14 @@ export default function HomePage() {
             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           </div>
         )}
+
+        <Link
+          to="/profile"
+          onClick={() => setShowDropdown(false)}
+          className="block w-full text-left px-4 py-2 text-sm text-charcoal hover:bg-gray-50"
+        >
+          Profile
+        </Link>
         
         <button
           onClick={handleSignOut}
@@ -295,6 +303,7 @@ export default function HomePage() {
             <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
+                  {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -313,17 +322,6 @@ export default function HomePage() {
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
-                    <Link
-                      to="/profile"
-                      className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        path === '/profile'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
-                      Profile
-                    </Link>
                     <div className="relative">
                       <button
                         ref={avatarButtonRef}
@@ -355,7 +353,8 @@ export default function HomePage() {
                 </>
               ) : !isAdmin ? (
                 <>
-                  {/* Regular user: nav left, profile/avatar right */}
+                  {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
+                  {/* Regular user: nav left, avatar right */}
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -374,17 +373,6 @@ export default function HomePage() {
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
-                    <Link
-                      to="/profile"
-                      className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        path === '/profile'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
-                      Profile
-                    </Link>
                     <div className="relative">
                       <button
                         ref={avatarButtonRef}
@@ -434,6 +422,9 @@ export default function HomePage() {
                     </span>
                   </>
                 )}
+                {isProfilePage && !isAdminPage && (
+                  <span className="md:hidden font-semibold text-slate-800">Profile</span>
+                )}
                 <nav className="hidden md:flex space-x-2">
                   {topNavLinks.map((nav) => (
                     <Link
@@ -454,17 +445,6 @@ export default function HomePage() {
               
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <NotificationBell />
-                <Link
-                  to="/profile"
-                  className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                    path === '/profile'
-                      ? 'bg-slate-100 text-slate-800'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                  }`}
-                >
-                  <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
-                  Profile
-                </Link>
                 <div className="relative">
                   <button 
                     ref={avatarButtonRef}

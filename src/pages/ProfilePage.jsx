@@ -884,8 +884,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Profile – personal details + shift & preferences in one container */}
           <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
-            <div className="px-3 py-2 min-h-[44px] bg-red-50 border-b border-red-200 flex items-center">
-              <h3 className="text-sm font-semibold text-red-800">Profile</h3>
+            <div className={`px-3 py-2 min-h-[44px] flex items-center md:bg-red-50 md:border-red-200 border-b bg-green-50 border-green-200`}>
+              <h3 className="hidden md:block text-sm font-semibold text-red-800">Profile</h3>
             </div>
             <div className="p-3 bg-yellow-50/50 space-y-3">
               {/* Row 1: First name, Last name */}

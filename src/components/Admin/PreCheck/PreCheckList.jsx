@@ -728,16 +728,32 @@ export default function PreCheckList() {
 function FaultCard({ fault, onStatusChange }) {
   const [openImage, setOpenImage] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState(null);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   const resolvedByName = fault.resolvedProfile
     ? `${fault.resolvedProfile.first_name || ''} ${fault.resolvedProfile.last_name || ''}`.trim()
     : null;
+
+  // Measure position when opening menu (portal to body to escape overflow/z-index)
+  const handleToggleMenu = () => {
+    if (!showMenu && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPosition(null);
+    }
+    setShowMenu(prev => !prev);
+  };
 
   // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return;
     const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+      if (menuRef.current && !menuRef.current.contains(e.target) && triggerRef.current && !triggerRef.current.contains(e.target)) {
+        setShowMenu(false);
+        setMenuPosition(null);
+      }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -755,10 +771,11 @@ function FaultCard({ fault, onStatusChange }) {
         </h5>
 
         {fault.repairStatus !== null && (
-          <div className="relative ml-auto flex-shrink-0" ref={menuRef}>
+          <div className="relative ml-auto flex-shrink-0">
             <button
+              ref={triggerRef}
               type="button"
-              onClick={() => setShowMenu(prev => !prev)}
+              onClick={handleToggleMenu}
               className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
             >
               <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).dot}`} />
@@ -768,13 +785,17 @@ function FaultCard({ fault, onStatusChange }) {
               </svg>
             </button>
 
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+            {showMenu && menuPosition && createPortal(
+              <div
+                ref={menuRef}
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
+                style={{ top: menuPosition.top, right: menuPosition.right }}
+              >
                 {STATUS_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => { onStatusChange(opt.value); setShowMenu(false); }}
+                    onClick={() => { onStatusChange(opt.value); setShowMenu(false); setMenuPosition(null); }}
                     className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
                       fault.repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
                     }`}
@@ -783,7 +804,8 @@ function FaultCard({ fault, onStatusChange }) {
                     {opt.label}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         )}
@@ -850,7 +872,9 @@ function FaultCard({ fault, onStatusChange }) {
 // ─── Defect item card (no photo, with status controls) ───
 function DefectItemCard({ label, description, damage, onStatusChange }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState(null);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
 
   const repairStatus = damage?.repair_status || 'open';
   const resolvedAt = damage?.resolved_at;
@@ -859,11 +883,24 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
     ? `${resolvedProfile.first_name || ''} ${resolvedProfile.last_name || ''}`.trim()
     : null;
 
+  const handleToggleMenu = () => {
+    if (!showMenu && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPosition(null);
+    }
+    setShowMenu(prev => !prev);
+  };
+
   // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return;
     const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+      if (menuRef.current && !menuRef.current.contains(e.target) && triggerRef.current && !triggerRef.current.contains(e.target)) {
+        setShowMenu(false);
+        setMenuPosition(null);
+      }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -883,12 +920,13 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
             <span className="capitalize font-medium text-red-700">Defect</span>
             <span className="text-charcoal font-normal"> – {label}</span>
           </span>
-          {/* Status menu */}
+          {/* Status menu – portal to body to escape overflow/z-index */}
           {onStatusChange && (
-            <span className="relative ml-auto flex-shrink-0" ref={menuRef}>
+            <span className="relative ml-auto flex-shrink-0">
               <button
+                ref={triggerRef}
                 type="button"
-                onClick={() => setShowMenu(prev => !prev)}
+                onClick={handleToggleMenu}
                 className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open).dot}`} />
@@ -898,13 +936,17 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
                 </svg>
               </button>
 
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
+              {showMenu && menuPosition && createPortal(
+                <div
+                  ref={menuRef}
+                  className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
+                  style={{ top: menuPosition.top, right: menuPosition.right }}
+                >
                   {STATUS_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => { onStatusChange(opt.value); setShowMenu(false); }}
+                      onClick={() => { onStatusChange(opt.value); setShowMenu(false); setMenuPosition(null); }}
                       className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
                         repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
                       }`}
@@ -913,7 +955,8 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
                       {opt.label}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </span>
           )}
