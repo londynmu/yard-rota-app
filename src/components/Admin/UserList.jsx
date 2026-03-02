@@ -345,8 +345,6 @@ export default function UserList({ users, onRefresh }) {
   const [userToDelete, setUserToDelete] = useState(null);
   const [confirmationStep, setConfirmationStep] = useState(1);
   const [confirmationInput, setConfirmationInput] = useState('');
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [userToEdit, setUserToEdit] = useState(null);
   const confirmInputRef = useRef(null);
   
   // Initialize filter state from localStorage or default values
@@ -371,37 +369,11 @@ export default function UserList({ users, onRefresh }) {
   const [infoUser, setInfoUser] = useState(null);
   const [lastLogin, setLastLogin] = useState(null);
   
-  // Bottom sheet state for mobile user selection
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [showBottomSheet, setShowBottomSheet] = useState(false);
-  const [bottomSheetLastLogin, setBottomSheetLastLogin] = useState(null);
-  const [loadingLastLogin, setLoadingLastLogin] = useState(false);
-  
-  // Desktop dropdown menu state
-  const [openDropdownId, setOpenDropdownId] = useState(null);
-  const dropdownRef = useRef(null);
   // Add violation modal (from UserList)
   const [addViolationOpen, setAddViolationOpen] = useState(false);
   const [addViolationUserId, setAddViolationUserId] = useState(null);
-  
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpenDropdownId(null);
-      }
-    };
-    
-    if (openDropdownId) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [openDropdownId]);
-  
-  // Removed debug useEffect
+  // Expanded user card (one at a time, like VMU)
+  const [expandedUserId, setExpandedUserId] = useState(null);
   
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -418,13 +390,8 @@ export default function UserList({ users, onRefresh }) {
       result = result.filter(user => {
         const firstName = (user.first_name || '').toLowerCase();
         const lastName = (user.last_name || '').toLowerCase();
-        const email = (user.email || '').toLowerCase();
         const fullName = `${firstName} ${lastName}`.trim();
-        
-        return firstName.includes(query) || 
-               lastName.includes(query) || 
-               fullName.includes(query) ||
-               email.includes(query);
+        return firstName.includes(query) || lastName.includes(query) || fullName.includes(query);
       });
     }
     
@@ -477,17 +444,8 @@ export default function UserList({ users, onRefresh }) {
     setShowDeleteModal(true);
   };
   
-  const openEditModal = (user) => {
-    setUserToEdit(user);
-    setShowEditModal(true);
-  };
-  
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
-  };
-  
-  const closeEditModal = () => {
-    setShowEditModal(false);
   };
   
   const handleFirstConfirmation = () => {
@@ -641,52 +599,7 @@ export default function UserList({ users, onRefresh }) {
     setInfoUser(null);
     setLastLogin(null);
   };
-  
-  // Bottom sheet handlers
-  const openBottomSheet = async (user) => {
-    setSelectedUser(user);
-    setShowBottomSheet(true);
-    setLoadingLastLogin(true);
-    try {
-      const { data, error } = await supabase.rpc('get_user_last_login', { uid: user.id });
-      if (error) throw error;
-      setBottomSheetLastLogin(data);
-    } catch (err) {
-      console.error('Error fetching last login:', err);
-      setBottomSheetLastLogin(null);
-    } finally {
-      setLoadingLastLogin(false);
-    }
-  };
-  
-  const closeBottomSheet = () => {
-    setShowBottomSheet(false);
-    setSelectedUser(null);
-    setBottomSheetLastLogin(null);
-  };
-  
-  // Handle actions from bottom sheet
-  const handleBottomSheetInfo = () => {
-    if (selectedUser) {
-      closeBottomSheet();
-      openInfoModal(selectedUser);
-    }
-  };
-  
-  const handleBottomSheetEdit = () => {
-    if (selectedUser) {
-      closeBottomSheet();
-      openEditModal(selectedUser);
-    }
-  };
-  
-  const handleBottomSheetDelete = () => {
-    if (selectedUser) {
-      closeBottomSheet();
-      openDeleteModal(selectedUser);
-    }
-  };
-  
+
   if (error) {
     return (
       <div className="bg-red-500/40 backdrop-blur-xl text-red-100 px-4 py-3 rounded-md mb-4 border border-red-400/50 shadow-lg">
@@ -791,266 +704,183 @@ export default function UserList({ users, onRefresh }) {
   
   return (
     <>
-      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
-        <div className="w-full px-4 py-3 bg-red-50 border-b border-red-200/60">
-          <p className="text-sm font-semibold text-red-800">Users</p>
+      {/* Search and filter – at the very top, no container */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap mb-4">
+        <div className="relative flex-1 min-w-0">
+          <input
+            type="text"
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 md:py-1.5 text-sm border border-gray-200 rounded-xl md:rounded-lg bg-white text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+          />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
-        <div className="p-4 bg-yellow-50/50 space-y-3">
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 pl-9 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal text-gray-900 placeholder-gray-400"
-            />
-            <svg 
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-        <div className="flex items-center justify-between sm:justify-end gap-3">
-          <div className="text-gray-600 text-sm whitespace-nowrap">
-            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift} shift)` : ''}
-          </div>
+        <div className="flex items-center justify-between md:justify-end gap-3 flex-shrink-0">
+          <span className="text-gray-600 text-sm whitespace-nowrap">
+            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift})` : ''}
+          </span>
           <button
             onClick={openFilterModal}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 text-sm rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors flex items-center gap-1.5"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
-            Filter & Sort
+            Filter and sort
           </button>
         </div>
       </div>
-      </div>
 
-      {/* Mobile list view (visible on small screens) - Clean minimal style */}
-      <div className="md:hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {filteredUsers.map((user, index) => (
-          <button
-            key={user.id}
-            type="button"
-            onClick={() => openBottomSheet(user)}
-            className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left ${
-              index !== filteredUsers.length - 1 ? 'border-b border-gray-100' : ''
-            }`}
-          >
-            {/* Avatar with status dot */}
-            <div className="flex-shrink-0 h-10 w-10 relative">
-              {user.avatar_url ? (
-                <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-charcoal text-sm font-semibold">
-                    {user.first_name?.charAt(0) || '?'}
-                  </span>
-                </div>
-              )}
-              {/* Status dot */}
-              <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
-            </div>
-            
-            {/* Name only */}
-            <div className="flex-1 min-w-0">
-              <span className="text-charcoal font-semibold text-[15px] truncate block">
-                {user.first_name || ''} {user.last_name || ''}
-              </span>
-            </div>
-            
-            {/* Chevron */}
-            <svg className="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ))}
-        
-        {filteredUsers.length === 0 && (
-          <div className="px-4 py-8 text-center text-gray-500">
-            No users found
-          </div>
-        )}
-      </div>
+      {/* One card per user – colored like VMU, expandable */}
+      <div className="space-y-3">
+        {filteredUsers.map((user) => {
+          const isExpanded = expandedUserId === user.id;
+          const isActive = user.is_active !== false;
+          const cardStyle = isActive
+            ? 'border border-green-200 bg-green-50/50'
+            : 'border border-amber-200 bg-amber-50/50';
+          const headerStyle = isActive
+            ? 'bg-green-50 hover:bg-green-100/80'
+            : 'bg-amber-50 hover:bg-amber-100/80';
 
-      {/* Desktop list view (hidden on small screens) - Table style with columns */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Header row */}
-        <div className="flex items-center gap-4 px-5 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
-          <div className="w-10"></div>
-          <div className="w-44">Name</div>
-          <div className="w-24">Shift</div>
-          <div className="w-28">Agency</div>
-          <div className="hidden lg:block w-20">Start</div>
-          <div className="hidden xl:block w-24">Location</div>
-          <div className="w-16 text-center">Score</div>
-          <div className="flex-1"></div>
-      </div>
-
-        {/* Data rows */}
-        {filteredUsers.map((user, index) => (
-          <div
-            key={user.id}
-            className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors ${
-              index !== filteredUsers.length - 1 ? 'border-b border-gray-100' : ''
-            }`}
-          >
-            {/* Avatar */}
-            <div className="w-10 flex-shrink-0 relative">
-                {user.avatar_url ? (
-                <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
-                ) : (
-                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-charcoal text-sm font-semibold">
-                      {user.first_name?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
-              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
-              </div>
-            
-            {/* Name */}
-            <div className="w-44 min-w-0">
-              <span className="text-charcoal font-semibold text-sm truncate block">
-                  {user.first_name || ''} {user.last_name || ''}
-              </span>
-                </div>
-            
-            {/* Shift */}
-            <div className="w-24">
-              {getShiftBadge(user.shift_preference) ? (
-                <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold ${getShiftBadge(user.shift_preference).className}`}>
-                  {getShiftBadge(user.shift_preference).label}
-                </span>
-              ) : (
-                <span className="text-gray-300 text-sm">–</span>
-                  )}
-                </div>
-            
-            {/* Agency */}
-            <div className="w-28">
-              {user.agency_name ? (
-                <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full">
-                  {user.agency_name}
-                </span>
-              ) : (
-                <span className="text-gray-300 text-sm">–</span>
-              )}
-              </div>
-            
-            {/* Start Time - visible on lg+ */}
-            <div className="hidden lg:block w-20">
-              {user.custom_start_time ? (
-                <span className="text-gray-600 text-sm">{user.custom_start_time.slice(0, 5)}</span>
-              ) : (
-                <span className="text-gray-300 text-sm">–</span>
-              )}
-            </div>
-            
-            {/* Location - visible on xl+ */}
-            <div className="hidden xl:block w-24">
-              {user.preferred_location ? (
-                <span className="text-gray-600 text-sm truncate block">{user.preferred_location}</span>
-              ) : (
-                <span className="text-gray-300 text-sm">–</span>
-              )}
-            </div>
-            
-            {/* Score */}
-            <div className="w-16 text-center">
-              <span className="inline-block px-3 py-1 bg-gray-100 rounded-md text-charcoal text-sm font-bold">
-                  {user.performance_score || '–'}
-              </span>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex-1 flex items-center justify-end gap-2">
-              <button 
-                type="button"
-                onClick={() => openEditModal(user)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
-              >
-                Edit
-              </button>
-              
-              {/* Dropdown menu */}
-              <div className="relative" ref={openDropdownId === user.id ? dropdownRef : null}>
-              <button 
-                type="button"
-                  onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                  </svg>
-                </button>
-                
-                {/* Dropdown content */}
-                {openDropdownId === user.id && (
-                  <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenDropdownId(null);
-                        openInfoModal(user);
-                }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Info
-              </button>
+          return (
+            <div
+              key={user.id}
+              className={`rounded-xl overflow-hidden shadow-sm transition-shadow ${cardStyle} ${isExpanded ? 'shadow-md' : ''}`}
+            >
+              {/* Clickable header – toggles expand */}
               <button
                 type="button"
-                      onClick={() => {
-                        setOpenDropdownId(null);
-                        setAddViolationUserId(user.id);
-                        setAddViolationOpen(true);
+                onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
+                className={`w-full px-4 py-3 text-left flex flex-wrap items-center gap-3 md:gap-4 ${headerStyle} transition-opacity`}
+              >
+                {/* Avatar + status */}
+                <div className="flex-shrink-0 h-10 w-10 relative">
+                  {user.avatar_url ? (
+                    <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center">
+                      <span className="text-charcoal text-sm font-semibold">
+                        {user.first_name?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`} />
+                </div>
+
+                {/* Name */}
+                <div className="min-w-0 flex-1">
+                  <span className="text-charcoal font-semibold text-sm block truncate">
+                    {user.first_name || ''} {user.last_name || ''}
+                  </span>
+                </div>
+
+                {/* Shift */}
+                <div>
+                  {getShiftBadge(user.shift_preference) ? (
+                    <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full ${getShiftBadge(user.shift_preference).className}`}>
+                      {getShiftBadge(user.shift_preference).label}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">–</span>
+                  )}
+                </div>
+
+                {/* Agency */}
+                <div className="hidden sm:block">
+                  {user.agency_name ? (
+                    <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full bg-white/60">
+                      {user.agency_name}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">–</span>
+                  )}
+                </div>
+
+                {/* Start time – lg+ */}
+                <div className="hidden lg:block w-16 text-gray-600 text-sm">
+                  {user.custom_start_time ? user.custom_start_time.slice(0, 5) : '–'}
+                </div>
+
+                {/* Location – xl+ */}
+                <div className="hidden xl:block w-20 text-gray-600 text-sm truncate">
+                  {user.preferred_location || '–'}
+                </div>
+
+                {/* Score */}
+                <div className="px-2 py-1 bg-white/70 rounded-md">
+                  <span className="text-charcoal text-sm font-bold">{user.performance_score || '–'}</span>
+                </div>
+
+                {/* Chevron */}
+                <svg
+                  className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Expanded content – same fields as Edit form (inline) + actions */}
+              {isExpanded && (
+                <>
+                  <div className="border-t border-gray-200 bg-white">
+                    <UserEditForm
+                      user={user}
+                      inline
+                      onClose={() => setExpandedUserId(null)}
+                      onSuccess={(updates) => {
+                        handleRefresh();
+                        if (updates && updates.id === user.id) setExpandedUserId(null);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    />
+                  </div>
+                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-wrap gap-2 items-center">
+                    <button
+                      type="submit"
+                      form="user-edit-inline-form"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      Save changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAddViolationUserId(user.id); setAddViolationOpen(true); }}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors"
+                    >
                       Add violation
                     </button>
-              <button 
-                type="button"
-                      onClick={() => {
-                        setOpenDropdownId(null);
-                  openDeleteModal(user);
-                }}
-                disabled={processingUser === user.id}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      {processingUser === user.id ? 'Deleting...' : 'Delete'}
-              </button>
+                    <button
+                      type="button"
+                      onClick={() => openDeleteModal(user)}
+                      disabled={processingUser === user.id}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {processingUser === user.id ? 'Deleting…' : 'Delete'}
+                    </button>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
-          </div>
-        ))}
-        
+          );
+        })}
+
         {filteredUsers.length === 0 && (
-          <div className="px-5 py-8 text-center text-gray-500">
-            No users found
+          <div className="py-12 text-center text-gray-500">
+            <p className="font-medium">No users found</p>
+            <p className="text-sm mt-1">Try adjusting search or filters.</p>
           </div>
         )}
-      </div>
-        </div>
       </div>
       
       {/* Delete Confirmation Modal (portal) */}
@@ -1067,24 +897,6 @@ export default function UserList({ users, onRefresh }) {
         onResetAllFilters={handleResetAllFilters}
       />
       
-      {/* Edit User Modal */}
-      {showEditModal && userToEdit && (
-        createPortal(
-        <UserEditForm 
-          user={userToEdit} 
-          onClose={closeEditModal} 
-            onSuccess={(updatedUser) => {
-              // Use our custom refresh function to preserve filters
-              handleRefresh();
-              
-              // Close the modal
-            closeEditModal();
-          }} 
-          />,
-          document.body
-        )
-      )}
-
       {/* Info Modal */}
       {infoModalOpen && (
         <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
@@ -1097,10 +909,6 @@ export default function UserList({ users, onRefresh }) {
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">Name:</span>
                     <span className="text-charcoal font-medium">{infoUser.first_name} {infoUser.last_name}</span>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">Email:</span>
-                    <span className="text-charcoal">{infoUser.email}</span>
                   </div>
                   <div className="flex items-start">
                     <span className="font-semibold text-gray-600 w-24 text-sm">User ID:</span>
@@ -1150,85 +958,6 @@ export default function UserList({ users, onRefresh }) {
         </Modal>
       )}
       
-      {/* Mobile Bottom Sheet for user actions */}
-      <BottomSheet isOpen={showBottomSheet} onClose={closeBottomSheet}>
-        {selectedUser && (
-          <div className="px-5 pb-8">
-            {/* User Header - Centered */}
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="h-20 w-20 relative mb-3">
-                {selectedUser.avatar_url ? (
-                  <img className="h-20 w-20 rounded-full object-cover" src={selectedUser.avatar_url} alt="" />
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-charcoal text-2xl font-semibold">
-                      {selectedUser.first_name?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                )}
-                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-white ${selectedUser.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`}></div>
-              </div>
-              {/* Show in one line if short, two lines if long */}
-              {((selectedUser.first_name || '').length + (selectedUser.last_name || '').length) <= 20 ? (
-                <div className="text-charcoal font-bold text-2xl">
-                  {selectedUser.first_name || ''} {selectedUser.last_name || ''}
-                </div>
-              ) : (
-                <>
-                  <div className="text-charcoal font-bold text-2xl">
-                    {selectedUser.first_name || ''}
-                  </div>
-                  <div className="text-charcoal font-bold text-2xl">
-                    {selectedUser.last_name || ''}
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleBottomSheetEdit}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit User
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedUser) {
-                    setAddViolationUserId(selectedUser.id);
-                    setAddViolationOpen(true);
-                    closeBottomSheet();
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-charcoal text-charcoal hover:bg-gray-50 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Add violation
-              </button>
-              
-              <button
-                type="button"
-                onClick={handleBottomSheetDelete}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete User
-              </button>
-            </div>
-          </div>
-        )}
-      </BottomSheet>
       <AddViolationModal
         open={addViolationOpen}
         onClose={() => {

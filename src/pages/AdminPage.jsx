@@ -142,37 +142,46 @@ export default function AdminPage() {
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
-    setPageLoading(true); // Show loading state
+    setPageLoading(true);
     try {
-      // Direct query to get ALL fields from profiles including yard_system_id and agency
+      // Prefer RPC – profiles with last_sign_in_at and agency from DB (no email)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_admin_profiles_with_emails');
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length >= 0) {
+        const usersList = rpcData.map((row) => ({
+          ...row,
+          performance_score: row.performance_score ?? 50,
+          is_active: row.is_active !== false,
+          agency_name: row.agency_name ?? null
+        }));
+        setUsers(usersList);
+        setPageLoading(false);
+        return;
+      }
+      // Fallback: direct profiles query
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*, agencies(id, name)');
-      
+
       if (profilesError) throw profilesError;
-      
-      // Validate profilesData
+
       if (!Array.isArray(profilesData)) {
         throw new Error('Invalid data format received from profiles table');
       }
-      
-      // Map profiles - emails not available in browser context for security
-      // (Would require service_role key which cannot be exposed)
-      const usersWithEmails = profilesData.map(profile => ({
+
+      const usersList = profilesData.map((profile) => ({
         ...profile,
-        email: profile.email || 'N/A', // Use email from profile if available
         performance_score: profile.performance_score ?? 50,
         is_active: profile.is_active !== false,
-        agency_name: profile.agencies?.name || null
+        agency_name: profile.agencies?.name ?? null
       }));
-      
-      setUsers(usersWithEmails);
+
+      setUsers(usersList);
     } catch (err) {
-      console.error('[AdminPage] General error fetching users:', err);
+      console.error('[AdminPage] Error fetching users:', err);
       setError('Error loading users.');
-      setUsers([]); 
+      setUsers([]);
     } finally {
-      setPageLoading(false); // End loading state
+      setPageLoading(false);
     }
   };
 

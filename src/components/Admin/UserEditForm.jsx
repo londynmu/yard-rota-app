@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import PropTypes from 'prop-types';
+import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
 
@@ -10,7 +11,7 @@ const capitalizeFirstLetter = (string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-export default function UserEditForm({ user, onClose, onSuccess }) {
+export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [yardSystemId, setYardSystemId] = useState('');
@@ -253,58 +254,16 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     }
   };
   
-  // Cleanup function for closing modal
+  // Cleanup function for closing modal (or collapsing card when inline)
   const handleClose = () => {
-    document.body.style.overflow = 'auto';
+    if (!inline) document.body.style.overflow = 'auto';
     onClose();
   };
   
-  return (
-    <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] px-3" 
-      onClick={handleClose}
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0,
-        zIndex: 10000,
-        overflow: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-    >
-      <div 
-        ref={modalRef}
-        className="bg-white rounded-xl shadow-lg w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border border-gray-200" 
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="bg-red-50 px-5 py-4 border-b border-red-200/60 sticky top-0 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-red-800">
-              Edit user profile
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="px-5 py-4">
-            {/* Avatar Upload & Active Status */}
+  const formContent = (
+    <form id={inline ? 'user-edit-inline-form' : undefined} onSubmit={handleSubmit}>
+      <div className={inline ? 'p-4' : 'px-5 py-4'}>
+        {/* Avatar Upload & Active Status */}
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
@@ -316,7 +275,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     </svg>
                   )}
                 </div>
-                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">>
+                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">
                   <span>Upload</span>
                   <input
                     id="admin-edit-avatar"
@@ -328,26 +287,36 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                 </label>
               </div>
               
-              {/* Active Account Toggle */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="admin-edit-isActive" className="text-sm text-gray-600">
-                  Active
-                </label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isActive}
-                  onClick={() => !loading && setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isActive ? 'bg-green-500' : 'bg-gray-300'
-                  } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                      isActive ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+              {/* Active Account Toggle + Last login */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="admin-edit-isActive" className="text-sm text-gray-600">
+                    Active
+                  </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isActive}
+                    onClick={() => !loading && setIsActive(!isActive)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isActive ? 'bg-green-500' : 'bg-gray-300'
+                    } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                        isActive ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {user?.last_activity_at && (
+                  <div className="text-sm text-gray-600">
+                    <span className="text-gray-500">Last activity: </span>
+                    <span className="text-charcoal font-medium">
+                      {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -527,30 +496,80 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
               
             </div>
             
-            {/* Form Actions */}
-            <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
-              <button
-                type="button"
-                onClick={handleClose}
-                disabled={loading}
-                className="px-4 py-2 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-colors ${
-                  loading
-                    ? 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
-                    : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
-                }`}
-              >
-                {loading ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
+            {/* Form Actions – only in modal (not inline; Save is in card footer) */}
+            {!inline && (
+              <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-colors ${
+                    loading
+                      ? 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
+                      : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
+                  }`}
+                >
+                  {loading ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
+  );
+
+  if (inline) {
+    return (
+      <div className="border-t border-gray-200 bg-yellow-50/80" ref={modalRef}>
+        {formContent}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] px-3"
+      onClick={handleClose}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 10000,
+        overflow: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        ref={modalRef}
+        className="bg-white rounded-xl shadow-lg w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border border-gray-200"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="bg-red-50 px-5 py-4 border-b border-red-200/60 sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-red-800">Edit user profile</h3>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {formContent}
       </div>
     </div>
   );
@@ -559,5 +578,6 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
 UserEditForm.propTypes = {
   user: PropTypes.object.isRequired,
   onClose: PropTypes.func.isRequired,
-  onSuccess: PropTypes.func.isRequired
+  onSuccess: PropTypes.func.isRequired,
+  inline: PropTypes.bool
 }; 
