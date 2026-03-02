@@ -1,0 +1,126 @@
+---
+description: Visual reference from Shunter of the Month card – use when styling admin and similar sections
+alwaysApply: false
+---
+
+# Shunter of the Month – Visual Reference (Design to Follow)
+
+Use this when improving admin page or any card/section that should match the main-page "Shunter of the Month" card style.
+
+## Reference component
+
+- **File:** `src/components/User/ShunterOfTheMonthCard.jsx`
+- **Context:** Rendered on main page (Calendar route) above the calendar.
+
+---
+
+## 1. Container (main card)
+
+| Property | Value |
+|----------|--------|
+| Wrapper margin/padding | `mb-3 px-4 mt-2` |
+| Max width | `max-w-4xl mx-auto` |
+| Background | `bg-white` |
+| Border | `border border-gray-200` |
+| Corners | `rounded-xl` (1rem) |
+| Shadow | `shadow-sm` |
+| Overflow | `overflow-hidden` (for header + expandable content) |
+
+**Full container class:**  
+`max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden`
+
+---
+
+## 2. Expandable header (clickable bar)
+
+| Property | Value |
+|----------|--------|
+| Layout | `w-full px-4 py-3 flex items-center justify-between` |
+| Background | `bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50` |
+| Bottom border | `border-b border-amber-100` |
+| Title text | `text-sm font-semibold text-amber-800` |
+| Chevron icon | `w-4 h-4 text-amber-500`, `transition-transform duration-200`, `rotate-180` when open |
+
+---
+
+## 3. Expandable content (body)
+
+| Property | Value |
+|----------|--------|
+| Top border | `border-t border-gray-100` |
+| Overflow | `overflow-hidden` |
+| Transition | `transition-all duration-200 ease-out` |
+| Open state | `max-h-80 opacity-100` |
+| Closed state | `max-h-0 opacity-0` |
+| Inner padding | `p-2 space-y-2` |
+
+---
+
+## 4. Inner row cards (e.g. per month)
+
+| Property | Value |
+|----------|--------|
+| Padding | `px-3 py-2.5` |
+| Corners | `rounded-lg` |
+| Layout | `flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between` |
+| Alternating backgrounds (4 variants) | `bg-amber-50 border-amber-200`, `bg-blue-50 border-blue-200`, `bg-emerald-50 border-emerald-200`, `bg-purple-50 border-purple-200` |
+| Month label | `text-xs font-bold uppercase tracking-wide` + matching color: `text-amber-700`, `text-blue-700`, `text-emerald-700`, `text-purple-700` |
+| Names/value text | `text-sm font-semibold text-charcoal` |
+| Placeholder when empty | `text-sm text-gray-400` (e.g. "—") |
+
+---
+
+## 5. Loading state
+
+| Property | Value |
+|----------|--------|
+| Same outer wrapper | `mb-3 px-4 mt-2` |
+| Card shell | Same as container: `max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm`, plus `px-4 py-3 min-h-[48px] flex items-center` |
+| Skeleton | `h-4 w-40 bg-gray-100 rounded animate-pulse` |
+
+---
+
+## 6. Project colors (Tailwind config)
+
+- **charcoal:** `#2D2D2D` – primary text (`text-charcoal`)
+- **offwhite:** `#FAFAFA` – page background (`bg-offwhite`)
+- **cream:** `#F5F5F0`
+- **softgray:** `#E0E0E0`
+- **mediumgray:** `#9E9E9E`
+
+---
+
+## 7. Typography
+
+- No custom font-family in theme; uses Tailwind default (system UI stack).
+- Sizes used in reference: `text-xs`, `text-sm`, `font-semibold`, `font-bold`, `uppercase`, `tracking-wide`.
+
+---
+
+## 8. Responsive
+
+- Card: full width with horizontal padding `px-4`; `max-w-4xl mx-auto` centers on large screens.
+- Rows: stack on mobile (`flex-col gap-1.5`), row on `md:` (`md:flex-row md:items-center md:justify-between`).
+- Names block: `flex flex-col gap-1` on mobile, `md:flex-row md:items-center md:gap-6` on desktop.
+
+---
+
+## 9. Do not use (from old admin Shunter manager)
+
+- Avoid `rounded-xl border border-red-200 bg-yellow-50/80` for the **main/user-facing** Shunter card (that one uses gradient header + white card).
+- **Admin sections** (e.g. Settings, Shunter of the Month Manager) **do** use red header + yellow container: card `border-red-200 bg-yellow-50/80`, header `bg-red-50 border-b border-red-200/60`, title `text-red-800`, content `bg-yellow-50/50 border-t border-red-100`.
+- Avoid red header `bg-red-50` only on the **user-facing** Shunter card; prefer the gradient header there.
+
+---
+
+## 10. Summary checklist for new sections
+
+- [ ] Container: `bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden`, `max-w-4xl mx-auto` where appropriate
+- [ ] Expandable header: gradient `from-amber-50 via-yellow-50 to-orange-50`, `border-b border-amber-100`, title `text-sm font-semibold text-amber-800`
+- [ ] Content: `border-t border-gray-100`, `transition-all duration-200 ease-out`, max-height + opacity for open/close
+- [ ] Inner cards: `rounded-lg`, alternating soft tints (amber/blue/emerald/purple) with matching borders and text
+- [ ] Text: `text-charcoal` for main content, `text-xs`/`text-sm` for labels and values
+- [ ] Responsive: `flex-col` + `md:flex-row` where horizontal layout is needed on desktop
+- [ ] Buttons: outline only (rounded border, no fill) – `bg-white text-charcoal border border-gray-300 hover:bg-gray-50`; destructive outline if needed: `border-red-500 text-red-600 hover:bg-red-50`
+- [ ] Admin sections: red header + yellow container (card `border-red-200 bg-yellow-50/80`, header `bg-red-50`, title `text-red-800`, content `bg-yellow-50/50`).
+- [ ] **Inner cards on yellow background:** use `bg-white` with colored border (e.g. `border-amber-200`, `border-blue-200`) so they contrast; do not use yellow/amber tints (e.g. `bg-amber-50`) on yellow container – they become invisible.

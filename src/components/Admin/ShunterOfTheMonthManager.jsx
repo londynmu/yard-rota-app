@@ -304,8 +304,8 @@ export default function ShunterOfTheMonthManager({ users }) {
                 {history.map((row) => {
                   const complete = row.dayId && row.nightId;
                   const cardStyle = complete
-                    ? 'border border-green-200 bg-green-50/50'
-                    : 'border border-amber-200 bg-amber-50/50';
+                    ? 'border border-green-200 bg-white'
+                    : 'border border-amber-200 bg-white';
                   return (
                     <div
                       key={row.monthKey}

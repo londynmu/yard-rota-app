@@ -17,67 +17,70 @@ export default function SettingsManager() {
   
   if (isLoading) {
     return (
-      <div className="w-full max-w-full animate-pulse">
-        {/* Tabs skeleton */}
-        <div className="flex mb-4 gap-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-10 w-32 bg-slate-200 rounded-lg" />
-          ))}
-        </div>
-        
-        {/* Content skeleton */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-            <div className="h-6 w-40 bg-slate-300 rounded mb-4" />
-            <div className="space-y-3">
-              <div className="h-10 bg-slate-200 rounded" />
-              <div className="h-10 bg-slate-200 rounded" />
+      <div>
+        <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
+          <div className="w-full px-4 py-3 flex items-center justify-between bg-red-50 border-b border-red-200/60">
+            <div className="h-4 w-24 bg-red-200/60 rounded animate-pulse" />
+            <div className="flex gap-1 rounded-md border border-gray-200 p-0.5 bg-gray-100">
+              <div className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+              <div className="h-7 w-20 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="p-4 border-t border-red-100 bg-yellow-50/50">
+            <div className="h-10 w-full max-w-md bg-gray-100 rounded-lg animate-pulse mb-4" />
+            <div className="space-y-2">
+              <div className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              <div className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              <div className="h-12 bg-gray-100 rounded-lg animate-pulse" />
             </div>
           </div>
         </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="w-full max-w-full">
-      {/* Settings Sections Navigation */}
-      <div className="flex mb-4 overflow-x-auto pb-2 gap-2">
-        <button
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
-            activeSection === 'locations' 
-              ? 'bg-charcoal text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-          onClick={() => setActiveSection('locations')}
-        >
-          Locations
-        </button>
-        <button
-          className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap text-sm ${
-            activeSection === 'agencies' 
-              ? 'bg-charcoal text-white' 
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-          onClick={() => setActiveSection('agencies')}
-        >
-          Agencies
-        </button>
+    <div>
+      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
+        {/* Header – red bar, yellow container like Shunter of the Month */}
+        <div className="w-full px-4 py-3 bg-red-50 border-b border-red-200/60">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-red-800">Settings</p>
+            <div className="flex rounded-md border border-gray-200 p-0.5 bg-gray-100">
+              <button
+                className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
+                  activeSection === 'locations'
+                    ? 'bg-white text-charcoal shadow-sm'
+                    : 'text-gray-600 hover:text-charcoal'
+                }`}
+                onClick={() => setActiveSection('locations')}
+              >
+                Locations
+              </button>
+              <button
+                className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
+                  activeSection === 'agencies'
+                    ? 'bg-white text-charcoal shadow-sm'
+                    : 'text-gray-600 hover:text-charcoal'
+                }`}
+                onClick={() => setActiveSection('agencies')}
+              >
+                Agencies
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="border-t border-red-100 p-4 bg-yellow-50/50">
+          {activeSection === 'locations' && (
+            <LocationConfigManager />
+          )}
+          {activeSection === 'agencies' && (
+            <AgencyConfigManager />
+          )}
+        </div>
       </div>
-      
-      {/* Locations Management */}
-      {activeSection === 'locations' && (
-        <div className="mb-4">
-          <LocationConfigManager />
-        </div>
-      )}
-      
-      {/* Agencies Management */}
-      {activeSection === 'agencies' && (
-        <div className="mb-4">
-          <AgencyConfigManager />
-        </div>
-      )}
     </div>
   );
 }

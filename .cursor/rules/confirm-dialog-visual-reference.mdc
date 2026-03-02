@@ -1,0 +1,75 @@
+---
+description: Delete/confirmation dialog – layout, colors, buttons; use when adding or changing confirm modals
+alwaysApply: false
+---
+
+# Confirm Dialog (Delete / Confirmation) – Visual Reference
+
+Reference: `src/components/ui/ConfirmDialog.jsx` and `src/components/ui/Modal.jsx`. Use when building or changing confirmation/delete dialogs so they stay consistent.
+
+---
+
+## 1. Modal wrapper (Modal.jsx)
+
+| Property | Value |
+|----------|--------|
+| Overlay | `fixed inset-0 z-50 flex items-center justify-center p-4` |
+| Backdrop | `fixed inset-0 bg-black/70` (click closes) |
+| Content box | `relative z-10 bg-white rounded-xl shadow-lg border border-gray-200 p-5 max-w-lg w-full overflow-hidden` |
+
+---
+
+## 2. ConfirmDialog content
+
+| Property | Value |
+|----------|--------|
+| Container | `text-center sm:text-left` |
+| Title | `text-xl font-semibold mb-2 text-charcoal` |
+| Message | `text-gray-600 mb-6` |
+| Buttons row | `flex flex-col sm:flex-row gap-3 sm:justify-end` |
+
+---
+
+## 3. Buttons (outline only – no fill)
+
+All buttons use **outline only** (rounded border, no background fill). Do not use filled/colored backgrounds.
+
+**Cancel:**
+
+- `px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors order-2 sm:order-1`
+
+**Confirm – non-destructive (e.g. "Activate", "Deactivate"):**
+
+- `px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors order-1 sm:order-2`
+
+**Confirm – destructive (e.g. "Delete"):**
+
+- `px-4 py-2 rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors order-1 sm:order-2`
+
+---
+
+## 4. Props
+
+- `isOpen`, `onClose`, `onConfirm`, `title`, `message` – required
+- `confirmText` – default `"OK"`; use action-specific label for clarity (e.g. `"Deactivate"`, `"Activate"`, `"Delete"`)
+- `cancelText` – default `"Cancel"`
+- `isDestructive` – default `false`; when `true`, confirm button uses red **outline** (border + text), not filled.
+
+**Copy (title / message):**
+
+- Title: sentence style, lowercase after the first word (e.g. "Deactivate location", "Delete agency").
+- Message: clear question, e.g. `Are you sure you want to ${action} "${name}"?` for toggle; for delete add "This action cannot be undone."
+- Confirm button label: match the action – "Deactivate", "Activate", or "Delete" – so the user sees exactly what they are confirming.
+
+---
+
+## 5. Summary
+
+- Modal: white box, `rounded-xl`, `shadow-lg`, `border border-gray-200`, `max-w-lg`, `p-5`; backdrop `bg-black/70`.
+- Title: `text-xl font-semibold text-charcoal`, `mb-2`.
+- Message: `text-gray-600`, `mb-6`.
+- **All buttons outline only** (no filled background): `rounded-lg`, `border-2`, `bg-white`, hover light tint.
+- Cancel: `border-gray-300 text-charcoal hover:bg-gray-50`.
+- Confirm (normal): `border-charcoal text-charcoal hover:bg-gray-50`.
+- Confirm (destructive): `border-red-500 text-red-600 hover:bg-red-50`.
+- Order: on mobile confirm first, on desktop cancel left / confirm right.

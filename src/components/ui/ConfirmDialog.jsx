@@ -21,7 +21,7 @@ export default function ConfirmDialog({
         <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-transparent hover:bg-gray-100 border-2 border-black rounded-lg text-charcoal transition-colors order-2 sm:order-1"
+            className="px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors order-2 sm:order-1"
           >
             {cancelText}
           </button>
@@ -30,10 +30,10 @@ export default function ConfirmDialog({
               onConfirm();
               onClose();
             }}
-            className={`px-4 py-2 rounded-lg transition-colors order-1 sm:order-2 ${
-              isDestructive 
-                ? 'bg-red-500 hover:bg-red-600 text-white' 
-                : 'bg-black hover:bg-gray-800 text-white'
+            className={`px-4 py-2 rounded-lg border-2 transition-colors order-1 sm:order-2 ${
+              isDestructive
+                ? 'border-red-500 bg-white text-red-600 hover:bg-red-50'
+                : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
             }`}
           >
             {confirmText}

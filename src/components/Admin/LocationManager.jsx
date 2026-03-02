@@ -9,7 +9,7 @@ export default function LocationManager() {
   const [editLocationId, setEditLocationId] = useState(null);
   const [editLocationName, setEditLocationName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState({ visible: false, title: '', message: '', action: null });
+  const [confirmDialog, setConfirmDialog] = useState({ visible: false, title: '', message: '', action: null, confirmText: 'Yes', isDestructive: false });
   const newLocationInputRef = useRef(null);
   const toast = useToast();
 
@@ -124,13 +124,13 @@ export default function LocationManager() {
 
   const confirmToggleLocationStatus = (id, name, currentStatus) => {
     const action = currentStatus ? 'deactivate' : 'activate';
+    const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
     setConfirmDialog({
       visible: true,
-      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Location`,
+      title: `${actionLabel} location`,
       message: `Are you sure you want to ${action} "${name}"?`,
-      locationId: id,
-      locationName: name,
       action: () => toggleLocationStatus(id, currentStatus),
+      confirmText: actionLabel,
       isDestructive: false
     });
   };
@@ -158,11 +158,10 @@ export default function LocationManager() {
   const confirmDeleteLocation = (id, name) => {
     setConfirmDialog({
       visible: true,
-      title: "Delete Location",
+      title: 'Delete location',
       message: `Are you sure you want to permanently delete the location "${name}"? This action cannot be undone.`,
-      locationId: id,
-      locationName: name,
       action: () => deleteLocation(id),
+      confirmText: 'Delete',
       isDestructive: true
     });
   };
@@ -195,15 +194,13 @@ export default function LocationManager() {
   };
 
   return (
-    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Management</h3>
-      
+    <div className="space-y-4">
       {/* Add new location */}
-      <div className="mb-5 flex items-end gap-2">
-        <div className="flex-grow">
-          <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="new-location">
-            Add New Location
-          </label>
+      <div>
+        <label className="block text-xs font-semibold text-charcoal uppercase tracking-wide mb-2" htmlFor="new-location">
+          Add new location
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <input
             type="text"
             id="new-location"
@@ -216,139 +213,147 @@ export default function LocationManager() {
               }
             }}
             placeholder="Enter location name"
-            className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
             disabled={loading}
             ref={newLocationInputRef}
           />
+          <button
+            type="button"
+            onClick={handleAddLocation}
+            disabled={loading || !newLocation.trim()}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg border transition-colors shrink-0 ${
+              loading || !newLocation.trim()
+                ? 'bg-white text-gray-400 border-gray-200 cursor-not-allowed'
+                : 'bg-white text-charcoal border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            Add
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleAddLocation}
-          disabled={loading || !newLocation.trim()}
-          className={`px-4 py-2 bg-charcoal hover:bg-charcoal/90 rounded-lg text-white transition-colors ${
-            loading || !newLocation.trim() ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          Add
-        </button>
       </div>
-      
+
       {/* Locations list */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Existing Locations</h4>
-        
+        <h4 className="text-xs font-bold text-charcoal uppercase tracking-wide mb-2">Existing locations</h4>
+
         {loading && locations.length === 0 ? (
-          <div className="text-gray-600 text-center py-4 text-sm">Loading locations...</div>
+          <div className="text-sm text-gray-500 py-4 text-center">Loading locations…</div>
         ) : locations.length === 0 ? (
-          <div className="text-gray-500 text-center py-4 text-sm">No locations found</div>
+          <div className="text-sm text-gray-400 py-4 text-center">No locations found</div>
         ) : (
           <div className="space-y-2">
-            {locations.map(location => (
-              <div 
-                key={location.id} 
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  location.is_active 
-                    ? 'bg-white border-gray-200' 
-                    : 'bg-white border-gray-200 opacity-60'
-                }`}
-              >
-                {editLocationId === location.id ? (
-                  <div className="flex-grow">
-                    <input
-                      type="text"
-                      value={editLocationName}
-                      onChange={(e) => setEditLocationName(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border-2 border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
-                      disabled={loading}
-                    />
-                  </div>
-                ) : (
-                  <span className={`flex-grow text-gray-900 ${!location.is_active ? 'line-through text-gray-500' : ''}`}>
-                    {location.name}
-                  </span>
-                )}
-                
-                <div className="flex items-center gap-1">
+            {locations.map((location, index) => {
+              const bgColors = [
+                'bg-white border-amber-200',
+                'bg-white border-blue-200',
+                'bg-white border-emerald-200',
+                'bg-white border-purple-200',
+              ];
+              const cardStyle = bgColors[index % bgColors.length];
+              return (
+                <div
+                  key={location.id}
+                  className={`flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-3 py-2.5 rounded-lg border ${cardStyle} ${
+                    !location.is_active ? 'opacity-60' : ''
+                  }`}
+                >
                   {editLocationId === location.id ? (
-                    <>
-                      <button
-                        onClick={() => updateLocation(location.id)}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={editLocationName}
+                        onChange={(e) => setEditLocationName(e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm text-charcoal bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                         disabled={loading}
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors p-1.5 rounded"
-                        aria-label="Save location"
-                        title="Save"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={cancelEditing}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
-                        aria-label="Cancel"
-                        title="Cancel"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </>
+                      />
+                    </div>
                   ) : (
-                    <>
-                      <button
-                        onClick={() => startEditing(location)}
-                        disabled={loading}
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors p-1.5 rounded"
-                        aria-label="Edit"
-                        title="Edit"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => confirmToggleLocationStatus(location.id, location.name, location.is_active)}
-                        disabled={loading}
-                        className={`${
-                          location.is_active 
-                            ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
-                            : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                        } transition-colors p-1.5 rounded`}
-                        aria-label={location.is_active ? 'Deactivate' : 'Activate'}
-                        title={location.is_active ? 'Deactivate' : 'Activate'}
-                      >
-                        {location.is_active ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => confirmDeleteLocation(location.id, location.name)}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
-                        aria-label="Delete"
-                        title="Delete"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </>
+                    <span className={`text-sm font-semibold text-charcoal ${!location.is_active ? 'line-through text-gray-500' : ''}`}>
+                      {location.name}
+                    </span>
                   )}
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {editLocationId === location.id ? (
+                      <>
+                        <button
+                          onClick={() => updateLocation(location.id)}
+                          disabled={loading}
+                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors p-1.5 rounded"
+                          aria-label="Save location"
+                          title="Save"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          disabled={loading}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
+                          aria-label="Cancel"
+                          title="Cancel"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEditing(location)}
+                          disabled={loading}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors p-1.5 rounded"
+                          aria-label="Edit"
+                          title="Edit"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => confirmToggleLocationStatus(location.id, location.name, location.is_active)}
+                          disabled={loading}
+                          className={`${
+                            location.is_active
+                              ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                              : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                          } transition-colors p-1.5 rounded`}
+                          aria-label={location.is_active ? 'Deactivate' : 'Activate'}
+                          title={location.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                          {location.is_active ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => confirmDeleteLocation(location.id, location.name)}
+                          disabled={loading}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors p-1.5 rounded"
+                          aria-label="Delete"
+                          title="Delete"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-      
-      {/* Confirmation Dialog */}
+
       <ConfirmDialog
         isOpen={confirmDialog.visible}
         onClose={closeConfirmDialog}
@@ -360,7 +365,7 @@ export default function LocationManager() {
         }}
         title={confirmDialog.title}
         message={confirmDialog.message}
-        confirmText={confirmDialog.isDestructive ? "Delete" : "Yes"}
+        confirmText={confirmDialog.confirmText ?? (confirmDialog.isDestructive ? 'Delete' : 'Yes')}
         cancelText="Cancel"
         isDestructive={confirmDialog.isDestructive}
       />
