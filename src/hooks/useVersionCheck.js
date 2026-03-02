@@ -84,8 +84,8 @@ export function useVersionCheck() {
   useEffect(() => {
     if (isNative) return
 
-    // Initial check after short delay (pre-render already checked on first load)
-    const initialTimeout = setTimeout(checkVersion, 30000)
+    // Initial check after 5 s (catch short sessions; pre-render already checked on first load)
+    const initialTimeout = setTimeout(checkVersion, 5000)
 
     // Poll every 2 minutes
     intervalRef.current = setInterval(checkVersion, POLL_INTERVAL_MS)

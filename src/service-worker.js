@@ -16,6 +16,19 @@ cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// Document (index.html) – NetworkFirst so online users always get fresh entry; fallback to cache when offline
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'app-document',
+    networkTimeoutSeconds: 10,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 }),
+    ],
+  })
+);
+
 const supabaseUrlPattern = /^https:\/\/.*\.supabase\.co\/.*/i;
 // Never cache precheck_check_items – list must always be fresh (e.g. 26 vs 31 questions)
 const precheckCheckItemsPattern = /\/rest\/v1\/precheck_check_items(\?|$)/i;

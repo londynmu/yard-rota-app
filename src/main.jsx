@@ -76,10 +76,12 @@ async function ensureLatestVersion() {
 // --- PWA Auto-Update (fixes iOS Safari caching) ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then((registration) => {
-    // Check for SW updates every 5 minutes (align with version.json poll)
+    // First check after 5 s so even ~1 min sessions get one update check (users who only jump between pages, no tab switch)
+    setTimeout(() => registration.update(), 5000);
+    // Check for SW updates every 2 minutes (align with version.json poll; catch 2–3 min sessions)
     setInterval(() => {
       registration.update()
-    }, 5 * 60 * 1000)
+    }, 2 * 60 * 1000)
 
     // Check when user returns to app (iOS background resume, tab switch)
     document.addEventListener('visibilitychange', () => {
@@ -100,10 +102,31 @@ if ('serviceWorker' in navigator) {
   })
 
   // Auto-reload when new SW takes control (works with skipWaiting + clientsClaim)
+  // Show full-screen "Reloading…" overlay before reload to avoid jarring jump
   let refreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return
     refreshing = true
-    window.location.reload()
+    const overlay = document.createElement('div')
+    overlay.setAttribute('role', 'alert')
+    overlay.setAttribute('aria-live', 'polite')
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:var(--app-bg,#f8fafc);color:var(--app-fg,#1e293b);font-family:system-ui,sans-serif;'
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center;padding:1.5rem;">
+        <svg style="width:3rem;height:3rem;animation:spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+        </svg>
+        <p style="margin:0;font-size:1rem;font-weight:500;color:#475569;">Reloading app…</p>
+        <p style="margin:0;font-size:0.875rem;color:#94a3b8;">A new version is loading.</p>
+      </div>
+      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    `
+    document.body.appendChild(overlay)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.location.reload()
+      })
+    })
   })
 }

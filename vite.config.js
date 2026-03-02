@@ -50,7 +50,8 @@ export default defineConfig({
         ]
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Exclude index.html from precache so document requests use NetworkFirst and users always get fresh entry (new JS hashes)
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB limit
       },
       devOptions: {
