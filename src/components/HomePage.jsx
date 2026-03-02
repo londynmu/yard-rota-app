@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { mainNavConfig } from '../config/navIcons';
+import NavIcon from './NavIcon';
 import CalendarPage from '../pages/CalendarPage';
 import ProfilePage from '../pages/ProfilePage';
 import NotificationBell from './NotificationBell';
@@ -193,6 +195,20 @@ export default function HomePage() {
     return 'My Rota';
   }, [location.pathname]);
 
+  const topNavLinks = useMemo(() => {
+    if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
+    if (!isAdmin) return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
+    return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck', '/vmu', '/admin'].includes(n.path));
+  }, [isAdmin, isVmu]);
+
+  const bottomNavLinks = useMemo(() => {
+    if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks' || n.path === '/profile');
+    const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
+    const withProfile = [...base, mainNavConfig.find((n) => n.path === '/profile')];
+    if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin'), mainNavConfig.find((n) => n.path === '/profile')];
+    return withProfile;
+  }, [isAdmin, isVmu]);
+
   if (location.pathname === '/' || location.pathname === '') {
     return <Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
   }
@@ -269,37 +285,32 @@ export default function HomePage() {
               {isVmu && !isAdmin ? (
                 <>
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
-                    <Link
-                      to="/vmu"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/vmu'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      VMU
-                    </Link>
-                    <Link
-                      to="/vmu/prechecks"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/vmu/prechecks'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      PreChecks
-                    </Link>
+                    {topNavLinks.map((nav) => (
+                      <Link
+                        key={nav.path}
+                        to={nav.path}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                        {nav.label}
+                      </Link>
+                    ))}
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <Link
                       to="/profile"
-                      className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                         path === '/profile'
                           ? 'bg-slate-100 text-slate-800'
                           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                       }`}
                     >
+                      <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
                       Profile
                     </Link>
                     <div className="relative">
@@ -333,59 +344,34 @@ export default function HomePage() {
                 </>
               ) : !isAdmin ? (
                 <>
-                  {/* Regular user: nav left, profile/avatar right (full width, justify-between) */}
+                  {/* Regular user: nav left, profile/avatar right */}
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
-                    <Link
-                      to="/calendar"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/calendar'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      Main Page
-                    </Link>
-                    <Link
-                      to="/my-rota"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/my-rota'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      My Rota
-                    </Link>
-                    <Link
-                      to="/performance"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname === '/performance'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      Performance
-                    </Link>
-                    <Link
-                      to="/precheck"
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                        location.pathname.startsWith('/precheck')
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                      }`}
-                    >
-                      PreCheck
-                    </Link>
+                    {topNavLinks.map((nav) => (
+                      <Link
+                        key={nav.path}
+                        to={nav.path}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                        {nav.label}
+                      </Link>
+                    ))}
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <Link
                       to="/profile"
-                      className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                         path === '/profile'
                           ? 'bg-slate-100 text-slate-800'
                           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                       }`}
                     >
+                      <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
                       Profile
                     </Link>
                     <div className="relative">
@@ -433,66 +419,20 @@ export default function HomePage() {
                   </button>
                 )}
                 <nav className="hidden md:flex space-x-2">
-                  <Link
-                    to="/calendar"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/calendar' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    Main Page
-                  </Link>
-                  <Link
-                    to="/my-rota"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/my-rota' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    My Rota
-                  </Link>
-                  <Link
-                    to="/performance"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/performance' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    Performance
-                  </Link>
-                  <Link
-                    to="/precheck"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname.startsWith('/precheck')
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    PreCheck
-                  </Link>
-                  <Link
-                    to="/vmu"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/vmu' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    VMU
-                  </Link>
-                  <Link
-                    to="/admin"
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                      location.pathname === '/admin' 
-                        ? 'bg-slate-100 text-slate-800' 
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
-                    Admin Panel
-                  </Link>
+                  {topNavLinks.map((nav) => (
+                    <Link
+                      key={nav.path}
+                      to={nav.path}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === nav.path
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                      {nav.label}
+                    </Link>
+                  ))}
                 </nav>
               </div>
               
@@ -500,12 +440,13 @@ export default function HomePage() {
                 <NotificationBell />
                 <Link
                   to="/profile"
-                  className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  className={`hidden md:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                     path === '/profile'
                       ? 'bg-slate-100 text-slate-800'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                   }`}
                 >
+                  <NavIcon Icon={mainNavConfig.find((n) => n.path === '/profile').Icon} colorClass={path === '/profile' ? 'text-slate-800' : 'text-indigo-600'} size="small" animate={true} />
                   Profile
                 </Link>
                 <div className="relative">
@@ -637,138 +578,41 @@ export default function HomePage() {
       </main>
 
       {/* Bottom Navigation - Mobile Only with safe area */}
-      <nav 
+      <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
-          {/* VMU-only users see VMU nav buttons (VMU, PreChecks) */}
           {isVmu && !isAdmin ? (
-            <>
-              {/* VMU Defects */}
+            bottomNavLinks.map((nav) => (
               <Link
-                to="/vmu"
+                key={nav.path}
+                to={nav.path}
                 className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/vmu' ? 'active' : ''
+                  location.pathname === nav.path ? 'active' : ''
                 }`}
               >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-[10px] font-medium">VMU</span>
+                <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
+                <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
               </Link>
-
-              {/* PreChecks */}
-              <Link
-                to="/vmu/prechecks"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/vmu/prechecks' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span className="text-[10px] font-medium">PreChecks</span>
-              </Link>
-
-              {/* Profile (VMU user) */}
-              <Link
-                to="/profile"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/profile' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="text-[10px] font-medium">Profile</span>
-              </Link>
-            </>
+            ))
           ) : (
             <>
-              {/* Home */}
-              <Link
-                to="/calendar"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/calendar' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                <span className="text-[10px] font-medium">Home</span>
-              </Link>
-
-              {/* My Rota */}
-              <Link
-                to="/my-rota"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/my-rota' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-[10px] font-medium">My Rota</span>
-              </Link>
-
-              {/* Performance */}
-              <Link
-                to="/performance"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === '/performance' ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span className="text-[10px] font-medium">Stats</span>
-              </Link>
-
-              {/* PreCheck */}
-              <Link
-                to="/precheck"
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname.startsWith('/precheck') ? 'active' : ''
-                }`}
-              >
-                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span className="text-[10px] font-medium">PreCheck</span>
-              </Link>
+              {bottomNavLinks.map((nav) => {
+                const isActive = nav.path === '/precheck' ? location.pathname.startsWith('/precheck') : location.pathname === nav.path;
+                return (
+                  <Link
+                    key={nav.path}
+                    to={nav.path}
+                    className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
+                      isActive ? 'active' : ''
+                    }`}
+                  >
+                    <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
+                    <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
+                  </Link>
+                );
+              })}
             </>
-          )}
-
-          {/* Admin (only if admin) */}
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                location.pathname === '/admin' ? 'active' : ''
-              }`}
-            >
-              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-[10px] font-medium">Admin</span>
-            </Link>
-          )}
-
-          {/* Profile (only for non-admin and non-vmu users) */}
-          {!isAdmin && !isVmu && (
-            <Link
-              to="/profile"
-              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                location.pathname === '/profile' ? 'active' : ''
-              }`}
-            >
-              <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span className="text-[10px] font-medium">Profile</span>
-            </Link>
           )}
         </div>
       </nav>
