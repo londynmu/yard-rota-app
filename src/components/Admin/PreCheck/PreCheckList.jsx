@@ -468,6 +468,11 @@ export default function PreCheckList() {
               </span>
             </div>
             <span className="min-w-0 flex flex-wrap items-center gap-2 justify-end">
+              {hasRealDamages && (
+                <span className="text-xs text-red-600 font-medium">
+                  {realDamages.length} issue{realDamages.length !== 1 ? 's' : ''}
+                </span>
+              )}
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium w-fit ${
                 sub.check_type === 'pre_shift'
                   ? 'bg-blue-100 text-blue-700'
@@ -475,11 +480,6 @@ export default function PreCheckList() {
               }`}>
                 {sub.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
               </span>
-              {hasRealDamages && (
-                <span className="text-xs text-red-600 font-medium">
-                  {realDamages.length} issue{realDamages.length !== 1 ? 's' : ''}
-                </span>
-              )}
             </span>
           </div>
         </button>

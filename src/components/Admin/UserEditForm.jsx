@@ -263,7 +263,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   const formContent = (
     <form id={inline ? 'user-edit-inline-form' : undefined} onSubmit={handleSubmit}>
       <div className={inline ? 'p-4' : 'px-5 py-4'}>
-        {/* Avatar Upload & Active Status */}
+        {/* Avatar & Active Status – only in modal (not inline) */}
+        {!inline && (
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
@@ -286,8 +287,6 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                   />
                 </label>
               </div>
-              
-              {/* Active Account Toggle + Last login */}
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <label htmlFor="admin-edit-isActive" className="text-sm text-gray-600">
@@ -309,20 +308,76 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                     />
                   </button>
                 </div>
-                {user?.last_activity_at && (
-                  <div className="text-sm text-gray-600">
-                    <span className="text-gray-500">Last activity: </span>
-                    <span className="text-charcoal font-medium">
-                      {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
+        )}
             
             {/* Basic Info */}
             <div className="space-y-3">
-              {/* First Name & Last Name - side by side on desktop */}
+              {/* First Name & Last Name – inline: First name + Active in one row; modal: side by side */}
+              {inline ? (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
+                      <label htmlFor="admin-edit-firstName" className="text-charcoal font-medium text-sm">
+                        First Name
+                      </label>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-gray-600">Active</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isActive}
+                          id="admin-edit-isActive-inline"
+                          onClick={() => !loading && setIsActive(!isActive)}
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                            isActive ? 'bg-green-500' : 'bg-gray-300'
+                          } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                              isActive ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      id="admin-edit-firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
+                        formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
+                      }`}
+                      placeholder="First name"
+                      disabled={loading}
+                    />
+                    {formErrors.firstName && (
+                      <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
+                      Last Name
+                    </label>
+                    <input
+                      id="admin-edit-lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
+                        formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
+                      }`}
+                      placeholder="Last name"
+                      disabled={loading}
+                    />
+                    {formErrors.lastName && (
+                      <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
@@ -364,6 +419,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                 )}
                 </div>
               </div>
+              )}
               
               {/* Yard System ID, Shift Preference, Agency - side by side on desktop */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

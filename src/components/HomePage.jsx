@@ -75,6 +75,17 @@ export default function HomePage() {
   const dropdownRef = useRef(null);
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+  const [currentAdminSectionLabel, setCurrentAdminSectionLabel] = useState('');
+
+  // Listen for admin section title (mobile header)
+  useEffect(() => {
+    const handle = (e) => setCurrentAdminSectionLabel(e.detail?.label ?? '');
+    window.addEventListener('adminSectionChange', handle);
+    return () => window.removeEventListener('adminSectionChange', handle);
+  }, []);
+  useEffect(() => {
+    if (location.pathname !== '/admin') setCurrentAdminSectionLabel('');
+  }, [location.pathname]);
 
   // Fetch profile data when user changes
   useEffect(() => {
@@ -406,17 +417,22 @@ export default function HomePage() {
               ) : (
                 <>
               {/* Admin: nav left (hamburger + links), NotificationBell + Avatar right */}
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
                 {isAdminPage && (
-                  <button
-                    onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
-                    className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Open menu"
-                  >
-                    <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
+                      className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+                      title="Open menu"
+                    >
+                      <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
+                    <span className="md:hidden font-semibold text-slate-800 truncate">
+                      {currentAdminSectionLabel || 'Admin'}
+                    </span>
+                  </>
                 )}
                 <nav className="hidden md:flex space-x-2">
                   {topNavLinks.map((nav) => (

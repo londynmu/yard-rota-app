@@ -39,28 +39,28 @@ export default function AdminPage() {
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Aktualizuj tytuł strony w top barze
+  // Aktualizuj tytuł strony w top barze + powiadom header (mobile)
   useEffect(() => {
+    const titles = {
+      'dashboard': 'Dashboard',
+      'users': 'Users',
+      'approvals': 'Approvals',
+      'availability': 'Availability',
+      'rota-planner': 'Rota Planner',
+      'breaks': 'Breaks',
+      'attendance': 'Black list',
+      'performance': 'Performance',
+      'stats': 'Statistics',
+      'shunter-month': 'Shunter of the Month',
+      'tugs': 'Tug Management',
+      'prechecks': 'PreCheck Reports',
+      'check-items': 'Check Items',
+      'settings': 'Settings'
+    };
+    const label = titles[activeSection] || 'Admin Panel';
     const titleElement = document.getElementById('page-title');
-    if (titleElement) {
-      const titles = {
-        'dashboard': 'Dashboard',
-        'users': 'Users',
-        'approvals': 'Approvals',
-        'availability': 'Availability',
-        'rota-planner': 'Rota Planner',
-        'breaks': 'Breaks',
-        'attendance': 'Black list',
-        'performance': 'Performance',
-        'stats': 'Statistics',
-        'shunter-month': 'Shunter of the Month',
-        'tugs': 'Tug Management',
-        'prechecks': 'PreCheck Reports',
-        'check-items': 'Check Items',
-        'settings': 'Settings'
-      };
-      titleElement.textContent = titles[activeSection] || 'Admin Panel';
-    }
+    if (titleElement) titleElement.textContent = label;
+    window.dispatchEvent(new CustomEvent('adminSectionChange', { detail: { label } }));
   }, [activeSection]);
   
   const [pendingApprovals, setPendingApprovals] = useState(0);

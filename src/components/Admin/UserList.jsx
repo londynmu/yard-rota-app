@@ -704,7 +704,7 @@ export default function UserList({ users, onRefresh }) {
   
   return (
     <>
-      {/* Search and filter – at the very top, no container */}
+      {/* Search – at the very top, no container */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap mb-4">
         <div className="relative flex-1 min-w-0">
           <input
@@ -722,20 +722,6 @@ export default function UserList({ users, onRefresh }) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-        </div>
-        <div className="flex items-center justify-between md:justify-end gap-3 flex-shrink-0">
-          <span className="text-gray-600 text-sm whitespace-nowrap">
-            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} {filters.shift !== 'all' ? `(${filters.shift})` : ''}
-          </span>
-          <button
-            onClick={openFilterModal}
-            className="px-3 py-1.5 text-sm rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-            </svg>
-            Filter and sort
-          </button>
         </div>
       </div>
 
@@ -760,9 +746,9 @@ export default function UserList({ users, onRefresh }) {
               <button
                 type="button"
                 onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
-                className={`w-full px-4 py-3 text-left flex flex-wrap items-center gap-3 md:gap-4 ${headerStyle} transition-opacity`}
+                className={`w-full px-4 py-3 text-left flex items-center gap-3 ${headerStyle} transition-opacity`}
               >
-                {/* Avatar + status */}
+                {/* Avatar */}
                 <div className="flex-shrink-0 h-10 w-10 relative">
                   {user.avatar_url ? (
                     <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
@@ -777,58 +763,14 @@ export default function UserList({ users, onRefresh }) {
                 </div>
 
                 {/* Name */}
-                <div className="min-w-0 flex-1">
-                  <span className="text-charcoal font-semibold text-sm block truncate">
-                    {user.first_name || ''} {user.last_name || ''}
+                <span className="text-charcoal font-semibold text-sm truncate">
+                  {user.first_name || ''} {user.last_name || ''}
+                </span>
+                {user.last_activity_at && (
+                  <span className="text-gray-500 text-xs ml-auto flex-shrink-0">
+                    {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
                   </span>
-                </div>
-
-                {/* Shift */}
-                <div>
-                  {getShiftBadge(user.shift_preference) ? (
-                    <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full ${getShiftBadge(user.shift_preference).className}`}>
-                      {getShiftBadge(user.shift_preference).label}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">–</span>
-                  )}
-                </div>
-
-                {/* Agency */}
-                <div className="hidden sm:block">
-                  {user.agency_name ? (
-                    <span className="inline-block px-2 py-0.5 text-[10px] font-medium text-gray-500 border border-gray-300 rounded-full bg-white/60">
-                      {user.agency_name}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">–</span>
-                  )}
-                </div>
-
-                {/* Start time – lg+ */}
-                <div className="hidden lg:block w-16 text-gray-600 text-sm">
-                  {user.custom_start_time ? user.custom_start_time.slice(0, 5) : '–'}
-                </div>
-
-                {/* Location – xl+ */}
-                <div className="hidden xl:block w-20 text-gray-600 text-sm truncate">
-                  {user.preferred_location || '–'}
-                </div>
-
-                {/* Score */}
-                <div className="px-2 py-1 bg-white/70 rounded-md">
-                  <span className="text-charcoal text-sm font-bold">{user.performance_score || '–'}</span>
-                </div>
-
-                {/* Chevron */}
-                <svg
-                  className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                )}
               </button>
 
               {/* Expanded content – same fields as Edit form (inline) + actions */}
@@ -845,18 +787,18 @@ export default function UserList({ users, onRefresh }) {
                       }}
                     />
                   </div>
-                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-wrap gap-2 items-center">
+                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-nowrap gap-2 sm:gap-3 items-stretch w-full md:justify-end md:items-center">
                     <button
                       type="submit"
                       form="user-edit-inline-form"
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
+                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors text-center"
                     >
                       Save changes
                     </button>
                     <button
                       type="button"
                       onClick={() => { setAddViolationUserId(user.id); setAddViolationOpen(true); }}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors"
+                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors text-center"
                     >
                       Add violation
                     </button>
@@ -864,7 +806,7 @@ export default function UserList({ users, onRefresh }) {
                       type="button"
                       onClick={() => openDeleteModal(user)}
                       disabled={processingUser === user.id}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 text-center"
                     >
                       {processingUser === user.id ? 'Deleting…' : 'Delete'}
                     </button>
