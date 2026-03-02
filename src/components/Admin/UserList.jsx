@@ -141,8 +141,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="bg-white px-5 py-4 border-b border-gray-200 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Filter & Sort
+          <h3 className="text-lg font-semibold text-charcoal">
+            Filter and sort
           </h3>
           <button
             type="button"
@@ -162,10 +162,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Filter by Shift</h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'all' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -178,10 +178,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>All</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'day' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -194,10 +194,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Day</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'afternoon' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -210,10 +210,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Afternoon</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               shiftFilter === 'night' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -232,10 +232,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Sort By</h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               sortBy === 'name' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -248,10 +248,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Last Name</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               sortBy === 'score' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -270,10 +270,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Order</h4>
           <div className="grid grid-cols-2 gap-2">
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               sortOrder === 'asc' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -286,10 +286,10 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Ascending</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border rounded-lg cursor-pointer transition-colors text-sm ${
+            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
               sortOrder === 'desc' 
-              ? 'bg-charcoal text-white border-charcoal' 
-              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              ? 'border-charcoal bg-white text-charcoal' 
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -316,7 +316,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         <button
           type="button"
           onClick={handleApplyFilters}
-          className="flex-1 px-4 py-2 text-sm rounded-lg bg-charcoal text-white hover:bg-charcoal/90 transition-colors"
+          className="flex-1 px-4 py-2 text-sm rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
         >
           Apply
         </button>
@@ -706,8 +706,8 @@ export default function UserList({ users, onRefresh }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Delete User
+                  <h3 className="text-lg font-semibold text-red-800">
+                    Delete user
                   </h3>
                 </div>
                 <button
@@ -767,7 +767,7 @@ export default function UserList({ users, onRefresh }) {
                 <button
             type="button"
                   onClick={handleFirstConfirmation}
-                  className="flex-1 px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+                  className="flex-1 px-4 py-2 text-sm rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors font-medium"
                 >
                   Continue
                 </button>
@@ -776,10 +776,10 @@ export default function UserList({ users, onRefresh }) {
             type="button"
                   onClick={handleDeleteUser}
                   disabled={confirmationInput.toLowerCase() !== 'delete'}
-                  className={`flex-1 px-4 py-2 text-sm rounded-lg font-medium focus:outline-none transition-colors ${
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg font-medium focus:outline-none transition-colors border-2 ${
                     confirmationInput.toLowerCase() === 'delete'
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? 'border-red-500 bg-white text-red-600 hover:bg-red-50'
+                      : 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
                   }`}
                 >
                   Delete User
@@ -791,7 +791,13 @@ export default function UserList({ users, onRefresh }) {
   
   return (
     <>
-      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
+        <div className="w-full px-4 py-3 bg-red-50 border-b border-red-200/60">
+          <p className="text-sm font-semibold text-red-800">Users</p>
+        </div>
+        <div className="p-4 bg-yellow-50/50 space-y-3">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
           <div className="relative">
             <input
@@ -825,6 +831,7 @@ export default function UserList({ users, onRefresh }) {
             Filter & Sort
           </button>
         </div>
+      </div>
       </div>
 
       {/* Mobile list view (visible on small screens) - Clean minimal style */}
@@ -969,7 +976,7 @@ export default function UserList({ users, onRefresh }) {
               <button 
                 type="button"
                 onClick={() => openEditModal(user)}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-charcoal text-white hover:bg-black transition-colors"
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
               >
                 Edit
               </button>
@@ -1043,6 +1050,8 @@ export default function UserList({ users, onRefresh }) {
           </div>
         )}
       </div>
+        </div>
+      </div>
       
       {/* Delete Confirmation Modal (portal) */}
       <Modal isOpen={showDeleteModal} onClose={closeDeleteModal}>
@@ -1079,8 +1088,8 @@ export default function UserList({ users, onRefresh }) {
       {/* Info Modal */}
       {infoModalOpen && (
         <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
-            <div className="bg-black px-5 py-4 border-b border-gray-900">
-              <h3 className="text-lg font-bold text-white">User Information</h3>
+            <div className="bg-red-50 px-5 py-4 border-b border-red-200/60">
+              <h3 className="text-lg font-semibold text-red-800">User information</h3>
             </div>
             <div className="px-5 py-5">
               {infoUser && (
@@ -1135,7 +1144,7 @@ export default function UserList({ users, onRefresh }) {
                 </div>
               )}
               <div className="text-right mt-5 pt-4 border-t border-gray-200">
-                <button onClick={closeInfoModal} className="px-5 py-2.5 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 transition-colors">Close</button>
+                <button onClick={closeInfoModal} className="px-5 py-2.5 rounded-lg border-2 border-charcoal bg-white text-charcoal font-semibold hover:bg-gray-50 transition-colors">Close</button>
               </div>
             </div>
         </Modal>
@@ -1181,7 +1190,7 @@ export default function UserList({ users, onRefresh }) {
               <button
                 type="button"
                 onClick={handleBottomSheetEdit}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium bg-charcoal text-white hover:bg-black transition-colors"
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1209,7 +1218,7 @@ export default function UserList({ users, onRefresh }) {
               <button
                 type="button"
                 onClick={handleBottomSheetDelete}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-base font-medium border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

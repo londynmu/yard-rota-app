@@ -278,18 +278,28 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
     >
       <div 
         ref={modalRef}
-        className="bg-white rounded-3xl md:rounded-xl shadow-2xl w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border-2 border-gray-400" 
+        className="bg-white rounded-xl shadow-lg w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border border-gray-200" 
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-black px-5 py-4 border-b border-gray-900 sticky top-0 z-10">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <h3 className="text-lg font-bold text-white">
-                Edit User Profile
-              </h3>
+        <div className="bg-red-50 px-5 py-4 border-b border-red-200/60 sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-red-800">
+              Edit user profile
+            </h3>
           </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -306,7 +316,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     </svg>
                   )}
                 </div>
-                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">
+                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">>
                   <span>Upload</span>
                   <input
                     id="admin-edit-avatar"
@@ -354,7 +364,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
                     formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   placeholder="First name"
@@ -374,7 +384,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
                     formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   placeholder="Last name"
@@ -398,7 +408,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   value={yardSystemId}
                   onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
                   style={{ textTransform: 'uppercase' }}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
                     formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                     placeholder="E.G., AG10"
@@ -417,7 +427,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   id="admin-edit-shiftPreference"
                   value={shiftPreference}
                   onChange={(e) => setShiftPreference(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
                     formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   disabled={loading}
@@ -440,7 +450,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   id="admin-edit-agency"
                   value={agencyId || ''}
                   onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                   disabled={loading}
                 >
                     <option value="">None</option>
@@ -464,7 +474,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                   max="99"
                   value={performanceScore}
                   onChange={(e) => setPerformanceScore(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
                     formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
                   }`}
                   disabled={loading}
@@ -482,7 +492,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     id="admin-edit-startTime"
                     value={customStartTime ? customStartTime.slice(0, 5) : ''}
                     onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                     disabled={loading}
                   >
                     <option value="">No preference</option>
@@ -504,7 +514,7 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                     id="admin-edit-location"
                     value={preferredLocation || ''}
                     onChange={(e) => setPreferredLocation(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                     disabled={loading}
                   >
                     <option value="">No preference</option>
@@ -523,18 +533,20 @@ export default function UserEditForm({ user, onClose, onSuccess }) {
                 type="button"
                 onClick={handleClose}
                 disabled={loading}
-                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg text-charcoal font-medium transition-colors"
+                className="px-4 py-2 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-4 py-2 text-sm bg-black hover:bg-gray-900 rounded-lg text-white font-semibold transition-colors shadow-md ${
-                  loading ? 'opacity-70 cursor-not-allowed' : ''
+                className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-colors ${
+                  loading
+                    ? 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
+                    : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
                 }`}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </div>
