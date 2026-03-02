@@ -125,8 +125,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // ─── Schema version guard ───
   const [schemaStatus, setSchemaStatus] = useState('checking'); // checking | ok | mismatch | error
-  const [serverSchemaVersion, setServerSchemaVersion] = useState(null);
-  const [expectedActiveItems, setExpectedActiveItems] = useState(null);
   const [schemaErrorMessage, setSchemaErrorMessage] = useState(null);
 
   useEffect(() => {
@@ -160,31 +158,23 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     fetchCheckItems();
   }, []);
 
-  // Fetch schema version (and optional expected item count) from app_config
+  // Fetch schema version from app_config (no expected item count – list comes from DB)
   useEffect(() => {
     const fetchSchemaVersion = async () => {
       try {
         const { data, error } = await supabase
           .from('app_config')
           .select('key, value')
-          .in('key', ['precheck_schema_version', 'precheck_expected_active_items']);
+          .in('key', ['precheck_schema_version']);
 
         if (error) throw error;
 
         let serverVersion = null;
-        let expectedCount = null;
         (data || []).forEach(row => {
           if (row.key === 'precheck_schema_version') serverVersion = row.value;
-          if (row.key === 'precheck_expected_active_items') expectedCount = row.value;
         });
 
-        if (expectedCount !== null) {
-          const parsed = Number(expectedCount);
-          if (Number.isFinite(parsed)) setExpectedActiveItems(parsed);
-        }
-
         if (serverVersion !== null) {
-          setServerSchemaVersion(serverVersion);
           const serverNum = Number(serverVersion);
           const clientNum = Number(CLIENT_SCHEMA_VERSION);
           if (Number.isFinite(serverNum) && Number.isFinite(clientNum) && serverNum > clientNum) {
@@ -685,7 +675,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const outsideStatus = outsideDone ? (outsideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const insideStatus = insideDone ? (insideRepairs > 0 ? 'issues' : 'done') : 'pending';
   const isSchemaMismatch = schemaStatus === 'mismatch';
-  const countMismatch = expectedActiveItems !== null && allItems.length > 0 && allItems.length !== expectedActiveItems;
 
   const handleCheckChange = (key, status) => {
     const scrollY = window.scrollY;
@@ -821,11 +810,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     return count;
   })();
 
-  const totalItems = allItems.length;
-  const checkedCount = allItems.filter(item =>
-    isItemChecked(item, checkItems, knownDefectsByItem, markedResolvedDamageIds)
-  ).length;
-  const progressPct = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
   const tugLabel = selectedTug?.display_name || selectedTug?.tug_number || null;
 
   return (
@@ -852,12 +836,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       {schemaStatus === 'error' && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
           Could not verify latest form version (offline or network issue). Your current form will be used.
-        </div>
-      )}
-
-      {schemaStatus !== 'mismatch' && countMismatch && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-          Form items count differs from expected. You can continue, but please report if this persists.
+          {schemaErrorMessage && <span className="block mt-1 opacity-90">{schemaErrorMessage}</span>}
         </div>
       )}
 
