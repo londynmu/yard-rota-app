@@ -419,8 +419,8 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-              {/* Admin: title, hamburger, full nav, NotificationBell, Avatar */}
-              <div className="flex items-center gap-3">
+              {/* Admin: nav left (hamburger + links), NotificationBell + Avatar right */}
+              <div className="flex items-center gap-3 flex-shrink-0">
                 {isAdminPage && (
                   <button
                     onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
@@ -432,10 +432,6 @@ export default function HomePage() {
                     </svg>
                   </button>
                 )}
-                <h1 className="text-xl font-semibold text-slate-900" id="page-title">{pageTitle}</h1>
-              </div>
-              
-              <div className="flex items-center space-x-4">
                 <nav className="hidden md:flex space-x-2">
                   <Link
                     to="/calendar"
@@ -498,9 +494,20 @@ export default function HomePage() {
                     Admin Panel
                   </Link>
                 </nav>
-                
+              </div>
+              
+              <div className="flex items-center space-x-2 flex-shrink-0">
                 <NotificationBell />
-                
+                <Link
+                  to="/profile"
+                  className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    path === '/profile'
+                      ? 'bg-slate-100 text-slate-800'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                  }`}
+                >
+                  Profile
+                </Link>
                 <div className="relative">
                   <button 
                     ref={avatarButtonRef}
