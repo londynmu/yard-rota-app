@@ -265,7 +265,7 @@ export default function HomePage() {
 
         return (
           <header className={`${borderClass} bg-slate-200 pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
-            <div className={isVmu && !isAdmin ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+            <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
@@ -331,11 +331,96 @@ export default function HomePage() {
                     </div>
                   </div>
                 </>
+              ) : !isAdmin ? (
+                <>
+                  {/* Regular user: nav left, profile/avatar right (full width, justify-between) */}
+                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
+                    <Link
+                      to="/calendar"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/calendar'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Main Page
+                    </Link>
+                    <Link
+                      to="/my-rota"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/my-rota'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      My Rota
+                    </Link>
+                    <Link
+                      to="/performance"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === '/performance'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Performance
+                    </Link>
+                    <Link
+                      to="/precheck"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname.startsWith('/precheck')
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      PreCheck
+                    </Link>
+                  </nav>
+                  <div className="flex-1" aria-hidden="true" />
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <Link
+                      to="/profile"
+                      className={`hidden md:inline-flex px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        path === '/profile'
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      Profile
+                    </Link>
+                    <div className="relative">
+                      <button
+                        ref={avatarButtonRef}
+                        onClick={toggleDropdown}
+                        className="flex items-center focus:outline-none"
+                        aria-label="User menu"
+                        aria-haspopup="true"
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
+                          {avatarUrl && (
+                            <img
+                              src={avatarUrl}
+                              alt="Profile"
+                              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
+                              onLoad={() => setAvatarLoaded(true)}
+                            />
+                          )}
+                          {(!avatarUrl || !avatarLoaded) && (
+                            <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                              <span className="text-slate-700 font-medium text-sm">
+                                {user?.email?.charAt(0).toUpperCase() || '?'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <>
-              {/* Tytuł strony - zawsze widoczny */}
+              {/* Admin: title, hamburger, full nav, NotificationBell, Avatar */}
               <div className="flex items-center gap-3">
-                {/* Hamburger for admin sidebar - TYLKO na mobile gdy jesteśmy na admin */}
                 {isAdminPage && (
                   <button
                     onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
@@ -351,123 +436,70 @@ export default function HomePage() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Nawigacja - Solid slate style */}
                 <nav className="hidden md:flex space-x-2">
-                  {/* VMU-only users see VMU navigation */}
-                  {isVmu && !isAdmin ? (
-                    <>
-                      <Link
-                        to="/vmu"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/vmu' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        VMU
-                      </Link>
-                      <Link
-                        to="/vmu/tugs"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/vmu/tugs' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        Tugs
-                      </Link>
-                      <Link
-                        to="/vmu/prechecks"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/vmu/prechecks' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        PreChecks
-                      </Link>
-                      <Link
-                        to="/vmu/check-items"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/vmu/check-items' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        Check Items
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <Link
-                        to="/calendar"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/calendar' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        Main Page
-                      </Link>
-                      <Link
-                        to="/my-rota"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/my-rota' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        My Rota
-                      </Link>
-                      <Link
-                        to="/performance"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname === '/performance' 
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        Performance
-                      </Link>
-                      <Link
-                        to="/precheck"
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                          location.pathname.startsWith('/precheck')
-                            ? 'bg-slate-100 text-slate-800' 
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                        }`}
-                      >
-                        PreCheck
-                      </Link>
-                      {isAdmin && (
-                        <Link
-                          to="/vmu"
-                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                            location.pathname === '/vmu' 
-                              ? 'bg-slate-100 text-slate-800' 
-                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                          }`}
-                        >
-                          VMU
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link
-                          to="/admin"
-                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                            location.pathname === '/admin' 
-                              ? 'bg-slate-100 text-slate-800' 
-                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                          }`}
-                        >
-                          Admin Panel
-                        </Link>
-                      )}
-                    </>
-                  )}
+                  <Link
+                    to="/calendar"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname === '/calendar' 
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    Main Page
+                  </Link>
+                  <Link
+                    to="/my-rota"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname === '/my-rota' 
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    My Rota
+                  </Link>
+                  <Link
+                    to="/performance"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname === '/performance' 
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    Performance
+                  </Link>
+                  <Link
+                    to="/precheck"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname.startsWith('/precheck')
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    PreCheck
+                  </Link>
+                  <Link
+                    to="/vmu"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname === '/vmu' 
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    VMU
+                  </Link>
+                  <Link
+                    to="/admin"
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      location.pathname === '/admin' 
+                        ? 'bg-slate-100 text-slate-800' 
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    Admin Panel
+                  </Link>
                 </nav>
                 
-                {isAdmin && <NotificationBell />}
+                <NotificationBell />
                 
                 <div className="relative">
                   <button 
