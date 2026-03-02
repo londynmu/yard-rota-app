@@ -41,6 +41,8 @@ export default function ShunterOfTheMonthManager({ users }) {
   const [lastAwardsMap, setLastAwardsMap] = useState(new Map());
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [activePeriod, setActivePeriod] = useState('day');
+  const [userSearch, setUserSearch] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -180,6 +182,27 @@ export default function ShunterOfTheMonthManager({ users }) {
     });
   }, [users]);
 
+  // Users filtered by period: Day = day shift only; Night = night + afternoon
+  const usersForPeriod = useMemo(() => {
+    const period = activePeriod;
+    return sortedUsers.filter((u) => {
+      const pref = (u.shift_preference || '').toLowerCase();
+      if (period === 'day') {
+        return pref === 'day' || !pref;
+      }
+      return pref === 'night' || pref === 'afternoon' || !pref;
+    });
+  }, [sortedUsers, activePeriod]);
+
+  const filteredUserList = useMemo(() => {
+    const q = (userSearch || '').trim().toLowerCase();
+    if (!q) return usersForPeriod;
+    return usersForPeriod.filter((u) => {
+      const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
+      return name.includes(q);
+    });
+  }, [usersForPeriod, userSearch]);
+
   const refreshCurrentAndLast = async () => {
     const lastMap = await getUsersLastAwards();
     setLastAwardsMap(lastMap);
@@ -231,55 +254,40 @@ export default function ShunterOfTheMonthManager({ users }) {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        {/* History card skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <div className="h-6 w-48 bg-slate-300 rounded mb-4" />
-          <div className="space-y-3">
-            <div className="h-4 w-full bg-slate-200 rounded" />
-            <div className="h-4 w-5/6 bg-slate-200 rounded" />
-            <div className="h-4 w-4/6 bg-slate-200 rounded" />
-          </div>
+      <div className="space-y-4 animate-pulse">
+        <div className="rounded-xl border border-gray-200 p-3">
+          <div className="h-5 w-40 bg-slate-200 rounded mb-2" />
+          <div className="h-3 w-24 bg-slate-100 rounded" />
         </div>
-        
-        {/* Award sections skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border-2 border-slate-200 p-6 shadow-lg">
-              <div className="h-6 w-40 bg-slate-300 rounded mb-4" />
-              <div className="space-y-3">
-                <div className="h-10 bg-slate-200 rounded" />
-                <div className="h-10 bg-slate-200 rounded" />
-                <div className="h-10 w-32 bg-slate-300 rounded-lg" />
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl border border-amber-200 bg-amber-50/20 p-3">
+          <div className="h-5 w-48 bg-slate-200 rounded mb-3" />
+          <div className="h-8 bg-slate-200 rounded mb-2" />
+          <div className="h-6 w-full bg-slate-100 rounded" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Shunter of the Month history – dropdown card at top */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div className="space-y-4">
+      {/* History – collapsible, red header, yellow container */}
+      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
         <button
           type="button"
           onClick={() => setHistoryOpen((prev) => !prev)}
-          className="w-full px-4 py-3 flex items-center justify-between"
+          className="w-full px-3 py-2 flex items-center justify-between bg-red-50 hover:bg-red-100/70 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-white text-xs font-bold border border-gray-900">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-white text-[10px] font-bold">
               H
             </span>
-            <div className="text-left">
-              <p className="text-sm font-semibold text-charcoal">Shunter of the Month history</p>
-            </div>
+            <p className="text-xs font-semibold text-charcoal">Shunter of the Month history</p>
+            {history.length > 0 && (
+              <span className="text-[10px] text-gray-500">({history.length} months)</span>
+            )}
           </div>
           <svg
-            className={`w-4 h-4 text-gray-500 transition-transform ${
-              historyOpen ? 'rotate-180' : 'rotate-0'
-            }`}
+            className={`w-3.5 h-3.5 text-gray-500 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -287,169 +295,161 @@ export default function ShunterOfTheMonthManager({ users }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div
-          className={`border-t border-gray-100 overflow-hidden transition-all duration-200 ease-out ${
-            historyOpen ? 'max-h-64 md:max-h-80 opacity-100' : 'max-h-0 opacity-0'
-          }`}
-        >
-          <div className="p-4 pt-3">
+        {historyOpen && (
+          <div className="border-t border-red-100 max-h-[min(60vh,360px)] overflow-y-auto p-2 bg-yellow-50/50">
             {history.length === 0 ? (
-              <p className="text-sm text-gray-600">No awards recorded yet.</p>
+              <p className="text-xs text-gray-500 py-2 px-1">No awards recorded yet.</p>
             ) : (
-              <div className="space-y-2">
-                {history.map((row) => (
-                  <div
-                    key={row.monthKey}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm border border-gray-100 rounded-lg px-3 py-2"
-                  >
-                    <span className="font-medium text-charcoal">
-                      {getMonthLabel(row.monthKey)}
-                    </span>
-                    <div className="flex flex-col md:flex-row md:items-center md:gap-4 text-xs md:text-sm w-full">
-                      {/* Day line */}
-                      <div className="flex items-center justify-between gap-2 w-full">
-                        <span className="font-semibold text-charcoal text-sm md:text-base truncate">
-                          {row.dayName || '—'}
-                        </span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[11px] md:text-xs font-semibold">
-                            Day
-                          </span>
-                          {row.dayId && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteHistoryAward(row.monthKey, 'day')}
-                              disabled={saving}
-                              className="text-gray-400 hover:text-red-600 text-xs"
-                              title="Remove Day award"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
+              <div className="space-y-1.5">
+                {history.map((row) => {
+                  const complete = row.dayId && row.nightId;
+                  const cardStyle = complete
+                    ? 'border border-green-200 bg-green-50/50'
+                    : 'border border-amber-200 bg-amber-50/50';
+                  return (
+                    <div
+                      key={row.monthKey}
+                      className={`rounded-lg px-2.5 py-1.5 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 shadow-sm ${cardStyle}`}
+                    >
+                      <span className="text-xs font-semibold text-charcoal md:w-24 flex-shrink-0">
+                        {getMonthLabel(row.monthKey)}
+                      </span>
+                      <div className="flex items-center gap-1 md:flex-1 min-w-0">
+                        <span className="text-xs text-charcoal truncate">{row.dayName || '—'}</span>
+                        {row.dayId && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHistoryAward(row.monthKey, 'day')}
+                            disabled={saving}
+                            className="text-gray-400 hover:text-red-600 text-xs p-0.5 flex-shrink-0"
+                            title="Remove Day award"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
-
-                      {/* Night line */}
-                      <div className="flex items-center justify-between gap-2 w-full mt-1 md:mt-0">
-                        <span className="font-semibold text-charcoal text-sm md:text-base truncate">
-                          {row.nightName || '—'}
-                        </span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 text-[11px] md:text-xs font-semibold">
-                            Night
-                          </span>
-                          {row.nightId && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteHistoryAward(row.monthKey, 'night')}
-                              disabled={saving}
-                              className="text-gray-400 hover:text-red-600 text-xs"
-                              title="Remove Night award"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-1 md:flex-1 min-w-0">
+                        <span className="text-xs text-charcoal truncate">{row.nightName || '—'}</span>
+                        {row.nightId && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHistoryAward(row.monthKey, 'night')}
+                            disabled={saving}
+                            className="text-gray-400 hover:text-red-600 text-xs p-0.5 flex-shrink-0"
+                            title="Remove Night award"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Current month selection */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-charcoal">
-              Shunter of the Month – {getMonthLabel(currentMonthKey)}
-            </h2>
-          </div>
+      {/* Current month – red header, yellow container, Save in footer on desktop */}
+      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden flex flex-col">
+        <div className="px-3 py-2 border-b border-red-200/60 bg-red-50">
+          <h2 className="text-sm font-semibold text-charcoal">
+            Shunter of the Month – {getMonthLabel(currentMonthKey)}
+          </h2>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Day award */}
-          <div className="border border-gray-200 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-charcoal flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-300">
-                  D
-                </span>
-                Day Shunter
-              </span>
-            </div>
-            <select
-              value={currentMonthWinners.day || ''}
-              onChange={(e) =>
-                setCurrentMonthWinners((prev) => ({
-                  ...prev,
-                  day: e.target.value || null,
-                }))
-              }
-              className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
-            >
-              <option value="">Select user…</option>
-              {sortedUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {renderUserOptionLabel(user)}
-                </option>
-              ))}
-            </select>
+        <div className="p-3 bg-yellow-50/50 flex-1">
+          {/* Tabs */}
+          <div className="flex rounded-md border border-gray-200 p-0.5 bg-gray-100 mb-2">
             <button
               type="button"
-              onClick={() => handleSave('day')}
-              disabled={!currentMonthWinners.day || saving}
-              className={`mt-3 w-full px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                !currentMonthWinners.day || saving
-                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-900'
+              onClick={() => { setActivePeriod('day'); setUserSearch(''); }}
+              className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
+                activePeriod === 'day' ? 'bg-white text-charcoal shadow-sm' : 'text-gray-600 hover:text-charcoal'
               }`}
             >
-              Save Day Award
+              Day
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActivePeriod('night'); setUserSearch(''); }}
+              className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
+                activePeriod === 'night' ? 'bg-white text-charcoal shadow-sm' : 'text-gray-600 hover:text-charcoal'
+              }`}
+            >
+              Night / Afternoon
             </button>
           </div>
 
-          {/* Night award */}
-          <div className="border border-gray-200 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-charcoal flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold border border-blue-300">
-                  N
-                </span>
-                Night Shunter
+          {/* Winner + search row */}
+          <div className="flex flex-col gap-1.5 mb-2">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-gray-600">{activePeriod === 'day' ? 'Day' : 'Night'} winner:</span>
+              <span className="font-semibold text-charcoal">
+                {(() => {
+                  const uid = currentMonthWinners[activePeriod];
+                  if (!uid) return 'Not set';
+                  const u = sortedUsers.find((x) => x.id === uid);
+                  return u ? [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Unknown' : 'Unknown';
+                })()}
               </span>
             </div>
-            <select
-              value={currentMonthWinners.night || ''}
-              onChange={(e) =>
-                setCurrentMonthWinners((prev) => ({
-                  ...prev,
-                  night: e.target.value || null,
-                }))
-              }
-              className="w-full mt-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
-            >
-              <option value="">Select user…</option>
-              {sortedUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {renderUserOptionLabel(user)}
-                </option>
-              ))}
-            </select>
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Search by name..."
+              className="w-full bg-white border border-gray-300 rounded-md px-2 py-1.5 text-xs text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+            />
+          </div>
+
+          {/* User list */}
+          <div className="max-h-[200px] overflow-y-auto rounded-md border border-gray-200 divide-y divide-gray-100 bg-white">
+            {filteredUserList.length === 0 ? (
+              <div className="py-4 text-center text-xs text-gray-500">No users match.</div>
+            ) : (
+              filteredUserList.map((user) => {
+                const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+                const isSelected = currentMonthWinners[activePeriod] === user.id;
+                const last = lastAwardsMap.get(user.id) || { day: null, night: null };
+                const latestKey = last.day && last.night
+                  ? (last.day >= last.night ? last.day : last.night)
+                  : (last.day || last.night);
+                const lastLabel = latestKey ? getMonthLabel(latestKey) : null;
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() =>
+                      setCurrentMonthWinners((prev) => ({ ...prev, [activePeriod]: user.id }))
+                    }
+                    className={`w-full px-2 py-1.5 text-left flex items-center justify-between gap-2 transition-colors ${
+                      isSelected ? 'bg-amber-100 border-l-2 border-amber-500' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-xs font-medium text-charcoal truncate">{fullName}</span>
+                    {lastLabel && (
+                      <span className="text-[10px] text-gray-500 flex-shrink-0">Last: {lastLabel}</span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer: Save on desktop (small, right); on mobile full width below */}
+          <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col md:flex-row md:justify-end">
             <button
               type="button"
-              onClick={() => handleSave('night')}
-              disabled={!currentMonthWinners.night || saving}
-              className={`mt-3 w-full px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                !currentMonthWinners.night || saving
-                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-900'
+              onClick={() => handleSave(activePeriod)}
+              disabled={!currentMonthWinners[activePeriod] || saving}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors w-full md:w-auto md:min-w-[7rem] ${
+                !currentMonthWinners[activePeriod] || saving
+                  ? 'bg-white text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white text-charcoal border-gray-300 hover:bg-gray-50'
               }`}
             >
-              Save Night Award
+              Save {activePeriod === 'day' ? 'Day' : 'Night'} Award
             </button>
           </div>
         </div>
