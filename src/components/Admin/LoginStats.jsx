@@ -88,6 +88,21 @@ const LoginStats = () => {
     const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
     return `${formattedDate} (${timeAgo})`;
   };
+
+  const getShortPageLabel = (pagePath, pageTitle) => {
+    const path = (pagePath || '').toLowerCase();
+    const title = (pageTitle || '').toLowerCase();
+    if (path.includes('/precheck') || title.includes('precheck')) return 'Precheck';
+    if (path.includes('/calendar') || title.includes('calendar')) return 'Calendar';
+    if (path.includes('/performance') || title.includes('performance')) return 'Performance';
+    if (path.includes('/vmu') || path.includes('/stats') || title.includes('activity')) return 'Activity';
+    if (path.includes('/rota') || path.includes('/breaks')) return 'Rota';
+    if (path.includes('/admin') || title.includes('admin')) return 'Admin';
+    if (path.includes('/home') || path === '/' || title.includes('home')) return 'Home';
+    if (path.includes('/attendance')) return 'Attendance';
+    if (path.includes('/tug')) return 'Precheck';
+    return 'Activity';
+  };
   
   return (
     <div className="space-y-3">
@@ -182,8 +197,8 @@ const LoginStats = () => {
                           </span>
 
                           {/* Latest Activity */}
-                          <div className="text-xs text-gray-500 hidden md:block">
-                            Last: {latestActivity.page_title} • {latestActivity.time_ago}
+                          <div className="text-xs text-gray-500 hidden md:block truncate">
+                            Last: {getShortPageLabel(latestActivity.page_path, latestActivity.page_title)} • {latestActivity.time_ago}
                           </div>
                         </div>
                       </div>
@@ -199,29 +214,29 @@ const LoginStats = () => {
                       </svg>
                     </button>
 
-                    {/* Expanded Details */}
+                    {/* Expanded Details – short label + time, no overflow on mobile */}
                     {isExpanded && (
-                      <div className="border-t border-gray-200 bg-white">
-                        <table className="min-w-full divide-y divide-gray-200">
+                      <div className="border-t border-gray-200 bg-white overflow-hidden">
+                        <table className="min-w-0 w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Page Visited</th>
-                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Time</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Page</th>
+                              <th className="px-4 py-2 text-right md:text-left text-xs font-bold text-gray-600 uppercase whitespace-nowrap">Time</th>
                               <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase hidden md:table-cell">Session</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200 bg-white">
                             {userGroup.logs.map((log) => (
                               <tr key={log.visit_id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-4 py-2">
-                                  <div className="text-sm font-medium text-charcoal">{log.page_title || log.page_path}</div>
-                                  <div className="text-xs text-gray-500">{log.page_path}</div>
+                                <td className="px-4 py-2 min-w-0">
+                                  <span className="text-sm font-medium text-charcoal truncate block">
+                                    {getShortPageLabel(log.page_path, log.page_title)}
+                                  </span>
                                 </td>
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <div className="text-sm text-charcoal">
-                                    {new Date(log.visited_at).toLocaleString()}
-                                  </div>
-                                  <div className="text-xs text-gray-500">{log.time_ago}</div>
+                                <td className="px-4 py-2 whitespace-nowrap text-right md:text-left">
+                                  <span className="text-sm text-charcoal" title={new Date(log.visited_at).toLocaleString()}>
+                                    {log.time_ago}
+                                  </span>
                                 </td>
                                 <td className="px-4 py-2 text-xs text-gray-500 font-mono hidden md:table-cell">
                                   {log.session_id?.substring(0, 12)}...
