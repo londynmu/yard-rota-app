@@ -217,7 +217,7 @@ export default function HomePage() {
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
     if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin')];
-    return base;
+    return [...base, mainNavConfig.find((n) => n.path === '/profile')];
   }, [isAdmin, isVmu]);
 
   if (location.pathname === '/' || location.pathname === '') {
