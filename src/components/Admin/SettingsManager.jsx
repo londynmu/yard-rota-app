@@ -6,6 +6,7 @@ export default function SettingsManager() {
   const [activeSection, setActiveSection] = useState('locations');
   const [isLoading, setIsLoading] = useState(true);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
+  const [showAddAgencyForm, setShowAddAgencyForm] = useState(false);
 
   useEffect(() => {
     setIsLoading(false);
@@ -64,6 +65,19 @@ export default function SettingsManager() {
             </button>
           </div>
         )}
+        {activeSection === 'agencies' && (
+          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
+            <button
+              onClick={() => setShowAddAgencyForm(true)}
+              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+            >
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Agency
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content – floating cards, no wrapper (same as Tug Management) */}
@@ -74,7 +88,12 @@ export default function SettingsManager() {
             setShowAddForm={setShowAddLocationForm}
           />
         )}
-        {activeSection === 'agencies' && <AgencyConfigManager />}
+        {activeSection === 'agencies' && (
+          <AgencyConfigManager
+            showAddForm={showAddAgencyForm}
+            setShowAddForm={setShowAddAgencyForm}
+          />
+        )}
       </div>
     </div>
   );
