@@ -39,7 +39,7 @@ export function getAdminMenuItems(pendingApprovals = 0) {
     { id: 'breaks', label: 'Breaks', Icon: Timer, colorClass: 'text-amber-600', description: 'Manage employee breaks' },
     { id: 'attendance', label: 'Black list', Icon: UserMinus, colorClass: 'text-rose-600', description: 'Attendance & disciplinary notes' },
     { id: 'performance', label: 'Performance', Icon: BarChart2, colorClass: 'text-violet-600', description: 'Import performance data' },
-    { id: 'stats', label: 'Statistics', Icon: LineChart, colorClass: 'text-sky-600', description: 'Login & activity stats' },
+    { id: 'stats', label: 'Activity', Icon: LineChart, colorClass: 'text-sky-600', description: 'User activity logs & summary' },
     { id: 'tugs', label: 'Tugs', Icon: Truck, colorClass: 'text-blue-600', description: 'Manage tug fleet & QR codes' },
     { id: 'prechecks', label: 'PreChecks', Icon: CheckSquare, colorClass: 'text-emerald-600', description: 'Tug inspection reports' },
     { id: 'check-items', label: 'Check Items', Icon: ListTodo, colorClass: 'text-teal-600', description: 'Manage checklist & tooltips' },

@@ -50,7 +50,7 @@ export default function AdminPage() {
       'breaks': 'Breaks',
       'attendance': 'Black list',
       'performance': 'Performance',
-      'stats': 'Statistics',
+      'stats': 'Activity',
       'shunter-month': 'Shunter of the Month',
       'tugs': 'Tug Management',
       'prechecks': 'PreCheck Reports',
