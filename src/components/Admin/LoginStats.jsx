@@ -44,15 +44,18 @@ const LoginStats = () => {
   
   if (loading) {
     return (
-      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
-        <div className="w-full px-4 py-3 flex items-center justify-between bg-red-50 border-b border-red-200/60">
-          <div className="h-4 w-32 bg-red-200/60 rounded animate-pulse" />
-          <div className="flex rounded-md border border-gray-200 p-0.5 bg-gray-100">
-            <div className="h-7 w-28 bg-gray-200 rounded animate-pulse" />
-            <div className="h-7 w-28 bg-gray-200 rounded animate-pulse" />
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+            <div className="flex rounded border border-gray-300 p-0.5 bg-gray-100">
+              <div className="h-5 w-12 bg-gray-200 rounded animate-pulse" />
+              <div className="h-5 w-12 bg-gray-200 rounded animate-pulse" />
+            </div>
           </div>
+          <div className="h-7 w-28 bg-gray-200 rounded animate-pulse" />
         </div>
-        <div className="p-4 border-t border-red-100 bg-yellow-50/50 space-y-3">
+        <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 bg-white border border-gray-200 rounded-xl animate-pulse" />
           ))}
@@ -63,21 +66,17 @@ const LoginStats = () => {
   
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
-        <div className="w-full px-4 py-3 bg-red-50 border-b border-red-200/60">
-          <p className="text-sm font-semibold text-red-800">Activity</p>
-        </div>
-        <div className="p-4 border-t border-red-100 bg-yellow-50/50">
-          <div className="p-4 bg-white rounded-xl border border-red-200 text-center">
-            <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={() => fetchAllData()}
-              className="px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors text-sm font-semibold"
-            >
-              Retry
-            </button>
-          </div>
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-charcoal">Activity</p>
+        <div className="p-4 bg-white rounded-xl border border-gray-200 text-center">
+          <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => fetchAllData()}
+            className="px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors text-sm font-semibold"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -91,38 +90,34 @@ const LoginStats = () => {
   };
   
   return (
-    <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
-      {/* Header – red bar, tabs */}
-      <div className="w-full px-4 py-3 bg-red-50 border-b border-red-200/60">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-red-800">Activity</p>
-          <div className="flex rounded-md border border-gray-200 p-0.5 bg-gray-100">
-            <button
-              className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
-                activeTab === 'activity-logs'
-                  ? 'bg-white text-charcoal shadow-sm'
-                  : 'text-gray-600 hover:text-charcoal'
-              }`}
-              onClick={() => setActiveTab('activity-logs')}
-            >
-              Activity Logs
-            </button>
-            <button
-              className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition-colors ${
-                activeTab === 'user-summary'
-                  ? 'bg-white text-charcoal shadow-sm'
-                  : 'text-gray-600 hover:text-charcoal'
-              }`}
-              onClick={() => setActiveTab('user-summary')}
-            >
-              User Summary
-            </button>
-          </div>
+    <div className="space-y-3">
+      {/* Header – compact tabs */}
+      <div className="flex items-center">
+        <div className="flex rounded border border-gray-300 p-0.5 bg-gray-100">
+              <button
+                className={`py-0.5 px-2 text-[10px] font-semibold rounded transition-colors ${
+                  activeTab === 'activity-logs'
+                    ? 'bg-white text-charcoal shadow-sm'
+                    : 'text-gray-600 hover:text-charcoal'
+                }`}
+                onClick={() => setActiveTab('activity-logs')}
+              >
+                Logs
+              </button>
+              <button
+                className={`py-0.5 px-2 text-[10px] font-semibold rounded transition-colors ${
+                  activeTab === 'user-summary'
+                    ? 'bg-white text-charcoal shadow-sm'
+                    : 'text-gray-600 hover:text-charcoal'
+                }`}
+                onClick={() => setActiveTab('user-summary')}
+              >
+                Summary
+              </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="border-t border-red-100 p-4 bg-yellow-50/50">
+      {/* Content – floating cards, no wrapper */}
       {activeTab === 'activity-logs' && (
         <div className="space-y-3">
             {(() => {
@@ -243,54 +238,55 @@ const LoginStats = () => {
             })()}
         </div>
       )}
-      
-      {/* User Activity Summary Tab */}
       {activeTab === 'user-summary' && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
-            <h3 className="text-charcoal font-semibold mb-3">User Activity Summary (Most Active Users)</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">User</th>
-                    <th className="px-4 py-2 text-right text-xs font-bold text-charcoal uppercase">Total Views</th>
-                    <th className="px-4 py-2 text-right text-xs font-bold text-charcoal uppercase">Unique Pages</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">Most Visited Page</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-charcoal uppercase">Last Activity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {activitySummary.map((user) => (
-                    <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <div className="text-sm font-medium text-charcoal">
-                          {user.first_name} {user.last_name}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <span className="border-2 border-charcoal rounded-md px-2 py-1 text-sm font-medium text-charcoal bg-white">
-                          {user.total_page_views}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right text-sm text-charcoal">
-                        {user.unique_pages_visited}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-charcoal">
-                        {user.most_visited_page || 'N/A'}
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
-                        {formatDateForDisplay(user.last_activity)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="space-y-3">
+          {(() => {
+            const BORDER_COLORS = ['border-amber-200', 'border-blue-200', 'border-emerald-200', 'border-purple-200'];
+
+            if (activitySummary.length === 0) {
+              return (
+                <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
+                  <p className="text-gray-500">No users found for the selected time period.</p>
+                </div>
+              );
+            }
+
+            return activitySummary.map((user, idx) => {
+              const borderClass = BORDER_COLORS[idx % BORDER_COLORS.length];
+              return (
+                <div
+                  key={user.user_id}
+                  className={`bg-white rounded-xl border shadow-sm p-4 ${borderClass}`}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-charcoal">
+                        {user.first_name} {user.last_name}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Last: {formatDateForDisplay(user.last_activity)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="border-2 border-charcoal rounded-md px-2 py-0.5 text-xs font-medium text-charcoal bg-white">
+                        {user.total_page_views} views
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        {user.unique_pages_visited} unique pages
+                      </span>
+                    </div>
+                  </div>
+                  {user.most_visited_page && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      <span className="text-gray-500">Most visited:</span> {user.most_visited_page}
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
-      </div>
     </div>
   );
 };
