@@ -297,28 +297,45 @@ export default function CheckItemManager() {
           className="rounded-xl border border-blue-200 bg-blue-50 shadow-sm overflow-hidden"
         >
           <div className="p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-3">
               <div>
                 <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
-                <input
-                  type="text"
+                <textarea
+                  rows={1}
                   value={editForm.label}
                   onChange={(e) => setEditForm(prev => ({ ...prev, label: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                  onInput={(e) => {
+                    const t = e.target;
+                    t.style.height = 'auto';
+                    t.style.height = t.scrollHeight + 'px';
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Tooltip</label>
-                <input
-                  type="text"
+                <textarea
+                  rows={1}
                   value={editForm.tooltip}
                   onChange={(e) => setEditForm(prev => ({ ...prev, tooltip: e.target.value }))}
+                  onInput={(e) => {
+                    const t = e.target;
+                    t.style.height = 'auto';
+                    t.style.height = t.scrollHeight + 'px';
+                  }}
                   placeholder="Description shown to user..."
-                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
                 />
               </div>
             </div>
             <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => deleteItem(item)}
+                className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50"
+              >
+                Delete
+              </button>
               <button type="button" onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
                 Cancel
               </button>
@@ -339,97 +356,50 @@ export default function CheckItemManager() {
     return (
       <div
         key={item.id}
-        className={`rounded-xl border shadow-sm overflow-hidden transition-all ${
+        className={`rounded-xl border shadow-sm overflow-hidden transition-all min-h-[52px] ${
           item.is_active
             ? 'border-green-200 bg-green-50'
             : 'border-gray-200 bg-gray-50 opacity-60'
         }`}
       >
-        <div className="min-h-[52px] px-4 py-3 flex items-center gap-2">
-          {/* Reorder arrows */}
-          <div className="flex flex-col gap-0.5 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => moveItem(item, 'up')}
-              disabled={idx === 0}
-              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => moveItem(item, 'down')}
-              disabled={idx === listLength - 1}
-              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Content */}
+        <div className="px-4 py-3 flex items-center gap-2">
+          {/* Name only (closed card) */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-charcoal">{item.label}</span>
-              <span className="text-xs text-gray-500 font-mono">{item.item_key}</span>
-            </div>
-            {item.tooltip && (
-              <p className="text-xs text-gray-500 truncate mt-0.5">{item.tooltip}</p>
-            )}
+            <span className="text-sm font-medium text-charcoal truncate block">{item.label}</span>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* N/A toggle */}
-            <button
-              type="button"
-              onClick={() => toggleAllowNa(item)}
-              className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors h-8 flex items-center ${
-                item.allow_na ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-              }`}
-              title={item.allow_na ? 'N/A allowed - click to disallow' : 'N/A not allowed - click to allow'}
-            >
-              N/A
-            </button>
-
-            {/* Active toggle */}
-            <button
-              type="button"
-              onClick={() => toggleActive(item)}
-              className={`w-8 h-5 rounded-full relative transition-colors flex-shrink-0 ${
-                item.is_active ? 'bg-green-500' : 'bg-gray-300'
-              }`}
-              title={item.is_active ? 'Active - click to deactivate' : 'Inactive - click to activate'}
-            >
-              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
-                item.is_active ? 'left-3.5' : 'left-0.5'
-              }`} />
-            </button>
-
-            {/* Edit */}
+          {/* Right: reorder arrows + edit */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => moveItem(item, 'up')}
+                disabled={idx === 0}
+                className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => moveItem(item, 'down')}
+                disabled={idx === listLength - 1}
+                className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => startEdit(item)}
               className="p-1.5 text-gray-400 hover:text-charcoal border border-transparent hover:border-gray-200 rounded"
               title="Edit"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-
-            {/* Delete */}
-            <button
-              type="button"
-              onClick={() => deleteItem(item)}
-              className="p-1.5 text-gray-400 hover:text-red-600 border border-transparent hover:border-red-200 rounded"
-              title="Delete"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
           </div>
@@ -562,13 +532,13 @@ export default function CheckItemManager() {
       <div className="space-y-4 -mt-px">
         {activeTab === 'form-options' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-              <div>
+            <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
-                <p className="text-xs text-gray-500 mt-0.5">Shows/hides the Remarks section in Pre-Shift form.</p>
+                <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shows/hides the Remarks section in Pre-Shift form.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-xs font-semibold hidden sm:inline ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
                   {preShiftRemarksEnabled ? 'ON' : 'OFF'}
                 </span>
                 <button
@@ -586,13 +556,13 @@ export default function CheckItemManager() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-              <div>
+            <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
-                <p className="text-xs text-gray-500 mt-0.5">Shows/hides Report Damage flow in During Shift.</p>
+                <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shows/hides Report Damage flow in During Shift.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-xs font-semibold hidden sm:inline ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
                   {duringShiftDamageEnabled ? 'ON' : 'OFF'}
                 </span>
                 <button
@@ -610,12 +580,12 @@ export default function CheckItemManager() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-              <div>
+            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">Defect resolve confirmations</p>
-                <p className="text-xs text-gray-500 mt-0.5">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
+                <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <input
                   type="number"
                   min={1}
