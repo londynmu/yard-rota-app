@@ -182,24 +182,20 @@ const LoginStats = () => {
                       }}
                       className="w-full flex items-center justify-between p-4 hover:bg-gray-50/80 transition-colors text-left"
                     >
-                      <div className="flex items-center gap-4 flex-1">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {/* Activity count – only number, left-aligned with fixed width for consistent spacing */}
+                        <span className="w-10 flex-shrink-0 text-sm font-semibold text-charcoal tabular-nums">
+                          {userGroup.logs.length}
+                        </span>
                         {/* User Info */}
-                        <div className="flex-1">
-                          <div className="text-sm font-semibold text-charcoal">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-charcoal truncate">
                             {userGroup.first_name} {userGroup.last_name}
                           </div>
                         </div>
-
-                        {/* Activity Count Badge */}
-                        <div className="flex items-center gap-3">
-                          <span className="border-2 border-charcoal rounded-full px-3 py-1 text-xs font-medium text-charcoal bg-white">
-                            {userGroup.logs.length} {userGroup.logs.length === 1 ? 'activity' : 'activities'}
-                          </span>
-
-                          {/* Latest Activity */}
-                          <div className="text-xs text-gray-500 hidden md:block truncate">
-                            Last: {getShortPageLabel(latestActivity.page_path, latestActivity.page_title)} • {latestActivity.time_ago}
-                          </div>
+                        {/* Latest Activity */}
+                        <div className="text-xs text-gray-500 hidden md:block truncate flex-shrink-0">
+                          Last: {getShortPageLabel(latestActivity.page_path, latestActivity.page_title)} • {latestActivity.time_ago}
                         </div>
                       </div>
 
