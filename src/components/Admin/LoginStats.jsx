@@ -95,13 +95,21 @@ const LoginStats = () => {
     if (path.includes('/precheck') || title.includes('precheck')) return 'Precheck';
     if (path.includes('/calendar') || title.includes('calendar')) return 'Calendar';
     if (path.includes('/performance') || title.includes('performance')) return 'Performance';
-    if (path.includes('/vmu') || path.includes('/stats') || title.includes('activity')) return 'Activity';
+    if (path.includes('/profile') || title.includes('profile')) return 'Profile';
+    if (path.includes('/my-rota') || title.includes('my rota')) return 'My Rota';
+    if (path.includes('/vmu') || path.includes('/stats')) return 'Activity';
     if (path.includes('/rota') || path.includes('/breaks')) return 'Rota';
     if (path.includes('/admin') || title.includes('admin')) return 'Admin';
-    if (path.includes('/home') || path === '/' || title.includes('home')) return 'Home';
+    if (path.includes('/home') || path === '/' || title.includes('main page')) return 'Main Page';
     if (path.includes('/attendance')) return 'Attendance';
     if (path.includes('/tug')) return 'Precheck';
-    return 'Activity';
+    // Use stored page_title when available, otherwise path segment or fallback
+    if (pageTitle && pageTitle.trim()) return pageTitle.trim();
+    if (path && path !== '/') {
+      const segment = path.split('/').filter(Boolean).pop();
+      if (segment) return segment.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    return 'Other';
   };
   
   return (
