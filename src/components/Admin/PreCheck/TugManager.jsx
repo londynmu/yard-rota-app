@@ -205,8 +205,8 @@ export default function TugManager() {
   return (
     <div className="space-y-4">
       {/* Toolbar: fixed h-8 (32px) for all elements – same as VMU search bar height */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2 md:flex-nowrap md:h-8">
-        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap md:flex-1 md:min-w-0 md:h-8">
+      <div className="flex flex-row flex-nowrap items-center gap-1 md:gap-2 md:h-8 overflow-x-auto">
+        <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
           <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
             {[
               { id: 'tugs', label: 'Tugs' },
@@ -228,19 +228,19 @@ export default function TugManager() {
           </div>
         </div>
         {activeTab === 'tugs' && (
-          <div className="flex gap-2 flex-shrink-0 h-8">
+          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={printAllQRCodes}
-              className="h-8 px-4 text-xs font-medium bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-gray-200"
+              className="h-8 px-2 md:px-4 text-xs font-medium bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              Print All QR
+              Print QR
             </button>
             <button
               onClick={() => { setShowForm(true); setEditingTug(null); setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' }); }}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-gray-200"
+              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -250,10 +250,10 @@ export default function TugManager() {
           </div>
         )}
         {activeTab === 'tablets' && (
-          <div className="flex gap-2 flex-shrink-0 h-8">
+          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={() => setShowTabletForm(true)}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-gray-200"
+              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -347,14 +347,15 @@ export default function TugManager() {
             key={tug.id}
             className="rounded-xl border border-red-200 bg-red-50/50 overflow-hidden shadow-sm"
           >
-            <div className="px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center min-h-[52px]">
-              <span className="text-sm font-semibold text-charcoal truncate">
-                {tug.display_name || tug.tug_number}
+            <div className="px-4 py-3 flex flex-nowrap items-center gap-1 sm:grid sm:grid-cols-4 sm:gap-3 min-h-[52px]">
+              <span className="flex items-center gap-1 min-w-0 flex-1 sm:col-span-1 sm:flex-initial">
+                <span className="text-sm font-semibold text-charcoal truncate">{tug.display_name || tug.tug_number}</span>
+                {tug.display_name && <span className="text-xs text-gray-600 font-mono truncate shrink-0 sm:hidden">({tug.tug_number})</span>}
               </span>
-              <span className="text-xs text-gray-600 font-mono truncate">
+              <span className="hidden sm:inline text-xs text-gray-600 font-mono truncate">
                 {tug.display_name ? tug.tug_number : (tug.locations?.name || '—')}
               </span>
-              <span className="flex items-center gap-2 min-w-0">
+              <span className="hidden sm:flex items-center gap-2 min-w-0 col-span-1">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize truncate ${statusColors[tug.status]}`}>
                   {tug.status}
                 </span>
