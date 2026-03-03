@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabaseClient';
 export default function CheckItemManager() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('form-options'); // 'form-options' | 'checks'
   const [preShiftRemarksEnabled, setPreShiftRemarksEnabled] = useState(true);
   const [duringShiftDamageEnabled, setDuringShiftDamageEnabled] = useState(true);
   const [defectResolveConfirmationsRequired, setDefectResolveConfirmationsRequired] = useState(1);
@@ -504,16 +505,16 @@ export default function CheckItemManager() {
     );
   };
 
-  // ─── Render section ───
+  // ─── Render section (no container – floating cards) ───
   const renderSection = (title, categoryItems, category) => (
-    <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 min-h-[52px] bg-red-50 border-b border-red-200 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-red-800">{title}</h3>
-        <span className="text-xs text-red-600/80">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-charcoal">{title}</h3>
+        <span className="text-xs text-gray-500">
           {categoryItems.filter(i => i.is_active).length} active / {categoryItems.length} total
         </span>
       </div>
-      <div className="p-3 space-y-2 bg-yellow-50/50">
+      <div className="space-y-2">
         {categoryItems.map((item, idx) => renderItemRow(item, idx, categoryItems.length))}
         {renderAddForm(category)}
       </div>
@@ -522,7 +523,7 @@ export default function CheckItemManager() {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-3">
+      <div className="animate-pulse space-y-4">
         <div className="h-8 bg-slate-200 rounded-xl w-48" />
         <div className="h-64 bg-slate-200 rounded-xl" />
         <div className="h-48 bg-slate-200 rounded-xl" />
@@ -531,92 +532,116 @@ export default function CheckItemManager() {
   }
 
   return (
-    <div className="space-y-6 bg-yellow-50">
-      <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 min-h-[52px] bg-red-50 border-b border-red-200 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-red-800">Form options</h3>
-            <p className="text-xs text-red-600/80 mt-0.5">
-              Configure Pre-Shift and During Shift options independently.
-            </p>
-          </div>
-        </div>
-        <div className="p-3 space-y-2 bg-yellow-50/50">
-          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
-              <p className="text-xs text-gray-500 mt-0.5">Shows/hides the Remarks section in Pre-Shift form.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
-                {preShiftRemarksEnabled ? 'ON' : 'OFF'}
-              </span>
+    <div className="space-y-4">
+      {/* Toolbar – same as Tug Management / Settings */}
+      <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
+        <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
+          <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
+            {[
+              { id: 'form-options', label: 'Form options' },
+              { id: 'checks', label: 'Checks' },
+            ].map((tab) => (
               <button
+                key={tab.id}
                 type="button"
-                onClick={togglePreShiftRemarks}
-                disabled={settingsLoading || settingsSaving}
-                className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
-                  preShiftRemarksEnabled ? 'bg-green-500' : 'bg-gray-300'
-                } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                title={preShiftRemarksEnabled ? 'Pre-Shift remarks enabled - click to disable' : 'Pre-Shift remarks disabled - click to enable'}
+                onClick={() => setActiveTab(tab.id)}
+                className={`h-7 px-3 text-xs font-medium rounded-md transition-all flex items-center ${
+                  activeTab === tab.id
+                    ? 'bg-white text-charcoal shadow-sm'
+                    : 'text-gray-500 hover:text-charcoal'
+                }`}
               >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
-                  preShiftRemarksEnabled ? 'left-4.5' : 'left-0.5'
-                }`} />
+                {tab.label}
               </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
-              <p className="text-xs text-gray-500 mt-0.5">Shows/hides Report Damage flow in During Shift.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
-                {duringShiftDamageEnabled ? 'ON' : 'OFF'}
-              </span>
-              <button
-                type="button"
-                onClick={toggleDuringShiftDamage}
-                disabled={settingsLoading || settingsSaving}
-                className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
-                  duringShiftDamageEnabled ? 'bg-green-500' : 'bg-gray-300'
-                } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                title={duringShiftDamageEnabled ? 'During Shift reporting enabled - click to disable' : 'During Shift reporting disabled - click to enable'}
-              >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
-                  duringShiftDamageEnabled ? 'left-4.5' : 'left-0.5'
-                }`} />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-charcoal">Defect resolve confirmations</p>
-              <p className="text-xs text-gray-500 mt-0.5">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={defectResolveConfirmationsRequired}
-                onChange={(e) => setDefectResolveConfirmationsRequired(Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1)))}
-                onBlur={(e) => {
-                  const v = Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1));
-                  setDefectResolveConfirmationsRequired(v);
-                  saveDefectResolveConfirmations(v);
-                }}
-                disabled={settingsLoading || settingsSaving}
-                className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center"
-              />
-            </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {renderSection('Outside Check', outsideItems, 'outside')}
-      {renderSection('Inside Check', insideItems, 'inside')}
+      {/* Content – floating cards, no wrapper */}
+      <div className="space-y-4 -mt-px">
+        {activeTab === 'form-options' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
+                <p className="text-xs text-gray-500 mt-0.5">Shows/hides the Remarks section in Pre-Shift form.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold ${preShiftRemarksEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                  {preShiftRemarksEnabled ? 'ON' : 'OFF'}
+                </span>
+                <button
+                  type="button"
+                  onClick={togglePreShiftRemarks}
+                  disabled={settingsLoading || settingsSaving}
+                  className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+                    preShiftRemarksEnabled ? 'bg-green-500' : 'bg-gray-300'
+                  } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={preShiftRemarksEnabled ? 'Pre-Shift remarks enabled - click to disable' : 'Pre-Shift remarks disabled - click to enable'}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                    preShiftRemarksEnabled ? 'left-4.5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
+                <p className="text-xs text-gray-500 mt-0.5">Shows/hides Report Damage flow in During Shift.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold ${duringShiftDamageEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                  {duringShiftDamageEnabled ? 'ON' : 'OFF'}
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleDuringShiftDamage}
+                  disabled={settingsLoading || settingsSaving}
+                  className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+                    duringShiftDamageEnabled ? 'bg-green-500' : 'bg-gray-300'
+                  } ${(settingsLoading || settingsSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={duringShiftDamageEnabled ? 'During Shift reporting enabled - click to disable' : 'During Shift reporting disabled - click to enable'}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                    duringShiftDamageEnabled ? 'left-4.5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-charcoal">Defect resolve confirmations</p>
+                <p className="text-xs text-gray-500 mt-0.5">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={defectResolveConfirmationsRequired}
+                  onChange={(e) => setDefectResolveConfirmationsRequired(Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1)))}
+                  onBlur={(e) => {
+                    const v = Math.max(1, Math.min(99, parseInt(e.target.value, 10) || 1));
+                    setDefectResolveConfirmationsRequired(v);
+                    saveDefectResolveConfirmations(v);
+                  }}
+                  disabled={settingsLoading || settingsSaving}
+                  className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'checks' && (
+          <div className="space-y-6">
+            {renderSection('Outside Check', outsideItems, 'outside')}
+            {renderSection('Inside Check', insideItems, 'inside')}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
