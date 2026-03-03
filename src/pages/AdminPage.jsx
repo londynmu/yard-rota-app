@@ -363,12 +363,12 @@ export default function AdminPage() {
         />
       )}
 
-      {/* Sidebar - zawsze widoczny na desktop, rozwija się po najechaniu */}
+      {/* Sidebar - zawsze widoczny na desktop, rozwija się po najechaniu; na mobile wysuwa się do końca z napisami */}
       <aside 
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
         className={`
-          ${sidebarHovered ? 'w-72' : 'w-20'}
+          ${(sidebarHovered || mobileSidebarOpen) ? 'w-72' : 'w-20'}
           bg-white border-r border-gray-200 flex flex-col shadow-lg
           fixed left-0 z-50
           ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -391,8 +391,8 @@ export default function AdminPage() {
                   isActive
                     ? 'bg-charcoal text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
-                } ${sidebarHovered ? 'px-3' : 'justify-center px-2'}`}
-                title={!sidebarHovered ? item.label : ''}
+                } ${(sidebarHovered || mobileSidebarOpen) ? 'px-3' : 'justify-center px-2'}`}
+                title={!(sidebarHovered || mobileSidebarOpen) ? item.label : ''}
               >
                 <div className="w-8 flex items-center justify-center flex-shrink-0">
                   <NavIcon
@@ -401,7 +401,7 @@ export default function AdminPage() {
                     animate={true}
                   />
                 </div>
-                {sidebarHovered && (
+                {(sidebarHovered || mobileSidebarOpen) && (
                   <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn ml-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                     {item.label}
                     {item.badge > 0 && (
@@ -411,7 +411,7 @@ export default function AdminPage() {
                     )}
                   </div>
                 )}
-                {!sidebarHovered && item.badge > 0 && (
+                {!(sidebarHovered || mobileSidebarOpen) && item.badge > 0 && (
                   <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-orange-600 rounded-full border border-white"></span>
                 )}
               </button>
@@ -420,7 +420,7 @@ export default function AdminPage() {
         </nav>
 
         {/* Sidebar Footer */}
-        {sidebarHovered && (
+        {(sidebarHovered || mobileSidebarOpen) && (
           <div className="p-4 border-t border-gray-200 opacity-0 animate-fadeIn" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
             <div className="text-xs text-gray-500 text-center whitespace-nowrap">
               Logged in as Admin
