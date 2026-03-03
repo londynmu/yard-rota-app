@@ -309,6 +309,9 @@ export default function CheckItemManager() {
                     t.style.height = 'auto';
                     t.style.height = t.scrollHeight + 'px';
                   }}
+                  ref={(el) => {
+                    if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
                 />
               </div>
@@ -322,6 +325,9 @@ export default function CheckItemManager() {
                     const t = e.target;
                     t.style.height = 'auto';
                     t.style.height = t.scrollHeight + 'px';
+                  }}
+                  ref={(el) => {
+                    if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
                   }}
                   placeholder="Description shown to user..."
                   className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
@@ -363,46 +369,60 @@ export default function CheckItemManager() {
         }`}
       >
         <div className="px-4 py-3 flex items-center gap-2">
+          {/* Left: reorder arrows */}
+          <div className="flex flex-col gap-0.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => moveItem(item, 'up')}
+              disabled={idx === 0}
+              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveItem(item, 'down')}
+              disabled={idx === listLength - 1}
+              className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
           {/* Name only (closed card) */}
           <div className="flex-1 min-w-0">
             <span className="text-sm font-medium text-charcoal truncate block">{item.label}</span>
           </div>
 
-          {/* Right: reorder arrows + edit */}
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                onClick={() => moveItem(item, 'up')}
-                disabled={idx === 0}
-                className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => moveItem(item, 'down')}
-                disabled={idx === listLength - 1}
-                className="text-gray-400 hover:text-charcoal disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => startEdit(item)}
-              className="p-1.5 text-gray-400 hover:text-charcoal border border-transparent hover:border-gray-200 rounded"
-              title="Edit"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-          </div>
+          {/* Active toggle */}
+          <button
+            type="button"
+            onClick={() => toggleActive(item)}
+            className={`w-8 h-5 rounded-full relative transition-colors flex-shrink-0 ${
+              item.is_active ? 'bg-green-500' : 'bg-gray-300'
+            }`}
+            title={item.is_active ? 'Active - click to deactivate' : 'Inactive - click to activate'}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+              item.is_active ? 'left-3.5' : 'left-0.5'
+            }`} />
+          </button>
+
+          {/* Edit */}
+          <button
+            type="button"
+            onClick={() => startEdit(item)}
+            className="p-1.5 text-gray-400 hover:text-charcoal border border-transparent hover:border-gray-200 rounded"
+            title="Edit"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         </div>
       </div>
     );
