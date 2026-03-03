@@ -205,7 +205,7 @@ export default function TugManager() {
   return (
     <div className="space-y-4">
       {/* Toolbar: fixed h-8 (32px) for all elements – same as VMU search bar height */}
-      <div className="flex flex-row flex-nowrap items-center gap-1 md:gap-2 md:h-8 overflow-x-auto">
+      <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
           <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
             {[
