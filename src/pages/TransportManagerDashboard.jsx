@@ -299,40 +299,68 @@ export default function TransportManagerDashboard() {
           <p className="text-sm font-semibold uppercase tracking-wide text-gray-600 mt-1">Total shunters</p>
         </div>
 
-        {/* Shift badges – click to expand name list (animated) */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { key: 'day', label: 'Day', count: shiftCounts.day, names: shiftNames.day || [], bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
-            { key: 'afternoon', label: 'Afternoon', count: shiftCounts.afternoon, names: shiftNames.afternoon || [], bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
-            { key: 'night', label: 'Night', count: shiftCounts.night, names: shiftNames.night || [], bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
-          ].map(({ key, label, count, names, bg, text, sub }) => {
-            const isExpanded = expandedShift === key;
-            return (
-              <div key={key} className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 ${bg}`}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedShift(isExpanded ? null : key)}
-                  className={`w-full p-5 text-center ${names.length ? 'cursor-pointer hover:opacity-90' : ''}`}
-                >
-                  <p className={`text-3xl font-bold tabular-nums ${text}`}>{count}</p>
-                  <p className={`text-xs font-semibold uppercase tracking-wide mt-1 ${sub}`}>{label}</p>
-                  {names.length > 0 && (
-                    <span className={`inline-block mt-1.5 text-xs ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                  )}
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                  aria-hidden={!isExpanded}
-                >
-                  <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                    {names.map((name, i) => (
-                      <li key={i}>{name}</li>
-                    ))}
-                  </ul>
+        {/* Shift badges – click any to expand one list below with all 3 shifts */}
+        <div className="space-y-0">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { key: 'day', label: 'Day', count: shiftCounts.day, names: shiftNames.day || [], bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
+              { key: 'afternoon', label: 'Afternoon', count: shiftCounts.afternoon, names: shiftNames.afternoon || [], bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
+              { key: 'night', label: 'Night', count: shiftCounts.night, names: shiftNames.night || [], bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
+            ].map(({ key, label, count, names, bg, text, sub }) => {
+              const hasAnyNames = (shiftNames.day || []).length > 0 || (shiftNames.afternoon || []).length > 0 || (shiftNames.night || []).length > 0;
+              const isExpanded = expandedShift === 'shifts';
+              return (
+                <div key={key} className={`border-2 rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpanded ? 'rounded-b-none' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedShift(hasAnyNames && isExpanded ? null : 'shifts')}
+                    className={`w-full p-5 text-center ${hasAnyNames ? 'cursor-pointer hover:opacity-90' : ''}`}
+                  >
+                    <p className={`text-3xl font-bold tabular-nums ${text}`}>{count}</p>
+                    <p className={`text-xs font-semibold uppercase tracking-wide mt-1 ${sub}`}>{label}</p>
+                    {hasAnyNames && (
+                      <span className={`inline-block mt-1.5 text-xs ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                    )}
+                  </button>
                 </div>
+              );
+            })}
+          </div>
+          {/* Single expanded list below: all 3 shifts at once */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift === 'shifts' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+            aria-hidden={expandedShift !== 'shifts'}
+          >
+            <div className="grid grid-cols-3 gap-0 border-t border-gray-100">
+              <div className="px-4 py-3 border-r border-gray-100">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Day</p>
+                <ul className="space-y-1 text-sm text-charcoal">
+                  {(shiftNames.day || []).map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                  {(shiftNames.day || []).length === 0 && <li className="text-gray-400">—</li>}
+                </ul>
               </div>
-            );
-          })}
+              <div className="px-4 py-3 border-r border-gray-100">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-2">Afternoon</p>
+                <ul className="space-y-1 text-sm text-charcoal">
+                  {(shiftNames.afternoon || []).map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                  {(shiftNames.afternoon || []).length === 0 && <li className="text-gray-400">—</li>}
+                </ul>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-2">Night</p>
+                <ul className="space-y-1 text-sm text-charcoal">
+                  {(shiftNames.night || []).map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                  {(shiftNames.night || []).length === 0 && <li className="text-gray-400">—</li>}
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Absences – only if any; clickable with user list */}
