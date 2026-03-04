@@ -33,7 +33,6 @@ export default function TransportManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedShift, setExpandedShift] = useState(null);
-  const [expandedAbsence, setExpandedAbsence] = useState(null);
 
   const fetchLocations = useCallback(async () => {
     const { data, error: e } = await supabase
@@ -150,26 +149,14 @@ export default function TransportManagerDashboard() {
 
   const selectedDateFormatted = format(new Date(selectedDate + 'T12:00:00'), 'EEEE d-MM-yyyy');
 
-  const hasAnyAbsence = absencesForDay.noShow > 0 || absencesForDay.sick > 0 || absencesForDay.late > 0;
-
-  const shiftNames = useMemo(() => {
+  const shiftListItems = useMemo(() => {
     const out = { day: [], afternoon: [], night: [] };
-    presentSlots.forEach((s) => {
-      const name = s.profiles ? `${s.profiles.first_name || ''} ${s.profiles.last_name || ''}`.trim() : 'Unknown';
-      if (!out[s.shift_type].includes(name)) out[s.shift_type].push(name);
-    });
-    return out;
-  }, [presentSlots]);
-
-  const absenceNames = useMemo(() => {
-    const out = { no_show: [], sick: [], late: [] };
     daySlots.forEach((s) => {
-      if (!attendanceBySlotId[s.id]) return;
-      const name = s.profiles ? `${s.profiles.first_name || ''} ${s.profiles.last_name || ''}`.trim() : 'Unknown';
-      const status = attendanceBySlotId[s.id].status;
-      if (status === 'no_show' && !out.no_show.includes(name)) out.no_show.push(name);
-      else if (status === 'sick' && !out.sick.includes(name)) out.sick.push(name);
-      else if (status === 'late' && !out.late.includes(name)) out.late.push(name);
+      if (!s.profiles) return;
+      const name = `${s.profiles.first_name || ''} ${s.profiles.last_name || ''}`.trim() || 'Unknown';
+      const isNoShow = attendanceBySlotId[s.id]?.status === 'no_show';
+      const st = s.shift_type || 'day';
+      out[st].push({ name, isNoShow });
     });
     return out;
   }, [daySlots, attendanceBySlotId]);
@@ -292,121 +279,38 @@ export default function TransportManagerDashboard() {
           .tm-dashboard-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #6b7280; }
         `}</style>
 
-        {/* Top row: Total shunters + absence badges (conditional) */}
+        {/* Top row: Total shunters only */}
         <div className="flex flex-wrap gap-3 items-stretch">
-          {/* Total shunters */}
           <div className="bg-white border-2 border-charcoal rounded-2xl shadow-md p-6 text-center min-w-[180px] flex-1">
             <p className="text-sm font-semibold text-gray-600">{selectedDateFormatted}</p>
             <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
             <p className="text-sm font-semibold uppercase tracking-wide text-gray-600 mt-1">Total shunters</p>
           </div>
-          {/* Absences – only if any; same row */}
-          {absencesForDay.noShow > 0 && (
-            <div className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-red-50/50 border-red-200 min-w-[120px] flex-1`}>
-              <button
-                type="button"
-                onClick={() => setExpandedAbsence(expandedAbsence === 'no_show' ? null : 'no_show')}
-                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
-              >
-                <p className="text-3xl font-bold tabular-nums text-red-700">{absencesForDay.noShow}</p>
-                <p className="text-xs font-semibold uppercase tracking-wide mt-1 text-red-600">No show</p>
-                <p className="text-[10px] text-red-600 mt-1.5 opacity-90">
-                  Day {absencesForDay.byShift.noShow.day} · Aft {absencesForDay.byShift.noShow.afternoon} · Ngt {absencesForDay.byShift.noShow.night}
-                </p>
-                {absenceNames.no_show.length > 0 && (
-                  <span className={`inline-block mt-1.5 text-xs text-red-600 transition-transform duration-200 ${expandedAbsence === 'no_show' ? 'rotate-180' : ''}`}>▼</span>
-                )}
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'no_show' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                aria-hidden={expandedAbsence !== 'no_show'}
-              >
-                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                  {absenceNames.no_show.map((name, i) => (
-                    <li key={i}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-          {absencesForDay.sick > 0 && (
-            <div className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-amber-50/50 border-amber-200 min-w-[120px] flex-1`}>
-              <button
-                type="button"
-                onClick={() => setExpandedAbsence(expandedAbsence === 'sick' ? null : 'sick')}
-                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
-              >
-                <p className="text-3xl font-bold tabular-nums text-amber-800">{absencesForDay.sick}</p>
-                <p className="text-xs font-semibold uppercase tracking-wide mt-1 text-amber-700">Sick</p>
-                <p className="text-[10px] text-amber-700 mt-1.5 opacity-90">
-                  Day {absencesForDay.byShift.sick.day} · Aft {absencesForDay.byShift.sick.afternoon} · Ngt {absencesForDay.byShift.sick.night}
-                </p>
-                {absenceNames.sick.length > 0 && (
-                  <span className={`inline-block mt-1.5 text-xs text-amber-700 transition-transform duration-200 ${expandedAbsence === 'sick' ? 'rotate-180' : ''}`}>▼</span>
-                )}
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'sick' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                aria-hidden={expandedAbsence !== 'sick'}
-              >
-                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                  {absenceNames.sick.map((name, i) => (
-                    <li key={i}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-          {absencesForDay.late > 0 && (
-            <div className="border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-slate-50/50 border-slate-200 min-w-[120px] flex-1">
-              <button
-                type="button"
-                onClick={() => setExpandedAbsence(expandedAbsence === 'late' ? null : 'late')}
-                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
-              >
-                <p className="text-3xl font-bold tabular-nums text-charcoal">{absencesForDay.late}</p>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 mt-1">Late</p>
-                <p className="text-[10px] text-gray-500 mt-1.5">
-                  Day {absencesForDay.byShift.late.day} · Aft {absencesForDay.byShift.late.afternoon} · Ngt {absencesForDay.byShift.late.night}
-                </p>
-                {absenceNames.late.length > 0 && (
-                  <span className={`inline-block mt-1.5 text-xs text-gray-500 transition-transform duration-200 ${expandedAbsence === 'late' ? 'rotate-180' : ''}`}>▼</span>
-                )}
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'late' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                aria-hidden={expandedAbsence !== 'late'}
-              >
-                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                  {absenceNames.late.map((name, i) => (
-                    <li key={i}>{name}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Shift badges – click any to expand one list below with all 3 shifts */}
+        {/* Shift badges – no-show count in red; click to expand list (no-show names in red) */}
         <div className="space-y-0">
           <div className="grid grid-cols-3 gap-3">
             {[
-              { key: 'day', label: 'Day', count: shiftCounts.day, names: shiftNames.day || [], bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
-              { key: 'afternoon', label: 'Afternoon', count: shiftCounts.afternoon, names: shiftNames.afternoon || [], bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
-              { key: 'night', label: 'Night', count: shiftCounts.night, names: shiftNames.night || [], bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
-            ].map(({ key, label, count, names, bg, text, sub }) => {
-              const hasAnyNames = (shiftNames.day || []).length > 0 || (shiftNames.afternoon || []).length > 0 || (shiftNames.night || []).length > 0;
+              { key: 'day', label: 'Day', count: shiftCounts.day, noShowCount: absencesForDay.byShift.noShow.day, bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
+              { key: 'afternoon', label: 'Afternoon', count: shiftCounts.afternoon, noShowCount: absencesForDay.byShift.noShow.afternoon, bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
+              { key: 'night', label: 'Night', count: shiftCounts.night, noShowCount: absencesForDay.byShift.noShow.night, bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
+            ].map(({ key, label, count, noShowCount, bg, text, sub }) => {
+              const hasAny = (shiftListItems.day?.length || 0) > 0 || (shiftListItems.afternoon?.length || 0) > 0 || (shiftListItems.night?.length || 0) > 0;
               const isExpanded = expandedShift === 'shifts';
               return (
                 <div key={key} className={`border-2 rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpanded ? 'rounded-b-none' : ''}`}>
                   <button
                     type="button"
-                    onClick={() => setExpandedShift(hasAnyNames && isExpanded ? null : 'shifts')}
-                    className={`w-full p-5 text-center ${hasAnyNames ? 'cursor-pointer hover:opacity-90' : ''}`}
+                    onClick={() => setExpandedShift(hasAny && isExpanded ? null : 'shifts')}
+                    className={`w-full p-5 text-center ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
                   >
                     <p className={`text-3xl font-bold tabular-nums ${text}`}>{count}</p>
+                    {noShowCount > 0 && (
+                      <p className="text-sm font-semibold text-red-600 mt-0.5">{noShowCount} no show</p>
+                    )}
                     <p className={`text-xs font-semibold uppercase tracking-wide mt-1 ${sub}`}>{label}</p>
-                    {hasAnyNames && (
+                    {hasAny && (
                       <span className={`inline-block mt-1.5 text-xs ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     )}
                   </button>
@@ -414,7 +318,7 @@ export default function TransportManagerDashboard() {
               );
             })}
           </div>
-          {/* Single expanded list below: all 3 shifts at once */}
+          {/* Single expanded list below: all 3 shifts, no-show names in red */}
           <div
             className={`overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift === 'shifts' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
             aria-hidden={expandedShift !== 'shifts'}
@@ -423,28 +327,28 @@ export default function TransportManagerDashboard() {
               <div className="px-4 py-3 border-r border-gray-100">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Day</p>
                 <ul className="space-y-1 text-sm text-charcoal">
-                  {(shiftNames.day || []).map((name, i) => (
-                    <li key={i}>{name}</li>
+                  {(shiftListItems.day || []).map((item, i) => (
+                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
-                  {(shiftNames.day || []).length === 0 && <li className="text-gray-400">—</li>}
+                  {(shiftListItems.day || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
               <div className="px-4 py-3 border-r border-gray-100">
                 <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-2">Afternoon</p>
                 <ul className="space-y-1 text-sm text-charcoal">
-                  {(shiftNames.afternoon || []).map((name, i) => (
-                    <li key={i}>{name}</li>
+                  {(shiftListItems.afternoon || []).map((item, i) => (
+                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
-                  {(shiftNames.afternoon || []).length === 0 && <li className="text-gray-400">—</li>}
+                  {(shiftListItems.afternoon || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
               <div className="px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-2">Night</p>
                 <ul className="space-y-1 text-sm text-charcoal">
-                  {(shiftNames.night || []).map((name, i) => (
-                    <li key={i}>{name}</li>
+                  {(shiftListItems.night || []).map((item, i) => (
+                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
-                  {(shiftNames.night || []).length === 0 && <li className="text-gray-400">—</li>}
+                  {(shiftListItems.night || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
             </div>
