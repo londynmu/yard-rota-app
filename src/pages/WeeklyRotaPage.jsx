@@ -443,7 +443,7 @@ const WeeklyRotaPage = () => {
                   {config.icon}
                   <h4 className="text-sm md:text-xs font-bold uppercase">{config.title}</h4>
                 </div>
-                <span className="bg-white text-charcoal text-xs px-2 py-0.5 rounded-full border border-gray-300">{slots.length}</span>
+                <span className="bg-white text-charcoal text-xs px-2 py-0.5 rounded-full border border-gray-300">{slots.filter(s => !attendanceBySlotId?.[s.id]).length}</span>
               </div>
               
               <div className="bg-white rounded-md">
@@ -606,11 +606,11 @@ const WeeklyRotaPage = () => {
           {dayData.length > 0 ? (
             <div className="flex flex-row flex-wrap items-center justify-center gap-1.5 w-full">
               {(() => {
-                const filteredDayData = dayData.filter(slot => slot.profiles);
+                const presentSlots = dayData.filter(slot => slot.profiles && !attendanceBySlotId?.[slot.id]);
                 const shiftCounts = {
-                  day: filteredDayData.filter(s => s.shift_type === 'day').length,
-                  afternoon: filteredDayData.filter(s => s.shift_type === 'afternoon').length,
-                  night: filteredDayData.filter(s => s.shift_type === 'night').length
+                  day: presentSlots.filter(s => s.shift_type === 'day').length,
+                  afternoon: presentSlots.filter(s => s.shift_type === 'afternoon').length,
+                  night: presentSlots.filter(s => s.shift_type === 'night').length
                 };
                 return (
                   <>

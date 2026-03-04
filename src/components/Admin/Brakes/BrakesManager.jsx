@@ -198,6 +198,7 @@ const BrakesManager = () => {
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
+  const [absentUserIdsForDate, setAbsentUserIdsForDate] = useState(new Set()); // user_ids with attendance (no show/sick/late) for selected date – hide from break slot display
   const [isLoading, setIsLoading] = useState(false);
   
   // Ref to track locally added custom slots (not yet saved to DB)
@@ -565,6 +566,7 @@ const BrakesManager = () => {
             }
           });
         }
+        setAbsentUserIdsForDate(absentUserIds);
 
         if (!filteredUserIds || filteredUserIds.length === 0) {
           setAvailableStaff([]);
@@ -1093,6 +1095,7 @@ const BrakesManager = () => {
   const getAssignedStaffForSlot = (slotId) => {
     return scheduledBreaks.filter(assignment => {
       if (assignment.slot_id !== slotId) return false;
+      if (absentUserIdsForDate.has(assignment.user_id)) return false;
       // If viewing all locations, show all
       if (selectedLocation === ALL_LOCATIONS_VALUE) return true;
       // Otherwise, include only those whose scheduled_rota location matches the selected location

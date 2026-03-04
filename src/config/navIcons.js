@@ -60,6 +60,7 @@ export const mainNavConfig = [
   { path: '/vmu', label: 'VMU', shortLabel: 'VMU', Icon: Wrench, colorClass: 'text-slate-600' },
   { path: '/vmu/prechecks', label: 'PreChecks', shortLabel: 'PreChecks', Icon: ListChecks, colorClass: 'text-emerald-600' },
   { path: '/admin', label: 'Admin Panel', shortLabel: 'Admin', Icon: Shield, colorClass: 'text-slate-700' },
+  { path: '/transport-dashboard', label: 'Dashboard', shortLabel: 'Dashboard', Icon: Gauge, colorClass: 'text-slate-700' },
   { path: '/profile', label: 'Profile', shortLabel: 'Profile', Icon: UserCircle2, colorClass: 'text-indigo-600' },
 ];
 

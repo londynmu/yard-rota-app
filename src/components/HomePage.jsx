@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabaseClient';
 import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
 import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
+import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
 import PreCheckReminder from './PreCheck/PreCheckReminder';
 
 /**
@@ -62,10 +63,11 @@ const VmuPage = lazyWithRetry(() => import('../pages/VmuPage'));
 const TugManager = lazyWithRetry(() => import('../components/Admin/PreCheck/TugManager'));
 const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/PreCheckList'));
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
+const TransportManagerDashboard = lazyWithRetry(() => import('../pages/TransportManagerDashboard'));
 
 export default function HomePage() {
   const { user, signOut } = useAuth();
-  const { isAdmin, isVmu } = useNotifications();
+  const { isAdmin, isVmu, isTransportManager } = useNotifications();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileName, setProfileName] = useState('');
@@ -203,25 +205,28 @@ export default function HomePage() {
     if (path === '/vmu/tugs') return 'Tugs';
     if (path === '/vmu/prechecks') return 'PreChecks';
     if (path === '/vmu/check-items') return 'Check Items';
+    if (path === '/transport-dashboard') return 'Dashboard';
     
     return 'My Rota';
   }, [location.pathname]);
 
   const topNavLinks = useMemo(() => {
+    if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     if (!isAdmin) return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
     return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck', '/vmu', '/admin'].includes(n.path));
-  }, [isAdmin, isVmu]);
+  }, [isAdmin, isVmu, isTransportManager]);
 
   const bottomNavLinks = useMemo(() => {
+    if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
     if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin')];
     return [...base, mainNavConfig.find((n) => n.path === '/profile')];
-  }, [isAdmin, isVmu]);
+  }, [isAdmin, isVmu, isTransportManager]);
 
   if (location.pathname === '/' || location.pathname === '') {
-    return <Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
+    return <Navigate to={isTransportManager && !isAdmin ? '/transport-dashboard' : isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
   }
 
   const renderDropdownMenu = () => {
@@ -276,7 +281,7 @@ export default function HomePage() {
   const path = location.pathname;
   const hideHeaderOnMobile =
     path === '/my-rota' || path === '/brakes' || path === '/calendar' ||
-    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu');
+    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard';
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -289,9 +294,11 @@ export default function HomePage() {
           path === '/calendar' ||
           path === '/performance' ||
           path.startsWith('/precheck') ||
-          path.startsWith('/vmu');
+          path.startsWith('/vmu') ||
+          path === '/transport-dashboard';
         const isAdminPage = path === '/admin';
         const isProfilePage = path === '/profile';
+        const isTransportDashboardPage = path === '/transport-dashboard';
         const hasStickyHeader = isAdminPage || isProfilePage;
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
@@ -300,10 +307,61 @@ export default function HomePage() {
 
         return (
           <header className={`${borderClass} bg-slate-200 pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
-            <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+            <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu || isTransportManager ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
+                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
+                    {topNavLinks.map((nav) => (
+                      <Link
+                        key={nav.path}
+                        to={nav.path}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
+                      >
+                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                        {nav.label}
+                      </Link>
+                    ))}
+                  </nav>
+                  <div className="flex-1" aria-hidden="true" />
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <div className="relative">
+                      <button
+                        ref={avatarButtonRef}
+                        onClick={toggleDropdown}
+                        className="flex items-center focus:outline-none"
+                        aria-label="User menu"
+                        aria-haspopup="true"
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
+                          {avatarUrl && (
+                            <img
+                              src={avatarUrl}
+                              alt="Profile"
+                              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
+                              onLoad={() => setAvatarLoaded(true)}
+                            />
+                          )}
+                          {(!avatarUrl || !avatarLoaded) && (
+                            <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                              <span className="text-slate-700 font-medium text-sm">
+                                {user?.email?.charAt(0).toUpperCase() || '?'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : isTransportManager && !isAdmin ? (
+                <>
+                  {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
+                  {isTransportDashboardPage && <span className="md:hidden font-semibold text-slate-800">Dashboard</span>}
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -521,6 +579,14 @@ export default function HomePage() {
             />
             <Route path="/profile" element={<ProfilePage supabaseClient={supabase} />} />
             <Route path="/my-rota" element={<WeeklyRotaPage />} />
+            <Route
+              path="/transport-dashboard"
+              element={
+                <ProtectedTransportManagerRoute>
+                  <TransportManagerDashboard />
+                </ProtectedTransportManagerRoute>
+              }
+            />
             <Route path="/performance" element={<PerformanceLeaderboard />} />
             <Route path="/precheck" element={<PreCheckPage />} />
             <Route path="/precheck/tug/:token" element={<PreCheckPage />} />
@@ -568,7 +634,7 @@ export default function HomePage() {
                 )
               } 
             />
-            <Route path="*" element={<Navigate to={isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />} />
+            <Route path="*" element={<Navigate to={isTransportManager && !isAdmin ? '/transport-dashboard' : isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />} />
           </Routes>
         </Suspense>
       </main>

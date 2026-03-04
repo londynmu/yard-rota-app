@@ -94,8 +94,8 @@ function AppContent() {
             setError(error.message);
           }
         } else {
-          // Admin and VMU users bypass profile completion and approval checks
-          if (data?.role === 'admin' || data?.role === 'vmu') {
+          // Admin, VMU and Transport Manager users bypass profile completion and approval checks
+          if (data?.role === 'admin' || data?.role === 'vmu' || data?.role === 'transport_manager') {
             setIsProfileComplete(true);
             setAccountStatus('approved');
           } else {

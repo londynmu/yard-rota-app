@@ -13,6 +13,7 @@ export const NotificationProvider = ({ children }) => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVmu, setIsVmu] = useState(false);
+  const [isTransportManager, setIsTransportManager] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -39,6 +40,7 @@ export const NotificationProvider = ({ children }) => {
       if (!userId) {
         setIsAdmin(false);
         setIsVmu(false);
+        setIsTransportManager(false);
         setLoading(false);
         return;
       }
@@ -53,10 +55,12 @@ export const NotificationProvider = ({ children }) => {
         if (error) throw error;
         setIsAdmin(data?.role === 'admin');
         setIsVmu(data?.role === 'vmu');
+        setIsTransportManager(data?.role === 'transport_manager');
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
         setIsVmu(false);
+        setIsTransportManager(false);
       } finally {
         setLoading(false);
       }
@@ -115,10 +119,11 @@ export const NotificationProvider = ({ children }) => {
     pendingApprovals,
     isAdmin,
     isVmu,
+    isTransportManager,
     addNotification,
     markAllAsRead,
     loading
-  }), [notifications, unreadCount, pendingApprovals, isAdmin, isVmu, addNotification, markAllAsRead, loading]);
+  }), [notifications, unreadCount, pendingApprovals, isAdmin, isVmu, isTransportManager, addNotification, markAllAsRead, loading]);
 
   return (
     <NotificationContext.Provider value={value}>

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
 // Removed framer-motion import to reduce layout shifts and improve performance
 
 // Helper to calculate end time for breaks
@@ -384,12 +385,16 @@ export default function ShiftDashboard({
               profiles: profilesMap[b.user_id],
               tug_name: tugMap[b.user_id] || null
             }));
+
+          // Exclude users marked absent (no show / sick / late) on effective date(s)
+          const absentUserIds = await getAbsentUserIdsForDates(supabase, [effectiveForBreaks, yesterday]);
+          const breaksFilteredAbsent = breaksWithProfiles.filter(b => !absentUserIds.has(b.user_id));
           
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
           const uniqueBreaks = [];
           const seenBreakKeys = new Set();
           
-          breaksWithProfiles.forEach(breakItem => {
+          breaksFilteredAbsent.forEach(breakItem => {
             const key = `${breakItem.user_id}-${breakItem.break_start_time}`;
             if (!seenBreakKeys.has(key)) {
               seenBreakKeys.add(key);
