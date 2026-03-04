@@ -292,11 +292,99 @@ export default function TransportManagerDashboard() {
           .tm-dashboard-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #6b7280; }
         `}</style>
 
-        {/* Main badge: Total shunters (24h) with date inside */}
-        <div className="bg-white border-2 border-charcoal rounded-2xl shadow-md p-6 text-center">
-          <p className="text-sm font-semibold text-gray-600">{selectedDateFormatted}</p>
-          <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
-          <p className="text-sm font-semibold uppercase tracking-wide text-gray-600 mt-1">Total shunters</p>
+        {/* Top row: Total shunters + absence badges (conditional) */}
+        <div className="flex flex-wrap gap-3 items-stretch">
+          {/* Total shunters */}
+          <div className="bg-white border-2 border-charcoal rounded-2xl shadow-md p-6 text-center min-w-[180px] flex-1">
+            <p className="text-sm font-semibold text-gray-600">{selectedDateFormatted}</p>
+            <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600 mt-1">Total shunters</p>
+          </div>
+          {/* Absences – only if any; same row */}
+          {absencesForDay.noShow > 0 && (
+            <div className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-red-50/50 border-red-200 min-w-[120px] flex-1`}>
+              <button
+                type="button"
+                onClick={() => setExpandedAbsence(expandedAbsence === 'no_show' ? null : 'no_show')}
+                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
+              >
+                <p className="text-3xl font-bold tabular-nums text-red-700">{absencesForDay.noShow}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mt-1 text-red-600">No show</p>
+                <p className="text-[10px] text-red-600 mt-1.5 opacity-90">
+                  Day {absencesForDay.byShift.noShow.day} · Aft {absencesForDay.byShift.noShow.afternoon} · Ngt {absencesForDay.byShift.noShow.night}
+                </p>
+                {absenceNames.no_show.length > 0 && (
+                  <span className={`inline-block mt-1.5 text-xs text-red-600 transition-transform duration-200 ${expandedAbsence === 'no_show' ? 'rotate-180' : ''}`}>▼</span>
+                )}
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'no_show' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                aria-hidden={expandedAbsence !== 'no_show'}
+              >
+                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
+                  {absenceNames.no_show.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          {absencesForDay.sick > 0 && (
+            <div className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-amber-50/50 border-amber-200 min-w-[120px] flex-1`}>
+              <button
+                type="button"
+                onClick={() => setExpandedAbsence(expandedAbsence === 'sick' ? null : 'sick')}
+                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
+              >
+                <p className="text-3xl font-bold tabular-nums text-amber-800">{absencesForDay.sick}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mt-1 text-amber-700">Sick</p>
+                <p className="text-[10px] text-amber-700 mt-1.5 opacity-90">
+                  Day {absencesForDay.byShift.sick.day} · Aft {absencesForDay.byShift.sick.afternoon} · Ngt {absencesForDay.byShift.sick.night}
+                </p>
+                {absenceNames.sick.length > 0 && (
+                  <span className={`inline-block mt-1.5 text-xs text-amber-700 transition-transform duration-200 ${expandedAbsence === 'sick' ? 'rotate-180' : ''}`}>▼</span>
+                )}
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'sick' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                aria-hidden={expandedAbsence !== 'sick'}
+              >
+                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
+                  {absenceNames.sick.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          {absencesForDay.late > 0 && (
+            <div className="border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-slate-50/50 border-slate-200 min-w-[120px] flex-1">
+              <button
+                type="button"
+                onClick={() => setExpandedAbsence(expandedAbsence === 'late' ? null : 'late')}
+                className="w-full p-5 text-center cursor-pointer hover:opacity-90"
+              >
+                <p className="text-3xl font-bold tabular-nums text-charcoal">{absencesForDay.late}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 mt-1">Late</p>
+                <p className="text-[10px] text-gray-500 mt-1.5">
+                  Day {absencesForDay.byShift.late.day} · Aft {absencesForDay.byShift.late.afternoon} · Ngt {absencesForDay.byShift.late.night}
+                </p>
+                {absenceNames.late.length > 0 && (
+                  <span className={`inline-block mt-1.5 text-xs text-gray-500 transition-transform duration-200 ${expandedAbsence === 'late' ? 'rotate-180' : ''}`}>▼</span>
+                )}
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'late' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                aria-hidden={expandedAbsence !== 'late'}
+              >
+                <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
+                  {absenceNames.late.map((name, i) => (
+                    <li key={i}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Shift badges – click any to expand one list below with all 3 shifts */}
@@ -362,78 +450,6 @@ export default function TransportManagerDashboard() {
             </div>
           </div>
         </div>
-
-        {/* Absences – only if any; clickable with user list */}
-        {hasAnyAbsence && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: 'no_show', label: 'No show', count: absencesForDay.noShow, names: absenceNames.no_show, byShift: absencesForDay.byShift.noShow, bg: 'bg-red-50/50 border-red-200', text: 'text-red-700', sub: 'text-red-600' },
-                { key: 'sick', label: 'Sick', count: absencesForDay.sick, names: absenceNames.sick, byShift: absencesForDay.byShift.sick, bg: 'bg-amber-50/50 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
-              ].map(({ key, label, count, names, byShift, bg, text, sub }) => {
-                const isExpanded = expandedAbsence === key;
-                return (
-                  <div key={key} className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 ${bg}`}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedAbsence(isExpanded ? null : key)}
-                      className={`w-full p-5 text-center ${count > 0 ? 'cursor-pointer hover:opacity-90' : ''}`}
-                    >
-                      <p className={`text-3xl font-bold tabular-nums ${text}`}>{count}</p>
-                      <p className={`text-xs font-semibold uppercase tracking-wide mt-1 ${sub}`}>{label}</p>
-                      {count > 0 && (
-                        <p className={`text-[10px] ${sub} mt-1.5 opacity-90`}>
-                          Day {byShift.day} · Aft {byShift.afternoon} · Ngt {byShift.night}
-                        </p>
-                      )}
-                      {names.length > 0 && (
-                        <span className={`inline-block mt-1.5 text-xs ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                      )}
-                    </button>
-                    <div
-                      className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                      aria-hidden={!isExpanded}
-                    >
-                      <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                        {names.map((name, i) => (
-                          <li key={i}>{name}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {absencesForDay.late > 0 && (
-              <div className={`border-2 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 bg-slate-50/50 border-slate-200`}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedAbsence(expandedAbsence === 'late' ? null : 'late')}
-                  className="w-full p-4 text-center cursor-pointer hover:opacity-90"
-                >
-                  <p className="text-lg font-bold text-charcoal tabular-nums">{absencesForDay.late}</p>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 mt-1">Late</p>
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    Day {absencesForDay.byShift.late.day} · Aft {absencesForDay.byShift.late.afternoon} · Ngt {absencesForDay.byShift.late.night}
-                  </p>
-                  {absenceNames.late.length > 0 && (
-                    <span className={`inline-block mt-1.5 text-xs text-gray-500 transition-transform duration-200 ${expandedAbsence === 'late' ? 'rotate-180' : ''}`}>▼</span>
-                  )}
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-out ${expandedAbsence === 'late' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-                  aria-hidden={expandedAbsence !== 'late'}
-                >
-                  <ul className="px-4 pb-4 pt-1 space-y-1 text-sm text-charcoal border-t border-gray-200/50">
-                    {absenceNames.late.map((name, i) => (
-                      <li key={i}>{name}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </>
-        )}
       </div>
     </div>
   );
