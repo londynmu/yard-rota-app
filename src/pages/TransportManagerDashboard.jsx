@@ -290,7 +290,7 @@ export default function TransportManagerDashboard() {
 
         {/* Shift badges – no-show count in red; click to expand list (no-show names in red) */}
         <div className="space-y-0">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { key: 'day', label: 'Day', timeRange: '05:45 – 18:00', count: shiftCounts.day, noShowCount: absencesForDay.byShift.noShow.day, bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
               { key: 'afternoon', label: 'Afternoon', timeRange: '13:45 – 02:00', count: shiftCounts.afternoon, noShowCount: absencesForDay.byShift.noShow.afternoon, bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
@@ -298,8 +298,9 @@ export default function TransportManagerDashboard() {
             ].map(({ key, label, timeRange, count, noShowCount, bg, text, sub }) => {
               const hasAny = (shiftListItems.day?.length || 0) > 0 || (shiftListItems.afternoon?.length || 0) > 0 || (shiftListItems.night?.length || 0) > 0;
               const isExpanded = expandedShift === 'shifts';
+              const isLast = key === 'night';
               return (
-                <div key={key} className={`border-2 rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpanded ? 'rounded-b-none' : ''}`}>
+                <div key={key} className={`border-2 rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpanded && isLast ? 'rounded-b-none' : ''} ${isExpanded && !isLast ? 'md:rounded-b-none' : ''}`}>
                   <button
                     type="button"
                     onClick={() => setExpandedShift(hasAny && isExpanded ? null : 'shifts')}
@@ -324,8 +325,8 @@ export default function TransportManagerDashboard() {
             className={`overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift === 'shifts' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
             aria-hidden={expandedShift !== 'shifts'}
           >
-            <div className="grid grid-cols-3 gap-0 border-t border-gray-100">
-              <div className="px-5 py-4 border-r border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-gray-100">
+              <div className="px-5 py-4 border-b border-gray-100 md:border-b-0 md:border-r border-gray-100">
                 <p className="text-sm font-semibold uppercase tracking-wide text-amber-700 mb-3">Day</p>
                 <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.day || []).map((item, i) => (
@@ -334,7 +335,7 @@ export default function TransportManagerDashboard() {
                   {(shiftListItems.day || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
-              <div className="px-5 py-4 border-r border-gray-100">
+              <div className="px-5 py-4 border-b border-gray-100 md:border-b-0 md:border-r border-gray-100">
                 <p className="text-sm font-semibold uppercase tracking-wide text-orange-700 mb-3">Afternoon</p>
                 <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.afternoon || []).map((item, i) => (
