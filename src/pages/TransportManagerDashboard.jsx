@@ -33,6 +33,7 @@ export default function TransportManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedShift, setExpandedShift] = useState(null);
+  const expandedCardRef = React.useRef(null);
 
   const fetchLocations = useCallback(async () => {
     const { data, error: e } = await supabase
@@ -105,6 +106,12 @@ export default function TransportManagerDashboard() {
   useEffect(() => {
     localStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation]);
+
+  useEffect(() => {
+    if (expandedShift && expandedCardRef.current) {
+      expandedCardRef.current.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }, [expandedShift]);
 
   useEffect(() => {
     setLoading(true);
@@ -187,9 +194,9 @@ export default function TransportManagerDashboard() {
   return (
     <div className="min-h-screen bg-offwhite py-6 px-4 pb-24">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Date picker + Today + location */}
-        <div className="tm-dashboard-datepicker flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Date picker + Today + location – one line on mobile, smaller controls */}
+        <div className="tm-dashboard-datepicker flex flex-nowrap md:flex-wrap items-center gap-2 md:gap-4">
+          <div className="flex flex-1 min-w-0 flex-nowrap gap-2 items-center">
             <DatePicker
               selected={selectedDate ? new Date(selectedDate + 'T12:00:00') : null}
               onChange={(date) => {
@@ -200,8 +207,8 @@ export default function TransportManagerDashboard() {
               }}
               dateFormat="EEE d MMM yyyy"
               placeholderText="Select date"
-              className="w-full min-w-[200px] text-base border-2 border-gray-300 rounded-xl px-4 py-3 text-charcoal bg-white focus:outline-none focus:border-charcoal"
-              wrapperClassName="min-w-[200px]"
+              className="w-full min-w-0 text-sm md:text-base border-2 border-gray-300 rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 text-charcoal bg-white focus:outline-none focus:border-charcoal"
+              wrapperClassName="min-w-0 flex-1 md:min-w-[200px] md:flex-none"
               popperClassName="tm-dashboard-datepicker-popper"
               showPopperArrow={false}
             />
@@ -212,7 +219,7 @@ export default function TransportManagerDashboard() {
                 setSelectedDate(today);
                 setWeekStart(getWeekStart(new Date(today + 'T12:00:00')));
               }}
-              className="px-5 py-3 text-base font-medium rounded-xl border-2 border-gray-300 text-charcoal bg-white hover:bg-gray-50 transition-colors whitespace-nowrap"
+              className="flex-shrink-0 text-sm md:text-base font-medium rounded-lg md:rounded-xl border-2 border-gray-300 text-charcoal bg-white hover:bg-gray-50 transition-colors whitespace-nowrap px-3 py-2 md:px-5 md:py-3"
             >
               Today
             </button>
@@ -221,7 +228,7 @@ export default function TransportManagerDashboard() {
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="text-base border-2 border-gray-300 rounded-xl px-4 py-3 text-charcoal bg-white"
+              className="flex-shrink-0 text-sm md:text-base border-2 border-gray-300 rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 text-charcoal bg-white min-w-0"
             >
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.name}>{loc.name}</option>
@@ -230,7 +237,10 @@ export default function TransportManagerDashboard() {
           )}
         </div>
         <style>{`
-          .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 200px; }
+          .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 0; flex: 1; }
+          @media (min-width: 768px) {
+            .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 200px; flex: none; }
+          }
           .tm-dashboard-datepicker-popper.react-datepicker-popper { z-index: 50; }
           .tm-dashboard-datepicker-popper .react-datepicker {
             font-family: inherit;
@@ -288,42 +298,80 @@ export default function TransportManagerDashboard() {
           </div>
         </div>
 
-        {/* Shift badges – no-show count in red; click to expand list (no-show names in red) */}
+        {/* Shift badges – mobile: each card expands its own list; desktop: shared panel below */}
         <div className="space-y-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             {[
               { key: 'day', label: 'Day', timeRange: '05:45 – 18:00', count: shiftCounts.day, noShowCount: absencesForDay.byShift.noShow.day, bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
               { key: 'afternoon', label: 'Afternoon', timeRange: '13:45 – 02:00', count: shiftCounts.afternoon, noShowCount: absencesForDay.byShift.noShow.afternoon, bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
               { key: 'night', label: 'Night', timeRange: '17:45 – 06:00', count: shiftCounts.night, noShowCount: absencesForDay.byShift.noShow.night, bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
             ].map(({ key, label, timeRange, count, noShowCount, bg, text, sub }) => {
               const hasAny = (shiftListItems.day?.length || 0) > 0 || (shiftListItems.afternoon?.length || 0) > 0 || (shiftListItems.night?.length || 0) > 0;
-              const isExpanded = expandedShift === 'shifts';
+              const isExpandedDesktop = expandedShift !== null;
+              const isExpandedThis = expandedShift === key;
               const isLast = key === 'night';
+              const listItems = shiftListItems[key] || [];
               return (
-                <div key={key} className={`border-2 rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpanded && isLast ? 'rounded-b-none' : ''} ${isExpanded && !isLast ? 'md:rounded-b-none' : ''}`}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedShift(hasAny && isExpanded ? null : 'shifts')}
-                    className={`w-full p-6 text-center ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
+                <div
+                  key={key}
+                  ref={isExpandedThis ? expandedCardRef : undefined}
+                  className="flex flex-col"
+                >
+                  <div className={`border-2 rounded-xl md:rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpandedDesktop ? 'md:rounded-b-none' : ''} ${isExpandedThis ? 'rounded-b-none' : ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedShift(hasAny && isExpandedThis ? null : key)}
+                      className={`w-full text-left md:text-center p-3 md:p-6 ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
+                    >
+                      {/* Mobile: compact – label + no show left, number + chevron right; no time */}
+                      <div className="md:hidden flex items-center justify-between gap-2">
+                        <p className={`text-lg font-semibold ${sub}`}>
+                          {label}
+                          {noShowCount > 0 && <span className="text-red-600 font-semibold"> · {noShowCount} no show</span>}
+                        </p>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <p className={`text-2xl font-bold tabular-nums ${text}`}>{count}</p>
+                          {hasAny && (
+                            <span className={`text-sm ${sub} transition-transform duration-200 ${isExpandedThis ? 'rotate-180' : ''}`}>▼</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Desktop: large number, label, time */}
+                      <div className="hidden md:block">
+                        <p className={`text-4xl font-bold tabular-nums ${text}`}>{count}</p>
+                        {noShowCount > 0 && (
+                          <p className="text-base font-semibold text-red-600 mt-1">{noShowCount} no show</p>
+                        )}
+                        <p className={`text-sm font-semibold uppercase tracking-wide mt-2 ${sub}`}>{label}</p>
+                        <p className={`text-sm ${sub} font-medium mt-1 tabular-nums`}>{timeRange}</p>
+                        {hasAny && (
+                          <span className={`inline-block mt-2 text-sm ${sub} transition-transform duration-200 ${isExpandedDesktop ? 'rotate-180' : ''}`}>▼</span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                  {/* Mobile only: expandable list under this card */}
+                  <div
+                    className={`md:hidden overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-xl bg-white ${isExpandedThis ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}
+                    aria-hidden={!isExpandedThis}
                   >
-                    <p className={`text-4xl font-bold tabular-nums ${text}`}>{count}</p>
-                    {noShowCount > 0 && (
-                      <p className="text-base font-semibold text-red-600 mt-1">{noShowCount} no show</p>
-                    )}
-                    <p className={`text-sm font-semibold uppercase tracking-wide mt-2 ${sub}`}>{label}</p>
-                    <p className={`text-sm ${sub} font-medium mt-1 tabular-nums`}>{timeRange}</p>
-                    {hasAny && (
-                      <span className={`inline-block mt-2 text-sm ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                    )}
-                  </button>
+                    <div className="px-4 py-3 border-t border-gray-100">
+                      <ul className="space-y-2 text-base text-charcoal">
+                        {listItems.map((item, i) => (
+                          <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
+                        ))}
+                        {listItems.length === 0 && <li className="text-gray-400">—</li>}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
-          {/* Single expanded list below: all 3 shifts, no-show names in red */}
+          {/* Desktop only: single expanded list below all 3 shifts */}
           <div
-            className={`overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift === 'shifts' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-            aria-hidden={expandedShift !== 'shifts'}
+            className={`hidden md:block overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift !== null ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+            aria-hidden={expandedShift === null}
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-gray-100">
               <div className="px-5 py-4 border-b border-gray-100 md:border-b-0 md:border-r border-gray-100">
