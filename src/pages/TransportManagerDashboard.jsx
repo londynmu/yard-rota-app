@@ -200,8 +200,8 @@ export default function TransportManagerDashboard() {
               }}
               dateFormat="EEE d MMM yyyy"
               placeholderText="Select date"
-              className="w-full min-w-[180px] text-sm border-2 border-gray-300 rounded-xl px-3 py-2.5 text-charcoal bg-white focus:outline-none focus:border-charcoal"
-              wrapperClassName="min-w-[180px]"
+              className="w-full min-w-[200px] text-base border-2 border-gray-300 rounded-xl px-4 py-3 text-charcoal bg-white focus:outline-none focus:border-charcoal"
+              wrapperClassName="min-w-[200px]"
               popperClassName="tm-dashboard-datepicker-popper"
               showPopperArrow={false}
             />
@@ -212,7 +212,7 @@ export default function TransportManagerDashboard() {
                 setSelectedDate(today);
                 setWeekStart(getWeekStart(new Date(today + 'T12:00:00')));
               }}
-              className="px-4 py-2.5 text-sm font-medium rounded-xl border-2 border-gray-300 text-charcoal bg-white hover:bg-gray-50 transition-colors whitespace-nowrap"
+              className="px-5 py-3 text-base font-medium rounded-xl border-2 border-gray-300 text-charcoal bg-white hover:bg-gray-50 transition-colors whitespace-nowrap"
             >
               Today
             </button>
@@ -221,7 +221,7 @@ export default function TransportManagerDashboard() {
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="text-sm border-2 border-gray-300 rounded-xl px-3 py-2 text-charcoal bg-white"
+              className="text-base border-2 border-gray-300 rounded-xl px-4 py-3 text-charcoal bg-white"
             >
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.name}>{loc.name}</option>
@@ -230,7 +230,7 @@ export default function TransportManagerDashboard() {
           )}
         </div>
         <style>{`
-          .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 180px; }
+          .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 200px; }
           .tm-dashboard-datepicker-popper.react-datepicker-popper { z-index: 50; }
           .tm-dashboard-datepicker-popper .react-datepicker {
             font-family: inherit;
@@ -280,22 +280,22 @@ export default function TransportManagerDashboard() {
         `}</style>
 
         {/* Top row: Total shunters only */}
-        <div className="flex flex-wrap gap-3 items-stretch">
-          <div className="bg-white border-2 border-charcoal rounded-2xl shadow-md p-6 text-center min-w-[180px] flex-1">
-            <p className="text-sm font-semibold text-gray-600">{selectedDateFormatted}</p>
-            <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600 mt-1">Total shunters</p>
+        <div className="flex flex-wrap gap-4 items-stretch">
+          <div className="bg-white border-2 border-charcoal rounded-2xl shadow-md p-8 text-center min-w-[200px] flex-1">
+            <p className="text-base font-semibold text-gray-600">{selectedDateFormatted}</p>
+            <p className="text-5xl font-bold text-charcoal tabular-nums mt-3">{staffTotal}</p>
+            <p className="text-base font-semibold uppercase tracking-wide text-gray-600 mt-2">Total shunters</p>
           </div>
         </div>
 
         {/* Shift badges – no-show count in red; click to expand list (no-show names in red) */}
         <div className="space-y-0">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-4">
             {[
-              { key: 'day', label: 'Day', count: shiftCounts.day, noShowCount: absencesForDay.byShift.noShow.day, bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
-              { key: 'afternoon', label: 'Afternoon', count: shiftCounts.afternoon, noShowCount: absencesForDay.byShift.noShow.afternoon, bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
-              { key: 'night', label: 'Night', count: shiftCounts.night, noShowCount: absencesForDay.byShift.noShow.night, bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
-            ].map(({ key, label, count, noShowCount, bg, text, sub }) => {
+              { key: 'day', label: 'Day', timeRange: '05:45 – 18:00', count: shiftCounts.day, noShowCount: absencesForDay.byShift.noShow.day, bg: 'bg-amber-50/80 border-amber-200', text: 'text-amber-800', sub: 'text-amber-700' },
+              { key: 'afternoon', label: 'Afternoon', timeRange: '13:45 – 02:00', count: shiftCounts.afternoon, noShowCount: absencesForDay.byShift.noShow.afternoon, bg: 'bg-orange-50/80 border-orange-200', text: 'text-orange-800', sub: 'text-orange-700' },
+              { key: 'night', label: 'Night', timeRange: '17:45 – 06:00', count: shiftCounts.night, noShowCount: absencesForDay.byShift.noShow.night, bg: 'bg-blue-50/80 border-blue-200', text: 'text-blue-800', sub: 'text-blue-700' },
+            ].map(({ key, label, timeRange, count, noShowCount, bg, text, sub }) => {
               const hasAny = (shiftListItems.day?.length || 0) > 0 || (shiftListItems.afternoon?.length || 0) > 0 || (shiftListItems.night?.length || 0) > 0;
               const isExpanded = expandedShift === 'shifts';
               return (
@@ -303,15 +303,16 @@ export default function TransportManagerDashboard() {
                   <button
                     type="button"
                     onClick={() => setExpandedShift(hasAny && isExpanded ? null : 'shifts')}
-                    className={`w-full p-5 text-center ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
+                    className={`w-full p-6 text-center ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
                   >
-                    <p className={`text-3xl font-bold tabular-nums ${text}`}>{count}</p>
+                    <p className={`text-4xl font-bold tabular-nums ${text}`}>{count}</p>
                     {noShowCount > 0 && (
-                      <p className="text-sm font-semibold text-red-600 mt-0.5">{noShowCount} no show</p>
+                      <p className="text-base font-semibold text-red-600 mt-1">{noShowCount} no show</p>
                     )}
-                    <p className={`text-xs font-semibold uppercase tracking-wide mt-1 ${sub}`}>{label}</p>
+                    <p className={`text-sm font-semibold uppercase tracking-wide mt-2 ${sub}`}>{label}</p>
+                    <p className={`text-sm ${sub} font-medium mt-1 tabular-nums`}>{timeRange}</p>
                     {hasAny && (
-                      <span className={`inline-block mt-1.5 text-xs ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                      <span className={`inline-block mt-2 text-sm ${sub} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     )}
                   </button>
                 </div>
@@ -324,27 +325,27 @@ export default function TransportManagerDashboard() {
             aria-hidden={expandedShift !== 'shifts'}
           >
             <div className="grid grid-cols-3 gap-0 border-t border-gray-100">
-              <div className="px-4 py-3 border-r border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Day</p>
-                <ul className="space-y-1 text-sm text-charcoal">
+              <div className="px-5 py-4 border-r border-gray-100">
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700 mb-3">Day</p>
+                <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.day || []).map((item, i) => (
                     <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
                   {(shiftListItems.day || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
-              <div className="px-4 py-3 border-r border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-2">Afternoon</p>
-                <ul className="space-y-1 text-sm text-charcoal">
+              <div className="px-5 py-4 border-r border-gray-100">
+                <p className="text-sm font-semibold uppercase tracking-wide text-orange-700 mb-3">Afternoon</p>
+                <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.afternoon || []).map((item, i) => (
                     <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
                   {(shiftListItems.afternoon || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
               </div>
-              <div className="px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-2">Night</p>
-                <ul className="space-y-1 text-sm text-charcoal">
+              <div className="px-5 py-4">
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700 mb-3">Night</p>
+                <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.night || []).map((item, i) => (
                     <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
                   ))}
