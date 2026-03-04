@@ -315,13 +315,13 @@ export default function TransportManagerDashboard() {
                 <div
                   key={key}
                   ref={isExpandedThis ? expandedCardRef : undefined}
-                  className="flex flex-col"
+                  className="flex flex-col md:h-full"
                 >
-                  <div className={`border-2 rounded-xl md:rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpandedDesktop ? 'md:rounded-b-none' : ''} ${isExpandedThis ? 'rounded-b-none' : ''}`}>
+                  <div className={`border-2 rounded-xl md:rounded-2xl shadow-sm transition-all duration-200 ${bg} ${isExpandedDesktop ? 'md:rounded-b-none' : ''} ${isExpandedThis ? 'rounded-b-none' : ''} md:flex-1 md:min-h-0 md:flex md:flex-col`}>
                     <button
                       type="button"
                       onClick={() => setExpandedShift(hasAny && isExpandedThis ? null : key)}
-                      className={`w-full text-left md:text-center p-3 md:p-6 ${hasAny ? 'cursor-pointer hover:opacity-90' : ''}`}
+                      className={`w-full text-left md:text-center p-3 md:p-6 ${hasAny ? 'cursor-pointer hover:opacity-90' : ''} md:h-full md:flex md:flex-col md:justify-end md:items-center`}
                     >
                       {/* Mobile: compact – label + no show left, number + chevron right; no time */}
                       <div className="md:hidden flex items-center justify-between gap-2">
