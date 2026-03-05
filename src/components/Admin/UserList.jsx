@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import { useToast } from '../../components/ui/ToastContext';
 import UserEditForm from './UserEditForm';
 import AddViolationModal from './AddViolationModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -374,6 +375,9 @@ export default function UserList({ users, onRefresh }) {
   const [addViolationUserId, setAddViolationUserId] = useState(null);
   // Expanded user card (one at a time, like VMU)
   const [expandedUserId, setExpandedUserId] = useState(null);
+  // Role update in progress (for dropdown loading state)
+  const [roleUpdatingUserId, setRoleUpdatingUserId] = useState(null);
+  const toast = useToast();
   
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -600,6 +604,25 @@ export default function UserList({ users, onRefresh }) {
     setLastLogin(null);
   };
 
+  const handleRoleChange = async (user, newRoleValue) => {
+    const role = newRoleValue === '' ? null : newRoleValue;
+    setRoleUpdatingUserId(user.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', user.id);
+      if (error) throw error;
+      toast.success('Role updated');
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      console.error('Error updating role:', err);
+      toast.error(err?.message || 'Failed to update role');
+    } finally {
+      setRoleUpdatingUserId(null);
+    }
+  };
+
   if (error) {
     return (
       <div className="bg-red-500/40 backdrop-blur-xl text-red-100 px-4 py-3 rounded-md mb-4 border border-red-400/50 shadow-lg">
@@ -742,36 +765,56 @@ export default function UserList({ users, onRefresh }) {
               key={user.id}
               className={`rounded-xl overflow-hidden shadow-sm transition-shadow ${cardStyle} ${isExpanded ? 'shadow-md' : ''}`}
             >
-              {/* Clickable header – toggles expand */}
-              <button
-                type="button"
-                onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
-                className={`w-full px-4 py-3 text-left flex items-center gap-3 ${headerStyle} transition-opacity`}
-              >
-                {/* Avatar */}
-                <div className="flex-shrink-0 h-10 w-10 relative">
-                  {user.avatar_url ? (
-                    <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center">
-                      <span className="text-charcoal text-sm font-semibold">
-                        {user.first_name?.charAt(0) || '?'}
-                      </span>
-                    </div>
-                  )}
-                  <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`} />
-                </div>
+              {/* Header: clickable row + role dropdown */}
+              <div className={`flex items-center gap-2 ${headerStyle} transition-opacity`}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
+                  className={`flex-1 min-w-0 px-4 py-3 text-left flex items-center gap-3 ${headerStyle} transition-opacity`}
+                >
+                  {/* Avatar */}
+                  <div className="flex-shrink-0 h-10 w-10 relative">
+                    {user.avatar_url ? (
+                      <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center">
+                        <span className="text-charcoal text-sm font-semibold">
+                          {user.first_name?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`} />
+                  </div>
 
-                {/* Name */}
-                <span className="text-charcoal font-semibold text-sm truncate">
-                  {user.first_name || ''} {user.last_name || ''}
-                </span>
-                {user.last_activity_at && (
-                  <span className="text-gray-500 text-xs ml-auto flex-shrink-0">
-                    {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
+                  {/* Name */}
+                  <span className="text-charcoal font-semibold text-sm truncate">
+                    {user.first_name || ''} {user.last_name || ''}
                   </span>
-                )}
-              </button>
+                  {user.last_activity_at && (
+                    <span className="text-gray-500 text-xs ml-auto flex-shrink-0">
+                      {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
+                    </span>
+                  )}
+                </button>
+                <div
+                  className="flex-shrink-0 pr-2 py-1"
+                  onClick={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  <select
+                    aria-label={`Role for ${user.first_name || ''} ${user.last_name || ''}`}
+                    value={user.role || ''}
+                    onChange={(e) => handleRoleChange(user, e.target.value)}
+                    disabled={roleUpdatingUserId === user.id}
+                    className="px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal disabled:opacity-60"
+                  >
+                    <option value="">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="vmu">VMU</option>
+                    <option value="transport_manager">Transport manager</option>
+                  </select>
+                </div>
+              </div>
 
               {/* Expanded content – same fields as Edit form (inline) + actions */}
               {isExpanded && (

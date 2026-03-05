@@ -147,12 +147,20 @@ export default function AdminPage() {
       // Prefer RPC – profiles with last_sign_in_at and agency from DB (no email)
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_admin_profiles_with_emails');
       if (!rpcError && Array.isArray(rpcData) && rpcData.length >= 0) {
-        const usersList = rpcData.map((row) => ({
+        let usersList = rpcData.map((row) => ({
           ...row,
           performance_score: row.performance_score ?? 50,
           is_active: row.is_active !== false,
           agency_name: row.agency_name ?? null
         }));
+        // If RPC does not return role (e.g. migration not applied), fetch from profiles
+        const firstRow = usersList[0];
+        if (usersList.length > 0 && !Object.prototype.hasOwnProperty.call(firstRow, 'role')) {
+          const ids = usersList.map((u) => u.id);
+          const { data: roleData } = await supabase.from('profiles').select('id, role').in('id', ids);
+          const roleMap = new Map((roleData || []).map((r) => [r.id, r.role]));
+          usersList = usersList.map((u) => ({ ...u, role: roleMap.get(u.id) ?? null }));
+        }
         setUsers(usersList);
         setPageLoading(false);
         return;
