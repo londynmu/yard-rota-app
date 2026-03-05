@@ -31,6 +31,7 @@
     "echarts-for-react": "^3.0.6",
     "framer-motion": "^12.23.24",
     "googleapis": "^168.0.0",
+    "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",
     "jspdf": "^3.0.3",

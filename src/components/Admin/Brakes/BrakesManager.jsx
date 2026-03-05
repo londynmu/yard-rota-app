@@ -7,6 +7,7 @@ import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
+import html2canvas from 'html2canvas';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -203,7 +204,12 @@ const BrakesManager = () => {
   
   // Ref to track locally added custom slots (not yet saved to DB)
   const localCustomSlotsRef = useRef([]);
-  
+
+  // Export breaks - copy as picture to clipboard
+  const breaksExportRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false); // unused: no dropdown anymore, kept so no ReferenceError
+
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -251,6 +257,47 @@ const BrakesManager = () => {
       console.error('[BrakesManager] Failed to persist assignments to sessionStorage:', err);
     }
   }, [getSessionStorageKey, markAssignmentsDirty]);
+
+  // Export breaks: capture and copy as picture to clipboard (max quality, no loss)
+  const captureBreaksCanvas = useCallback(async () => {
+    if (!breaksExportRef.current) return null;
+    const el = breaksExportRef.current;
+    return html2canvas(el, {
+      scale: 8,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: '#f3f4f6',
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: el.scrollWidth,
+      windowHeight: el.scrollHeight,
+      onclone(_, clonedDoc) {
+        if (clonedDoc?.body) {
+          clonedDoc.body.style.textRendering = 'geometricPrecision';
+          clonedDoc.body.style.webkitFontSmoothing = 'antialiased';
+        }
+      },
+    });
+  }, []);
+
+  const handleCopyAsPicture = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const canvas = await captureBreaksCanvas();
+      if (!canvas) {
+        toast.error('Nothing to copy');
+        return;
+      }
+      const blob = await new Promise((res) => canvas.toBlob(res, 'image/png', 1));
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toast.success('Copied to clipboard – paste in WhatsApp or anywhere');
+    } catch (err) {
+      toast.error(err?.message || 'Copy failed');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [captureBreaksCanvas, toast]);
 
   // TODO: Define standard slots structure based on requirements
   const standardSlotsConfig = {
@@ -1442,7 +1489,7 @@ const BrakesManager = () => {
 
 
       {/* Break Slots Display - bez kontenera, floating cards */}
-      <div className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
+      <div ref={breaksExportRef} className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
         {/* Floating Pills - filters */}
         <div className="mb-4 flex items-center gap-1 flex-wrap">
           {/* Date pill - pastelowy niebieski */}
@@ -1470,6 +1517,18 @@ const BrakesManager = () => {
           >
             🌙 {selectedShift}
           </button>
+
+          {/* Export - copy as picture, excluded from screenshot */}
+          <div className="ml-auto" data-html2canvas-ignore>
+            <button
+              type="button"
+              onClick={handleCopyAsPicture}
+              disabled={isExporting || isLoading}
+              className="flex items-center justify-center px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
+            >
+              {isExporting ? '…' : 'Copy as picture'}
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -2170,7 +2229,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
                   <div className="flex-shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-xs text-white bg-orange-600 shadow-md">
                     {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                   </div>
-                  <span className="truncate font-semibold text-charcoal">{staff.user_name}</span>
+                  <span className="block min-w-0 break-words font-semibold text-charcoal">{staff.user_name}</span>
                 </div>
                 {/* Show remove button only if user is admin */}
                 {isAdmin && (
