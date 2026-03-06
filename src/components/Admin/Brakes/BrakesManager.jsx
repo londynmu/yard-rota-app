@@ -274,39 +274,33 @@ const BrakesManager = () => {
       windowHeight: el.scrollHeight,
       onclone(_, clonedDoc) {
         if (!clonedDoc?.body) return;
+        // html2canvas parses raw CSS and throws on oklab/oklch – remove/disable all stylesheets and force safe inline colors
+        try {
+          const head = clonedDoc.head;
+          if (head) {
+            head.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => el.remove());
+          }
+          clonedDoc.body?.querySelectorAll('style').forEach((el) => el.remove());
+          for (let i = clonedDoc.styleSheets.length - 1; i >= 0; i--) {
+            try {
+              clonedDoc.styleSheets[i].disabled = true;
+            } catch (_) {}
+          }
+          const safe = clonedDoc.createElement('style');
+          safe.textContent = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}body,#root{background:#f3f4f6!important;}';
+          clonedDoc.head.appendChild(safe);
+          const all = clonedDoc.body.querySelectorAll('*');
+          const elArr = [clonedDoc.body, clonedDoc.documentElement, ...all];
+          elArr.forEach((el) => {
+            try {
+              el.style.setProperty('color', '#374151', 'important');
+              el.style.setProperty('background-color', '#f3f4f6', 'important');
+              el.style.setProperty('border-color', '#d1d5db', 'important');
+            } catch (_) {}
+          });
+        } catch (_) {}
         clonedDoc.body.style.textRendering = 'geometricPrecision';
         clonedDoc.body.style.webkitFontSmoothing = 'antialiased';
-        // html2canvas does not support oklab()/oklch() – strip them from clone to avoid parse error
-        try {
-          clonedDoc.querySelectorAll('style').forEach((styleEl) => {
-            if (styleEl.textContent) {
-              styleEl.textContent = styleEl.textContent
-                .replace(/oklab\([^)]*\)/g, '#374151')
-                .replace(/oklch\([^)]*\)/g, '#374151');
-            }
-          });
-          const win = clonedDoc.defaultView;
-          if (win) {
-            clonedDoc.body.querySelectorAll('*').forEach((el) => {
-              try {
-                const s = win.getComputedStyle(el);
-                const setIfOklab = (prop, fallback) => {
-                  const v = s.getPropertyValue(prop);
-                  if (v && (v.includes('oklab') || v.includes('oklch'))) {
-                    el.style.setProperty(prop, fallback);
-                  }
-                };
-                setIfOklab('color', '#374151');
-                setIfOklab('background-color', '#f3f4f6');
-                setIfOklab('border-color', '#d1d5db');
-              } catch (_) {}
-            });
-          }
-          // Fallback when oklab/oklch is in linked stylesheets (we can't patch those): override so html2canvas won't parse them
-          const fallbackStyle = clonedDoc.createElement('style');
-          fallbackStyle.textContent = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}';
-          clonedDoc.head.appendChild(fallbackStyle);
-        } catch (_) {}
       },
     });
   }, []);
