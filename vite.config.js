@@ -4,6 +4,23 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const buildTimestamp = new Date().toISOString()
 
+// Replace oklab/oklch in built CSS so html2canvas (and old browsers) never see them
+function replaceOklabInCss() {
+  return {
+    name: 'replace-oklab-in-css',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'asset' && fileName.endsWith('.css') && typeof chunk.source === 'string') {
+          chunk.source = chunk.source
+            .replace(/oklab\([^)]*\)/g, '#374151')
+            .replace(/oklch\([^)]*\)/g, '#374151')
+        }
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -11,6 +28,7 @@ export default defineConfig({
     __PRECHECK_SCHEMA_VERSION__: JSON.stringify('3'),
   },
   plugins: [
+    replaceOklabInCss(),
     react(),
     // Generate version.json for runtime version checking
     {

@@ -274,23 +274,23 @@ const BrakesManager = () => {
       windowHeight: el.scrollHeight,
       onclone(_, clonedDoc) {
         if (!clonedDoc?.body) return;
-        // html2canvas parses raw CSS and throws on oklab/oklch – remove/disable all stylesheets and force safe inline colors
+        // html2canvas does not support oklab/oklch – clear all styles from clone so parser never sees them
         try {
           const head = clonedDoc.head;
           if (head) {
-            head.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => el.remove());
+            head.innerHTML = '';
+            const safe = clonedDoc.createElement('style');
+            safe.textContent = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}html,body,#root{background:#f3f4f6!important;}';
+            head.appendChild(safe);
           }
           clonedDoc.body?.querySelectorAll('style').forEach((el) => el.remove());
-          for (let i = clonedDoc.styleSheets.length - 1; i >= 0; i--) {
+          for (let i = (clonedDoc.styleSheets?.length || 0) - 1; i >= 0; i--) {
             try {
               clonedDoc.styleSheets[i].disabled = true;
             } catch (_) {}
           }
-          const safe = clonedDoc.createElement('style');
-          safe.textContent = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}body,#root{background:#f3f4f6!important;}';
-          clonedDoc.head.appendChild(safe);
           const all = clonedDoc.body.querySelectorAll('*');
-          const elArr = [clonedDoc.body, clonedDoc.documentElement, ...all];
+          const elArr = [clonedDoc.documentElement, clonedDoc.body, ...all];
           elArr.forEach((el) => {
             try {
               el.style.setProperty('color', '#374151', 'important');
@@ -317,7 +317,12 @@ const BrakesManager = () => {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       toast.success('Copied to clipboard – paste in WhatsApp or anywhere');
     } catch (err) {
-      toast.error(err?.message || 'Copy failed');
+      const msg = err?.message || '';
+      if (msg.includes('oklab') || msg.includes('oklch')) {
+        toast.error('Copy failed (unsupported color in CSS). Pull latest code, run npm install and try again.');
+      } else {
+        toast.error(msg || 'Copy failed');
+      }
     } finally {
       setIsExporting(false);
     }
