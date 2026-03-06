@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
+import { logSystemActivity } from '../../../lib/systemActivityLog';
 import { useToast } from '../../../components/ui/ToastContext';
 import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
@@ -885,6 +886,21 @@ const BrakesManager = () => {
         });
 
       // --- Database Operations ---
+      // Fetch current assignments (user_ids) before delete so we can log who was added/removed
+      const { data: currentAssignments, error: fetchCurrentError } = await supabase
+        .from('scheduled_breaks')
+        .select('user_id, break_start_time')
+        .eq('date', selectedDate)
+        .eq('shift_type', selectedShift.toLowerCase())
+        .not('user_id', 'is', null);
+      if (fetchCurrentError) {
+        console.error("[handleSaveAllBreaks] Error fetching current assignments:", fetchCurrentError);
+      }
+      const currentUserIds = new Set((currentAssignments || []).map((r) => r.user_id));
+      const currentByUser = (currentAssignments || []).reduce((acc, r) => {
+        if (!acc[r.user_id]) acc[r.user_id] = r;
+        return acc;
+      }, {});
 
       // 1. Delete existing *assignments* (records with user_id) for this date/shift
       const { error: deleteAssignError } = await supabase
@@ -950,6 +966,45 @@ const BrakesManager = () => {
           console.error("Data attempted for assignments:", JSON.stringify(assignmentsToInsert, null, 2));
           throw insertAssignError; // This is critical, so throw
         }
+      }
+
+      // Log per-person added/removed (same as Rota: Added / Removed with target user)
+      const newUserIds = new Set(assignmentsToInsert.map((a) => a.user_id));
+      const addedUserIds = [...newUserIds].filter((id) => !currentUserIds.has(id));
+      const removedUserIds = [...currentUserIds].filter((id) => !newUserIds.has(id));
+      const insertByUser = assignmentsToInsert.reduce((acc, a) => {
+        if (!acc[a.user_id]) acc[a.user_id] = a;
+        return acc;
+      }, {});
+
+      for (const uid of addedUserIds) {
+        const a = insertByUser[uid];
+        logSystemActivity(supabase, user, {
+          entity_type: 'breaks',
+          action_type: 'break_assignment_added',
+          payload: {
+            date: selectedDate,
+            shift_type: selectedShift.toLowerCase(),
+            location: selectedLocation === ALL_LOCATIONS_VALUE ? 'all' : selectedLocation,
+            assigned_user_id: uid,
+            break_start_time: a?.break_start_time,
+            break_duration_minutes: a?.break_duration_minutes,
+          },
+        });
+      }
+      for (const uid of removedUserIds) {
+        const prev = currentByUser[uid];
+        logSystemActivity(supabase, user, {
+          entity_type: 'breaks',
+          action_type: 'break_assignment_removed',
+          payload: {
+            date: selectedDate,
+            shift_type: selectedShift.toLowerCase(),
+            location: selectedLocation === ALL_LOCATIONS_VALUE ? 'all' : selectedLocation,
+            unassigned_user_id: uid,
+            break_start_time: prev?.break_start_time,
+          },
+        });
       }
 
       if (!silent) {
@@ -1049,6 +1104,18 @@ const BrakesManager = () => {
           setDeleteConfirmSlot(null);
           return;
         }
+        logSystemActivity(supabase, user, {
+          entity_type: 'breaks',
+          action_type: 'breaks_custom_slot_deleted',
+          entity_id: slotId,
+          payload: {
+            date: selectedDate,
+            shift_type: selectedShift.toLowerCase(),
+            slot_id: slotId,
+            break_start_time: deleteConfirmSlot.start_time,
+            break_duration_minutes: deleteConfirmSlot.duration_minutes,
+          },
+        });
       }
       
       // Remove the slot from state

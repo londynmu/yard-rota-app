@@ -136,7 +136,7 @@ export default function RotaPlannerPage() {
 
   return (
     <div className="min-h-screen bg-offwhite overflow-hidden relative">
-      <RotaManager />
+      <RotaManager user={user} />
     </div>
   );
 } 

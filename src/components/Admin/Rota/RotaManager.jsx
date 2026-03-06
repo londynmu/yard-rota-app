@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import { logSystemActivity } from '../../../lib/systemActivityLog';
 import SlotCard from './SlotCard';
 import AssignModal from './AssignModal';
 import TimePicker from './TimePicker';
@@ -12,7 +13,7 @@ import { useToast } from '../../ui/ToastContext';
 // Add date-fns for date manipulation
 import { format, addDays, parseISO } from 'date-fns';
 
-const RotaManager = () => {
+const RotaManager = ({ user }) => {
   const [currentDate, setCurrentDate] = useState(() => {
     // Get saved date from localStorage with proper default to today
     const savedDate = localStorage.getItem('rota_planner_current_date');
@@ -310,6 +311,19 @@ const RotaManager = () => {
 
       if (error) throw error;
 
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'slot_added',
+        payload: {
+          date: currentDate,
+          shift_type: newSlot.shift_type,
+          location: newSlot.location,
+          start_time: newSlot.start_time,
+          end_time: newSlot.end_time,
+          capacity: newSlot.capacity,
+        },
+      });
+
       // Add new slot to UI
       setSlots(prev => [...prev, {
         id: data[0].id,
@@ -357,6 +371,18 @@ const RotaManager = () => {
         .eq('end_time', slotToDelete.end_time);
 
       if (error) throw error;
+
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'slot_deleted',
+        payload: {
+          date: slotToDelete.date,
+          shift_type: slotToDelete.shift_type,
+          location: slotToDelete.location,
+          start_time: slotToDelete.start_time,
+          end_time: slotToDelete.end_time,
+        },
+      });
 
       // Remove slot from UI
       setSlots(prev => prev.filter(slot => 
@@ -420,6 +446,30 @@ const RotaManager = () => {
         .eq('id', slotId);
 
       if (error) throw error;
+
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'slot_updated',
+        entity_id: slotId,
+        payload: {
+          date: slotToUpdate.date,
+          shift_type: slotToUpdate.shift_type,
+          previous: {
+            location: slotToUpdate.location,
+            start_time: slotToUpdate.start_time,
+            end_time: slotToUpdate.end_time,
+            capacity: slotToUpdate.capacity,
+            status: slotToUpdate.status,
+          },
+          new: {
+            location: updatedData.location,
+            start_time: updatedData.start_time,
+            end_time: updatedData.end_time,
+            capacity: updatedData.capacity,
+            status: updatedData.status,
+          },
+        },
+      });
 
       // If there are assigned employees, update their records too
       if (slotToUpdate.assigned_employees && slotToUpdate.assigned_employees.length > 0) {
@@ -580,8 +630,22 @@ const RotaManager = () => {
 
         if (error) throw error;
 
+        logSystemActivity(supabase, user, {
+          entity_type: 'rota',
+          action_type: 'employee_assigned',
+          payload: {
+            date: slotToAssign.date,
+            shift_type: slotToAssign.shift_type,
+            location: slotToAssign.location,
+            start_time: slotToAssign.start_time,
+            end_time: slotToAssign.end_time,
+            assigned_user_id: employeeId,
+            task: task || null,
+          },
+        });
+
         // Update UI
-        setSlots(prev => 
+        setSlots(prev =>
           prev.map(slot => {
             if (slot.id === slotId) {
               return {
@@ -609,8 +673,21 @@ const RotaManager = () => {
 
         if (error) throw error;
 
+        logSystemActivity(supabase, user, {
+          entity_type: 'rota',
+          action_type: 'employee_unassigned',
+          payload: {
+            date: slotToAssign.date,
+            shift_type: slotToAssign.shift_type,
+            location: slotToAssign.location,
+            start_time: slotToAssign.start_time,
+            end_time: slotToAssign.end_time,
+            unassigned_user_id: employeeId,
+          },
+        });
+
         // Update UI
-        setSlots(prev => 
+        setSlots(prev =>
           prev.map(slot => {
             if (slot.id === slotId) {
               return {
@@ -769,6 +846,12 @@ const RotaManager = () => {
 
       if (insertError) throw insertError;
       
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'slots_copied',
+        payload: { target_date: currentDate, source_date: previousWeekDateStr, slots_count: slotsToAdd.length },
+      });
+
       // Zaktualizuj UI - dodaj nowe sloty do stanu
       const newSlots = insertedData.map(slot => ({
         id: slot.id,
@@ -900,6 +983,12 @@ const RotaManager = () => {
       
       if (error) throw error;
       
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'template_saved',
+        payload: { template_name: templateName, slots_count: templateSlots.length },
+      });
+
       toast.success(`Template "${templateName}" saved successfully`);
       return true;
     } catch (error) {
@@ -961,6 +1050,12 @@ const RotaManager = () => {
       
       if (insertError) throw insertError;
       
+      logSystemActivity(supabase, user, {
+        entity_type: 'rota',
+        action_type: 'template_applied',
+        payload: { date: currentDate, template_id: templateId, template_name: template.name, slots_count: slotsToInsert.length },
+      });
+
       // Add newly inserted slots to UI
       const newSlots = insertedSlots.map(slot => ({
         id: slot.id,
