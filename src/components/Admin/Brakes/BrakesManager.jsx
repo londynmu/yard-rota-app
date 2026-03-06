@@ -262,47 +262,81 @@ const BrakesManager = () => {
   const captureBreaksCanvas = useCallback(async () => {
     if (!breaksExportRef.current) return null;
     const el = breaksExportRef.current;
-    return html2canvas(el, {
-      scale: 8,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: '#f3f4f6',
-      logging: false,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: el.scrollWidth,
-      windowHeight: el.scrollHeight,
-      onclone(_, clonedDoc) {
-        if (!clonedDoc?.body) return;
-        // html2canvas does not support oklab/oklch – clear all styles from clone so parser never sees them
-        try {
-          const head = clonedDoc.head;
-          if (head) {
-            head.innerHTML = '';
-            const safe = clonedDoc.createElement('style');
-            safe.textContent = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}html,body,#root{background:#f3f4f6!important;}';
-            head.appendChild(safe);
-          }
-          clonedDoc.body?.querySelectorAll('style').forEach((el) => el.remove());
-          for (let i = (clonedDoc.styleSheets?.length || 0) - 1; i >= 0; i--) {
-            try {
-              clonedDoc.styleSheets[i].disabled = true;
-            } catch (_) {}
-          }
-          const all = clonedDoc.body.querySelectorAll('*');
-          const elArr = [clonedDoc.documentElement, clonedDoc.body, ...all];
-          elArr.forEach((el) => {
-            try {
-              el.style.setProperty('color', '#374151', 'important');
-              el.style.setProperty('background-color', '#f3f4f6', 'important');
-              el.style.setProperty('border-color', '#d1d5db', 'important');
-            } catch (_) {}
-          });
-        } catch (_) {}
-        clonedDoc.body.style.textRendering = 'geometricPrecision';
-        clonedDoc.body.style.webkitFontSmoothing = 'antialiased';
-      },
-    });
+    const safeCss = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}';
+    const tryIframeCapture = () => {
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('data-html2canvas-capture', '1');
+      iframe.style.cssText = 'position:fixed;left:-99999px;width:' + el.offsetWidth + 'px;height:' + (el.scrollHeight || el.offsetHeight) + 'px;border:0;';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument;
+      if (!doc) {
+        iframe.remove();
+        return null;
+      }
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head><style>' + safeCss + '</style></head><body style="margin:0;background:#f3f4f6;"></body></html>');
+      doc.close();
+      const body = doc.body;
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll('[data-html2canvas-ignore]').forEach((n) => n.remove());
+      body.appendChild(clone);
+      return html2canvas(body, {
+        scale: 8,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#f3f4f6',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: body.scrollWidth,
+        windowHeight: body.scrollHeight,
+      }).finally(() => {
+        iframe.remove();
+      });
+    };
+    try {
+      return await html2canvas(el, {
+        scale: 8,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#f3f4f6',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
+        onclone(_, clonedDoc) {
+          if (!clonedDoc?.body) return;
+          try {
+            if (clonedDoc.head) {
+              clonedDoc.head.innerHTML = '';
+              const s = clonedDoc.createElement('style');
+              s.textContent = safeCss;
+              clonedDoc.head.appendChild(s);
+            }
+            clonedDoc.body?.querySelectorAll('style').forEach((n) => n.remove());
+            for (let i = (clonedDoc.styleSheets?.length || 0) - 1; i >= 0; i--) {
+              try {
+                clonedDoc.styleSheets[i].disabled = true;
+              } catch (_) {}
+            }
+            const elArr = [clonedDoc.documentElement, clonedDoc.body, ...clonedDoc.body.querySelectorAll('*')];
+            elArr.forEach((node) => {
+              try {
+                node.style.setProperty('color', '#374151', 'important');
+                node.style.setProperty('background-color', '#f3f4f6', 'important');
+                node.style.setProperty('border-color', '#d1d5db', 'important');
+              } catch (_) {}
+            });
+          } catch (_) {}
+        },
+      });
+    } catch (err) {
+      if (err?.message && (err.message.includes('oklab') || err.message.includes('oklch') || err.message.includes('unsupported color'))) {
+        return await tryIframeCapture();
+      }
+      throw err;
+    }
   }, []);
 
   const handleCopyAsPicture = useCallback(async () => {
@@ -319,7 +353,7 @@ const BrakesManager = () => {
     } catch (err) {
       const msg = err?.message || '';
       if (msg.includes('oklab') || msg.includes('oklch') || msg.includes('unsupported color')) {
-        toast.error('Andrzej ... nie dziala bo jestes pedal i tyle .');
+        toast.error('Could not create image.');
       } else {
         toast.error(msg || 'Copy failed');
       }
