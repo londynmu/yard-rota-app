@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
+import { useAdminStatus } from '../../hooks/useAdminStatus';
 import UserEditForm from './UserEditForm';
 import AddViolationModal from './AddViolationModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -378,6 +379,7 @@ export default function UserList({ users, onRefresh }) {
   // Role update in progress (for dropdown loading state)
   const [roleUpdatingUserId, setRoleUpdatingUserId] = useState(null);
   const toast = useToast();
+  const { isAdmin } = useAdminStatus();
   
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -605,6 +607,7 @@ export default function UserList({ users, onRefresh }) {
   };
 
   const handleRoleChange = async (user, newRoleValue) => {
+    if (!isAdmin) return;
     const role = newRoleValue === '' ? null : newRoleValue;
     setRoleUpdatingUserId(user.id);
     try {
@@ -765,7 +768,7 @@ export default function UserList({ users, onRefresh }) {
               key={user.id}
               className={`rounded-xl overflow-hidden shadow-sm transition-shadow ${cardStyle} ${isExpanded ? 'shadow-md' : ''}`}
             >
-              {/* Header: clickable row + role dropdown */}
+              {/* Header: clickable row (avatar, name, activity) */}
               <div className={`flex items-center gap-2 ${headerStyle} transition-opacity`}>
                 <button
                   type="button"
@@ -796,29 +799,34 @@ export default function UserList({ users, onRefresh }) {
                     </span>
                   )}
                 </button>
-                <div
-                  className="flex-shrink-0 pr-2 py-1"
-                  onClick={(e) => e.stopPropagation()}
-                  role="presentation"
-                >
-                  <select
-                    aria-label={`Role for ${user.first_name || ''} ${user.last_name || ''}`}
-                    value={user.role || ''}
-                    onChange={(e) => handleRoleChange(user, e.target.value)}
-                    disabled={roleUpdatingUserId === user.id}
-                    className="px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal disabled:opacity-60"
-                  >
-                    <option value="">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="vmu">VMU</option>
-                    <option value="transport_manager">Transport manager</option>
-                  </select>
-                </div>
               </div>
 
-              {/* Expanded content – same fields as Edit form (inline) + actions */}
+              {/* Expanded content – role inside card + Edit form + actions */}
               {isExpanded && (
                 <>
+                  <div className="border-t border-gray-200 bg-white px-4 py-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-600">Role</span>
+                      {isAdmin ? (
+                        <select
+                          aria-label={`Role for ${user.first_name || ''} ${user.last_name || ''}`}
+                          value={user.role || ''}
+                          onChange={(e) => handleRoleChange(user, e.target.value)}
+                          disabled={roleUpdatingUserId === user.id}
+                          className="px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal disabled:opacity-60"
+                        >
+                          <option value="">User</option>
+                          <option value="admin">Admin</option>
+                          <option value="vmu">VMU</option>
+                          <option value="transport_manager">Transport manager</option>
+                        </select>
+                      ) : (
+                        <span className="text-sm text-charcoal">
+                          {user.role === 'admin' ? 'Admin' : user.role === 'vmu' ? 'VMU' : user.role === 'transport_manager' ? 'Transport manager' : 'User'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div className="border-t border-gray-200 bg-white">
                     <UserEditForm
                       user={user}
