@@ -821,7 +821,7 @@ const BrakesManager = () => {
   }, [selectedDate, selectedShift, selectedLocation, fetchBreakData]);
 
   // --- Actions ---
-  const handleSaveAllBreaks = async (silent = false) => {
+  const handleSaveAllBreaks = async (silent = false, assignmentsOverride = null) => {
     if (selectedLocation === ALL_LOCATIONS_VALUE) {
       toast.error('Please select a specific location before saving breaks.');
       return;
@@ -832,8 +832,10 @@ const BrakesManager = () => {
     }
 
     try {
-      // Prepare assignments (records with user_id) - use current state
-      const assignmentsToInsert = scheduledBreaks.map(assignment => {
+      // Use override when provided (e.g. from handleRemoveStaff) so we save the exact list we just set – avoids stale state
+      const sourceAssignments = assignmentsOverride ?? scheduledBreaks;
+      // Prepare assignments (records with user_id) - use current state or override
+      const assignmentsToInsert = sourceAssignments.map(assignment => {
         const slot = breakSlots.find(s => s.id === assignment.slot_id);
         if (!slot) {
           console.error(`Could not find slot with ID ${assignment.slot_id} for assignment ${assignment.id || 'new'}. Skipping this assignment.`);
@@ -1007,7 +1009,7 @@ const BrakesManager = () => {
           },
         }));
       }
-      await Promise.allSettled(logPromises);
+      const settled = await Promise.allSettled(logPromises);
 
       if (!silent) {
         toast.success("Breaks schedule saved successfully!");
@@ -1282,11 +1284,8 @@ const BrakesManager = () => {
       })
     );
     
-    // Auto-save to server after removal (silent save without reload)
-    // Use setTimeout to ensure React state updates are processed first
-    setTimeout(() => {
-      handleSaveAllBreaks(true); // true = silent save
-    }, 100);
+    // Auto-save to server after removal (silent save). Pass updated list so save uses it immediately – no stale state.
+    handleSaveAllBreaks(true, updatedAssignments);
   };
 
   // --- Grouping Logic ---
