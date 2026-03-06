@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAdminMenuItems } from '../config/navIcons';
 import NavIcon from '../components/NavIcon';
 import { supabase } from '../lib/supabaseClient';
@@ -38,6 +38,8 @@ export default function AdminPage() {
   // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const mainContentRef = useRef(null);
+  const prevSectionRef = useRef(activeSection);
 
   // Aktualizuj tytuł strony w top barze + powiadom header (mobile)
   useEffect(() => {
@@ -95,6 +97,28 @@ export default function AdminPage() {
   // Efekt do zapisywania aktywnej sekcji w localStorage
   useEffect(() => {
     localStorage.setItem('adminActiveSection', activeSection);
+  }, [activeSection]);
+
+  // Zapisz scroll Statistics przy wyjściu, przywróć przy wejściu
+  useEffect(() => {
+    const prev = prevSectionRef.current;
+    prevSectionRef.current = activeSection;
+    if (prev === 'stats' && activeSection !== 'stats' && mainContentRef.current) {
+      try {
+        sessionStorage.setItem('admin_stats_scroll', String(mainContentRef.current.scrollTop));
+      } catch (_) {}
+    }
+    if (activeSection === 'stats') {
+      const saved = sessionStorage.getItem('admin_stats_scroll');
+      if (saved != null && mainContentRef.current) {
+        const top = parseInt(saved, 10);
+        if (!isNaN(top)) {
+          requestAnimationFrame(() => {
+            if (mainContentRef.current) mainContentRef.current.scrollTop = top;
+          });
+        }
+      }
+    }
   }, [activeSection]);
 
   // --- Monthly Shunter reminder banner ---
@@ -438,7 +462,7 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
-      <main className="min-h-screen overflow-y-auto md:ml-20">
+      <main ref={mainContentRef} className="min-h-screen overflow-y-auto md:ml-20">
         <div className="p-4 md:p-6 lg:p-8">
           {showShunterReminder && (
             <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">

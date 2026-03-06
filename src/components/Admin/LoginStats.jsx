@@ -7,7 +7,10 @@ const LoginStats = () => {
   const [error, setError] = useState(null);
   const [activityLogs, setActivityLogs] = useState([]);
   const [activitySummary, setActivitySummary] = useState([]);
-  const [activeTab, setActiveTab] = useState('activity-logs');
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('admin_stats_active_tab');
+    return (saved === 'activity-logs' || saved === 'user-summary' || saved === 'rota-breaks') ? saved : 'activity-logs';
+  });
   const [expandedUsers, setExpandedUsers] = useState(new Set());
   const [systemActivityLogs, setSystemActivityLogs] = useState([]);
   const [systemActivityLoading, setSystemActivityLoading] = useState(false);
@@ -27,6 +30,10 @@ const LoginStats = () => {
       fetchSystemActivity();
     }
   }, [activeTab, systemActivityDaysBack, systemActivityEntityFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('admin_stats_active_tab', activeTab);
+  }, [activeTab]);
 
   const fetchSystemActivity = async () => {
     setSystemActivityLoading(true);
@@ -188,24 +195,31 @@ const LoginStats = () => {
     return labels[actionType] || actionType;
   };
 
+  const toTimeHHMM = (v) => {
+    if (v == null || v === '') return v;
+    const s = String(v).trim();
+    if (s.length >= 5 && s.indexOf(':') !== -1) return s.substring(0, 5);
+    return s;
+  };
+
   const getSystemPayloadSummary = (payload, actionType) => {
     if (!payload) return '';
     try {
       const p = typeof payload === 'string' ? JSON.parse(payload) : payload;
       if (actionType === 'slot_added' || actionType === 'slot_deleted' || actionType === 'slot_updated') {
-        return [p.date, p.shift_type, p.location, p.start_time, p.end_time].filter(Boolean).join(', ');
+        return [p.date, p.shift_type, p.location, toTimeHHMM(p.start_time), toTimeHHMM(p.end_time)].filter(Boolean).join(', ');
       }
       if (actionType === 'employee_assigned' || actionType === 'employee_unassigned') {
-        return [p.date, p.shift_type, p.location, p.start_time, p.end_time].filter(Boolean).join(', ');
+        return [p.date, p.shift_type, p.location, toTimeHHMM(p.start_time), toTimeHHMM(p.end_time)].filter(Boolean).join(', ');
       }
       if (actionType === 'slots_copied') return `Target: ${p.target_date}, ${p.slots_count} slots`;
       if (actionType === 'template_applied') return `"${p.template_name}", ${p.slots_count} slots`;
       if (actionType === 'template_saved') return `"${p.template_name}", ${p.slots_count} slots`;
-      if (actionType === 'shift_claimed') return [p.date, p.location, p.shift_type, p.start_time, p.end_time].filter(Boolean).join(', ');
+      if (actionType === 'shift_claimed') return [p.date, p.location, p.shift_type, toTimeHHMM(p.start_time), toTimeHHMM(p.end_time)].filter(Boolean).join(', ');
       if (actionType === 'breaks_saved') return `${p.date} ${p.shift_type}, ${p.assignments_count} assignments`;
-      if (actionType === 'breaks_custom_slot_deleted') return [p.date, p.break_start_time, `${p.break_duration_minutes} min`].filter(Boolean).join(', ');
+      if (actionType === 'breaks_custom_slot_deleted') return [p.date, toTimeHHMM(p.break_start_time), `${p.break_duration_minutes} min`].filter(Boolean).join(', ');
       if (actionType === 'break_assignment_added' || actionType === 'break_assignment_removed') {
-        return [p.date, p.shift_type, p.location, p.break_start_time].filter(Boolean).join(', ');
+        return [p.date, p.shift_type, p.location, toTimeHHMM(p.break_start_time)].filter(Boolean).join(', ');
       }
       return JSON.stringify(p).slice(0, 80);
     } catch {
