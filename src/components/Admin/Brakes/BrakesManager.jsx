@@ -1679,7 +1679,7 @@ const BrakesManager = () => {
       {/* Break Slots Display - bez kontenera, floating cards */}
       <div ref={breaksExportRef} className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
         {/* Floating Pills - filters */}
-        <div className="mb-4 flex flex-col gap-2">
+        <div className="mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
           {/* Row 1: 3 filter pills - on mobile equal width across screen, on md+ inline */}
           <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-1">
             {/* Date pill - pastelowy niebieski */}
@@ -1709,13 +1709,13 @@ const BrakesManager = () => {
             </button>
           </div>
 
-          {/* Row 2: Copy as picture - full width, excluded from screenshot */}
-          <div className="w-full" data-html2canvas-ignore>
+          {/* Copy as picture: on mobile full width below; on desktop same line, top right */}
+          <div className="w-full md:w-auto md:ml-auto" data-html2canvas-ignore>
             <button
               type="button"
               onClick={handleCopyAsPicture}
               disabled={isExporting || isLoading}
-              className="flex items-center justify-center w-full px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
+              className="flex items-center justify-center w-full md:w-auto px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
             >
               {isExporting ? '…' : 'Copy as picture'}
             </button>
