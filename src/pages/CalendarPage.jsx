@@ -322,16 +322,13 @@ export default function CalendarPage() {
             />
           </div>
           
-          {/* Pastel Divider Line */}
-          <div className="border-t-2 border-blue-100"></div>
-          
-          {/* Link to Breaks page - allow user to add themselves to breaks */}
-          <div className="flex justify-center py-3">
+          {/* Manage my breaks - full width CTA, replaces divider; on mobile full width, animated */}
+          <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
             <Link
               to="/brakes"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white border-2 border-gray-300 text-charcoal hover:border-gray-500 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center justify-center gap-2 w-full md:max-w-md px-4 py-3 text-sm font-medium rounded-xl bg-amber-50 border-2 border-amber-200 text-charcoal hover:border-amber-400 hover:bg-amber-100 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] animate-soft-glow"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Manage my breaks

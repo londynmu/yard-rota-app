@@ -123,4 +123,18 @@
   .animate-fadeIn {
     animation: fadeIn 0.2s ease-in;
   }
+
+  /* Soft glow pulse for prominent CTA (e.g. Manage my breaks) */
+  @keyframes softGlow {
+    0%, 100% {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(245, 158, 11, 0.15);
+    }
+    50% {
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.22), 0 0 0 1px rgba(245, 158, 11, 0.25);
+    }
+  }
+
+  .animate-soft-glow {
+    animation: softGlow 2.5s ease-in-out infinite;
+  }
 }
