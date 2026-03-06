@@ -977,9 +977,10 @@ const BrakesManager = () => {
         return acc;
       }, {});
 
+      const logPromises = [];
       for (const uid of addedUserIds) {
         const a = insertByUser[uid];
-        logSystemActivity(supabase, user, {
+        logPromises.push(logSystemActivity(supabase, user, {
           entity_type: 'breaks',
           action_type: 'break_assignment_added',
           payload: {
@@ -990,11 +991,11 @@ const BrakesManager = () => {
             break_start_time: a?.break_start_time,
             break_duration_minutes: a?.break_duration_minutes,
           },
-        });
+        }));
       }
       for (const uid of removedUserIds) {
         const prev = currentByUser[uid];
-        logSystemActivity(supabase, user, {
+        logPromises.push(logSystemActivity(supabase, user, {
           entity_type: 'breaks',
           action_type: 'break_assignment_removed',
           payload: {
@@ -1004,8 +1005,9 @@ const BrakesManager = () => {
             unassigned_user_id: uid,
             break_start_time: prev?.break_start_time,
           },
-        });
+        }));
       }
+      await Promise.allSettled(logPromises);
 
       if (!silent) {
         toast.success("Breaks schedule saved successfully!");
@@ -1104,7 +1106,7 @@ const BrakesManager = () => {
           setDeleteConfirmSlot(null);
           return;
         }
-        logSystemActivity(supabase, user, {
+        await logSystemActivity(supabase, user, {
           entity_type: 'breaks',
           action_type: 'breaks_custom_slot_deleted',
           entity_id: slotId,

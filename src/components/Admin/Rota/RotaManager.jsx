@@ -311,7 +311,7 @@ const RotaManager = ({ user }) => {
 
       if (error) throw error;
 
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'slot_added',
         payload: {
@@ -372,7 +372,7 @@ const RotaManager = ({ user }) => {
 
       if (error) throw error;
 
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'slot_deleted',
         payload: {
@@ -447,7 +447,7 @@ const RotaManager = ({ user }) => {
 
       if (error) throw error;
 
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'slot_updated',
         entity_id: slotId,
@@ -630,7 +630,7 @@ const RotaManager = ({ user }) => {
 
         if (error) throw error;
 
-        logSystemActivity(supabase, user, {
+        await logSystemActivity(supabase, user, {
           entity_type: 'rota',
           action_type: 'employee_assigned',
           payload: {
@@ -673,7 +673,7 @@ const RotaManager = ({ user }) => {
 
         if (error) throw error;
 
-        logSystemActivity(supabase, user, {
+        await logSystemActivity(supabase, user, {
           entity_type: 'rota',
           action_type: 'employee_unassigned',
           payload: {
@@ -846,7 +846,7 @@ const RotaManager = ({ user }) => {
 
       if (insertError) throw insertError;
       
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'slots_copied',
         payload: { target_date: currentDate, source_date: previousWeekDateStr, slots_count: slotsToAdd.length },
@@ -983,7 +983,7 @@ const RotaManager = ({ user }) => {
       
       if (error) throw error;
       
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'template_saved',
         payload: { template_name: templateName, slots_count: templateSlots.length },
@@ -1050,7 +1050,7 @@ const RotaManager = ({ user }) => {
       
       if (insertError) throw insertError;
       
-      logSystemActivity(supabase, user, {
+      await logSystemActivity(supabase, user, {
         entity_type: 'rota',
         action_type: 'template_applied',
         payload: { date: currentDate, template_id: templateId, template_name: template.name, slots_count: slotsToInsert.length },
