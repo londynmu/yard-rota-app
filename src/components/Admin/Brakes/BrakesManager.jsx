@@ -1679,40 +1679,43 @@ const BrakesManager = () => {
       {/* Break Slots Display - bez kontenera, floating cards */}
       <div ref={breaksExportRef} className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
         {/* Floating Pills - filters */}
-        <div className="mb-4 flex items-center gap-1 flex-wrap">
-          {/* Date pill - pastelowy niebieski */}
-          <button
-            onClick={() => { 
-              setShowDateModal(true); 
-              setShowLocationModal(false); 
-              setShowShiftModal(false);
-            }}
-            className="flex items-center justify-center px-4 py-1 rounded-full bg-blue-50 text-blue-700 text-sm md:text-base font-medium border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
-          >
-            📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
-          </button>
-          {/* Location pill - pastelowy zielony */}
-          <button
-            onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-            className="flex items-center justify-center px-4 py-1 rounded-full bg-green-50 text-green-700 text-sm md:text-base font-medium border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
-          >
-            📍 {selectedLocation || 'Hub'}
-          </button>
-          {/* Shift pill - pastelowy fioletowy */}
-          <button
-            onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-            className="flex items-center justify-center px-4 py-1 rounded-full bg-purple-50 text-purple-700 text-sm md:text-base font-medium border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg"
-          >
-            🌙 {selectedShift}
-          </button>
+        <div className="mb-4 flex flex-col gap-2">
+          {/* Row 1: 3 filter pills - on mobile equal width across screen, on md+ inline */}
+          <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-1">
+            {/* Date pill - pastelowy niebieski */}
+            <button
+              onClick={() => { 
+                setShowDateModal(true); 
+                setShowLocationModal(false); 
+                setShowShiftModal(false);
+              }}
+              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-blue-50 text-blue-700 text-sm md:text-base font-medium border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+            >
+              📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
+            </button>
+            {/* Location pill - pastelowy zielony */}
+            <button
+              onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
+              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-green-50 text-green-700 text-sm md:text-base font-medium border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+            >
+              📍 {selectedLocation || 'Hub'}
+            </button>
+            {/* Shift pill - pastelowy fioletowy */}
+            <button
+              onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-purple-50 text-purple-700 text-sm md:text-base font-medium border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+            >
+              🌙 {selectedShift}
+            </button>
+          </div>
 
-          {/* Export - copy as picture, excluded from screenshot */}
-          <div className="ml-auto" data-html2canvas-ignore>
+          {/* Row 2: Copy as picture - full width, excluded from screenshot */}
+          <div className="w-full" data-html2canvas-ignore>
             <button
               type="button"
               onClick={handleCopyAsPicture}
               disabled={isExporting || isLoading}
-              className="flex items-center justify-center px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
+              className="flex items-center justify-center w-full px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
             >
               {isExporting ? '…' : 'Copy as picture'}
             </button>
