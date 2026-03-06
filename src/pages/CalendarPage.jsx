@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
 import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
@@ -323,6 +324,19 @@ export default function CalendarPage() {
           
           {/* Pastel Divider Line */}
           <div className="border-t-2 border-blue-100"></div>
+          
+          {/* Link to Breaks page - allow user to add themselves to breaks */}
+          <div className="flex justify-center py-3">
+            <Link
+              to="/brakes"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white border-2 border-gray-300 text-charcoal hover:border-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Manage my breaks
+            </Link>
+          </div>
           
           {/* Today's Breaks List - No container, full width like calendar */}
           <ShiftDashboard 

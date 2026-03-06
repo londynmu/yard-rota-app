@@ -1732,6 +1732,7 @@ const BrakesManager = () => {
                     onDeleteClick={handleDeleteCustomSlot}
                     onRemoveStaffClick={handleRemoveStaff}
                     isAdmin={isAdmin}
+                    currentUserId={currentUser?.id ?? null}
                   />
                 ))}
                 
@@ -1760,7 +1761,7 @@ const BrakesManager = () => {
           isOpen={staffModalOpen}
           onClose={() => setStaffModalOpen(false)}
           slot={selectedSlot}
-          availableStaff={availableStaff}
+          availableStaff={isAdmin ? availableStaff : (availableStaff.filter(s => s.id === currentUser?.id) ?? [])}
           assignedStaff={getAssignedStaffForSlot(selectedSlot.id)}
           onAssignStaff={handleAssignStaff}
           onRemoveStaff={handleRemoveStaff}
@@ -2248,7 +2249,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
 };
 
 // Slot Card Component to display a break slot
-const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, isAdmin }) => {
+const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, isAdmin, currentUserId }) => {
   // Format start time to remove seconds (HH:MM:SS -> HH:MM)
   const formatStartTime = () => {
     try {
@@ -2324,7 +2325,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
 
   // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
   // Dark Modern Premium - białe karty z szaro-czarnymi i pomarańczowymi akcentami
-  const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 ${isAdmin ? 'hover:border-gray-500 cursor-pointer hover:shadow-2xl' : 'cursor-default'} min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
+  const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
   const timeClasses = "font-bold text-lg md:text-base text-gray-900";
   const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
   const badgeClasses = "inline-flex items-center gap-1 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full border text-sm md:text-xs font-semibold";
@@ -2358,10 +2359,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
     if (e.target.closest('.remove-staff-button') || e.target.closest('.delete-slot-button')) {
       return;
     }
-    // Only allow admins to open the modal
-    if (isAdmin) {
-      onSlotClick(slot);
-    }
+    // Allow all users to open the modal (non-admin will only see/add themselves)
+    onSlotClick(slot);
   };
 
   return (
@@ -2397,8 +2396,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
                   </div>
                   <span className="block min-w-0 break-words font-semibold text-charcoal">{staff.user_name}</span>
                 </div>
-                {/* Show remove button only if user is admin */}
-                {isAdmin && (
+                {/* Show remove button for admin or for current user (self-removal only for non-admin) */}
+                {(isAdmin || staff.user_id === currentUserId) && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the card's onClick
@@ -2512,7 +2511,8 @@ SlotCard.propTypes = {
   onSlotClick: PropTypes.func.isRequired,
   onDeleteClick: PropTypes.func.isRequired,
   onRemoveStaffClick: PropTypes.func.isRequired,
-  isAdmin: PropTypes.bool.isRequired
+  isAdmin: PropTypes.bool.isRequired,
+  currentUserId: PropTypes.string
 };
 
 export default BrakesManager; 
