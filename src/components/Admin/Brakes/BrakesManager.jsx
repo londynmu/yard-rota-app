@@ -319,7 +319,7 @@ const BrakesManager = () => {
     } catch (err) {
       const msg = err?.message || '';
       if (msg.includes('oklab') || msg.includes('oklch') || msg.includes('unsupported color')) {
-        toast.error('Could not create image. Please try again or use another browser.');
+        toast.error('Andrzej ... nie dziala bo jestes pedal i tyle .');
       } else {
         toast.error(msg || 'Copy failed');
       }
