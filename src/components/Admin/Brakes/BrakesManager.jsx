@@ -904,24 +904,42 @@ const BrakesManager = () => {
         return acc;
       }, {});
 
-      // 1. Delete existing *assignments* (records with user_id) for this date/shift
-      const { error: deleteAssignError } = await supabase
-        .from('scheduled_breaks')
-        .delete()
-        .eq('date', selectedDate)
-        .eq('shift_type', selectedShift.toLowerCase())
-        .not('user_id', 'is', null); // Only delete assignments
+      // 1. Delete existing *assignments* for this date/shift
+      // Admin: delete all assignments. Regular user: delete only own (RLS allows only own rows)
+      if (isAdmin) {
+        const { error: deleteAssignError } = await supabase
+          .from('scheduled_breaks')
+          .delete()
+          .eq('date', selectedDate)
+          .eq('shift_type', selectedShift.toLowerCase())
+          .not('user_id', 'is', null);
 
-      if (deleteAssignError) {
-        console.error("[handleSaveAllBreaks] Error deleting old assignments:", deleteAssignError);
-        throw deleteAssignError;
+        if (deleteAssignError) {
+          console.error("[handleSaveAllBreaks] Error deleting old assignments:", deleteAssignError);
+          throw deleteAssignError;
+        }
+      } else {
+        // Regular user: delete only their own assignments for this date/shift
+        if (currentUser?.id) {
+          const { error: deleteMyError } = await supabase
+            .from('scheduled_breaks')
+            .delete()
+            .eq('date', selectedDate)
+            .eq('shift_type', selectedShift.toLowerCase())
+            .eq('user_id', currentUser.id);
+
+          if (deleteMyError) {
+            console.error("[handleSaveAllBreaks] Error deleting own assignments:", deleteMyError);
+            throw deleteMyError;
+          }
+        }
       }
 
       // 2. Delete existing *standard slot definitions* (records with std_slot_id) for this date/shift
       //    (Only necessary if standard slot *definitions* were persisted - they aren't anymore)
 
-      // 3. Handle Custom Slot Definitions (split into new and existing)
-      if (customSlotsToUpsert.length > 0) {
+      // 3. Handle Custom Slot Definitions – admin only (regular user cannot add/edit custom slots)
+      if (isAdmin && customSlotsToUpsert.length > 0) {
         // Split custom slots into new and existing
         const newCustomSlots = customSlotsToUpsert.filter(slot => !slot.id);
         const existingCustomSlots = customSlotsToUpsert.filter(slot => slot.id);
@@ -958,14 +976,18 @@ const BrakesManager = () => {
       // if (standardSlotsToUpsert.length > 0) { ... }
 
       // 5. Insert NEW assignments
-      if (assignmentsToInsert.length > 0) {
+      // Admin: insert all. Regular user: insert only own (RLS allows only own user_id)
+      const assignmentsForInsert = isAdmin
+        ? assignmentsToInsert
+        : (assignmentsToInsert.filter((a) => a.user_id === currentUser?.id) || []);
+      if (assignmentsForInsert.length > 0) {
         const { error: insertAssignError } = await supabase
           .from('scheduled_breaks')
-          .insert(assignmentsToInsert);
+          .insert(assignmentsForInsert);
 
         if (insertAssignError) {
           console.error("[handleSaveAllBreaks] Error inserting assignments:", insertAssignError);
-          console.error("Data attempted for assignments:", JSON.stringify(assignmentsToInsert, null, 2));
+          console.error("Data attempted for assignments:", JSON.stringify(assignmentsForInsert, null, 2));
           throw insertAssignError; // This is critical, so throw
         }
       }
@@ -2396,8 +2418,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
                   </div>
                   <span className="block min-w-0 break-words font-semibold text-charcoal">{staff.user_name}</span>
                 </div>
-                {/* Show remove button for admin or for current user (self-removal only for non-admin) */}
-                {(isAdmin || staff.user_id === currentUserId) && (
+                {/* Show remove button only for admin (regular user cannot remove anyone, including themselves) */}
+                {isAdmin && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the card's onClick
