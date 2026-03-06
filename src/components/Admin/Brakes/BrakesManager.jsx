@@ -281,7 +281,7 @@ const BrakesManager = () => {
       clone.querySelectorAll('[data-html2canvas-ignore]').forEach((n) => n.remove());
       body.appendChild(clone);
       return html2canvas(body, {
-        scale: 8,
+        scale: 2,
         useCORS: true,
         allowTaint: false,
         backgroundColor: '#f3f4f6',
@@ -296,7 +296,7 @@ const BrakesManager = () => {
     };
     try {
       return await html2canvas(el, {
-        scale: 8,
+        scale: 2,
         useCORS: true,
         allowTaint: false,
         backgroundColor: '#f3f4f6',
@@ -339,28 +339,63 @@ const BrakesManager = () => {
     }
   }, []);
 
+  const downloadBlobFromCanvas = useCallback((canvas) => {
+    if (!canvas) return;
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'breaks.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      },
+      'image/png',
+      1
+    );
+  }, []);
+
   const handleCopyAsPicture = useCallback(async () => {
     setIsExporting(true);
+    let canvas = null;
     try {
-      const canvas = await captureBreaksCanvas();
+      canvas = await captureBreaksCanvas();
       if (!canvas) {
         toast.error('Nothing to copy');
         return;
       }
-      const blob = await new Promise((res) => canvas.toBlob(res, 'image/png', 1));
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      const blobPromise = new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Image too large'));
+          },
+          'image/png',
+          1
+        );
+      });
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
       toast.success('Copied to clipboard – paste in WhatsApp or anywhere');
     } catch (err) {
       const msg = err?.message || '';
       if (msg.includes('oklab') || msg.includes('oklch') || msg.includes('unsupported color')) {
         toast.error('Could not create image.');
-      } else {
-        toast.error(msg || 'Copy failed');
+        return;
       }
+      if (msg.includes('Image too large')) {
+        toast.error('Image too large for this device – try a smaller view');
+        downloadBlobFromCanvas(canvas);
+        return;
+      }
+      downloadBlobFromCanvas(canvas);
+      toast.error('Clipboard not available – image downloaded instead');
     } finally {
       setIsExporting(false);
     }
-  }, [captureBreaksCanvas, toast]);
+  }, [captureBreaksCanvas, downloadBlobFromCanvas, toast]);
 
   // TODO: Define standard slots structure based on requirements
   const standardSlotsConfig = {
