@@ -318,8 +318,8 @@ const BrakesManager = () => {
       toast.success('Copied to clipboard – paste in WhatsApp or anywhere');
     } catch (err) {
       const msg = err?.message || '';
-      if (msg.includes('oklab') || msg.includes('oklch')) {
-        toast.error('Copy failed (unsupported color in CSS). Pull latest code, run npm install and try again.');
+      if (msg.includes('oklab') || msg.includes('oklch') || msg.includes('unsupported color')) {
+        toast.error('Could not create image. Please try again or use another browser.');
       } else {
         toast.error(msg || 'Copy failed');
       }

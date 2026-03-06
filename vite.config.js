@@ -4,11 +4,20 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const buildTimestamp = new Date().toISOString()
 
-// Replace oklab/oklch in built CSS so html2canvas (and old browsers) never see them
+// Replace oklab/oklch in CSS everywhere (dev + build) so html2canvas never sees them
 function replaceOklabInCss() {
   return {
     name: 'replace-oklab-in-css',
     enforce: 'post',
+    transform(code, id) {
+      if (id.endsWith('.css') && typeof code === 'string') {
+        const out = code
+          .replace(/oklab\([^)]*\)/g, '#374151')
+          .replace(/oklch\([^)]*\)/g, '#374151')
+        return out !== code ? { code: out, map: null } : null
+      }
+      return null
+    },
     generateBundle(_, bundle) {
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk.type === 'asset' && fileName.endsWith('.css') && typeof chunk.source === 'string') {
