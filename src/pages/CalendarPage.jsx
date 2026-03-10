@@ -42,6 +42,7 @@ export default function CalendarPage() {
   const [selectedShifts, setSelectedShifts] = useState(getInitialSelectedShifts);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   const [userBreakLabel, setUserBreakLabel] = useState('');
+  const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
   
   // Use custom hook for availability data fetching
   const { dayData, loading, refetchAvailability } = useAvailabilityData(currentDate, user);
@@ -98,6 +99,23 @@ export default function CalendarPage() {
     };
 
     fetchLocations();
+  }, []);
+
+  useEffect(() => {
+    const fetchSetting = async () => {
+      try {
+        const { data } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'show_manage_breaks_button')
+          .single();
+        setShowManageBreaksButton(data?.value !== 'false');
+      } catch (err) {
+        console.warn('CalendarPage: could not fetch show_manage_breaks_button, defaulting to true', err);
+        setShowManageBreaksButton(true);
+      }
+    };
+    fetchSetting();
   }, []);
 
   // Keep selected location in sync with currently active locations
@@ -322,7 +340,7 @@ export default function CalendarPage() {
             />
           </div>
           
-          {/* Manage my breaks - full width CTA, replaces divider; on mobile full width, animated */}
+          {showManageBreaksButton && (
           <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
             <Link
               to="/brakes"
@@ -334,6 +352,7 @@ export default function CalendarPage() {
               Manage my breaks
             </Link>
           </div>
+          )}
           
           {/* Today's Breaks List - No container, full width like calendar */}
           <ShiftDashboard 
