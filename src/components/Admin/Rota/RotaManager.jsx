@@ -973,6 +973,32 @@ const RotaManager = ({ user }) => {
   // Resetowanie błędu modalu przy otwieraniu/zamykaniu
   const openAddSlotModal = () => {
     setModalError(null);
+    setNewSlot(prev => ({ ...prev, location: selectedLocation || prev.location }));
+    setShowAddSlotModal(true);
+  };
+
+  const openAddSlotForDay = (dateStr) => {
+    setCurrentDate(dateStr);
+    setModalError(null);
+    setNewSlot(prev => ({ ...prev, location: selectedLocation || prev.location }));
+    setShowAddSlotModal(true);
+  };
+
+  const openAddSlotForShift = (shiftType) => {
+    setModalError(null);
+    const defaults = {
+      day: { start_time: '05:45', end_time: '18:00' },
+      afternoon: { start_time: '14:00', end_time: '02:30' },
+      night: { start_time: '17:45', end_time: '06:00' }
+    };
+    const { start_time, end_time } = defaults[shiftType] || defaults.day;
+    setNewSlot(prev => ({
+      ...prev,
+      shift_type: shiftType,
+      location: selectedLocation || prev.location,
+      start_time,
+      end_time
+    }));
     setShowAddSlotModal(true);
   };
 
@@ -1168,50 +1194,33 @@ const RotaManager = ({ user }) => {
       {/* Responsive Toolbar - 3 sekcje */}
       <div className="sticky top-0 z-40 bg-offwhite py-3">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
-          {/* LEWA - Lokalizacje (mobile: center, desktop: left) */}
-          <div className="flex items-center gap-3 justify-center lg:justify-start">
-            {locations.map((location) => (
-              <button
-                key={location.id}
-                onClick={() => handleLocationTabClick(location.name)}
-                className={`flex-shrink-0 h-10 px-4 text-sm font-semibold rounded-lg border-2 transition-all ${
-                  selectedLocation === location.name
-                    ? 'bg-black text-white border-black shadow-md'
-                    : 'bg-white text-black border-gray-300 hover:border-black'
-                }`}
-              >
-                {location.name}
-              </button>
-            ))}
+          {/* LEWA - Location dropdown (mobile: center, desktop: left) */}
+          <div className="flex items-center justify-center lg:justify-start">
+            <select
+              value={selectedLocation || (locations[0]?.name ?? '')}
+              onChange={(e) => handleLocationTabClick(e.target.value)}
+              className="h-10 min-w-[120px] px-4 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 cursor-pointer"
+              aria-label="Select location"
+            >
+              {locations.map((location) => (
+                <option key={location.id} value={location.name}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
           </div>
           
-          {/* ŚRODEK - View toggle + Date / Week navigation */}
+          {/* ŚRODEK - View dropdown + Date / Week navigation */}
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            {/* Day / Week toggle */}
-            <div className="flex rounded-lg border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
-              <button
-                type="button"
-                onClick={() => setViewMode('day')}
-                className={`h-10 px-4 text-sm font-semibold transition-all ${
-                  viewMode === 'day'
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-black border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Day
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('week')}
-                className={`h-10 px-4 text-sm font-semibold transition-all ${
-                  viewMode === 'week'
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-black border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Week
-              </button>
-            </div>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+              className="h-10 min-w-[100px] px-4 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 cursor-pointer"
+              aria-label="Select view"
+            >
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+            </select>
 
             {viewMode === 'day' ? (
               <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
@@ -1341,7 +1350,7 @@ const RotaManager = ({ user }) => {
               const shiftSlots = slotsByShift[shiftType];
               const title = shiftType.charAt(0).toUpperCase() + shiftType.slice(1) + ' Shift';
               return (
-                <div key={shiftType} className="space-y-4">
+                <div key={shiftType} className="space-y-4 flex flex-col">
                   <h3 className="border-b border-gray-200 pb-2 text-xl font-semibold capitalize text-charcoal">
                     {title}
                   </h3>
@@ -1361,6 +1370,17 @@ const RotaManager = ({ user }) => {
                       ))}
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => openAddSlotForShift(shiftType)}
+                    className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-400 hover:text-charcoal text-sm font-semibold transition-colors"
+                    title={`Add slot for ${title}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Add slot
+                  </button>
                 </div>
               );
             })}
@@ -1387,7 +1407,7 @@ const RotaManager = ({ user }) => {
                       {format(dateObj, 'EEE')} {format(dateObj, 'do')}
                     </h3>
                   </div>
-                  <div className="p-2 min-h-[120px]">
+                  <div className="p-2 min-h-[120px] flex flex-col">
                     {slotsForDay.length === 0 ? (
                       <p className="text-center text-gray-500 text-sm py-4">No slots</p>
                     ) : (
@@ -1404,6 +1424,17 @@ const RotaManager = ({ user }) => {
                         ))}
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => openAddSlotForDay(dateStr)}
+                      className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-400 hover:text-charcoal text-sm font-semibold transition-colors"
+                      title="Add slot for this day"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      Add slot
+                    </button>
                   </div>
                 </div>
               );
