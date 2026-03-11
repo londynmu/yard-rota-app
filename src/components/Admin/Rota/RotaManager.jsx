@@ -11,9 +11,21 @@ import { createPortal } from 'react-dom';
 import { useToast } from '../../ui/ToastContext';
 
 // Add date-fns for date manipulation
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays, subDays, parseISO, getWeek } from 'date-fns';
+
+// Week start on Saturday (same as My Rota)
+const getWeekStart = (date) => {
+  const d = date instanceof Date ? date : parseISO(date);
+  const day = d.getDay(); // 0 (Sun) - 6 (Sat)
+  const diff = day === 6 ? 0 : day + 1;
+  return subDays(d, diff);
+};
 
 const RotaManager = ({ user }) => {
+  const [viewMode, setViewMode] = useState(() => {
+    const saved = localStorage.getItem('rota_planner_view_mode');
+    return saved === 'week' ? 'week' : 'day';
+  });
   const [currentDate, setCurrentDate] = useState(() => {
     // Get saved date from localStorage with proper default to today
     const savedDate = localStorage.getItem('rota_planner_current_date');
@@ -71,6 +83,11 @@ const RotaManager = ({ user }) => {
   useEffect(() => {
     localStorage.setItem('rota_planner_current_date', currentDate);
   }, [currentDate]);
+
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('rota_planner_view_mode', viewMode);
+  }, [viewMode]);
 
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -154,12 +171,16 @@ const RotaManager = ({ user }) => {
     fetchLocations();
   }, [selectedLocation]);
 
-  // Fetch slots for the current date
+  // Fetch slots for the current date or week
   useEffect(() => {
     const fetchSlots = async () => {
       setLoading(true);
       try {
-        // Base query
+        const isWeekView = viewMode === 'week';
+        const weekStartDate = getWeekStart(parseISO(currentDate));
+        const startStr = isWeekView ? format(weekStartDate, 'yyyy-MM-dd') : currentDate;
+        const endStr = isWeekView ? format(addDays(weekStartDate, 6), 'yyyy-MM-dd') : currentDate;
+
         let query = supabase
           .from('scheduled_rota')
           .select(`
@@ -173,9 +194,9 @@ const RotaManager = ({ user }) => {
             user_id,
             status
           `)
-          .eq('date', currentDate);
-        
-        // Add location filter - always filter by selected location
+          .gte('date', startStr)
+          .lte('date', endStr);
+
         if (selectedLocation) {
           query = query.eq('location', selectedLocation);
         }
@@ -184,12 +205,13 @@ const RotaManager = ({ user }) => {
 
         if (error) throw error;
 
-        // Group slots by user_id
         const slotsMap = new Map();
-        
+
         data.forEach(slot => {
-          const key = `${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
-          
+          const key = isWeekView
+            ? `${slot.date}-${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`
+            : `${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
+
           if (!slotsMap.has(key)) {
             slotsMap.set(key, {
               id: slot.id,
@@ -212,10 +234,9 @@ const RotaManager = ({ user }) => {
             }
           }
         });
-        
+
         setSlots(Array.from(slotsMap.values()));
 
-        // Restore scroll position after slots are loaded
         setTimeout(() => {
           const savedScrollPosition = localStorage.getItem('rota_planner_scroll_position');
           if (savedScrollPosition) {
@@ -234,7 +255,7 @@ const RotaManager = ({ user }) => {
     };
 
     fetchSlots();
-  }, [currentDate, selectedLocation]); // Add selectedLocation as dependency
+  }, [currentDate, selectedLocation, viewMode]);
 
   // Dodaję funkcję do automatycznego usuwania komunikatu sukcesu po 3 sekundach
   useEffect(() => {
@@ -907,6 +928,26 @@ const RotaManager = ({ user }) => {
     setCurrentDate(format(nextDay, 'yyyy-MM-dd'));
   };
 
+  const goToPreviousWeek = () => {
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    const weekStartDate = getWeekStart(parseISO(currentDate));
+    const prevWeekStart = addDays(weekStartDate, -7);
+    setCurrentDate(format(prevWeekStart, 'yyyy-MM-dd'));
+  };
+
+  const goToCurrentWeek = () => {
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    const weekStartDate = getWeekStart(new Date());
+    setCurrentDate(format(weekStartDate, 'yyyy-MM-dd'));
+  };
+
+  const goToNextWeek = () => {
+    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    const weekStartDate = getWeekStart(parseISO(currentDate));
+    const nextWeekStart = addDays(weekStartDate, 7);
+    setCurrentDate(format(nextWeekStart, 'yyyy-MM-dd'));
+  };
+
   const formatDisplayDate = (dateString) => {
     const dateObj = parseISO(dateString);
     return format(dateObj, 'dd/MM/yyyy');
@@ -963,8 +1004,9 @@ const RotaManager = ({ user }) => {
         return false;
       }
       
-      // Prepare slots data for storage
-      const templateSlots = slots.map(slot => ({
+      // Prepare slots data for storage (only slots for current date, so week view saves one day)
+      const slotsForCurrentDate = slots.filter(s => s.date === currentDate);
+      const templateSlots = slotsForCurrentDate.map(slot => ({
         shift_type: slot.shift_type,
         location: slot.location,
         start_time: slot.start_time,
@@ -1143,50 +1185,111 @@ const RotaManager = ({ user }) => {
             ))}
           </div>
           
-          {/* ŚRODEK - Date Picker (zawsze wyśrodkowany) */}
-          <div className="flex justify-center">
-            <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
-              <button 
-                onClick={goToPreviousDay}
-                className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
-                aria-label="Previous day"
+          {/* ŚRODEK - View toggle + Date / Week navigation */}
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            {/* Day / Week toggle */}
+            <div className="flex rounded-lg border-2 border-gray-300 overflow-hidden bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode('day')}
+                className={`h-10 px-4 text-sm font-semibold transition-all ${
+                  viewMode === 'day'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+                }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
+                Day
               </button>
-              
-              <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300">
-                <span>{formatDisplayDate(currentDate)}</span>
-                <span>{getDayShort(currentDate)}</span>
-                <button 
-                  onClick={() => document.getElementById('date-select').showPicker()}
-                  className="text-black hover:opacity-70 transition-opacity"
-                  aria-label="Open calendar"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <input
-                  id="date-select"
-                  type="date"
-                  value={currentDate}
-                  onChange={handleDateChange}
-                  className="sr-only"
-                />
-              </div>
-              
-              <button 
-                onClick={goToNextDay}
-                className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
-                aria-label="Next day"
+              <button
+                type="button"
+                onClick={() => setViewMode('week')}
+                className={`h-10 px-4 text-sm font-semibold transition-all ${
+                  viewMode === 'week'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-black border-gray-300 hover:bg-gray-50'
+                }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
+                Week
               </button>
             </div>
+
+            {viewMode === 'day' ? (
+              <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+                <button 
+                  onClick={goToPreviousDay}
+                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
+                  aria-label="Previous day"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300">
+                  <span>{formatDisplayDate(currentDate)}</span>
+                  <span>{getDayShort(currentDate)}</span>
+                  <button 
+                    onClick={() => document.getElementById('date-select').showPicker()}
+                    className="text-black hover:opacity-70 transition-opacity"
+                    aria-label="Open calendar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <input
+                    id="date-select"
+                    type="date"
+                    value={currentDate}
+                    onChange={handleDateChange}
+                    className="sr-only"
+                  />
+                </div>
+                
+                <button 
+                  onClick={goToNextDay}
+                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
+                  aria-label="Next day"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+                <button 
+                  onClick={goToPreviousWeek}
+                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
+                  aria-label="Previous week"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300 min-w-[140px] justify-center">
+                  <span>Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}</span>
+                </div>
+                <button 
+                  onClick={goToNextWeek}
+                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
+                  aria-label="Next week"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {viewMode === 'week' && (
+              <button
+                type="button"
+                onClick={goToCurrentWeek}
+                className="h-10 px-3 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black hover:bg-gray-50 whitespace-nowrap"
+              >
+                Current week
+              </button>
+            )}
           </div>
           
           {/* PRAWA - Akcje (mobile: center, desktop: right) */}
@@ -1231,30 +1334,82 @@ const RotaManager = ({ user }) => {
       </div>
 
       <div className="space-y-8">
-        {Object.entries(slotsByShift).map(([shiftType, shiftSlots]) => (
-          <div key={shiftType} className="space-y-4">
-            <h3 className="border-b border-gray-200 pb-2 text-xl font-semibold capitalize text-charcoal">
-              {shiftType} Shift
-            </h3>
-            
-            {shiftSlots.length === 0 ? (
-              <p className="italic text-gray-500">No slots scheduled for this shift</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-                {shiftSlots.map(slot => (
-                  <SlotCard
-                    key={slot.id}
-                    slot={slot}
-                    handleOpenAssignModal={handleOpenAssignModal}
-                    handleDeleteSlot={handleDeleteSlot}
-                    handleOpenEditModal={handleOpenEditModal}
-                    isAdmin={true}
-                  />
-                ))}
-              </div>
-            )}
+        {viewMode === 'day' ? (
+          /* Day view: three columns side by side */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            {['day', 'afternoon', 'night'].map((shiftType) => {
+              const shiftSlots = slotsByShift[shiftType];
+              const title = shiftType.charAt(0).toUpperCase() + shiftType.slice(1) + ' Shift';
+              return (
+                <div key={shiftType} className="space-y-4">
+                  <h3 className="border-b border-gray-200 pb-2 text-xl font-semibold capitalize text-charcoal">
+                    {title}
+                  </h3>
+                  {shiftSlots.length === 0 ? (
+                    <p className="italic text-gray-500">No slots scheduled for this shift</p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 items-stretch">
+                      {shiftSlots.map(slot => (
+                        <SlotCard
+                          key={slot.id}
+                          slot={slot}
+                          handleOpenAssignModal={handleOpenAssignModal}
+                          handleDeleteSlot={handleDeleteSlot}
+                          handleOpenEditModal={handleOpenEditModal}
+                          isAdmin={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ))}
+        ) : (
+          /* Week view: grid of 7 days, each day one column of slots sorted by start_time */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-2">
+            {Array.from({ length: 7 }).map((_, index) => {
+              const dateObj = addDays(getWeekStart(parseISO(currentDate)), index);
+              const dateStr = format(dateObj, 'yyyy-MM-dd');
+              const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+              const slotsForDay = slots
+                .filter(s => s.date === dateStr)
+                .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.end_time.localeCompare(b.end_time));
+              return (
+                <div
+                  key={dateStr}
+                  className={`bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-300 ${
+                    isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''
+                  }`}
+                >
+                  <div className={`p-3 border-b-2 border-gray-300 bg-gray-100 ${isToday ? 'bg-orange-100' : ''}`}>
+                    <h3 className="text-base font-bold text-charcoal uppercase tracking-wide text-center">
+                      {format(dateObj, 'EEE')} {format(dateObj, 'do')}
+                    </h3>
+                  </div>
+                  <div className="p-2 min-h-[120px]">
+                    {slotsForDay.length === 0 ? (
+                      <p className="text-center text-gray-500 text-sm py-4">No slots</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {slotsForDay.map(slot => (
+                          <SlotCard
+                            key={slot.id}
+                            slot={slot}
+                            handleOpenAssignModal={handleOpenAssignModal}
+                            handleDeleteSlot={handleDeleteSlot}
+                            handleOpenEditModal={handleOpenEditModal}
+                            isAdmin={true}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Add Slot Modal */}
