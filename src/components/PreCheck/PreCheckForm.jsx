@@ -694,13 +694,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // Section: title on main container, floating cards below (no wrapper box)
   // 0-1 defect: single CheckItemRow. 2+ defects: single CheckItemRowMultiDefect (one card, per-defect options)
-  const handleCollapseComplete = (itemKey) => {
-    const el = document.querySelector(`[data-precheck-card="${itemKey}"]`);
-    const next = el?.nextElementSibling;
-    if (next) {
-      next.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+  const handleCollapseComplete = () => {};
 
   const renderSection = (title, items, status, repairCount) => {
     const rowsToRender = [];
