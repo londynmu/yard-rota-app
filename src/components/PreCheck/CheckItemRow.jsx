@@ -21,7 +21,6 @@ export default function CheckItemRow({
   onMarkResolved,
   pendingResolvedDamageIds = [],
   onReload,
-  onCollapseComplete,
 }) {
   const [showStillExistNewProblem, setShowStillExistNewProblem] = useState(false);
   const notesTextareaRef = useRef(null);
@@ -144,7 +143,6 @@ export default function CheckItemRow({
 
         <div
           className={`transition-all duration-300 ease-out overflow-hidden ${isCompleted ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
-          onTransitionEnd={() => { if (isCompleted) onCollapseComplete?.(); }}
         >
         {tooltip && value !== 'na' && (
           <p className="text-sm text-gray-600 leading-snug mt-1">{tooltip}</p>
@@ -458,5 +456,4 @@ CheckItemRow.propTypes = {
   onMarkResolved: PropTypes.func,
   pendingResolvedDamageIds: PropTypes.arrayOf(PropTypes.string),
   onReload: PropTypes.func,
-  onCollapseComplete: PropTypes.func,
 };

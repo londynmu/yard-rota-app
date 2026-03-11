@@ -694,8 +694,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // Section: title on main container, floating cards below (no wrapper box)
   // 0-1 defect: single CheckItemRow. 2+ defects: single CheckItemRowMultiDefect (one card, per-defect options)
-  const handleCollapseComplete = () => {};
-
   const renderSection = (title, items, status, repairCount) => {
     const rowsToRender = [];
     for (const item of items || []) {
@@ -738,7 +736,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                   onReload={() => handleReloadCheckItem(itemKey)}
                   cardId={cardId}
                   storageKey={`pending_photos_item_${itemKey.replace(/::/g, '_')}`}
-                  onCollapseComplete={() => handleCollapseComplete(itemKey)}
                 />
               </div>
             ) : (
@@ -774,7 +771,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                     : () => handleReloadCheckItem(itemKey, knownDefects[0].id)
                 }
                 storageKey={`pending_photos_item_${stateKey.replace(/::/g, '_')}`}
-                onCollapseComplete={() => handleCollapseComplete(itemKey)}
               />
               </div>
             )
