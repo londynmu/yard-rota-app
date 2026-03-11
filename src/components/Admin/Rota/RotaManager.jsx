@@ -971,12 +971,6 @@ const RotaManager = ({ user }) => {
   };
 
   // Resetowanie błędu modalu przy otwieraniu/zamykaniu
-  const openAddSlotModal = () => {
-    setModalError(null);
-    setNewSlot(prev => ({ ...prev, location: selectedLocation || prev.location }));
-    setShowAddSlotModal(true);
-  };
-
   const openAddSlotForDay = (dateStr) => {
     setCurrentDate(dateStr);
     setModalError(null);
@@ -1303,16 +1297,6 @@ const RotaManager = ({ user }) => {
           
           {/* PRAWA - Akcje (mobile: center, desktop: right) */}
           <div className="flex items-center gap-2 justify-center lg:justify-end">
-            <button
-              onClick={openAddSlotModal}
-              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-black text-white border-2 border-black hover:bg-gray-800 transition-all"
-              title="Add Slot"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-            </button>
-            
             <button
               onClick={handleCopyFromPreviousWeek}
               className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all"
