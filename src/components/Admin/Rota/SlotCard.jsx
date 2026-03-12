@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
 import { createPortal } from 'react-dom';
+
+// Same as AssignModal: time string (HH:MM or HH:MM:SS) to minutes since midnight
+const timeToMinutes = (timeString) => {
+  const [hours, minutes] = (timeString || '').split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
+};
 
 const SlotCard = ({ 
   slot, 
@@ -14,6 +20,16 @@ const SlotCard = ({
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Available-for-slot tooltip
+  const [showAvailableTooltip, setShowAvailableTooltip] = useState(false);
+  const [availableForSlot, setAvailableForSlot] = useState([]);
+  const [availableLoading, setAvailableLoading] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const lastFetchedSlotIdRef = useRef(null);
+  const cardRef = useRef(null);
+
+  const TOOLTIP_OFFSET = 14;
   
   // Check if slot has assigned employees array
   const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
@@ -52,6 +68,140 @@ const SlotCard = ({
   }, [slot.status]);
 
   // Removed debug useEffect
+
+  const fetchAvailableForSlot = async () => {
+    const slotDate = slot.date;
+    const assignedSet = new Set(slot.assigned_employees || []);
+    const normalizedSlotLocation = (slot?.location || '').trim().toLowerCase();
+    const normalizedSlotShift = (slot?.shift_type || '').trim().toLowerCase();
+
+    const normalizePref = (v) => (v || '').trim().toLowerCase() || '';
+    const matchesLocation = (preferredLocation) => {
+      const p = normalizePref(preferredLocation);
+      if (!p || ['both', 'all', 'any'].includes(p)) return true;
+      return p === normalizedSlotLocation;
+    };
+    const matchesShift = (shiftPreference) => {
+      if (!shiftPreference) return true;
+      return normalizePref(shiftPreference) === normalizedSlotShift;
+    };
+
+    try {
+      let minBreakMinutes = 60;
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'min_break_between_slots')
+        .single();
+      if (settingsData?.value) minBreakMinutes = parseInt(settingsData.value, 10) || 60;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, preferred_location, shift_preference')
+        .eq('is_active', true)
+        .order('first_name');
+
+      if (profilesError) throw profilesError;
+      if (!profiles?.length) {
+        setAvailableForSlot([]);
+        setAvailableLoading(false);
+        return;
+      }
+
+      const { data: availability, error: availabilityError } = await supabase
+        .from('availability')
+        .select('user_id, status')
+        .eq('date', slotDate);
+
+      if (availabilityError) throw availabilityError;
+
+      const { data: existingSlots, error: slotsError } = await supabase
+        .from('scheduled_rota')
+        .select('user_id, start_time, end_time')
+        .eq('date', slotDate);
+
+      if (slotsError) throw slotsError;
+
+      const userSlots = {};
+      (existingSlots || []).forEach((s) => {
+        if (!userSlots[s.user_id]) userSlots[s.user_id] = [];
+        userSlots[s.user_id].push({ start_time: s.start_time, end_time: s.end_time });
+      });
+
+      const slotStart = timeToMinutes(slot.start_time);
+      const slotEnd = timeToMinutes(slot.end_time);
+      const normalizedSlotEnd = slotEnd < slotStart ? slotEnd + 1440 : slotEnd;
+
+      const overlappingConflictIds = new Set();
+      const breakConflictIds = new Set();
+
+      Object.entries(userSlots).forEach(([userId, slots]) => {
+        for (const existingSlot of slots) {
+          const existingStart = timeToMinutes(existingSlot.start_time);
+          const existingEnd = timeToMinutes(existingSlot.end_time);
+          const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
+
+          const overlap = slotStart < normalizedExistingEnd && existingStart < normalizedSlotEnd;
+          if (overlap) {
+            overlappingConflictIds.add(userId);
+            continue;
+          }
+          if (minBreakMinutes > 0) {
+            let breakMinutes = -1;
+            if (slotStart >= normalizedExistingEnd) breakMinutes = slotStart - normalizedExistingEnd;
+            else if (existingStart >= normalizedSlotEnd) breakMinutes = existingStart - normalizedSlotEnd;
+            if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) breakConflictIds.add(userId);
+          }
+        }
+      });
+
+      const availabilityMap = new Map();
+      (availability || []).forEach((item) => availabilityMap.set(item.user_id, item.status));
+
+      const availableList = profiles.filter((profile) => {
+        const isAssigned = assignedSet.has(profile.id);
+        const status = (availabilityMap.get(profile.id) || 'unknown').toLowerCase();
+        const isAvailableToday = status === 'available';
+        if (isAssigned) return false;
+        if (overlappingConflictIds.has(profile.id) || breakConflictIds.has(profile.id)) return false;
+        if (!isAvailableToday) return false;
+        if (!matchesShift(profile.shift_preference)) return false;
+        if (!matchesLocation(profile.preferred_location)) return false;
+        return true;
+      });
+
+      setAvailableForSlot(availableList.map((p) => ({ id: p.id, first_name: p.first_name, last_name: p.last_name })));
+    } catch (err) {
+      console.error('Error fetching available for slot:', err);
+      setAvailableForSlot([]);
+    } finally {
+      setAvailableLoading(false);
+    }
+  };
+
+  const handleCardMouseEnter = (e) => {
+    setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
+    setShowAvailableTooltip(true);
+    if (lastFetchedSlotIdRef.current === slot.id && !availableLoading) {
+      return;
+    }
+    if (lastFetchedSlotIdRef.current !== slot.id) {
+      setAvailableForSlot([]);
+    }
+    lastFetchedSlotIdRef.current = slot.id;
+    setAvailableLoading(true);
+    fetchAvailableForSlot();
+  };
+
+  const handleCardMouseLeave = () => {
+    setShowAvailableTooltip(false);
+  };
+
+  const handleCardMouseMove = (e) => {
+    if (showAvailableTooltip) {
+      setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
+    }
+  };
 
   const formatTime = (timeString) => {
     return timeString.substring(0, 5); // HH:MM format
@@ -139,11 +289,51 @@ const SlotCard = ({
 
   return (
     <div
+      ref={cardRef}
+      onMouseEnter={handleCardMouseEnter}
+      onMouseMove={handleCardMouseMove}
+      onMouseLeave={handleCardMouseLeave}
       onClick={() => handleOpenAssignModal(slot)}
       className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm transition hover:shadow-lg cursor-pointer h-full flex flex-col ${stateStyles.borderClass}`}
     >
       {/* Delete confirmation modal */}
       <DeleteConfirmationModal />
+
+      {/* Available-for-slot tooltip (portal) */}
+      {showAvailableTooltip &&
+        createPortal(
+          (() => {
+            return (
+              <div
+                className="fixed z-50 min-w-[160px] max-w-[280px] rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 shadow-xl text-white pointer-events-none"
+                style={{
+                  left: tooltipPosition.x,
+                  top: tooltipPosition.y,
+                }}
+              >
+                <p className="mb-2 text-sm font-semibold text-slate-100">
+                  Available for this slot
+                </p>
+                <div className="text-sm text-slate-200">
+                  {availableLoading ? (
+                    <span>Loading…</span>
+                  ) : availableForSlot.length === 0 ? (
+                    <span>No one available</span>
+                  ) : (
+                    <ul className="space-y-1">
+                      {availableForSlot.map((user) => (
+                        <li key={user.id}>
+                          {user.first_name} {user.last_name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            );
+          })(),
+          document.body
+        )}
       
       {/* Pionowy pasek oznaczający typ zmiany */}
       <div className={`absolute top-0 left-0 h-full w-1.5 ${getShiftIndicatorColor(slot.shift_type)}`}></div>
