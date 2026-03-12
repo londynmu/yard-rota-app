@@ -770,129 +770,184 @@ const RotaManager = ({ user }) => {
     setShowTimePickerModal(true);
   };
 
-  // Modyfikuję funkcję handleCopyFromPreviousWeek, aby używała nowego komunikatu sukcesu
+  // Copy from previous week: in Day view copies one day; in Week view copies entire week
   const handleCopyFromPreviousWeek = async () => {
     setLoading(true);
     try {
-      // Oblicz datę sprzed tygodnia
-      const currentDateObj = parseISO(currentDate);
-      const previousWeekDate = addDays(currentDateObj, -7);
-      const previousWeekDateStr = format(previousWeekDate, 'yyyy-MM-dd');
-      
-      // Pobierz sloty z poprzedniego tygodnia
-      const { data, error } = await supabase
-        .from('scheduled_rota')
-        .select(`
-          date,
-          shift_type,
-          location,
-          start_time,
-          end_time,
-          capacity,
-          user_id
-        `)
-        .eq('date', previousWeekDateStr);
+      const weekStart = getWeekStart(parseISO(currentDate));
+      const previousWeekStart = addDays(weekStart, -7);
 
-      if (error) throw error;
-      
-      if (data.length === 0) {
-        setError('No slots found from previous week to copy');
-        setLoading(false);
-        return;
-      }
+      if (viewMode === 'day') {
+        // Day view: copy one day (same weekday from previous week)
+        const currentDateObj = parseISO(currentDate);
+        const previousWeekDate = addDays(currentDateObj, -7);
+        const previousWeekDateStr = format(previousWeekDate, 'yyyy-MM-dd');
+        const { data, error } = await supabase
+          .from('scheduled_rota')
+          .select(`date, shift_type, location, start_time, end_time, capacity, user_id`)
+          .eq('date', previousWeekDateStr)
+          .eq('location', selectedLocation);
 
-      // Grupuj sloty według unikalnych identyfikatorów slotu
-      const uniqueSlots = new Map();
-      
-      data.forEach(slot => {
-        const key = `${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
-        
-        if (!uniqueSlots.has(key)) {
-          uniqueSlots.set(key, {
-            date: currentDate, // Aktualna data zamiast daty z poprzedniego tygodnia
-            shift_type: slot.shift_type,
-            location: slot.location,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            capacity: slot.capacity,
-            user_id: null // Bez przypisanych użytkowników
-          });
+        if (error) throw error;
+        if (data.length === 0) {
+          setError('No slots found from previous week to copy');
+          setLoading(false);
+          return;
         }
-      });
-      
-      // Sprawdź, które sloty już istnieją dla bieżącej daty
-      const { data: existingSlots, error: existingError } = await supabase
-        .from('scheduled_rota')
-        .select(`
-          shift_type,
-          location,
-          start_time,
-          end_time
-        `)
-        .eq('date', currentDate);
-      
-      if (existingError) throw existingError;
-      
-      // Utwórz mapę istniejących slotów
-      const existingSlotKeys = new Set();
-      existingSlots.forEach(slot => {
-        const key = `${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
-        existingSlotKeys.add(key);
-      });
-      
-      // Odfiltruj sloty, które już istnieją
-      const slotsToAdd = [];
-      const duplicateSlots = [];
-      
-      uniqueSlots.forEach((slot, key) => {
-        if (existingSlotKeys.has(key)) {
-          duplicateSlots.push(slot);
-        } else {
-          slotsToAdd.push(slot);
+
+        const uniqueSlots = new Map();
+        data.forEach(slot => {
+          const key = `${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
+          if (!uniqueSlots.has(key)) {
+            uniqueSlots.set(key, {
+              date: currentDate,
+              shift_type: slot.shift_type,
+              location: slot.location,
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+              capacity: slot.capacity,
+              user_id: null
+            });
+          }
+        });
+
+        const { data: existingSlots, error: existingError } = await supabase
+          .from('scheduled_rota')
+          .select(`shift_type, location, start_time, end_time`)
+          .eq('date', currentDate)
+          .eq('location', selectedLocation);
+        if (existingError) throw existingError;
+
+        const existingKeys = new Set(
+          (existingSlots || []).map(s => `${s.shift_type}-${s.location}-${s.start_time}-${s.end_time}`)
+        );
+        const slotsToAdd = Array.from(uniqueSlots.values()).filter(
+          s => !existingKeys.has(`${s.shift_type}-${s.location}-${s.start_time}-${s.end_time}`)
+        );
+
+        if (slotsToAdd.length === 0) {
+          setError('All slots from the previous week already exist for the selected date');
+          setLoading(false);
+          return;
         }
-      });
-      
-      // Jeśli wszystkie sloty już istnieją, pokaż odpowiedni komunikat
-      if (slotsToAdd.length === 0) {
-        setError('All slots from the previous week already exist for the selected date');
-        setLoading(false);
-        return;
-      }
-      
-      // Wstaw tylko unikalne sloty do bazy danych
-      const { data: insertedData, error: insertError } = await supabase
-        .from('scheduled_rota')
-        .insert(slotsToAdd)
-        .select();
 
-      if (insertError) throw insertError;
-      
-      await logSystemActivity(supabase, user, {
-        entity_type: 'rota',
-        action_type: 'slots_copied',
-        payload: { target_date: currentDate, source_date: previousWeekDateStr, slots_count: slotsToAdd.length },
-      });
+        const { data: insertedData, error: insertError } = await supabase
+          .from('scheduled_rota')
+          .insert(slotsToAdd)
+          .select();
+        if (insertError) throw insertError;
 
-      // Zaktualizuj UI - dodaj nowe sloty do stanu
-      const newSlots = insertedData.map(slot => ({
-        id: slot.id,
-        date: slot.date,
-        shift_type: slot.shift_type,
-        location: slot.location,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        capacity: slot.capacity,
-        assigned_employees: [],
-        status: 'available'
-      }));
-      
-      setSlots(prev => [...prev, ...newSlots]);
-      
-      // Zamiast alert(), używam nowego stanu sukcesu
-      if (duplicateSlots.length > 0) {
-        setSuccessMessage(`Copied ${slotsToAdd.length} slots from previous week. ${duplicateSlots.length} slots were skipped as they already exist.`);
+        await logSystemActivity(supabase, user, {
+          entity_type: 'rota',
+          action_type: 'slots_copied',
+          payload: { target_date: currentDate, source_date: previousWeekDateStr, slots_count: slotsToAdd.length }
+        });
+
+        const newSlots = insertedData.map(s => ({
+          id: s.id,
+          date: s.date,
+          shift_type: s.shift_type,
+          location: s.location,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          capacity: s.capacity,
+          assigned_employees: [],
+          status: 'available'
+        }));
+        setSlots(prev => [...prev, ...newSlots]);
+        toast.success(`Copied ${slotsToAdd.length} slot${slotsToAdd.length !== 1 ? 's' : ''} from previous week`);
       } else {
-        setSuccessMessage(`Successfully copied ${slotsToAdd.length} slots from previous week.`);
+        // Week view: copy entire previous week to current week
+        const prevStartStr = format(previousWeekStart, 'yyyy-MM-dd');
+        const prevEndStr = format(addDays(previousWeekStart, 6), 'yyyy-MM-dd');
+
+        const { data, error } = await supabase
+          .from('scheduled_rota')
+          .select(`date, shift_type, location, start_time, end_time, capacity, user_id`)
+          .gte('date', prevStartStr)
+          .lte('date', prevEndStr)
+          .eq('location', selectedLocation);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          setError('No slots found from previous week to copy');
+          setLoading(false);
+          return;
+        }
+
+        const slotsByTargetDate = {};
+        data.forEach(slot => {
+          const sourceDate = parseISO(slot.date);
+          const dayOffset = Math.round((sourceDate - previousWeekStart) / (24 * 60 * 60 * 1000));
+          const targetDateStr = format(addDays(weekStart, dayOffset), 'yyyy-MM-dd');
+          const key = `${targetDateStr}-${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
+          if (!slotsByTargetDate[key]) {
+            slotsByTargetDate[key] = {
+              date: targetDateStr,
+              shift_type: slot.shift_type,
+              location: slot.location,
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+              capacity: slot.capacity,
+              user_id: null
+            };
+          }
+        });
+
+        const slotsToAdd = Object.values(slotsByTargetDate);
+        const targetStartStr = format(weekStart, 'yyyy-MM-dd');
+        const targetEndStr = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+
+        const { data: existingSlots, error: existingError } = await supabase
+          .from('scheduled_rota')
+          .select(`date, shift_type, location, start_time, end_time`)
+          .gte('date', targetStartStr)
+          .lte('date', targetEndStr)
+          .eq('location', selectedLocation);
+        if (existingError) throw existingError;
+
+        const existingKeys = new Set(
+          (existingSlots || []).map(s => `${s.date}-${s.shift_type}-${s.location}-${s.start_time}-${s.end_time}`)
+        );
+        const filtered = slotsToAdd.filter(
+          s => !existingKeys.has(`${s.date}-${s.shift_type}-${s.location}-${s.start_time}-${s.end_time}`)
+        );
+
+        if (filtered.length === 0) {
+          setError('All slots from the previous week already exist for this week');
+          setLoading(false);
+          return;
+        }
+
+        const { data: insertedData, error: insertError } = await supabase
+          .from('scheduled_rota')
+          .insert(filtered)
+          .select();
+        if (insertError) throw insertError;
+
+        await logSystemActivity(supabase, user, {
+          entity_type: 'rota',
+          action_type: 'slots_copied',
+          payload: {
+            target_week: targetStartStr,
+            source_week: prevStartStr,
+            slots_count: filtered.length
+          }
+        });
+
+        const newSlots = insertedData.map(s => ({
+          id: s.id,
+          date: s.date,
+          shift_type: s.shift_type,
+          location: s.location,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          capacity: s.capacity,
+          assigned_employees: [],
+          status: 'available'
+        }));
+        setSlots(prev => [...prev, ...newSlots]);
+        toast.success(`Copied ${filtered.length} slot${filtered.length !== 1 ? 's' : ''} from previous week`);
       }
     } catch (error) {
       console.error('Error copying slots from previous week:', error);
@@ -1299,13 +1354,14 @@ const RotaManager = ({ user }) => {
           <div className="flex items-center gap-2 justify-center lg:justify-end">
             <button
               onClick={handleCopyFromPreviousWeek}
-              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all"
-              title="Copy Last Week"
+              className="h-10 px-3 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all text-sm font-semibold"
+              title="Copy slots from previous week"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                 <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
               </svg>
+              Copy last week
             </button>
             
             <button
@@ -1388,7 +1444,7 @@ const RotaManager = ({ user }) => {
                 >
                   <div className={`p-3 border-b-2 border-gray-300 bg-gray-100 ${isToday ? 'bg-orange-100' : ''}`}>
                     <h3 className="text-base font-bold text-charcoal uppercase tracking-wide text-center">
-                      {format(dateObj, 'EEE')} {format(dateObj, 'do')}
+                      {format(dateObj, 'EEE')} {format(dateObj, 'do')} {format(dateObj, 'MMM')}
                     </h3>
                   </div>
                   <div className="p-2 min-h-[120px] flex flex-col">
