@@ -20,10 +20,14 @@ const RANGE_LOOKUP = RANGE_OPTIONS.reduce((acc, option) => {
   return acc;
 }, {});
 
+const MIN_DAYS_FOR_BENCHMARK = 10;
+const BELOW_AVERAGE_RATIO = 0.75;
+const HIGH_OUTPUT_RATIO = 1.1;
+const SHIFT_ORDER = { day: 0, afternoon: 1, night: 2 };
+
 const SORT_OPTIONS = [
   { value: 'moves', label: 'Total Moves' },
-  { value: 'collect', label: 'Avg Collect Time' },
-  { value: 'travel', label: 'Avg Travel Time' },
+  { value: 'per_day', label: 'Per Day' },
 ];
 
 const normalizePerformanceRecords = (records) => {
@@ -119,18 +123,15 @@ const PerformanceLeaderboard = () => {
   const [sortOption, setSortOption] = useState(() => {
     if (typeof window === 'undefined') return 'moves';
     const stored = localStorage.getItem('performance_sort');
-    // Validate stored value
-    const validSorts = ['moves', 'collect', 'travel'];
+    const validSorts = ['moves', 'per_day'];
     return (stored && validSorts.includes(stored)) ? stored : 'moves';
   });
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
-  const [showMyStatsModal, setShowMyStatsModal] = useState(false);
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [shiftFilter, setShiftFilter] = useState('all');
   const [expandedUserId, setExpandedUserId] = useState(null);
-  const [myStatsLoading, setMyStatsLoading] = useState(false);
   const [teamOverviewExpanded, setTeamOverviewExpanded] = useState(false);
-  const [myStatsError, setMyStatsError] = useState(null);
-  const [myStatsData, setMyStatsData] = useState(null);
   const [rawPerformance, setRawPerformance] = useState([]);
 
   // Save preferences to localStorage
@@ -186,7 +187,9 @@ const PerformanceLeaderboard = () => {
               id,
               first_name,
               last_name,
-              yard_system_id
+              yard_system_id,
+              shift_preference,
+              is_active
             )
           `);
 
@@ -239,8 +242,11 @@ const PerformanceLeaderboard = () => {
       const userStats = {};
       
       normalizedPerformance.forEach(record => {
-        // Validate record data
+        // Validate record data and skip inactive users
         if (!record.profiles || !record.profiles.yard_system_id || !record.user_id) {
+          return;
+        }
+        if (record.profiles.is_active === false) {
           return;
         }
 
@@ -253,6 +259,7 @@ const PerformanceLeaderboard = () => {
             lastName: record.profiles.last_name,
             avatarUrl: record.profiles.avatar_url,
             yardSystemId: record.profiles.yard_system_id,
+            shiftPreference: record.profiles?.shift_preference ?? null,
             totalMoves: 0,
             totalCollectSeconds: 0,
             totalTravelSeconds: 0,
@@ -284,43 +291,11 @@ const PerformanceLeaderboard = () => {
             : 0
         }));
 
-      // Sort by total moves (descending), then by avg collect time (ascending)
+      // Sort is done in rankedLeaderboardData useMemo (pipeline)
       leaderboard.forEach(user => {
         user.avgTravelSeconds = user.totalMoves > 0
           ? Math.round(user.totalTravelSeconds / user.totalMoves)
           : 0;
-      });
-
-      leaderboard.sort((a, b) => {
-        switch (sortOption) {
-          case 'collect':
-            // Users with 0 moves should rank last
-            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
-            if (a.totalMoves === 0) return 1; // a ranks after b
-            if (b.totalMoves === 0) return -1; // b ranks after a
-            
-            // Both have moves - compare collect times
-            if (a.avgCollectSeconds !== b.avgCollectSeconds) {
-              return a.avgCollectSeconds - b.avgCollectSeconds;
-            }
-            return b.totalMoves - a.totalMoves;
-          case 'travel':
-            // Users with 0 moves should rank last
-            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
-            if (a.totalMoves === 0) return 1; // a ranks after b
-            if (b.totalMoves === 0) return -1; // b ranks after a
-            
-            // Both have moves - compare travel times
-            if (a.avgTravelSeconds !== b.avgTravelSeconds) {
-              return a.avgTravelSeconds - b.avgTravelSeconds;
-            }
-            return b.totalMoves - a.totalMoves;
-          default:
-            if (b.totalMoves !== a.totalMoves) {
-              return b.totalMoves - a.totalMoves;
-            }
-            return a.avgCollectSeconds - b.avgCollectSeconds;
-        }
       });
 
       setLeaderboardData(leaderboard);
@@ -331,116 +306,17 @@ const PerformanceLeaderboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedRange, getDateRange, toast, sortOption]);
+  }, [selectedRange, getDateRange, toast]);
 
   useEffect(() => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
-
-  const fetchMyStats = useCallback(async () => {
-    if (!user) {
-      setMyStatsData(null);
-      return;
-    }
-
-    setMyStatsLoading(true);
-    setMyStatsError(null);
-
-    try {
-      const { data, error } = await supabase
-        .from('shunter_performance')
-        .select('report_date, number_of_moves, avg_time_to_collect, avg_time_to_travel, number_of_full_locations')
-        .eq('user_id', user.id)
-        .order('report_date', { ascending: false });
-
-      if (error) throw error;
-
-      const normalizedData = normalizePerformanceRecords(data);
-
-      if (!normalizedData || normalizedData.length === 0) {
-        setMyStatsData(null);
-        return;
-      }
-
-      const aggregate = (records) => {
-        const result = records.reduce(
-          (acc, record) => {
-            const moves = record.number_of_moves || 0;
-            const collectSec = timeToSeconds(record.avg_time_to_collect);
-            const travelSec = timeToSeconds(record.avg_time_to_travel);
-            acc.moves += moves;
-            acc.collectSeconds += collectSec * moves;
-            acc.travelSeconds += travelSec * moves;
-            acc.fullLocations += record.number_of_full_locations || 0;
-            return acc;
-          },
-          { moves: 0, collectSeconds: 0, travelSeconds: 0, fullLocations: 0 }
-        );
-        return result;
-      };
-
-      const latestDate = normalizedData[0].actual_date;
-      const latestDateObj = normalizedData[0].actual_date_obj || new Date();
-
-      const lastDayRecords = normalizedData.filter((record) => record.actual_date === latestDate);
-      const last7Start = formatDate(subDays(latestDateObj, 6), 'yyyy-MM-dd');
-      const last30Start = formatDate(subDays(latestDateObj, 29), 'yyyy-MM-dd');
-
-      const last7Records = normalizedData.filter((record) => record.actual_date && record.actual_date >= last7Start);
-      const last30Records = normalizedData.filter((record) => record.actual_date && record.actual_date >= last30Start);
-
-      const bestDayRecord = normalizedData.reduce((best, record) => {
-        const moves = record.number_of_moves || 0;
-        if (!best || moves > (best.number_of_moves || 0)) {
-          return record;
-        }
-        return best;
-      }, null);
-
-      const overall = aggregate(normalizedData);
-
-      setMyStatsData({
-        latestDate,
-        lastDay: aggregate(lastDayRecords),
-        last7: aggregate(last7Records),
-        last30: aggregate(last30Records),
-        overall,
-        daysLogged: data.length,
-        bestDay: {
-          moves: bestDayRecord?.number_of_moves || 0,
-          date: bestDayRecord?.actual_date || null,
-        },
-      });
-    } catch (err) {
-      console.error('Error fetching personal stats:', err);
-      setMyStatsError('Failed to load your statistics.');
-    } finally {
-      setMyStatsLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchMyStats();
-  }, [fetchMyStats]);
 
   // Helper functions are defined at module level (timeToSeconds, secondsToTime)
 
   const getRangeLabel = (range) => {
     return RANGE_LOOKUP[range]?.label || RANGE_LOOKUP.last_day.label;
   };
-
-  const getAverageTime = (stat, type) => {
-    if (!stat) return '—';
-    const normalizedType = type === 'pickup' ? 'collect' : type;
-    const totalSeconds = normalizedType === 'travel' ? stat.travelSeconds : stat.collectSeconds;
-    const moves = stat.moves || 0;
-    
-    // If no moves or no time data, show dash
-    if (moves === 0 || !totalSeconds || totalSeconds === 0) return '—';
-    
-    return secondsToTime(Math.round(totalSeconds / moves));
-  };
-
 
   const teamHighlights = useMemo(() => {
     if (!leaderboardData.length) {
@@ -508,13 +384,80 @@ const PerformanceLeaderboard = () => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
   }, []);
 
-  // Memoize ranked data to avoid recalculation on every render
+  // Pipeline: enrich, filter, sort, rank – returns { list, belowAverageCount }
   const rankedLeaderboardData = useMemo(() => {
-    return leaderboardData.map((user, index) => ({
-      ...user,
-      rank: index + 1
-    }));
-  }, [leaderboardData]);
+    if (!leaderboardData.length) {
+      return { list: [], belowAverageCount: 0 };
+    }
+    const teamAvg = teamHighlights.avgMovesPerDay || 0;
+
+    let enriched = leaderboardData.map((user) => {
+      const movesPerDay = user.daysWorked > 0 ? user.totalMoves / user.daysWorked : 0;
+      const productivityRatio = teamAvg > 0 ? movesPerDay / teamAvg : null;
+      const isBelowAverage =
+        user.daysWorked >= MIN_DAYS_FOR_BENCHMARK &&
+        (teamAvg <= 0 || productivityRatio === null || productivityRatio < BELOW_AVERAGE_RATIO);
+      const isHighOutput = productivityRatio !== null && productivityRatio >= HIGH_OUTPUT_RATIO;
+      return {
+        ...user,
+        movesPerDay,
+        productivityRatio,
+        isBelowAverage,
+        isHighOutput,
+      };
+    });
+
+    const belowAverageCount = enriched.filter((u) => u.isBelowAverage).length;
+
+    if (shiftFilter === 'day') {
+      enriched = enriched.filter((u) => u.shiftPreference === 'day');
+    } else     if (shiftFilter === 'night') {
+      enriched = enriched.filter((u) => u.shiftPreference === 'night' || u.shiftPreference === 'afternoon');
+    }
+
+    switch (sortOption) {
+        case 'collect':
+          enriched.sort((a, b) => {
+            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
+            if (a.totalMoves === 0) return 1;
+            if (b.totalMoves === 0) return -1;
+            if (a.avgCollectSeconds !== b.avgCollectSeconds) return a.avgCollectSeconds - b.avgCollectSeconds;
+            return b.totalMoves - a.totalMoves;
+          });
+          break;
+        case 'travel':
+          enriched.sort((a, b) => {
+            if (a.totalMoves === 0 && b.totalMoves === 0) return 0;
+            if (a.totalMoves === 0) return 1;
+            if (b.totalMoves === 0) return -1;
+            if (a.avgTravelSeconds !== b.avgTravelSeconds) return a.avgTravelSeconds - b.avgTravelSeconds;
+            return b.totalMoves - a.totalMoves;
+          });
+          break;
+        case 'per_day':
+          enriched.sort((a, b) => {
+            if (b.movesPerDay !== a.movesPerDay) return b.movesPerDay - a.movesPerDay;
+            return b.totalMoves - a.totalMoves;
+          });
+          break;
+        case 'shift':
+          enriched.sort((a, b) => {
+            const orderA = SHIFT_ORDER[a.shiftPreference] ?? 99;
+            const orderB = SHIFT_ORDER[b.shiftPreference] ?? 99;
+            if (orderA !== orderB) return orderA - orderB;
+            return b.totalMoves - a.totalMoves;
+          });
+          break;
+        default:
+          enriched.sort((a, b) => {
+            if (b.totalMoves !== a.totalMoves) return b.totalMoves - a.totalMoves;
+            return a.avgCollectSeconds - b.avgCollectSeconds;
+          });
+      }
+
+    const list = enriched.map((user, index) => ({ ...user, rank: index + 1 }));
+    return { list, belowAverageCount };
+  }, [leaderboardData, teamHighlights, sortOption, shiftFilter]);
 
   const getRankBadge = (rank) => {
     return (
@@ -600,6 +543,11 @@ const PerformanceLeaderboard = () => {
             <p className="text-lg font-bold text-charcoal">{user.daysWorked}</p>
           </div>
         </div>
+        {user.productivityRatio != null && (
+          <div className="px-2 py-1.5 border-t border-gray-100 bg-gray-50/50">
+            <p className="text-sm text-gray-600 text-center">Vs team avg: {Math.round(user.productivityRatio * 100)}%</p>
+          </div>
+        )}
         
         {/* Times Row */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
@@ -639,34 +587,41 @@ const PerformanceLeaderboard = () => {
       {/* Sticky Badge Header (jak w My Rota) */}
       <div className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
         <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <button
               onClick={() => setShowRangeModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
             >
               {getRangeLabel(selectedRange)}
             </button>
             <button
               onClick={() => setShowSortModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
             >
               Sort
             </button>
             <button
-              onClick={() => {
-                if (!user) {
-                  toast.error('Please log in to view your statistics');
-                  return;
-                }
-                setShowMyStatsModal(true);
-              }}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full"
+              onClick={() => setShowShiftModal(true)}
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
             >
-              My Stats
+              Shift: {shiftFilter === 'all' ? 'All' : shiftFilter === 'day' ? 'Day' : 'Night'}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Next report at 06:30 banner (00:00–06:29) */}
+      {(() => {
+        const d = new Date();
+        const h = d.getHours();
+        const m = d.getMinutes();
+        const showNextReportAt0630 = h < 6 || (h === 6 && m < 30);
+        return showNextReportAt0630 ? (
+          <div className="bg-slate-100 border-b border-slate-300 px-4 py-2 text-center">
+            <p className="text-sm text-slate-700 font-medium">Next report will be available at 06:30.</p>
+          </div>
+        ) : null;
+      })()}
 
       {/* Range Modal */}
       {showRangeModal && createPortal(
@@ -746,133 +701,45 @@ const PerformanceLeaderboard = () => {
         document.body
       )}
 
-      {/* My Stats Modal - Compact Version */}
-      {showMyStatsModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3 py-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
-          >
-            {/* Header */}
-            <div className="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">My Stats</h3>
+      {/* Shift Filter Modal */}
+      {showShiftModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-2xl w-full max-w-sm p-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-charcoal">Shift</h3>
               <button
-                onClick={() => setShowMyStatsModal(false)}
-                className="text-white/70 hover:text-white transition-colors"
-                aria-label="Close my stats modal"
+                onClick={() => setShowShiftModal(false)}
+                className="text-gray-500 hover:text-charcoal transition-colors"
+                aria-label="Close shift modal"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-
-            <div className="p-3 space-y-3 max-h-[75vh] overflow-y-auto">
-              {myStatsLoading ? (
-                <div className="space-y-3 animate-pulse py-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="bg-slate-100 rounded-lg p-3 h-16" />
-                  ))}
-                </div>
-              ) : myStatsError ? (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
-                  {myStatsError}
-                </div>
-              ) : !myStatsData ? (
-                <div className="text-center text-gray-500 text-sm py-6">
-                  No performance data found for your account.
-                </div>
-              ) : (
-                <>
-                  {/* Latest Day - Hero Card */}
-                  <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl p-3 text-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80">Latest Day</span>
-                      <span className="text-xs font-medium opacity-90">
-                        {myStatsData.latestDate
-                          ? formatDate(parseISO(myStatsData.latestDate), 'EEE, dd MMM')
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-3xl font-black">{(myStatsData.lastDay?.moves || 0).toLocaleString()}</p>
-                        <p className="text-[10px] uppercase opacity-80">moves</p>
-                      </div>
-                      <div className="text-right space-y-0.5">
-                        <div className="flex items-center gap-2 justify-end">
-                          <span className="text-[10px] uppercase opacity-70">Collect</span>
-                          <span className="text-sm font-bold">{getAverageTime(myStatsData.lastDay, 'collect')}</span>
-                        </div>
-                        <div className="flex items-center gap-2 justify-end">
-                          <span className="text-[10px] uppercase opacity-70">Travel</span>
-                          <span className="text-sm font-bold">{getAverageTime(myStatsData.lastDay, 'travel')}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rolling Stats - Compact Row */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-                      <p className="text-[10px] uppercase text-blue-600 font-semibold">Last 7 Days</p>
-                      <p className="text-xl font-bold text-blue-700">{(myStatsData.last7?.moves || 0).toLocaleString()}</p>
-                    </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-                      <p className="text-[10px] uppercase text-blue-600 font-semibold">Last 30 Days</p>
-                      <p className="text-xl font-bold text-blue-700">{(myStatsData.last30?.moves || 0).toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  {/* All Time Stats - Table Style */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
-                    <div className="px-3 py-2 bg-slate-100 border-b border-slate-200">
-                      <p className="text-[10px] uppercase text-slate-600 font-bold tracking-wide">All Time Stats</p>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-slate-600">Total Moves</span>
-                        <span className="text-sm font-bold text-slate-800">{(myStatsData.overall?.moves || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-slate-600">Avg Collect Time</span>
-                        <span className="text-sm font-bold text-slate-800">{getAverageTime(myStatsData.overall, 'collect')}</span>
-                      </div>
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-slate-600">Avg Travel Time</span>
-                        <span className="text-sm font-bold text-slate-800">{getAverageTime(myStatsData.overall, 'travel')}</span>
-                      </div>
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-slate-600">Full Locations</span>
-                        <span className="text-sm font-bold text-slate-800">{(myStatsData.overall?.fullLocations || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-slate-600">Days Logged</span>
-                        <span className="text-sm font-bold text-slate-800">{myStatsData.daysLogged}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Best Day - Highlight */}
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-3 text-white flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] uppercase opacity-80 font-semibold">Personal Best</p>
-                      <p className="text-xl font-bold">{myStatsData.bestDay.moves.toLocaleString()} moves</p>
-                    </div>
-                    {myStatsData.bestDay.date && (
-                      <div className="text-right">
-                        <p className="text-xs opacity-80">on</p>
-                        <p className="text-sm font-semibold">
-                          {formatDate(parseISO(myStatsData.bestDay.date), 'dd MMM yyyy')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+            <div className="pt-4 space-y-2">
+              {[
+                { value: 'all', label: 'All' },
+                { value: 'day', label: 'Day' },
+                { value: 'night', label: 'Night' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setShiftFilter(option.value);
+                    setShowShiftModal(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-colors ${
+                    shiftFilter === option.value
+                      ? 'bg-orange-600 text-white border-orange-600'
+                      : 'bg-white text-charcoal border-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          </motion.div>
+          </div>
         </div>,
         document.body
       )}
@@ -1005,7 +872,7 @@ const PerformanceLeaderboard = () => {
                         <div className="flex items-center justify-between py-2">
                           <span className="text-sm text-slate-700">Top performer</span>
                           <span className="text-lg font-bold text-charcoal">
-                            {leaderboardData[0] ? formatShunterName(leaderboardData[0]) : '—'}
+                            {rankedLeaderboardData.list[0] ? formatShunterName(rankedLeaderboardData.list[0]) : '—'}
                           </span>
                         </div>
                       </div>
@@ -1023,12 +890,21 @@ const PerformanceLeaderboard = () => {
             {/* Detailed list - Floating cards */}
             <section>
               <div className="flex items-end justify-between mb-4">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
+                  {rankedLeaderboardData.list.length === 0 ? (
+                    <p className="text-sm text-gray-600 mt-0.5">No shunters match the current filters.</p>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-0.5">
+                      {rankedLeaderboardData.list.length} shunters ({rankedLeaderboardData.belowAverageCount} below average)
+                    </p>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500">Tap card for details</p>
               </div>
               <div className="space-y-3">
                 {/* Floating Cards - Unified Design */}
-                {rankedLeaderboardData.map((user) => {
+                {rankedLeaderboardData.list.map((user) => {
                   const isExpanded = expandedUserId === user.userId;
                   const cardBgClass = getRowBackgroundClass(user.rank);
                   return (
@@ -1040,7 +916,7 @@ const PerformanceLeaderboard = () => {
                       whileHover={{ y: -2, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => toggleExpandedUser(user.userId)}
-                      className={`${cardBgClass} rounded-2xl border-2 p-4 shadow-md cursor-pointer transition-all`}
+                      className={`${cardBgClass} rounded-2xl border-2 p-4 shadow-md cursor-pointer transition-all ${user.isBelowAverage ? 'border-l-4 border-l-amber-700/60' : ''}`}
                     >
                       {/* Header Row */}
                       <div className="flex items-center gap-3">
@@ -1064,6 +940,19 @@ const PerformanceLeaderboard = () => {
                             {formatShunterName(user)}
                           </div>
                           <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {user.shiftPreference && (
+                              <span className="text-[10px] font-medium text-gray-500">
+                                {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : 'Night'}
+                              </span>
+                            )}
+                            {user.isBelowAverage && (
+                              <span className="text-[10px] font-semibold text-amber-700">Below average output</span>
+                            )}
+                            {user.isHighOutput && (
+                              <span className="text-[10px] font-semibold text-emerald-600">High output</span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right">
                           {sortOption === 'moves' && (
@@ -1082,6 +971,20 @@ const PerformanceLeaderboard = () => {
                             <>
                               <div className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</div>
                               <div className="text-xs text-gray-600">travel</div>
+                            </>
+                          )}
+                          {sortOption === 'per_day' && (
+                            <>
+                              <div className="text-2xl font-bold text-charcoal">{user.movesPerDay != null ? user.movesPerDay.toFixed(1) : '—'}</div>
+                              <div className="text-xs text-gray-600">per day</div>
+                            </>
+                          )}
+                          {sortOption === 'shift' && (
+                            <>
+                              <div className="text-2xl font-bold text-charcoal">
+                                {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : user.shiftPreference === 'night' ? 'Night' : '—'}
+                              </div>
+                              <div className="text-xs text-gray-600">shift</div>
                             </>
                           )}
                         </div>
