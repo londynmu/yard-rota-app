@@ -253,9 +253,19 @@ const SlotCard = ({
     if (!showDeleteConfirm) return null;
     
     const modalContent = (
-      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4">
-        <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-xl">
-          <h3 className="mb-3 text-xl font-bold text-charcoal">Confirm Delete</h3>
+      <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 p-4"
+        onClick={() => setShowDeleteConfirm(false)}
+        role="presentation"
+      >
+        <div
+          className="relative z-10 w-full max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+        >
+          <h3 id="confirm-delete-title" className="mb-3 text-xl font-bold text-charcoal">Confirm Delete</h3>
           <p className="mb-5 text-gray-600">
             Are you sure you want to delete this slot?
             {assignedCount > 0 && (
@@ -266,13 +276,19 @@ const SlotCard = ({
           </p>
           <div className="flex justify-end space-x-3">
             <button
-              onClick={() => setShowDeleteConfirm(false)}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteConfirm(false);
+              }}
               className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100 transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 handleDeleteSlot(slot.id);
                 setShowDeleteConfirm(false);
               }}
@@ -299,8 +315,8 @@ const SlotCard = ({
       {/* Delete confirmation modal */}
       <DeleteConfirmationModal />
 
-      {/* Available-for-slot tooltip (portal) */}
-      {showAvailableTooltip &&
+      {/* Available-for-slot tooltip (portal) - never show when delete confirm is open */}
+      {showAvailableTooltip && !showDeleteConfirm &&
         createPortal(
           (() => {
             return (
@@ -408,6 +424,7 @@ const SlotCard = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              setShowAvailableTooltip(false);
               setShowDeleteConfirm(true);
             }}
             className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-400 transition-all"
