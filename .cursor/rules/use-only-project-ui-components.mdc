@@ -1,0 +1,33 @@
+---
+description: Use only project UI components – no ad-hoc buttons, cards, modals, or layouts
+alwaysApply: true
+---
+
+# Use Only Project UI Components
+
+When adding or changing UI, use **only** the existing components and patterns from this project. Do not invent new buttons, cards, modals, or page layouts.
+
+## Canonical components (use these)
+
+| Purpose | Component | Path |
+|--------|-----------|------|
+| Modal overlay + content box | Modal | `src/components/ui/Modal.jsx` |
+| Confirm / delete dialogs | ConfirmDialog | `src/components/ui/ConfirmDialog.jsx` |
+| Toasts | Toast + ToastContext | `src/components/ui/Toast.jsx`, `ToastContext.jsx` |
+| Tooltips | Tooltip | `src/components/ui/Tooltip.jsx` |
+| Cards / sections (visual style) | — | Follow `.cursor/rules/shunter-card-visual-reference.mdc` |
+| Buttons (outline only) | — | Follow `.cursor/rules/confirm-dialog-visual-reference.mdc` §3 and shunter-card §8 |
+
+## Rules
+
+1. **Modals**: Always use `Modal.jsx` for overlay + content. For confirm/delete flows use `ConfirmDialog.jsx`.
+2. **Buttons**: Use project styles (outline only, no filled backgrounds). Classes: see confirm-dialog and shunter-card rules.
+3. **Cards / sections**: Use the same container and header styles as Shunter of the Month card (gradient header, white card, borders) when adding new sections.
+4. **Colors and tokens**: Use Tailwind theme from `tailwind.config.js` (e.g. `text-charcoal`, `bg-offwhite`, `rota.*` tokens). Do not introduce new hex values or arbitrary classes for colors/spacing unless they are added to the theme.
+5. **Layout**: Prefer existing page patterns (e.g. `max-w-4xl mx-auto`, `px-4`, responsive `flex-col` / `md:flex-row`). Do not create new layout systems.
+
+## When adding new UI
+
+- Import from `src/components/ui/` or existing feature components.
+- If a new reusable piece is needed, add it under `src/components/ui/` and document it in this rule or a new visual-reference rule.
+- For design details (spacing, colors, borders), use the visual reference rules and `tailwind.config.js`; do not copy from external UI libraries or invent new styles.

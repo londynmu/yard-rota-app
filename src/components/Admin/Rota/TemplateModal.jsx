@@ -97,13 +97,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h3 className="text-xl font-semibold text-charcoal">Templates</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+      <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
+        <div className="flex items-center justify-between border-b border-rota-modal-border px-5 py-4">
+          <h3 className="text-xl font-semibold text-rota-text-primary">Templates</h3>
           <button 
             onClick={onClose}
-            className="text-gray-500 transition hover:text-charcoal"
+            className="text-rota-text-muted transition hover:text-rota-text-primary"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -112,13 +112,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
         </div>
         
         <div className="px-5 py-4">
-          <div className="mb-5 flex border-b border-gray-200 text-sm font-medium text-gray-500">
+          <div className="mb-5 flex border-b border-rota-modal-border text-sm font-medium text-rota-text-muted">
             <button
               onClick={() => setTab('apply')}
               className={`border-b-2 px-4 py-2 transition ${
                 tab === 'apply'
-                  ? 'border-black text-charcoal'
-                  : 'border-transparent hover:text-charcoal'
+                  ? 'border-rota-text-primary text-rota-text-primary'
+                  : 'border-transparent hover:text-rota-text-primary'
               }`}
             >
               Apply Template
@@ -127,8 +127,8 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               onClick={() => setTab('save')}
               className={`border-b-2 px-4 py-2 transition ${
                 tab === 'save'
-                  ? 'border-black text-charcoal'
-                  : 'border-transparent hover:text-charcoal'
+                  ? 'border-rota-text-primary text-rota-text-primary'
+                  : 'border-transparent hover:text-rota-text-primary'
               }`}
             >
               Save Current Layout
@@ -136,7 +136,7 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
           </div>
           
           {error && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mb-4 rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg p-3 text-sm text-rota-alert-error-text">
               {error}
             </div>
           )}
@@ -149,14 +149,14 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               
               {loading ? (
                 <div className="flex h-40 items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-black"></div>
+                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-rota-text-primary"></div>
                 </div>
               ) : templates.length === 0 ? (
                 <div className="py-8 text-center text-sm text-gray-600">
                   <p>No templates found.</p>
                   <button
                     onClick={() => setTab('save')}
-                    className="mt-3 text-sm font-semibold text-black underline-offset-4 hover:underline"
+                    className="mt-3 text-sm font-semibold text-rota-text-primary underline-offset-4 hover:underline"
                   >
                     Create your first template
                   </button>
@@ -176,13 +176,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className={`font-semibold ${selectedTemplateId === template.id ? 'text-white' : 'text-charcoal'}`}>
+                            <div className={`font-semibold ${selectedTemplateId === template.id ? 'text-rota-modal-bg' : 'text-rota-text-primary'}`}>
                               {template.name}
                             </div>
                             <div className={`text-xs ${selectedTemplateId === template.id ? 'text-gray-200' : 'text-gray-500'}`}>
                               Created: {new Date(template.created_at).toLocaleDateString()}
                             </div>
-                            <div className={`mt-1 text-xs ${selectedTemplateId === template.id ? 'text-gray-200' : 'text-gray-500'}`}>
+                            <div className={`mt-1 text-xs ${selectedTemplateId === template.id ? 'text-rota-modal-bg/80' : 'text-rota-text-muted'}`}>
                               {template.slots ? template.slots.length : 0} slots
                             </div>
                           </div>
@@ -192,7 +192,7 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                               e.stopPropagation();
                               handleDeleteTemplate(template.id, template.name);
                             }}
-                            className={`transition ${selectedTemplateId === template.id ? 'text-gray-200 hover:text-red-200' : 'text-gray-400 hover:text-red-500'}`}
+                            className={`transition ${selectedTemplateId === template.id ? 'text-rota-modal-bg/80 hover:text-rota-btn-destructive-border' : 'text-rota-text-muted hover:text-rota-alert-error-text'}`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -207,13 +207,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
+                      className="rounded-md border-2 border-rota-btn-outline-border px-4 py-2 text-rota-btn-outline-text hover:bg-rota-day-other-bg-from"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                      className="rounded-md border-2 border-rota-text-primary bg-rota-modal-bg px-4 py-2 text-rota-text-primary transition hover:bg-rota-day-other-bg-from disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={!selectedTemplateId}
                     >
                       Apply Template
@@ -232,13 +232,13 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
               
               <form onSubmit={handleSaveSubmit} className="space-y-5">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-charcoal">Template Name</label>
+                  <label className="mb-1 block text-sm font-medium text-rota-text-primary">Template Name</label>
                   <input
                     type="text"
                     value={newTemplateName}
                     onChange={(e) => setNewTemplateName(e.target.value)}
                     placeholder="e.g., Standard NRC Day Shift"
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                     required
                   />
                 </div>

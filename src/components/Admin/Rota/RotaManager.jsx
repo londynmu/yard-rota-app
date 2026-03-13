@@ -1199,37 +1199,32 @@ const RotaManager = ({ user }) => {
 
   if (loading && !slots.length) {
     return (
-      <div className="space-y-6 animate-pulse">
-        {/* Toolbar skeleton */}
+      <div className="space-y-6 animate-pulse bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to min-h-screen p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="flex gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
+              <div key={i} className="h-10 w-24 bg-rota-toolbar-border rounded-lg" />
             ))}
           </div>
-          <div className="h-10 bg-slate-200 rounded-lg" />
+          <div className="h-10 bg-rota-toolbar-border rounded-lg" />
           <div className="flex gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-20 bg-slate-200 rounded-lg" />
+              <div key={i} className="h-10 w-20 bg-rota-toolbar-border rounded-lg" />
             ))}
           </div>
         </div>
-        
-        {/* Date range skeleton */}
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
-          <div className="h-6 w-64 bg-slate-300 rounded" />
-          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
+          <div className="h-6 w-64 bg-rota-day-other-bg-from rounded" />
+          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
         </div>
-        
-        {/* Calendar grid skeleton */}
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border-2 border-slate-200 p-3 h-32">
-              <div className="h-5 w-8 bg-slate-300 rounded mb-2" />
+            <div key={i} className="bg-rota-modal-bg rounded-lg border-2 border-rota-modal-border p-3 h-32">
+              <div className="h-5 w-8 bg-rota-day-other-bg-from rounded mb-2" />
               <div className="space-y-1">
-                <div className="h-3 bg-slate-200 rounded w-full" />
-                <div className="h-3 bg-slate-200 rounded w-3/4" />
+                <div className="h-3 bg-rota-toolbar-border rounded w-full" />
+                <div className="h-3 bg-rota-toolbar-border rounded w-3/4" />
               </div>
             </div>
           ))}
@@ -1241,14 +1236,14 @@ const RotaManager = ({ user }) => {
   return (
     <div className="space-y-6">
       {/* Responsive Toolbar - 3 sekcje */}
-      <div className="sticky top-0 z-40 bg-offwhite py-3">
+      <div className="sticky top-0 z-40 bg-rota-toolbar-bg border-b border-rota-toolbar-border shadow-sm py-3">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
           {/* LEWA - Location dropdown (mobile: center, desktop: left) */}
           <div className="flex items-center justify-center lg:justify-start">
             <select
               value={selectedLocation || (locations[0]?.name ?? '')}
               onChange={(e) => handleLocationTabClick(e.target.value)}
-              className="h-10 min-w-[120px] px-4 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 cursor-pointer"
+              className="h-10 min-w-[120px] px-4 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer"
               aria-label="Select location"
             >
               {locations.map((location) => (
@@ -1264,7 +1259,7 @@ const RotaManager = ({ user }) => {
             <select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value)}
-              className="h-10 min-w-[100px] px-4 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10 cursor-pointer"
+              className="h-10 min-w-[100px] px-4 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer"
               aria-label="Select view"
             >
               <option value="day">Day</option>
@@ -1272,10 +1267,10 @@ const RotaManager = ({ user }) => {
             </select>
 
             {viewMode === 'day' ? (
-              <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+              <div className="flex items-center h-10 bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm">
                 <button 
                   onClick={goToPreviousDay}
-                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
+                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg"
                   aria-label="Previous day"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1283,12 +1278,12 @@ const RotaManager = ({ user }) => {
                   </svg>
                 </button>
                 
-                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300">
+                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border">
                   <span>{formatDisplayDate(currentDate)}</span>
                   <span>{getDayShort(currentDate)}</span>
                   <button 
                     onClick={() => document.getElementById('date-select').showPicker()}
-                    className="text-black hover:opacity-70 transition-opacity"
+                    className="text-rota-text-primary hover:opacity-70 transition-opacity"
                     aria-label="Open calendar"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1306,7 +1301,7 @@ const RotaManager = ({ user }) => {
                 
                 <button 
                   onClick={goToNextDay}
-                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
+                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg"
                   aria-label="Next day"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1315,22 +1310,22 @@ const RotaManager = ({ user }) => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center h-10 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+              <div className="flex items-center h-10 bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm">
                 <button 
                   onClick={goToPreviousWeek}
-                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-l-lg"
+                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg"
                   aria-label="Previous week"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </button>
-                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-black whitespace-nowrap border-x-2 border-gray-300 min-w-[140px] justify-center">
+                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border min-w-[140px] justify-center">
                   <span>Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}</span>
                 </div>
                 <button 
                   onClick={goToNextWeek}
-                  className="h-full px-3 text-black hover:bg-gray-100 transition-colors rounded-r-lg"
+                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg"
                   aria-label="Next week"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1343,7 +1338,7 @@ const RotaManager = ({ user }) => {
               <button
                 type="button"
                 onClick={goToCurrentWeek}
-                className="h-10 px-3 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-black hover:bg-gray-50 whitespace-nowrap"
+                className="h-10 px-3 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg whitespace-nowrap"
               >
                 Current week
               </button>
@@ -1354,7 +1349,7 @@ const RotaManager = ({ user }) => {
           <div className="flex items-center gap-2 justify-center lg:justify-end">
             <button
               onClick={handleCopyFromPreviousWeek}
-              className="h-10 px-3 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all text-sm font-semibold"
+              className="h-10 px-3 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all text-sm font-semibold"
               title="Copy slots from previous week"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -1366,7 +1361,7 @@ const RotaManager = ({ user }) => {
             
             <button
               onClick={openTemplateModal}
-              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all"
+              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all"
               title="Templates"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1375,7 +1370,7 @@ const RotaManager = ({ user }) => {
               </svg>
             </button>
             
-            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-white text-black border-2 border-gray-300 hover:border-black transition-all">
+            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all">
               <ExportRotaButton iconOnly={true} />
             </div>
           </div>
@@ -1391,11 +1386,11 @@ const RotaManager = ({ user }) => {
               const title = shiftType.charAt(0).toUpperCase() + shiftType.slice(1) + ' Shift';
               return (
                 <div key={shiftType} className="space-y-4 flex flex-col">
-                  <h3 className="border-b border-gray-200 pb-2 text-xl font-semibold capitalize text-charcoal">
+                  <h3 className="border-b-2 border-rota-toolbar-border pb-2 text-xl font-semibold capitalize text-rota-text-primary">
                     {title}
                   </h3>
                   {shiftSlots.length === 0 ? (
-                    <p className="italic text-gray-500">No slots scheduled for this shift</p>
+                    <p className="italic text-rota-text-muted-light">No slots scheduled for this shift</p>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 items-stretch">
                       {shiftSlots.map(slot => (
@@ -1413,7 +1408,7 @@ const RotaManager = ({ user }) => {
                   <button
                     type="button"
                     onClick={() => openAddSlotForShift(shiftType)}
-                    className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-400 hover:text-charcoal text-sm font-semibold transition-colors"
+                    className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from text-rota-text-muted hover:bg-rota-btn-primary-hover-bg hover:border-rota-input-focus-border hover:text-rota-text-primary text-sm font-semibold transition-colors"
                     title={`Add slot for ${title}`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1427,7 +1422,8 @@ const RotaManager = ({ user }) => {
           </div>
         ) : (
           /* Week view: grid of 7 days, each day one column of slots sorted by start_time */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-2">
+          <div className="overflow-x-auto pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-3 min-w-0 w-max">
             {Array.from({ length: 7 }).map((_, index) => {
               const dateObj = addDays(getWeekStart(parseISO(currentDate)), index);
               const dateStr = format(dateObj, 'yyyy-MM-dd');
@@ -1443,20 +1439,31 @@ const RotaManager = ({ user }) => {
               return (
                 <div
                   key={dateStr}
-                  className={`bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-300 ${
-                    isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''
+                  className={`bg-rota-modal-bg rounded-xl shadow-lg overflow-hidden border-2 min-w-[280px] ${
+                    isToday
+                      ? 'ring-2 ring-rota-day-today-bg-from border-rota-day-today-bg-from'
+                      : 'border-rota-toolbar-border'
                   }`}
                 >
-                  <div className={`p-3 border-b-2 border-gray-300 bg-gray-100 ${isToday ? 'bg-orange-100' : ''}`}>
-                    <h3 className="text-base font-bold text-charcoal uppercase tracking-wide text-center">
-                      {format(dateObj, 'EEE')} {format(dateObj, 'do')} {format(dateObj, 'MMM')}
-                    </h3>
+                  <div
+                    className={`p-4 text-center rounded-t-xl ${
+                      isToday
+                        ? 'bg-gradient-to-br from-rota-day-today-bg-from to-rota-day-today-bg-to text-rota-day-today-text shadow-md'
+                        : 'bg-gradient-to-br from-rota-day-other-bg-from to-rota-day-other-bg-to text-rota-day-other-text'
+                    }`}
+                  >
+                    <div className="text-sm font-medium uppercase tracking-wide opacity-90">
+                      {format(dateObj, 'EEE')}
+                    </div>
+                    <div className="text-xl font-bold mt-1">
+                      {format(dateObj, 'do')} {format(dateObj, 'MMM')}
+                    </div>
                   </div>
-                  <div className="p-2 min-h-[120px] flex flex-col">
+                  <div className="p-2 min-h-[120px] flex flex-col overflow-visible">
                     {slotsForDay.length === 0 ? (
-                      <p className="text-center text-gray-500 text-sm py-4">No slots</p>
+                      <p className="text-center text-rota-text-muted-light text-sm py-4">No slots</p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-2 flex flex-col">
                         {slotsForDay.map(slot => (
                           <SlotCard
                             key={slot.id}
@@ -1472,7 +1479,7 @@ const RotaManager = ({ user }) => {
                     <button
                       type="button"
                       onClick={() => openAddSlotForDay(dateStr)}
-                      className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:border-gray-400 hover:text-charcoal text-sm font-semibold transition-colors"
+                      className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from text-rota-text-muted hover:bg-rota-btn-primary-hover-bg hover:border-rota-input-focus-border hover:text-rota-text-primary text-sm font-semibold transition-colors"
                       title="Add slot for this day"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1482,9 +1489,9 @@ const RotaManager = ({ user }) => {
                     </button>
                   </div>
                   {(shiftCounts.day > 0 || shiftCounts.afternoon > 0 || shiftCounts.night > 0) && (
-                    <div className="p-2 pt-0 flex flex-row flex-wrap items-center justify-center gap-1.5 border-t border-gray-200 bg-gray-50">
+                    <div className="p-2 pt-0 flex flex-row flex-wrap items-center justify-center gap-1.5 border-t border-rota-toolbar-border bg-rota-day-other-bg-from">
                       {shiftCounts.day > 0 && (
-                        <span className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
+                        <span className="inline-flex items-center text-xs bg-rota-badge-partial-bg text-rota-badge-partial-text px-1.5 py-0.5 rounded-full border border-rota-badge-partial-border">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
                           </svg>
@@ -1500,7 +1507,7 @@ const RotaManager = ({ user }) => {
                         </span>
                       )}
                       {shiftCounts.night > 0 && (
-                        <span className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300">
+                        <span className="inline-flex items-center text-xs bg-rota-btn-primary-hover-bg text-rota-btn-primary-hover-text px-1.5 py-0.5 rounded-full border border-rota-input-focus-border">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                           </svg>
@@ -1512,27 +1519,28 @@ const RotaManager = ({ user }) => {
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </div>
 
       {/* Add Slot Modal */}
       {showAddSlotModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="flex flex-col gap-5 p-6">
-              <h3 className="mb-2 text-xl font-semibold text-charcoal">Add New Slot</h3>
+              <h3 className="mb-2 text-xl font-semibold text-rota-text-primary">Add New Slot</h3>
 
               {modalError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg p-3">
                   <div className="flex items-start">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5 flex-shrink-0 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mr-2 h-5 w-5 flex-shrink-0 text-rota-alert-error-text" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                     <div>
-                      <p className="font-medium text-red-700">{modalError}</p>
+                      <p className="font-medium text-rota-alert-error-text">{modalError}</p>
                       {modalError.includes('already exists') && (
-                        <p className="mt-1 text-sm text-red-600">
+                        <p className="mt-1 text-sm text-rota-alert-error-text">
                           Tip: Look for a slot with the same location and time and adjust its capacity instead of creating a duplicate.
                         </p>
                       )}
@@ -1543,7 +1551,7 @@ const RotaManager = ({ user }) => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-charcoal">Shift Type</label>
+                  <label className="mb-1 block text-sm font-medium text-rota-text-primary">Shift Type</label>
                   <select
                     value={newSlot.shift_type}
                     onChange={(e) => {
@@ -1569,7 +1577,7 @@ const RotaManager = ({ user }) => {
                         end_time: endTime
                       });
                     }}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                   >
                     <option value="day">Day</option>
                     <option value="afternoon">Afternoon</option>
@@ -1585,7 +1593,7 @@ const RotaManager = ({ user }) => {
                       setNewSlot({ ...newSlot, location: e.target.value });
                       localStorage.setItem('preferred_rota_location', e.target.value);
                     }}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                   >
                     {locations.map(location => (
                       <option 
@@ -1603,17 +1611,17 @@ const RotaManager = ({ user }) => {
                     <label className="mb-1 block text-sm font-medium text-charcoal">Start Time</label>
                     <button 
                       onClick={() => handleTimePickerOpen('start')}
-                      className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-charcoal transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/10"
+                      className="flex w-full items-center justify-between rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-left text-rota-text-primary transition hover:bg-rota-btn-primary-hover-bg focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring focus:border-rota-input-focus-border"
                     >
                       <span>{newSlot.start_time}</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-rota-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-charcoal">End Time</label>
+                    <label className="mb-1 block text-sm font-medium text-rota-text-primary">End Time</label>
                     <button 
                       onClick={() => handleTimePickerOpen('end')}
                       className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-charcoal transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/10"
@@ -1627,8 +1635,8 @@ const RotaManager = ({ user }) => {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-charcoal">Capacity (Staff needed)</label>
-                  <div className="flex w-full items-center overflow-hidden rounded-lg border border-gray-300">
+                  <label className="mb-1 block text-sm font-medium text-rota-text-primary">Capacity (Staff needed)</label>
+                  <div className="flex w-full items-center overflow-hidden rounded-lg border border-rota-input-border">
                     <button
                       type="button"
                       onClick={() => {
@@ -1636,19 +1644,19 @@ const RotaManager = ({ user }) => {
                           setNewSlot({ ...newSlot, capacity: newSlot.capacity - 1 });
                         }
                       }}
-                      className="flex flex-1 items-center justify-center bg-gray-50 px-4 py-3 text-charcoal transition hover:bg-gray-100"
+                      className="flex flex-1 items-center justify-center bg-rota-day-other-bg-from px-4 py-3 text-rota-text-primary transition hover:bg-rota-btn-primary-hover-bg"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                       </svg>
                     </button>
-                    <div className="flex-1 bg-white py-3 text-center text-lg font-semibold text-charcoal">
+                    <div className="flex-1 bg-rota-modal-bg py-3 text-center text-lg font-semibold text-rota-text-primary">
                       {newSlot.capacity}
                     </div>
                     <button
                       type="button"
                       onClick={() => setNewSlot({ ...newSlot, capacity: newSlot.capacity + 1 })}
-                      className="flex flex-1 items-center justify-center bg-gray-50 px-4 py-3 text-charcoal transition hover:bg-gray-100"
+                      className="flex flex-1 items-center justify-center bg-rota-day-other-bg-from px-4 py-3 text-rota-text-primary transition hover:bg-rota-btn-primary-hover-bg"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1662,14 +1670,14 @@ const RotaManager = ({ user }) => {
                 <button
                   type="button"
                   onClick={closeAddSlotModal}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-charcoal transition hover:bg-gray-100"
+                  className="rounded-md border-2 border-rota-btn-outline-border px-4 py-2 text-rota-btn-outline-text transition hover:bg-rota-btn-primary-hover-bg"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAddSlot}
-                  className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800"
+                  className="rounded-md border-2 border-rota-text-primary bg-rota-modal-bg px-4 py-2 text-rota-text-primary transition hover:bg-rota-day-other-bg-from"
                 >
                   Add Slot
                 </button>

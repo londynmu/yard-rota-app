@@ -1,0 +1,40 @@
+---
+description: How to use Figma with this project so Cursor follows design specs
+alwaysApply: false
+---
+
+# Figma → Cursor workflow
+
+Cursor does not connect to Figma directly. To have Cursor use your Figma design, put the design into the repo and reference it in rules.
+
+## 1. Export design tokens from Figma
+
+- **Figma Variables**: In Figma, define Variables (colors, spacing) and export them (e.g. via plugin “Design Tokens” or “Style Dictionary” or “Tokens Studio”).
+- **Or manual**: From Figma Inspect, copy colors/spacing into a file in the project.
+
+Add or update tokens in:
+
+- **`tailwind.config.js`** – in `theme.extend.colors` (and optionally `spacing`, `borderRadius`, etc.). The project already uses `rota.*` and `charcoal` / `offwhite` / etc.
+- Optionally **`src/styles/theme.css`** or a `design-tokens.json` if you prefer a single source.
+
+Keep one source of truth (e.g. “Figma → tailwind”) and document it here or in a short README.
+
+## 2. Document layout and components in rules
+
+For specific screens or components (e.g. a new modal, a card):
+
+- In Figma: note spacing, typography, colors, border radius.
+- In this repo: add or update a **visual reference rule** in `.cursor/rules/` (like `confirm-dialog-visual-reference.mdc` or `shunter-card-visual-reference.mdc`): tables with Property | Value (Tailwind classes or token names).
+- Reference that rule in the rule description so Cursor knows when to use it (e.g. “use when building X”).
+
+Then Cursor will use **your** layout and components, not generic ones.
+
+## 3. Summary
+
+| Goal | Action |
+|------|--------|
+| Cursor uses your colors/spacing | Put tokens in `tailwind.config.js` (or theme file); use them in components. |
+| Cursor uses your components/layout | Document in `.cursor/rules/*.mdc` (visual reference rules). |
+| New Figma design | Export tokens → update Tailwind/theme; write or update a visual-reference rule for that screen/component. |
+
+No native “Figma plugin for Cursor” is required: **Figma → export to repo → Cursor reads repo**.

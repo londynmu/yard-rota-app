@@ -63,43 +63,36 @@ export default function RotaPlannerPage() {
   // Main rendering logic
   if (pageLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        {/* Toolbar skeleton */}
+      <div className="space-y-6 animate-pulse bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to min-h-screen p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="flex gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
+              <div key={i} className="h-10 w-24 bg-rota-toolbar-border rounded-lg" />
             ))}
           </div>
-          <div className="h-10 bg-slate-200 rounded-lg" />
+          <div className="h-10 bg-rota-toolbar-border rounded-lg" />
           <div className="flex gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-20 bg-slate-200 rounded-lg" />
+              <div key={i} className="h-10 w-20 bg-rota-toolbar-border rounded-lg" />
             ))}
           </div>
         </div>
-        
-        {/* Date navigation skeleton */}
         <div className="flex items-center justify-center gap-4">
-          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
-          <div className="h-8 w-72 bg-slate-300 rounded" />
-          <div className="w-10 h-10 bg-slate-200 rounded-lg" />
+          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
+          <div className="h-8 w-72 bg-rota-day-other-bg-from rounded" />
+          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
         </div>
-        
-        {/* Calendar grid skeleton */}
         <div className="grid grid-cols-7 gap-2">
-          {/* Day headers */}
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={`header-${i}`} className="h-8 bg-slate-300 rounded text-center" />
+            <div key={`header-${i}`} className="h-8 bg-rota-day-other-bg-from rounded text-center" />
           ))}
-          {/* Calendar days */}
           {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border-2 border-slate-200 p-3 min-h-32">
-              <div className="h-6 w-8 bg-slate-300 rounded mb-3" />
+            <div key={i} className="bg-rota-modal-bg rounded-lg border-2 border-rota-modal-border p-3 min-h-32">
+              <div className="h-6 w-8 bg-rota-day-other-bg-from rounded mb-3" />
               <div className="space-y-2">
-                <div className="h-4 bg-slate-200 rounded" />
-                <div className="h-4 bg-slate-200 rounded w-4/5" />
-                <div className="h-4 bg-slate-200 rounded w-3/5" />
+                <div className="h-4 bg-rota-toolbar-border rounded" />
+                <div className="h-4 bg-rota-toolbar-border rounded w-4/5" />
+                <div className="h-4 bg-rota-toolbar-border rounded w-3/5" />
               </div>
             </div>
           ))}
@@ -110,10 +103,10 @@ export default function RotaPlannerPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen p-4 bg-offwhite">
-        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6 border border-gray-200">
-          <div className="text-red-600 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
+      <div className="min-h-screen p-4 bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
+        <div className="max-w-4xl mx-auto bg-rota-modal-bg rounded-xl shadow-2xl p-6 border border-rota-modal-border">
+          <div className="text-rota-alert-error-text text-center">
+            <h2 className="text-2xl font-bold mb-4 text-rota-text-primary">Access Denied</h2>
             <p>{error}</p>
           </div>
         </div>
@@ -123,10 +116,10 @@ export default function RotaPlannerPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-offwhite p-4">
-        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-          <div className="text-red-600 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-charcoal">Access Denied</h2>
+      <div className="min-h-screen bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to p-4">
+        <div className="max-w-4xl mx-auto bg-rota-modal-bg rounded-xl shadow-lg p-6 border border-rota-modal-border">
+          <div className="text-rota-alert-error-text text-center">
+            <h2 className="text-2xl font-bold mb-4 text-rota-text-primary">Access Denied</h2>
             <p>Administrative privileges required to access Rota Planner.</p>
           </div>
         </div>
@@ -135,7 +128,7 @@ export default function RotaPlannerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to overflow-x-auto relative">
       <RotaManager user={user} />
     </div>
   );

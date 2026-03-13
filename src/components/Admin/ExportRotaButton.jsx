@@ -15,12 +15,12 @@ const ExportRotaButton = ({ iconOnly = false }) => {
   };
 
   const ModalContent = () => (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-black/70 p-4">
-      <div className="relative mx-auto my-auto max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+      <div className="relative mx-auto my-auto max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
         <div className="absolute right-4 top-4">
           <button 
             onClick={closeModal}
-            className="text-gray-500 transition hover:text-charcoal focus:outline-none"
+            className="text-rota-text-muted transition hover:text-rota-text-primary focus:outline-none"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -39,7 +39,7 @@ const ExportRotaButton = ({ iconOnly = false }) => {
       {iconOnly ? (
         <button
           onClick={openExportModal}
-          className="h-full w-full flex items-center justify-center text-black hover:opacity-70 transition-opacity"
+          className="h-full w-full flex items-center justify-center text-rota-text-primary hover:opacity-70 transition-opacity"
           title="Export Schedule"
         >
           <svg 
@@ -60,7 +60,7 @@ const ExportRotaButton = ({ iconOnly = false }) => {
       ) : (
         <button
           onClick={openExportModal}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-charcoal transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-rota-input-border bg-rota-modal-bg px-4 py-2 text-sm font-medium text-rota-text-primary transition hover:bg-rota-btn-primary-hover-bg focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring sm:w-auto"
           title="Export Schedule"
         >
           <svg 

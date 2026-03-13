@@ -15,13 +15,13 @@ export default function ConfirmDialog({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="text-center sm:text-left">
-        <h3 className="text-xl font-semibold mb-2 text-charcoal">{title}</h3>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <h3 className="text-xl font-semibold mb-2 text-rota-text-primary">{title}</h3>
+        <p className="text-rota-text-muted mb-6">{message}</p>
         
         <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors order-2 sm:order-1"
+            className="px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors order-2 sm:order-1"
           >
             {cancelText}
           </button>
@@ -32,8 +32,8 @@ export default function ConfirmDialog({
             }}
             className={`px-4 py-2 rounded-lg border-2 transition-colors order-1 sm:order-2 ${
               isDestructive
-                ? 'border-red-500 bg-white text-red-600 hover:bg-red-50'
-                : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
+                ? 'border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg'
+                : 'border-rota-text-primary bg-white text-rota-text-primary hover:bg-rota-day-other-bg-from'
             }`}
           >
             {confirmText}

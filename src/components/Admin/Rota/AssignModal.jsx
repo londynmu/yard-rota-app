@@ -433,11 +433,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
       case 'available':
         return 'border border-green-200 bg-green-50 text-green-700';
       case 'unavailable':
-        return 'border border-red-200 bg-red-50 text-red-700';
+        return 'border border-rota-alert-error-border bg-rota-alert-error-bg text-rota-alert-error-text';
       case 'tentative':
         return 'border border-yellow-200 bg-yellow-50 text-yellow-700';
       default:
-        return 'border border-gray-200 bg-gray-50 text-gray-600';
+        return 'border border-rota-modal-border bg-rota-day-other-bg-from text-rota-text-muted';
     }
   };
 
@@ -606,9 +606,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     'bg-green-500';
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-2 md:p-4">
-      <div className="flex w-full max-w-[95vw] md:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
-        <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+      <div className="flex w-full max-w-[95vw] md:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
+        <div className="border-b border-rota-modal-border bg-gradient-to-r from-rota-day-other-bg-from to-rota-modal-bg">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -616,7 +616,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <h3 className="text-sm font-bold text-charcoal">
+                <h3 className="text-sm font-bold text-rota-text-primary">
                   {slot.location}
                 </h3>
               </div>
@@ -626,11 +626,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <div className="flex flex-col md:flex-row md:items-center md:gap-2">
-                  <span className="text-sm font-semibold text-charcoal">
+                  <span className="text-sm font-semibold text-rota-text-primary">
                     {getFormattedDate(slot.date)}
                   </span>
-                  <span className="hidden md:inline text-gray-400">•</span>
-                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <span className="hidden md:inline text-rota-text-muted">•</span>
+                  <span className="text-sm font-semibold text-rota-text-primary flex items-center gap-1">
                     <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -643,7 +643,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               {/* Capacity Badge */}
               <div className={`flex items-center gap-2 rounded-full px-4 py-1.5 shadow-sm border-2 ${
                 localAssignedCount >= slot.capacity 
-                  ? 'bg-red-100 border-red-400 text-red-700' 
+                  ? 'bg-red-100 border-red-400 text-rota-alert-error-text' 
                   : capacityPercentage >= 75 
                     ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
                     : 'bg-green-100 border-green-400 text-green-700'
@@ -661,7 +661,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                 className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition shadow-sm border-2 ${
                   isTaskSectionExpanded 
                     ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    : 'bg-white text-rota-text-primary border-rota-input-border hover:bg-rota-btn-primary-hover-bg'
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -676,13 +676,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           </div>
 
           {isTaskSectionExpanded && (
-            <div className="border-t border-gray-200 bg-blue-50/30 px-5 py-3">
+            <div className="border-t border-rota-modal-border bg-blue-50/30 px-5 py-3">
               <div className="relative">
-                <label htmlFor="task-input" className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-gray-700">
+                <label htmlFor="task-input" className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-rota-text-primary">
                   <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                   </svg>
-                  Assign Task <span className="text-xs font-normal text-gray-500">(optional)</span>
+                  Assign Task <span className="text-xs font-normal text-rota-text-muted">(optional)</span>
                 </label>
                 <div className="relative">
                   <input
@@ -691,11 +691,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     value={task}
                     onChange={handleTaskChange}
                     placeholder="e.g. VMU cover"
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-sm text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                   />
                   {task && (
                     <button 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-charcoal"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-rota-text-muted transition hover:text-rota-text-primary"
                       onClick={() => setTask('')}
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -705,14 +705,14 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   )}
                 </div>
                 {showTaskSuggestions && (
-                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-rota-modal-border bg-white shadow-lg">
                     <ul className="py-1">
                       {taskSuggestions
                         .filter(suggestion => suggestion.toLowerCase().includes(task.toLowerCase()))
                         .map((suggestion, index) => (
                           <li 
                             key={index} 
-                            className="cursor-pointer px-3 py-2 text-sm text-charcoal hover:bg-gray-100"
+                            className="cursor-pointer px-3 py-2 text-sm text-rota-text-primary hover:bg-rota-btn-primary-hover-bg"
                             onClick={() => handleTaskSuggestionClick(suggestion)}
                           >
                             {suggestion}
@@ -729,13 +729,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
         <div className="space-y-3 border-b border-gray-200 px-5 py-3">
           {showCapacityAlert && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="flex items-start gap-2 rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg p-3 text-sm text-rota-alert-error-text">
               <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <div>
                 <p className="font-medium">Full capacity reached</p>
-                <p className="text-xs text-red-600">
+                <p className="text-xs text-rota-alert-error-text">
                   Remove someone from this slot before assigning another team member.
                 </p>
               </div>
@@ -744,11 +744,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
           <div className="space-y-3">
             <div className="sm:hidden">
-              <label className="mb-1 block text-sm font-medium text-charcoal">Filter</label>
+              <label className="mb-1 block text-sm font-medium text-rota-text-primary">Filter</label>
               <select
                 value={selectedTab}
                 onChange={(e) => setSelectedTab(e.target.value)}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-sm text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
               >
                 <option value="available">Available ({slot.shift_type} shift)</option>
                 <option value="other_shifts">Other Shifts</option>
@@ -774,7 +774,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition ${
                     selectedTab === tab.id
                       ? 'border-black bg-black text-white'
-                      : 'border-gray-200 bg-white text-charcoal hover:bg-gray-100'
+                      : 'border-rota-modal-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg'
                   }`}
                 >
                   {tab.label}
@@ -788,11 +788,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           {loading ? (
             <div className="flex flex-col items-center gap-2 py-6">
               <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-black"></div>
-              <div className="text-sm text-gray-600">Loading employees...</div>
+              <div className="text-sm text-rota-text-muted">Loading employees...</div>
             </div>
           ) : availableEmployees.length === 0 ? (
             <div className="flex justify-center py-6">
-              <p className="text-sm text-gray-600">No employees found. Please check database connection.</p>
+              <p className="text-sm text-rota-text-muted">No employees found. Please check database connection.</p>
             </div>
           ) : getFilteredEmployees().length > 0 ? (
             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -806,7 +806,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-gray-800 truncate">
+                    <div className="text-sm font-bold text-rota-text-primary truncate">
                       {employee.first_name} {employee.last_name}
                     </div>
                   </div>
@@ -818,7 +818,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                           ? 'bg-red-200 text-red-800'
                           : employee.availabilityStatus?.toLowerCase() === 'holiday'
                           ? 'bg-purple-200 text-purple-800'
-                          : 'bg-gray-200 text-gray-700'
+                          : 'bg-gray-200 text-rota-text-primary'
                       }`}>
                         {employee.availabilityStatus?.toLowerCase() === 'unavailable' 
                           ? 'Unavail' 
@@ -839,7 +839,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                         : employee.hasBreakConflict || employee.hasOverlappingConflict
                           ? 'cursor-not-allowed bg-orange-300 text-orange-700'
                           : localAssignedCount >= slot.capacity
-                            ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                            ? 'cursor-not-allowed bg-gray-300 text-rota-text-muted'
                             : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:scale-110'
                     }`}
                     disabled={(!employee.isAssigned && localAssignedCount >= slot.capacity) || (!employee.isAssigned && (employee.hasBreakConflict || employee.hasOverlappingConflict))}
@@ -872,21 +872,21 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
               ))}
             </ul>
           ) : (
-            <div className="py-6 text-center text-sm text-gray-600">
+            <div className="py-6 text-center text-sm text-rota-text-muted">
               {selectedTab === 'available' ? (
                 <div className="space-y-1">
                   <p>No employees who prefer {slot.shift_type} shifts are available.</p>
-                  <p className="text-xs text-gray-500">Check the &quot;Other Shifts&quot; tab to see staff with different preferences.</p>
+                  <p className="text-xs text-rota-text-muted">Check the &quot;Other Shifts&quot; tab to see staff with different preferences.</p>
                 </div>
               ) : selectedTab === 'other_shifts' ? (
                 <div className="space-y-1">
                   <p>No employees with different shift preferences are available.</p>
-                  <p className="text-xs text-gray-500">All available staff prefer {slot.shift_type} shifts.</p>
+                  <p className="text-xs text-rota-text-muted">All available staff prefer {slot.shift_type} shifts.</p>
                 </div>
               ) : selectedTab === 'other_locations' ? (
                 <div className="space-y-1">
                   <p>No employees from other locations found.</p>
-                  <p className="text-xs text-gray-500">All staff are assigned to {slot.location} or have it as their preferred location.</p>
+                  <p className="text-xs text-rota-text-muted">All staff are assigned to {slot.location} or have it as their preferred location.</p>
                 </div>
               ) : (
                 <p>No matching employees found.</p>
@@ -895,10 +895,10 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           )}
         </div>
 
-        <div className="flex justify-end border-t border-gray-200 bg-gray-50 px-5 py-3">
+        <div className="flex justify-end border-t border-rota-modal-border bg-rota-day-other-bg-from px-5 py-3">
           <button
             onClick={onClose}
-            className="rounded-full bg-black px-6 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            className="rounded-full border-2 border-rota-text-primary px-6 py-2 text-sm font-medium text-rota-text-primary bg-rota-modal-bg hover:bg-rota-day-other-bg-from"
           >
             Done
           </button>
