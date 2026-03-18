@@ -6,7 +6,6 @@ import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
-import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw } from 'lucide-react';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -373,39 +372,48 @@ const WeeklyRotaPage = () => {
 
     if (daySlots.length === 0) {
       return (
-        <div className="p-3 text-center bg-gray-50/50 rounded-lg border border-gray-200">
-          <p className="text-gray-500 text-sm">No shifts scheduled</p>
+        <div className="p-4 text-center bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-gray-600 text-sm">No shifts scheduled for this day</p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-2.5">
+      <div className="space-y-3 md:space-y-2">
         {Object.entries(slotsByShiftType).map(([shiftType, slots]) => {
           if (slots.length === 0) return null;
           
           // Different styling based on shift type
           const shiftConfig = {
             day: {
-              title: "Day Shift",
-              bgColor: "bg-amber-50",
-              textColor: "text-amber-900",
-              badgeBg: "bg-white",
-              icon: <Sun className="h-3.5 w-3.5 text-amber-600" />
+              title: "DAY SHIFT",
+              bgColor: "bg-amber-100",
+              textColor: "text-amber-800",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                </svg>
+              )
             },
             afternoon: {
-              title: "Afternoon Shift",
-              bgColor: "bg-orange-50",
-              textColor: "text-orange-900",
-              badgeBg: "bg-white",
-              icon: <Cloud className="h-3.5 w-3.5 text-orange-600" />
+              title: "AFTERNOON SHIFT",
+              bgColor: "bg-orange-100",
+              textColor: "text-orange-800",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+              )
             },
             night: {
-              title: "Night Shift",
-              bgColor: "bg-blue-50",
-              textColor: "text-blue-900",
-              badgeBg: "bg-white",
-              icon: <Moon className="h-3.5 w-3.5 text-blue-600" />
+              title: "NIGHT SHIFT",
+              bgColor: "bg-blue-100",
+              textColor: "text-blue-800",
+              icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+              )
             }
           };
 
@@ -429,34 +437,32 @@ const WeeklyRotaPage = () => {
           }, [slots]);
           
           return (
-            <div key={shiftType} className="mt-2.5 first:mt-0">
-              <div className={`${config.bgColor} ${config.textColor} px-2.5 py-1.5 flex items-center justify-between rounded-lg border border-gray-200`}>
-                <div className="flex items-center gap-1.5">
+            <div key={shiftType} className="mt-3 first:mt-0">
+              <div className={`${config.bgColor} ${config.textColor} px-3 py-1.5 flex items-center justify-between rounded-md`}>
+                <div className="flex items-center space-x-2">
                   {config.icon}
-                  <h4 className="text-xs font-semibold">{config.title}</h4>
+                  <h4 className="text-sm md:text-xs font-bold uppercase">{config.title}</h4>
                 </div>
-                <span className={`${config.badgeBg} text-gray-700 text-xs px-2 py-0.5 rounded-full font-medium border border-gray-200`}>
-                  {slots.filter(s => !attendanceBySlotId?.[s.id]).length}
-                </span>
+                <span className="bg-white text-charcoal text-xs px-2 py-0.5 rounded-full border border-gray-300">{slots.filter(s => !attendanceBySlotId?.[s.id]).length}</span>
               </div>
               
-              <div className="bg-white rounded-lg border border-gray-200 mt-1.5 overflow-hidden">
+              <div className="bg-white rounded-md">
                 {sortedStartTimes.map((startTime, timeIndex) => {
                   const timeSlots = slotsByStartTime[startTime];
                   // Get end time from first slot (all slots with same start time should have same end time)
                   const endTime = fmtTime(timeSlots[0].end_time);
                   
                   return (
-                    <div key={startTime} className={timeIndex > 0 ? 'border-t border-gray-200' : ''}>
+                    <div key={startTime} className={timeIndex > 0 ? 'border-t-2 border-gray-300' : ''}>
                       {/* Time Header */}
-                      <div className={`${config.bgColor} px-2.5 py-1.5 text-center border-b border-gray-200`}>
-                        <span className="text-sm font-semibold text-gray-700">
+                      <div className={`${config.bgColor} ${config.textColor} px-3 py-2 text-center`}>
+                        <span className="text-sm md:text-base font-bold">
                           {startTime} - {endTime}
                         </span>
                       </div>
                       
                       {/* List of employees for this start time */}
-                      <ul className="divide-y divide-gray-100">
+                      <ul className="divide-y divide-gray-200">
                         {timeSlots.map((slot) => {
                           const isCurrentUser = slot.user_id === user?.id;
                           const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
@@ -465,20 +471,20 @@ const WeeklyRotaPage = () => {
                               key={slot.id}
                               role={isAdmin ? 'button' : undefined}
                               onClick={isAdmin ? (e) => { e.stopPropagation(); onSlotClick?.(slot); } : undefined}
-                              className={`p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-gray-50' : ''} ${isCurrentUser ? 'bg-amber-50/60 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-gray-50' : ''}`}
+                              className={`p-2 md:p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-gray-100' : ''} ${isCurrentUser ? 'bg-amber-50 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-gray-50' : ''}`}
                             >
                               <div className="flex flex-col items-center">
                                 <div className="text-center">
-                                  <span className={`text-sm font-medium ${isCurrentUser ? 'text-amber-900' : 'text-gray-900'}`}>
+                                  <span className={`text-[15px] md:text-base font-bold ${isCurrentUser ? 'text-amber-700' : 'text-charcoal'}`}>
                                     {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
                                   </span>
                                   {attendanceStatus && (
-                                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-red-50 text-red-700 border border-red-200">
+                                    <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-red-100 text-red-800 border border-red-300">
                                       {attendanceStatus === 'no_show' ? 'No show' : attendanceStatus === 'sick' ? 'Sick' : 'Late'}
                                     </span>
                                   )}
                                   {isCurrentUser && (
-                                    <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full uppercase font-semibold border border-amber-200">
+                                    <span className="ml-2 text-[10px] bg-amber-500 text-charcoal px-1.5 py-0.5 rounded-full uppercase font-bold">
                                       You
                                     </span>
                                   )}
@@ -486,8 +492,8 @@ const WeeklyRotaPage = () => {
                                 
                                 {/* Task Indicator */}
                                 {slot.task && (
-                                  <span className="inline-flex items-center text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full mt-1">
-                                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-1"></span>
+                                  <span className="inline-flex items-center text-xs text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full mt-1">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
                                     {slot.task}
                                   </span>
                                 )}
@@ -535,16 +541,16 @@ const WeeklyRotaPage = () => {
         key={dateStr}
         className={`
           bg-white
-          rounded-lg 
-          shadow-sm
+          rounded-xl 
+          shadow-lg
           overflow-hidden
-          border border-gray-200
-          ${isToday ? 'ring-1 ring-orange-500 border-orange-400' : ''} 
-          ${isWeekend ? 'bg-gray-50/30' : ''}
-          ${userHasShift ? 'border-l-2 border-l-orange-500' : ''}
+          border-2 border-gray-300
+          ${isToday ? 'ring-2 ring-orange-600 border-orange-500' : ''} 
+          ${isWeekend ? 'bg-gray-50' : ''}
+          ${userHasShift ? 'border-l-4 border-l-orange-600' : ''}
           relative
           scroll-mt-28 md:scroll-mt-32
-          transition-all hover:shadow-md
+          transition-all hover:shadow-xl
         `}
         ref={setRef}
       >
@@ -552,20 +558,20 @@ const WeeklyRotaPage = () => {
         <div 
           className={`
             relative
-            p-2.5 md:p-2
-            border-b border-gray-200
-            bg-gray-50
+            p-3 md:p-2
+            border-b-2 border-gray-300
+            bg-gray-100
             cursor-pointer
-            flex flex-col gap-1.5
+            flex flex-col gap-2
             sticky top-0 z-10
-            ${userHasShift ? 'bg-orange-50/50' : ''}
-            ${isToday ? 'bg-orange-50' : ''}
+            ${userHasShift ? 'bg-orange-50' : ''}
+            ${isToday ? 'bg-orange-100' : ''}
           `}
           onClick={onHeaderClick}
         >
           {/* Top row: Date as WEDNESDAY 2ND, THURSDAY 3RD */}
-          <div className="relative flex items-center justify-center w-full min-h-[2rem]">
-            <h3 className="text-sm md:text-base font-semibold text-gray-800 uppercase tracking-wide leading-tight text-center">
+          <div className="relative flex items-center justify-center w-full min-h-[2.5rem]">
+            <h3 className="text-base md:text-lg font-bold text-charcoal uppercase tracking-wide leading-tight text-center">
               {format(dateObj, 'EEEE').toUpperCase()} {format(dateObj, 'do').toUpperCase()}
             </h3>
             
@@ -573,18 +579,19 @@ const WeeklyRotaPage = () => {
             <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 flex-shrink-0">
               <div
                 className={`
-                  w-7 h-7 
+                  w-8 h-8 
                   flex items-center justify-center 
                   rounded-full 
                   bg-white
-                  border border-gray-300
+                  border-2 border-gray-400
                   transition-colors 
                   hover:bg-gray-100
+                  shadow-sm
                 `}
               >
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 text-gray-700 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                  className={`h-5 w-5 text-gray-900 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
                   fill="none" 
                   viewBox="0 0 24 24" 
                   stroke="currentColor"
@@ -597,7 +604,7 @@ const WeeklyRotaPage = () => {
           
           {/* Bottom row: Shift badges in horizontal layout */}
           {dayData.length > 0 ? (
-            <div className="flex flex-row flex-wrap items-center justify-center gap-1 w-full">
+            <div className="flex flex-row flex-wrap items-center justify-center gap-1.5 w-full">
               {(() => {
                 const presentSlots = dayData.filter(slot => slot.profiles && !attendanceBySlotId?.[slot.id]);
                 const shiftCounts = {
@@ -608,20 +615,32 @@ const WeeklyRotaPage = () => {
                 return (
                   <>
                     {shiftCounts.day > 0 && (
-                      <span className="inline-flex items-center text-xs bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium">
-                        <Sun className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                      <span
+                        className="inline-flex items-center text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                        </svg>
                         {shiftCounts.day}
                       </span>
                     )}
                     {shiftCounts.afternoon > 0 && (
-                      <span className="inline-flex items-center text-xs bg-orange-50 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-200 font-medium">
-                        <Cloud className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                      <span
+                        className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
                         {shiftCounts.afternoon}
                       </span>
                     )}
                     {shiftCounts.night > 0 && (
-                      <span className="inline-flex items-center text-xs bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-200 font-medium">
-                        <Moon className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                      <span
+                        className="inline-flex items-center text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-300"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
                         {shiftCounts.night}
                       </span>
                     )}
@@ -635,14 +654,14 @@ const WeeklyRotaPage = () => {
         {/* Mobile: Conditionally visible details area with transition */}
         {isExpanded && (
           <div className="overflow-auto md:hidden transition-all duration-200">
-            <div className="p-2.5">
+            <div className="p-3">
               <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
             </div>
           </div>
         )}
 
         {/* Desktop: Always visible details area */}
-        <div className="hidden md:block p-2.5 md:p-2">
+        <div className="hidden md:block p-3 md:p-2">
           <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
         </div>
       </div>
@@ -667,33 +686,33 @@ const WeeklyRotaPage = () => {
 
   // Skeleton loading component
   const SkeletonDay = () => (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 animate-pulse">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-300 animate-pulse">
       {/* Header skeleton - date line + horizontal badges */}
-      <div className="p-2.5 md:p-2 border-b border-gray-200 bg-gray-50">
-        <div className="flex flex-col gap-1.5">
+      <div className="p-3 md:p-2 border-b-2 border-gray-300 bg-gray-100">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="h-4 w-28 bg-gray-200 rounded" />
-            <div className="md:hidden w-7 h-7 rounded-full bg-gray-200" />
+            <div className="h-4 w-28 bg-gray-300 rounded" />
+            <div className="md:hidden w-8 h-8 rounded-full bg-gray-300" />
           </div>
-          <div className="flex flex-row gap-1">
-            <div className="h-5 w-10 bg-gray-200 rounded-full" />
-            <div className="h-5 w-10 bg-gray-200 rounded-full" />
+          <div className="flex flex-row gap-1.5">
+            <div className="h-6 w-10 bg-gray-300 rounded-full" />
+            <div className="h-6 w-10 bg-gray-300 rounded-full" />
           </div>
         </div>
       </div>
       
       {/* Content skeleton - visible on desktop, hidden on mobile */}
-      <div className="hidden md:block p-2.5 md:p-2 space-y-2.5">
+      <div className="hidden md:block p-3 md:p-2 space-y-3">
         {/* Shift type badge skeleton */}
-        <div className="h-7 bg-gray-100 rounded-lg" />
+        <div className="h-8 bg-gray-200 rounded-md" />
         
         {/* Time group skeleton */}
-        <div className="space-y-1.5">
-          <div className="h-8 bg-gray-50 rounded" />
-          <div className="space-y-1">
-            <div className="h-10 bg-gray-50/50 rounded" />
-            <div className="h-10 bg-gray-50/50 rounded" />
-            <div className="h-10 bg-gray-50/50 rounded" />
+        <div className="space-y-2">
+          <div className="h-10 bg-gray-100 rounded" />
+          <div className="space-y-2">
+            <div className="h-12 bg-gray-50 rounded" />
+            <div className="h-12 bg-gray-50 rounded" />
+            <div className="h-12 bg-gray-50 rounded" />
           </div>
         </div>
       </div>
@@ -702,21 +721,21 @@ const WeeklyRotaPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
         {/* Navigation skeleton */}
-        <div className="sticky top-0 z-20 bg-white border-b border-gray-200 pt-safe shadow-sm">
-          <div className="container mx-auto px-4 py-3 md:py-3.5">
+        <div className="sticky top-0 z-20 bg-slate-200 border-b border-gray-300 pt-safe">
+          <div className="container mx-auto px-4 py-3 md:py-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="h-8 bg-gray-100 rounded-full w-full animate-pulse" />
-              <div className="h-8 bg-gray-100 rounded-full w-full animate-pulse" />
-              <div className="h-8 bg-gray-100 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
+              <div className="h-8 bg-slate-200 rounded-full w-full animate-pulse" />
             </div>
           </div>
         </div>
 
         <div className="container mx-auto p-4">
           {/* Skeleton grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-2 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-2 mt-2">
             {Array.from({ length: 7 }).map((_, index) => (
               <SkeletonDay key={index} />
             ))}
@@ -728,19 +747,23 @@ const WeeklyRotaPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-6 rounded-lg border border-gray-200 max-w-md shadow-md">
-          <h3 className="text-lg font-semibold mb-3 flex items-center text-gray-900">
-            <AlertCircle className="h-5 w-5 mr-2 text-red-500" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white p-6 rounded-xl border-2 border-gray-300 max-w-md shadow-xl">
+          <h3 className="text-xl font-semibold mb-4 flex items-center text-charcoal">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
             Error Loading Rota
           </h3>
-          <p className="mb-5 text-gray-600 text-sm">{error}</p>
+          <p className="mb-6 text-gray-600">{error}</p>
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={() => window.location.reload()}
-              className="flex-1 bg-gray-900 hover:bg-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center text-white"
+              className="flex-1 bg-black hover:bg-gray-900 px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center text-white shadow-md"
             >
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Retry
             </button>
           </div>
@@ -750,15 +773,15 @@ const WeeklyRotaPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Week Navigation */}
-      <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white border-b border-gray-200 pt-safe shadow-sm">
-        <div className="container mx-auto px-4 py-3 md:py-3.5">
+    <div className="min-h-screen bg-slate-50">
+      {/* Week Navigation - Same style as Breaks */}
+      <div id="weekly-top-nav" className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
+        <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between gap-2">
             {/* Week Button */}
             <button
               onClick={() => setShowWeekModal(true)}
-              className="flex items-center justify-center px-3 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               Week {getWeek(weekStart)}
             </button>
@@ -766,7 +789,7 @@ const WeeklyRotaPage = () => {
             {/* Location Button */}
             <button
               onClick={() => setShowLocationModal(true)}
-              className="flex items-center justify-center px-3 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedLocation || 'Hub'}
             </button>
@@ -774,7 +797,7 @@ const WeeklyRotaPage = () => {
             {/* Shift Button */}
             <button
               onClick={() => setShowShiftModal(true)}
-              className="flex items-center justify-center px-3 py-2 rounded-full border border-gray-300 bg-white text-gray-700 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors whitespace-nowrap w-full active:scale-95"
+              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap w-full active:scale-95"
             >
               {selectedShiftType === 'all' ? 'All'
                 : selectedShiftType === 'day' ? 'Day'
@@ -786,8 +809,8 @@ const WeeklyRotaPage = () => {
       </div>
 
       <div className="container mx-auto p-4">
-        {/* Week Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-2 mt-2">
+        {/* Week Grid - zmniejszenie odstępów na większych ekranach */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-2 mt-2">
           {/* Generate 7 days starting from weekStart */}
           {Array.from({ length: 7 }).map((_, index) => {
             const dateObj = addDays(weekStart, index);
@@ -834,33 +857,35 @@ const WeeklyRotaPage = () => {
 
       {/* Week Selection Modal */}
       {showWeekModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-5 max-w-sm w-full">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-gray-900">Select Week</h3>
+              <h3 className="text-lg font-bold text-charcoal">Select Week</h3>
               <button
                 onClick={() => setShowWeekModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="space-y-2">
               <button
                 onClick={handlePreviousWeek}
-                className="w-full px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium border border-gray-200 transition-colors"
+                className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
               >
                 Previous Week
               </button>
               <button
                 onClick={handleCurrentWeek}
-                className="w-full px-4 py-2.5 rounded-lg text-white bg-orange-500 hover:bg-orange-600 font-medium border border-orange-600 transition-colors"
+                className="w-full px-4 py-3 rounded-lg text-white bg-orange-600 hover:bg-orange-700 font-semibold border-2 border-orange-700 transition-colors"
               >
                 Current Week
               </button>
               <button
                 onClick={handleNextWeek}
-                className="w-full px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium border border-gray-200 transition-colors"
+                className="w-full px-4 py-3 rounded-lg text-charcoal hover:bg-gray-100 font-medium border-2 border-gray-300 transition-colors"
               >
                 Next Week
               </button>
@@ -872,15 +897,17 @@ const WeeklyRotaPage = () => {
 
       {/* Location Selection Modal */}
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-5 max-w-sm w-full max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-gray-900">Select Location</h3>
+              <h3 className="text-lg font-bold text-charcoal">Select Location</h3>
               <button
                 onClick={() => setShowLocationModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="space-y-2 overflow-y-auto">
@@ -888,10 +915,10 @@ const WeeklyRotaPage = () => {
                 <button
                   key={loc.id}
                   onClick={() => handleLocationChange(loc.name)}
-                  className={`w-full px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                     selectedLocation === loc.name
-                      ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600'
-                      : 'text-gray-700 hover:bg-gray-50 border-gray-200'
+                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
                   }`}
                 >
                   {loc.name}
@@ -903,56 +930,58 @@ const WeeklyRotaPage = () => {
         document.body
       )}
 
-      {/* Shift Type Selection Modal */}
+      {/* Shift Type Selection Modal - Same as Breaks */}
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-5 max-w-sm w-full">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-gray-400 p-6 max-w-sm w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-gray-900">Select Shift Type</h3>
+              <h3 className="text-lg font-bold text-charcoal">Select Shift Type</h3>
               <button
                 onClick={() => setShowShiftModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="space-y-2">
               <button
                 onClick={() => handleShiftTypeChange('all')}
-                className={`w-full px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'all'
-                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600'
-                    : 'text-gray-700 hover:bg-gray-50 border-gray-200'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
                 }`}
               >
                 All Shifts
               </button>
               <button
                 onClick={() => handleShiftTypeChange('day')}
-                className={`w-full px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'day'
-                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600'
-                    : 'text-gray-700 hover:bg-gray-50 border-gray-200'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
                 }`}
               >
                 Day
               </button>
               <button
                 onClick={() => handleShiftTypeChange('afternoon')}
-                className={`w-full px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'afternoon'
-                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600'
-                    : 'text-gray-700 hover:bg-gray-50 border-gray-200'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
                 }`}
               >
                 Afternoon
               </button>
               <button
                 onClick={() => handleShiftTypeChange('night')}
-                className={`w-full px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
                   selectedShiftType === 'night'
-                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600'
-                    : 'text-gray-700 hover:bg-gray-50 border-gray-200'
+                    ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
+                    : 'text-charcoal hover:bg-gray-100 border-gray-300'
                 }`}
               >
                 Night

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
+import AttendanceStatusModal from './Attendance/AttendanceStatusModal';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw } from 'lucide-react';
 
 // Utility to get week start on Saturday
@@ -978,4 +978,4 @@ const WeeklyRotaPage = () => {
   );
 };
 
-export default WeeklyRotaPage; 
+export default WeeklyRotaPage;
