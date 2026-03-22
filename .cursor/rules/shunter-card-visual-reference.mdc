@@ -20,14 +20,14 @@ Use this when improving admin page or any card/section that should match the mai
 |----------|--------|
 | Wrapper margin/padding | `mb-3 px-4 mt-2` |
 | Max width | `max-w-4xl mx-auto` |
-| Background | `bg-white` |
-| Border | `border border-gray-200` |
-| Corners | `rounded-xl` (1rem) |
-| Shadow | `shadow-sm` |
+| Background | `bg-white/90 backdrop-blur-sm` (utility `card-modern`) |
+| Border | `border border-slate-200/60` |
+| Corners | `rounded-2xl` |
+| Shadow | `shadow-lg` |
 | Overflow | `overflow-hidden` (for header + expandable content) |
 
 **Full container class:**  
-`max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden`
+`max-w-4xl mx-auto card-modern` (see `index.css` `@layer components`)
 
 ---
 
@@ -35,11 +35,12 @@ Use this when improving admin page or any card/section that should match the mai
 
 | Property | Value |
 |----------|--------|
-| Layout | `w-full px-4 py-3 flex items-center justify-between` |
-| Background | `bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50` |
-| Bottom border | `border-b border-amber-100` |
-| Title text | `text-sm font-semibold text-amber-800` |
-| Chevron icon | `w-4 h-4 text-amber-500`, `transition-transform duration-200`, `rotate-180` when open |
+| Layout | `w-full px-5 py-3.5 flex items-center justify-between` |
+| Background | `bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50` |
+| Bottom border | `border-b border-slate-200/60` |
+| Title text | `text-sm font-semibold text-slate-800` |
+| Chevron | `motion.svg` from **framer-motion**, `w-5 h-5 text-slate-600`, `animate={{ rotate: open ? 180 : 0 }}` |
+| Header control | `motion.button` with `whileHover` / `whileTap` scale |
 
 ---
 
@@ -47,11 +48,10 @@ Use this when improving admin page or any card/section that should match the mai
 
 | Property | Value |
 |----------|--------|
-| Top border | `border-t border-gray-100` |
-| Overflow | `overflow-hidden` |
-| Transition | `transition-all duration-200 ease-out` |
-| Open state | `max-h-80 opacity-100` |
-| Closed state | `max-h-0 opacity-0` |
+| Pattern | **`AnimatePresence`** + `{open && (` … `)}` — panel unmounts when closed |
+| Wrapper | `motion.div` with `initial` / `animate` / `exit` on `height` + `opacity` (`duration: 0.3`, `easeInOut`) |
+| Top border | `border-t border-slate-100` |
+| Overflow | `overflow-hidden` on animated wrapper |
 | Inner padding | `p-2 space-y-2` |
 
 ---
@@ -60,11 +60,12 @@ Use this when improving admin page or any card/section that should match the mai
 
 | Property | Value |
 |----------|--------|
-| Padding | `px-3 py-2.5` |
-| Corners | `rounded-lg` |
+| Padding | `px-4 py-3` |
+| Corners | `rounded-xl` |
 | Layout | `flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between` |
-| Alternating backgrounds (4 variants) | `bg-amber-50 border-amber-200`, `bg-blue-50 border-blue-200`, `bg-emerald-50 border-emerald-200`, `bg-purple-50 border-purple-200` |
-| Month label | `text-xs font-bold uppercase tracking-wide` + matching color: `text-amber-700`, `text-blue-700`, `text-emerald-700`, `text-purple-700` |
+| Alternating backgrounds (4 variants) | `from-slate-50 to-blue-50/50 border-slate-200/60`, `from-blue-50/50 to-slate-50 border-blue-200/50`, `from-slate-50 to-purple-50/50 border-slate-200/60`, `from-purple-50/50 to-slate-50 border-purple-200/50` |
+| Month label | `text-slate-700`, `text-blue-700`, `text-slate-700`, `text-purple-700` |
+| Motion | Each row: `motion.div` with staggered `transition.delay` (`index * 0.08`) |
 | Names/value text | `text-sm font-semibold text-charcoal` |
 | Placeholder when empty | `text-sm text-gray-400` (e.g. "—") |
 
@@ -75,18 +76,17 @@ Use this when improving admin page or any card/section that should match the mai
 | Property | Value |
 |----------|--------|
 | Same outer wrapper | `mb-3 px-4 mt-2` |
-| Card shell | Same as container: `max-w-4xl mx-auto bg-white border border-gray-200 rounded-xl shadow-sm`, plus `px-4 py-3 min-h-[48px] flex items-center` |
-| Skeleton | `h-4 w-40 bg-gray-100 rounded animate-pulse` |
+| Card shell | `max-w-4xl mx-auto card-modern px-4 py-3 min-h-[48px] flex items-center` |
+| Skeleton | `h-4 w-40 bg-slate-100 rounded animate-pulse` |
 
 ---
 
 ## 6. Project colors (Tailwind config)
 
 - **charcoal:** `#2D2D2D` – primary text (`text-charcoal`)
-- **offwhite:** `#FAFAFA` – page background (`bg-offwhite`)
-- **cream:** `#F5F5F0`
-- **softgray:** `#E0E0E0`
-- **mediumgray:** `#9E9E9E`
+- **base.50–900:** neutral scale (design system guide) – `text-base-600`, `bg-base-100`, etc.
+- **rota.*** – legacy planner / modals / forms (keep for rest of app)
+- **offwhite, cream, softgray, mediumgray** – legacy utilities
 
 ---
 
@@ -109,18 +109,19 @@ Use this when improving admin page or any card/section that should match the mai
 
 - Avoid `rounded-xl border border-red-200 bg-yellow-50/80` for the **main/user-facing** Shunter card (that one uses gradient header + white card).
 - **Admin sections** (e.g. Settings, Shunter of the Month Manager) **do** use red header + yellow container: card `border-red-200 bg-yellow-50/80`, header `bg-red-50 border-b border-red-200/60`, title `text-red-800`, content `bg-yellow-50/50 border-t border-red-100`.
-- Avoid red header `bg-red-50` only on the **user-facing** Shunter card; prefer the gradient header there.
+- Avoid red header `bg-red-50` only on the **user-facing** Shunter card; prefer the slate / soft blue gradient header there (`from-slate-50 via-rota-page-bg-via to-slate-50`).
 
 ---
 
 ## 10. Summary checklist for new sections
 
-- [ ] Container: `bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden`, `max-w-4xl mx-auto` where appropriate
-- [ ] Expandable header: gradient `from-amber-50 via-yellow-50 to-orange-50`, `border-b border-amber-100`, title `text-sm font-semibold text-amber-800`
-- [ ] Content: `border-t border-gray-100`, `transition-all duration-200 ease-out`, max-height + opacity for open/close
-- [ ] Inner cards: `rounded-lg`, alternating soft tints (amber/blue/emerald/purple) with matching borders and text
-- [ ] Text: `text-charcoal` for main content, `text-xs`/`text-sm` for labels and values
-- [ ] Responsive: `flex-col` + `md:flex-row` where horizontal layout is needed on desktop
-- [ ] Buttons: outline only (rounded border, no fill) – `bg-white text-charcoal border border-gray-300 hover:bg-gray-50`; destructive outline if needed: `border-red-500 text-red-600 hover:bg-red-50`
+- [ ] Container: `card-modern`, `max-w-4xl mx-auto`
+- [ ] Outer wrapper: optional `motion.div` entrance (`opacity`, `y`)
+- [ ] Expandable header: `motion.button`, gradient `from-slate-50 via-blue-50 to-slate-50`, `motion.svg` chevron
+- [ ] Content: `AnimatePresence` + `motion.div` height/opacity animation; inner `p-2 space-y-2`
+- [ ] Inner rows: `motion.div` stagger, `rounded-xl`, slate/blue/purple gradients, `shadow-sm hover:shadow-md`
+- [ ] Text: `text-charcoal` for names, `text-xs`/`text-sm` for labels
+- [ ] Responsive: `flex-col` + `md:flex-row` where needed
+- [ ] Primary actions elsewhere may use `btn-primary` / `btn-secondary` from `index.css` (availability dialog pattern); this card header is a toggle, not a filled CTA
 - [ ] Admin sections: red header + yellow container (card `border-red-200 bg-yellow-50/80`, header `bg-red-50`, title `text-red-800`, content `bg-yellow-50/50`).
 - [ ] **Inner cards on yellow background:** use `bg-white` with colored border (e.g. `border-amber-200`, `border-blue-200`) so they contrast; do not use yellow/amber tints (e.g. `bg-amber-50`) on yellow container – they become invisible.

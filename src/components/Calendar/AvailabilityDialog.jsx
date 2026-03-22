@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
 function AvailabilityDialog({ date, initialData, onSave, onClose }) {
@@ -34,18 +35,23 @@ function AvailabilityDialog({ date, initialData, onSave, onClose }) {
   const dayOfWeek = format(date, 'EEEE'); // Full day name (Monday, Tuesday, etc.)
   
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-auto my-auto border border-gray-200">
+    <div className="fixed inset-0 bg-rota-modal-overlay flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="glass-card w-full max-w-sm mx-auto my-auto p-6 shadow-strong"
+      >
         <div className="flex justify-between items-start mb-5">
           <div>
             <h2 className="text-xl font-bold leading-tight text-charcoal">
               Set Availability for {dayOfWeek}
             </h2>
-            <p className="text-gray-600 text-sm font-medium mt-1">{format(date, 'd MMM yyyy')}</p>
+            <p className="text-rota-text-muted text-sm font-medium mt-1">{format(date, 'd MMM yyyy')}</p>
           </div>
           <button
             type="button"
-            className="text-gray-400 hover:text-charcoal hover:bg-gray-100 p-1.5 rounded-lg"
+            className="text-rota-text-muted-light hover:text-charcoal hover:bg-slate-100 p-1.5 rounded-lg transition-colors"
             onClick={onClose}
             aria-label="Close"
           >
@@ -61,10 +67,10 @@ function AvailabilityDialog({ date, initialData, onSave, onClose }) {
               <button
                 type="button"
                 onClick={() => setStatus('available')}
-                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
-                  status === 'available' 
-                    ? 'bg-green-500 text-white shadow-md border-2 border-green-600 scale-105' 
-                    : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+                className={`rounded-xl py-3 px-4 flex justify-center items-center font-medium transition-all border-2 ${
+                  status === 'available'
+                    ? 'border-emerald-600 bg-emerald-50/80 text-emerald-900 shadow-sm'
+                    : 'border-emerald-300/70 bg-white text-emerald-800 hover:bg-emerald-50/50'
                 }`}
               >
                 Available
@@ -73,10 +79,10 @@ function AvailabilityDialog({ date, initialData, onSave, onClose }) {
               <button
                 type="button"
                 onClick={() => setStatus('unavailable')}
-                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
-                  status === 'unavailable' 
-                    ? 'bg-red-500 text-white shadow-md border-2 border-red-600 scale-105' 
-                    : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                className={`rounded-xl py-3 px-4 flex justify-center items-center font-medium transition-all border-2 ${
+                  status === 'unavailable'
+                    ? 'border-red-500 bg-red-50/80 text-red-900 shadow-sm'
+                    : 'border-red-300/70 bg-white text-red-800 hover:bg-red-50/50'
                 }`}
               >
                 Unavailable
@@ -85,10 +91,10 @@ function AvailabilityDialog({ date, initialData, onSave, onClose }) {
               <button
                 type="button"
                 onClick={() => setStatus('holiday')}
-                className={`rounded-full py-3 px-4 flex justify-center items-center font-medium transition-all ${
-                  status === 'holiday' 
-                    ? 'bg-blue-500 text-white shadow-md border-2 border-blue-600 scale-105' 
-                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300'
+                className={`rounded-xl py-3 px-4 flex justify-center items-center font-medium transition-all border-2 ${
+                  status === 'holiday'
+                    ? 'border-blue-600 bg-sky-50/90 text-blue-900 shadow-sm'
+                    : 'border-blue-300/70 bg-white text-blue-800 hover:bg-sky-50/50'
                 }`}
               >
                 Holiday
@@ -104,29 +110,31 @@ function AvailabilityDialog({ date, initialData, onSave, onClose }) {
               id="comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-black focus:ring-2 focus:ring-black/20 text-charcoal placeholder-gray-400"
+              className="w-full px-3 py-2 bg-white border border-rota-input-border rounded-lg focus:outline-none focus:border-rota-input-focus-border focus:ring-2 focus:ring-[rgba(59,130,246,0.2)] text-charcoal placeholder-gray-400"
               rows="3"
               placeholder="Add any notes about this day..."
             ></textarea>
           </div>
           
-          <div className="flex justify-end space-x-3">
-            <button
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <motion.button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border-2 border-black rounded-lg text-charcoal bg-transparent hover:bg-gray-100 transition-colors"
+              whileTap={{ scale: 0.97 }}
+              className="btn-secondary order-2 sm:order-1"
             >
               Cancel
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="submit"
-              className="px-5 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors font-medium"
+              whileTap={{ scale: 0.97 }}
+              className="btn-primary order-1 sm:order-2"
             >
               Save
-            </button>
+            </motion.button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

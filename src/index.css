@@ -69,6 +69,53 @@
   }
 }
 
+/* Design system (Modern Rota) — reusable patterns from modernization guide */
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-lg border border-slate-200/60 rounded-2xl shadow-lg;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:shadow-xl hover:border-slate-300/60 transition-all duration-300;
+  }
+
+  .btn-modern {
+    @apply px-4 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md active:scale-95;
+  }
+
+  .btn-primary {
+    @apply btn-modern bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:scale-105;
+  }
+
+  .btn-secondary {
+    @apply btn-modern bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400;
+  }
+
+  .badge-base {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium shadow-sm backdrop-blur-sm;
+  }
+
+  .badge-success {
+    @apply badge-base bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200/60;
+  }
+
+  .badge-warning {
+    @apply badge-base bg-gradient-to-br from-amber-50 to-yellow-50 text-amber-700 border border-amber-200/60;
+  }
+
+  .badge-danger {
+    @apply badge-base bg-gradient-to-br from-rose-50 to-pink-50 text-rose-700 border border-rose-200/60;
+  }
+
+  .badge-info {
+    @apply badge-base bg-gradient-to-br from-blue-50 to-cyan-50 text-blue-700 border border-blue-200/60;
+  }
+
+  .card-modern {
+    @apply bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg overflow-hidden;
+  }
+}
+
 @layer utilities {
   /* Safe area utilities for mobile devices */
   .pt-safe {

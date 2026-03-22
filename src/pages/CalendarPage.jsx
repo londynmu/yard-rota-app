@@ -268,37 +268,37 @@ export default function CalendarPage() {
     <>
       {/* Centered Popup Message */}
       {popup.show && (
-        <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-4 rounded-lg shadow-lg text-center text-base font-medium border
-                     ${popup.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
+        <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-4 rounded-xl shadow-lg text-center text-base font-medium border backdrop-blur-sm
+                     ${popup.type === 'error' ? 'bg-rota-alert-error-bg text-rota-alert-error-text border-rota-alert-error-border' : 'bg-emerald-50/95 text-emerald-800 border-emerald-300/70'}`}>
            {popup.message}
         </div>
       )}
       
       {/* Main scrollable container */}
-      <div className="h-full overflow-y-auto bg-slate-50 px-4 py-6 md:px-6 pb-6">
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
         <div className="max-w-4xl mx-auto space-y-6 min-h-screen">
           
           {/* Availability Calendar Section - No white container */}
           <div>
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg shadow-sm">
+              <div className="mb-4 p-3 bg-rota-alert-error-bg text-rota-alert-error-text border border-rota-alert-error-border rounded-xl shadow-sm">
                 {errorMessage}
               </div>
             )}
             
             {/* Legend - Above Calendar */}
             <div className="mb-4">
-              <div className="flex justify-center items-center gap-6 text-sm font-medium text-charcoal">
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+              <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-sm font-medium text-charcoal">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 ring-2 ring-white shadow-sm shrink-0" />
                   <span>Available</span>
                 </div>
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-rose-400 to-red-500 ring-2 ring-white shadow-sm shrink-0" />
                   <span>Unavailable</span>
                 </div>
-                <div className="flex items-center">
-                  <span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 ring-2 ring-white shadow-sm shrink-0" />
                   <span>Holiday</span>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={handlePreviousMonth}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-charcoal"
+                className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
                 aria-label="Previous month"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -316,13 +316,13 @@ export default function CalendarPage() {
                 </svg>
               </button>
               
-              <h3 className="text-2xl font-bold text-charcoal">
+              <h3 className="text-2xl font-bold text-charcoal tracking-tight">
                 {format(currentDate, 'MMMM yyyy')}
               </h3>
               
               <button
                 onClick={handleNextMonth}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-charcoal"
+                className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
                 aria-label="Next month"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -344,9 +344,9 @@ export default function CalendarPage() {
           <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
             <Link
               to="/brakes"
-              className="inline-flex items-center justify-center gap-2 w-full md:max-w-md px-4 py-3 text-sm font-medium rounded-xl bg-amber-50 border-2 border-amber-200 text-charcoal hover:border-amber-400 hover:bg-amber-100 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] animate-soft-glow"
+              className="inline-flex items-center justify-center gap-2 w-full md:max-w-md px-4 py-3 text-sm font-medium rounded-xl bg-white/90 backdrop-blur-sm border-2 border-rota-btn-outline-border text-charcoal hover:border-charcoal/40 hover:bg-white hover:shadow-md transition-all duration-200 active:scale-[0.99]"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Manage my breaks
@@ -365,14 +365,14 @@ export default function CalendarPage() {
             onShiftCountsChange={setShiftCounts}
             onUserBreakLabelChange={setUserBreakLabel}
             breakHeaderControls={(
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap rounded-xl border border-slate-200/50 bg-white/60 px-2 py-1.5 backdrop-blur-sm">
                 <button
                   onClick={handleLocationToggle}
                   disabled={availableLocations.length === 0}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] transition-colors ${
                     availableLocations.length === 0
                       ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                      : 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40 hover:border-slate-300/60'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${availableLocations.length === 0 ? 'bg-gray-300' : 'bg-green-400'}`} />
@@ -385,8 +385,8 @@ export default function CalendarPage() {
                   aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
                   className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
                     selectedShifts.includes('day')
-                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
-                      : 'text-gray-300 hover:text-gray-500'
+                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
+                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('day') ? 'bg-amber-400' : 'bg-gray-300'}`} />
@@ -399,8 +399,8 @@ export default function CalendarPage() {
                   aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
                   className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
                     selectedShifts.includes('afternoon')
-                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
-                      : 'text-gray-300 hover:text-gray-500'
+                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
+                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('afternoon') ? 'bg-orange-400' : 'bg-gray-300'}`} />
@@ -413,8 +413,8 @@ export default function CalendarPage() {
                   aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
                   className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
                     selectedShifts.includes('night')
-                      ? 'text-gray-500 hover:text-gray-700 bg-gray-50'
-                      : 'text-gray-300 hover:text-gray-500'
+                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
+                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('night') ? 'bg-blue-400' : 'bg-gray-300'}`} />

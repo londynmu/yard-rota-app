@@ -283,7 +283,7 @@ export default function HomePage() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-indigo-50" />
+      <div className="min-h-screen bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to" />
     );
   }
 
@@ -293,7 +293,7 @@ export default function HomePage() {
     path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-indigo-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
       {/* Top bar - always visible */}
       {(() => {
         const path = location.pathname;
