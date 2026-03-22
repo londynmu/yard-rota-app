@@ -286,24 +286,6 @@ export default function CalendarPage() {
               </div>
             )}
             
-            {/* Legend - Above Calendar */}
-            <div className="mb-4">
-              <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 text-sm font-medium text-charcoal">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 ring-2 ring-white shadow-sm shrink-0" />
-                  <span>Available</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-rose-400 to-red-500 ring-2 ring-white shadow-sm shrink-0" />
-                  <span>Unavailable</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-slate-200/60 shadow-sm backdrop-blur-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 ring-2 ring-white shadow-sm shrink-0" />
-                  <span>Holiday</span>
-                </div>
-              </div>
-            </div>
-            
             {/* Calendar Header */}
             <div className="flex items-center justify-between mb-4">
               <button

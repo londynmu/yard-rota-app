@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
-// Removed framer-motion import to reduce layout shifts and improve performance
 
 // Helper to calculate end time for breaks
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -1052,7 +1052,7 @@ export default function ShiftDashboard({
                   const displayBreaks = [...activeEntries, ...upcomingEntries];
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
-                    const { isActiveList = false } = options;
+                    const { isActiveList = false, index = 0 } = options;
                     const endTime = calculateEndTime(breakItem.break_start_time, breakItem.break_duration_minutes);
                     const isMe = breakItem.user_id === user?.id;
                     const isActive = nowMinutes >= window.start && nowMinutes < window.end;
@@ -1061,74 +1061,73 @@ export default function ShiftDashboard({
                     const pct = Math.floor((elapsed / total) * 100);
                     const left = Math.max(0, window.end - nowMinutes);
 
-                    let cardColors = isActive
-                      ? 'bg-green-50 border-green-300 shadow-green-100'
-                      : 'bg-orange-50 border-orange-200 shadow-orange-100';
-                    let cardExtras = '';
-
-                    if (isMe) {
-                      if (isActive) {
-                        cardExtras = 'ring-2 ring-green-400 ring-offset-2 ring-offset-green-50';
-                      } else {
-                        cardColors = 'bg-amber-50 border-amber-300 shadow-amber-100';
-                        cardExtras = 'ring-2 ring-amber-300';
-                      }
+                    let cardClasses = 'rounded-2xl border p-4 shadow-sm hover:shadow-md transition-all duration-200 backdrop-blur-sm ';
+                    if (isActive) {
+                      cardClasses += isMe
+                        ? 'bg-gradient-to-br from-emerald-50/95 to-teal-50/90 border-emerald-300/50 ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-white'
+                        : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-300/50';
+                    } else {
+                      cardClasses += isMe
+                        ? 'bg-gradient-to-br from-amber-50/95 to-yellow-50/90 border-amber-200/60 ring-2 ring-amber-300/40 ring-offset-2 ring-offset-white'
+                        : 'bg-gradient-to-br from-slate-50 to-orange-50/50 border-slate-200/60';
                     }
-
-                    if (isActiveList) {
-                      cardExtras = `${cardExtras} ring-1 ring-green-300`;
+                    if (isActiveList && isActive) {
+                      cardClasses += ' shadow-md';
                     }
 
                     return (
-                      <div
+                      <motion.div
                         key={breakItem.id}
-                        className={`rounded-2xl border p-4 shadow-sm transition-colors ${cardColors} ${cardExtras}`.trim()}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25, delay: index * 0.04 }}
+                        className={cardClasses}
                       >
                         <div className="flex justify-between items-start gap-2">
                           <p className="text-sm font-bold text-charcoal">
                             {breakItem.profiles?.first_name || 'Unknown'} {breakItem.profiles?.last_name || 'User'}
-                            {isMe && <span className="text-gray-500"> (You)</span>}
+                            {isMe && <span className="text-slate-500 font-medium"> (You)</span>}
                           </p>
                           <div className="flex items-center gap-2 shrink-0">
                             {breakItem.tug_name && (() => {
                               const shift = userShiftMap.get(breakItem.user_id);
                               return shift && isNowWithinShift(shift.start_time, shift.end_time);
                             })() && (
-                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gradient-to-br from-blue-50 to-cyan-50/80 text-blue-800 border border-blue-200/60 shadow-sm">
                                 {breakItem.tug_name}
                               </span>
                             )}
-                            <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                            <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">
                               {breakItem.break_start_time?.substring(0, 5) || '??:??'} - {endTime}
                             </span>
                           </div>
                         </div>
 
                         {isActive && (
-                          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                            <span className="inline-flex items-center gap-1 font-semibold">
-                              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          <div className="mt-2 flex items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold bg-emerald-50/80 text-emerald-800 border border-emerald-200/60">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
                               On break now
                             </span>
-                            <span className="text-green-700 font-semibold">{left}m left</span>
+                            <span className="text-emerald-700 font-semibold">{left}m left</span>
                           </div>
                         )}
 
                         {isActive && (
                           <div className="mt-3">
-                            <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+                            <div className="flex justify-between text-[11px] text-slate-600 mb-1">
                               <span>Break progress</span>
-                              <span>{pct}%</span>
+                              <span className="font-medium">{pct}%</span>
                             </div>
-                            <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-green-200">
+                            <div className="h-2 w-full bg-white/70 rounded-full overflow-hidden border border-emerald-200/50">
                               <div
-                                className="h-full bg-green-500 rounded-full transition-all duration-300"
+                                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm transition-all duration-300"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
                           </div>
                         )}
-                      </div>
+                      </motion.div>
                     );
                   };
 
@@ -1140,12 +1139,12 @@ export default function ShiftDashboard({
                         </div>
                       )}
                       {activeEntries.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-center text-sm font-medium text-gray-600">
+                        <div className="rounded-2xl border border-dashed border-slate-200/70 bg-white/60 backdrop-blur-sm px-4 py-6 text-center text-sm font-medium text-slate-600 shadow-sm">
                           No active breaks at the moment
                         </div>
                       )}
                       <div className="space-y-3">
-                        {displayBreaks.map((entry) => renderBreakCard(entry, { isActiveList: true }))}
+                        {displayBreaks.map((entry, idx) => renderBreakCard(entry, { isActiveList: true, index: idx }))}
                       </div>
                     </div>
                   );
