@@ -347,59 +347,66 @@ export default function CalendarPage() {
             onShiftCountsChange={setShiftCounts}
             onUserBreakLabelChange={setUserBreakLabel}
             breakHeaderControls={(
-              <div className="flex items-center gap-2 flex-wrap rounded-xl border border-slate-200/50 bg-white/60 px-2 py-1.5 backdrop-blur-sm">
+              <div className="w-full max-w-full min-w-0 md:w-max md:max-w-full grid grid-cols-4 gap-1.5 sm:gap-2 py-2.5 px-2 sm:py-3 sm:px-3 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50/95 to-white/90 backdrop-blur-sm shadow-sm overflow-hidden">
                 <button
+                  type="button"
                   onClick={handleLocationToggle}
                   disabled={availableLocations.length === 0}
-                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] transition-colors ${
+                  className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
                     availableLocations.length === 0
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40 hover:border-slate-300/60'
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${availableLocations.length === 0 ? 'bg-gray-300' : 'bg-green-400'}`} />
-                  {selectedLocation || 'No locations'}
+                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+                  <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleShiftToggle('day')}
                   title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
                   aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
-                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
                     selectedShifts.includes('day')
-                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
-                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
+                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
+                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('day') ? 'bg-amber-400' : 'bg-gray-300'}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
                   <span>Day</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleShiftToggle('afternoon')}
                   title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
                   aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
-                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
                     selectedShifts.includes('afternoon')
-                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
-                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
+                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
+                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('afternoon') ? 'bg-orange-400' : 'bg-gray-300'}`} />
-                  <span>Afternoon</span>
+                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
+                  <span>
+                    <span className="sm:hidden">Aft</span>
+                    <span className="hidden sm:inline">Afternoon</span>
+                  </span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleShiftToggle('night')}
                   title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
                   aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
-                  className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[10px] transition-colors ${
+                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
                     selectedShifts.includes('night')
-                      ? 'text-gray-600 hover:text-charcoal bg-white/80 border border-slate-200/40'
-                      : 'text-gray-300 hover:text-gray-500 border border-transparent'
+                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
+                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${selectedShifts.includes('night') ? 'bg-blue-400' : 'bg-gray-300'}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
                   <span>Night</span>
                 </button>
               </div>
