@@ -66,16 +66,6 @@ const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/Pr
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
 const TransportManagerDashboard = lazyWithRetry(() => import('../pages/TransportManagerDashboard'));
 
-/** Desktop top nav links — glass / Figma-aligned */
-function topNavLinkClassName(isActive) {
-  return [
-    'inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all border',
-    isActive
-      ? 'bg-white/90 text-slate-800 border-slate-200/60 shadow-sm'
-      : 'text-slate-600 border-transparent hover:bg-white/70 hover:border-slate-200/60 hover:shadow-sm hover:text-slate-800',
-  ].join(' ');
-}
-
 export default function HomePage() {
   const { user, signOut } = useAuth();
   const { isAdmin, isVmu, isTransportManager } = useNotifications();
@@ -254,26 +244,26 @@ export default function HomePage() {
           width: '12rem',
           zIndex: 99999,
         }}
-        className="rounded-2xl py-1 border border-slate-200/60 shadow-xl bg-white/95 backdrop-blur-md"
+        className="bg-white rounded-lg py-1 border border-gray-200 shadow-lg"
       >
         {profileName && (
-          <div className="px-4 py-3 text-sm border-b border-slate-200/60">
+          <div className="px-4 py-3 text-sm border-b border-gray-200">
             <p className="font-medium text-charcoal">{profileName}</p>
-            <p className="text-xs text-rota-text-muted-light truncate">{user?.email}</p>
+            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           </div>
         )}
 
         <Link
           to="/profile"
           onClick={() => setShowDropdown(false)}
-          className="block w-full text-left px-4 py-2 text-sm text-charcoal hover:bg-slate-50/90"
+          className="block w-full text-left px-4 py-2 text-sm text-charcoal hover:bg-gray-50"
         >
           Profile
         </Link>
         
         <button
           onClick={handleSignOut}
-          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50/90"
+          className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50"
         >
           Log out
         </button>
@@ -282,8 +272,10 @@ export default function HomePage() {
   };
 
   if (profileLoading) {
+    // Return completely empty loading state with just background
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-indigo-50" />
+      <div className="min-h-screen bg-offwhite">
+      </div>
     );
   }
 
@@ -293,7 +285,7 @@ export default function HomePage() {
     path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-indigo-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Top bar - always visible */}
       {(() => {
         const path = location.pathname;
@@ -312,10 +304,10 @@ export default function HomePage() {
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
-        const borderClass = hasFilterButtons ? 'border-b border-slate-200/60 md:border-b-0' : 'border-b border-slate-200/60';
+        const borderClass = hasFilterButtons ? 'border-b border-slate-300 md:border-b-0' : 'border-b border-slate-300';
 
         return (
-          <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
+          <header className={`${borderClass} bg-slate-200 pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
             <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu || isTransportManager ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
@@ -325,7 +317,11 @@ export default function HomePage() {
                       <Link
                         key={nav.path}
                         to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
                       >
                         <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                         {nav.label}
@@ -372,7 +368,11 @@ export default function HomePage() {
                       <Link
                         key={nav.path}
                         to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
                       >
                         <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                         {nav.label}
@@ -419,7 +419,11 @@ export default function HomePage() {
                       <Link
                         key={nav.path}
                         to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                          location.pathname === nav.path
+                            ? 'bg-slate-100 text-slate-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        }`}
                       >
                         <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                         {nav.label}
@@ -465,7 +469,7 @@ export default function HomePage() {
                   <>
                     <button
                       onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
-                      className="md:hidden p-2 hover:bg-white/70 rounded-lg transition-colors flex-shrink-0"
+                      className="md:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
                       title="Open menu"
                     >
                       <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -485,7 +489,11 @@ export default function HomePage() {
                     <Link
                       key={nav.path}
                       to={nav.path}
-                      className={topNavLinkClassName(location.pathname === nav.path)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                        location.pathname === nav.path
+                          ? 'bg-slate-100 text-slate-800'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
                     >
                       <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                       {nav.label}
@@ -534,12 +542,12 @@ export default function HomePage() {
       {renderDropdownMenu()}
       
       <main className={`flex-1 relative z-0 pb-bottom-nav ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
-        <Suspense fallback={<div className="min-h-screen bg-transparent" />}>
+        <Suspense fallback={<div className="min-h-screen bg-slate-50"></div>}>
           <Routes>
             <Route
               path="/calendar"
               element={
-                <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
+                <React.Suspense fallback={<div className="bg-slate-50 min-h-screen"></div>}>
                   <PreCheckReminder />
                   <ShunterOfTheMonthCard />
                   <CalendarPage />
@@ -634,7 +642,7 @@ export default function HomePage() {
 
       {/* Bottom Navigation - Mobile Only with safe area */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t border-slate-200/60 shadow-lg pb-safe backdrop-blur-md"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t shadow-lg pb-safe"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
           {isVmu && !isAdmin ? (

@@ -91,23 +91,26 @@
     }
   }
   
-  /* Bottom navigation - Solid slate style */
+  /* Bottom navigation — glass bar aligned with header (Figma shell) */
   .bottom-nav-adaptive {
-    background-color: #E2E8F0; /* slate-200 */
-    border-top-color: #CBD5E1;
+    background-color: rgba(255, 255, 255, 0.82);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top-color: rgba(203, 213, 225, 0.65); /* slate-300 ~60% */
   }
   
-  /* Bottom nav icons - średni szary nieaktywne */
   .bottom-nav-icon {
     color: #475569; /* slate-600 */
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
   }
   
-  /* Bottom nav icons - aktywne ciemny szary */
   .bottom-nav-icon.active {
-    color: #1E293B; /* slate-800 */
-    background-color: #F1F5F9; /* slate-100 - jasne tło */
-    border-radius: 0.75rem;
+    color: #1e293b; /* slate-800 */
+    background-color: rgba(255, 255, 255, 0.75);
+    border-color: rgba(203, 213, 225, 0.55);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   }
   
   /* Fade in animation for sidebar */

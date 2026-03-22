@@ -320,14 +320,14 @@ export default function AdminPage() {
             <button
               key={item.id}
               onClick={() => setActiveSection(item.id)}
-              className="bg-white rounded-xl shadow-md border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all text-left group"
+              className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-5 hover:shadow-xl hover:border-slate-300/80 transition-all duration-300 text-left group"
             >
               <div className="flex items-center gap-4">
-                <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl group-hover:from-blue-50 group-hover:to-indigo-50 transition-colors duration-300 flex items-center justify-center group-hover:scale-105">
                   <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="large" animate={true} />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-charcoal group-hover:text-black">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-charcoal group-hover:text-charcoal">
                     {item.label}
                     {item.badge > 0 && (
                       <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
@@ -336,7 +336,7 @@ export default function AdminPage() {
                     )}
                   </h3>
                 </div>
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-slate-400 group-hover:text-charcoal group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
