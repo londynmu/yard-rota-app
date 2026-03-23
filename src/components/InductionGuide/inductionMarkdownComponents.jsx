@@ -6,27 +6,27 @@ import React from 'react';
 export function getInductionMarkdownComponents() {
   return {
     h1: ({ node, ...props }) => (
-      <h1 className="text-xl font-bold text-charcoal mt-6 mb-3 first:mt-0" {...props} />
+      <h1 className="text-base font-semibold text-charcoal mt-5 mb-2 first:mt-0" {...props} />
     ),
     h2: ({ node, ...props }) => (
-      <h2 className="text-lg font-semibold text-charcoal mt-5 mb-2" {...props} />
+      <h2 className="text-sm font-semibold text-charcoal mt-4 mb-2" {...props} />
     ),
     h3: ({ node, ...props }) => (
-      <h3 className="text-base font-semibold text-charcoal mt-4 mb-2" {...props} />
+      <h3 className="text-sm font-medium text-charcoal mt-3 mb-1.5" {...props} />
     ),
-    p: ({ node, ...props }) => <p className="text-slate-700 mb-3 leading-relaxed" {...props} />,
+    p: ({ node, ...props }) => <p className="text-sm text-slate-700 mb-3 leading-relaxed" {...props} />,
     ul: ({ node, ...props }) => (
-      <ul className="list-disc pl-5 mb-3 space-y-1 text-slate-700" {...props} />
+      <ul className="list-disc pl-5 mb-3 space-y-1 text-sm text-slate-700" {...props} />
     ),
     ol: ({ node, ...props }) => (
-      <ol className="list-decimal pl-5 mb-3 space-y-1 text-slate-700" {...props} />
+      <ol className="list-decimal pl-5 mb-3 space-y-1 text-sm text-slate-700" {...props} />
     ),
     li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
     strong: ({ node, ...props }) => <strong className="font-semibold text-charcoal" {...props} />,
     em: ({ node, ...props }) => <em className="italic text-slate-700" {...props} />,
     blockquote: ({ node, ...props }) => (
       <blockquote
-        className="border-l-4 border-slate-300 pl-4 my-4 text-slate-600 italic"
+        className="border-l-4 border-slate-300 pl-4 my-4 text-sm text-slate-600 italic"
         {...props}
       />
     ),

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabaseClient';
@@ -11,7 +11,6 @@ export default function InductionGuidePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collapsedSections, setCollapsedSections] = useState({});
-  const scrollContainerRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,48 +49,23 @@ export default function InductionGuidePage() {
     });
   }, [sections]);
 
-  const scrollSectionToTop = useCallback((id, behavior = 'smooth') => {
-    const target = document.getElementById(`induction-section-${id}`);
-    if (!target) return;
-
-    const container = scrollContainerRef.current;
-    const topOffset = 0;
-
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const nextTop = container.scrollTop + (targetRect.top - containerRect.top) - topOffset;
-      container.scrollTo({ top: Math.max(0, nextTop), behavior });
-      return;
-    }
-
-    const targetRect = target.getBoundingClientRect();
-    const nextTop = window.scrollY + targetRect.top - topOffset;
-    window.scrollTo({ top: Math.max(0, nextTop), behavior });
+  const toggleSection = useCallback((id) => {
+    setCollapsedSections((prevState) => ({
+      ...prevState,
+      [id]: !prevState[id],
+    }));
   }, []);
 
-  const goToSection = useCallback((id) => {
-    // Match My Rota behavior: one expanded card, then align it to top.
-    setCollapsedSections((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((k) => {
-        next[k] = true;
-      });
-      next[id] = false;
-      return next;
-    });
-
-    // Wait briefly for layout update before scrolling (same pattern as My Rota).
-    setTimeout(() => {
-      requestAnimationFrame(() => {
-        scrollSectionToTop(id);
-      });
-    }, 320);
-  }, [scrollSectionToTop]);
+  const openSection = useCallback((id) => {
+    setCollapsedSections((prevState) => ({
+      ...prevState,
+      [id]: false,
+    }));
+  }, []);
 
   return (
-    <div ref={scrollContainerRef} className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
-      <div className="max-w-6xl mx-auto">
+    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+      <div className="page-content-inner">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter Guide</h1>
@@ -130,25 +104,15 @@ export default function InductionGuidePage() {
                 <article
                   key={section.id}
                   id={`induction-section-${section.id}`}
-                  data-section-id={section.id}
-                  className="card-modern p-5 md:p-6 scroll-mt-24"
+                  className="card-modern p-4 md:p-5"
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      if (isCollapsed) {
-                        goToSection(section.id);
-                        return;
-                      }
-                      setCollapsedSections((prevState) => ({
-                        ...prevState,
-                        [section.id]: true,
-                      }));
-                    }}
-                    className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-4 border-b border-slate-200/80 pb-2'}`}
+                    onClick={() => toggleSection(section.id)}
+                    className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-3 border-b border-slate-200/80 pb-2'}`}
                     aria-expanded={!isCollapsed}
                   >
-                    <h2 className="text-xl font-bold text-charcoal group-hover:text-slate-900 transition-colors">
+                    <h2 className="text-sm font-semibold text-charcoal group-hover:text-slate-900 transition-colors">
                       {section.title}
                     </h2>
                     <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-200/90 bg-white text-slate-500 group-hover:text-slate-700 group-hover:border-slate-300 transition-colors shadow-sm">
@@ -171,11 +135,11 @@ export default function InductionGuidePage() {
                           {section.body_markdown || ''}
                         </ReactMarkdown>
                       </div>
-                      <div className="mt-4 flex items-center justify-between gap-2">
+                      <div className="mt-3 flex items-center justify-between gap-2">
                         {prev ? (
                           <button
                             type="button"
-                            onClick={() => goToSection(prev.id)}
+                            onClick={() => openSection(prev.id)}
                             className="btn-secondary btn-modern text-xs py-1.5 px-3"
                           >
                             Previous section
@@ -186,13 +150,7 @@ export default function InductionGuidePage() {
                         {next ? (
                           <button
                             type="button"
-                            onClick={() => {
-                              setCollapsedSections((prevState) => ({
-                                ...prevState,
-                                [section.id]: true,
-                              }));
-                              goToSection(next.id);
-                            }}
+                            onClick={() => openSection(next.id)}
                             className="btn-secondary btn-modern text-xs py-1.5 px-3"
                           >
                             Next section
