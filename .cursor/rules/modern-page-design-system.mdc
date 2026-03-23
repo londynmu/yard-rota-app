@@ -1,0 +1,65 @@
+---
+description: Modern page shell, reusable CSS classes, segmented filter bar, tokens — use for every new page
+alwaysApply: true
+---
+
+# Modern Page Design System
+
+New pages and major UI sections should match the **modernized** look: glass surfaces, slate borders, `rota.*` / `charcoal` / `base.*` tokens, and consistent layout. User-facing copy stays **English**.
+
+## Hierarchy with other rules
+
+- **Modals and confirm flows**: still use `Modal.jsx`, `ConfirmDialog.jsx`, and `.cursor/rules/confirm-dialog-visual-reference.mdc` for overlay dialogs.
+- **Card sections (gradient headers, admin-style blocks)**: follow `.cursor/rules/shunter-card-visual-reference.mdc` where applicable.
+- **This rule**: full-page layout, scroll shells, filter bars, and shared component classes in `src/index.css`.
+
+## Files to use
+
+| What | Where |
+|------|--------|
+| Design tokens (colors, shadows, animations) | `tailwind.config.js` — `rota.*`, `base.*`, `charcoal`, `offwhite` |
+| Reusable classes | `src/index.css` `@layer components` |
+| Reference implementation | `src/pages/CalendarPage.jsx` (scroll shell, month nav, `filter-bar-segmented`, Manage my breaks link) |
+
+Do **not** add new arbitrary hex colors or one-off palettes; extend `tailwind.config.js` if a new token is needed.
+
+## Layout (new pages)
+
+1. Main scroll area: `h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6` (adjust `pb-*` if bottom nav overlaps — use `pb-bottom-nav` from `index.css` where needed).
+2. Inner column: use **`page-content-inner`** (`max-w-4xl mx-auto space-y-6 min-h-screen`) so width and spacing match Calendar / home flows.
+3. Section titles: `text-charcoal`, `text-2xl font-bold tracking-tight` (or `text-xl` for subsections).
+
+## Component classes (`index.css`)
+
+Use these class names instead of re-pasting long Tailwind strings:
+
+| Class | Purpose |
+|-------|--------|
+| `glass-card` / `glass-card-hover` | Frosted panels, dialogs, floating panels |
+| `card-modern` | Primary content cards (border, blur, rounded-2xl) |
+| `btn-modern` | Base for pill buttons |
+| `btn-primary` / `btn-secondary` | Primary/secondary actions **on page content** (not inside `ConfirmDialog` unless aligned with confirm-dialog rule) |
+| `badge-success` / `badge-warning` / `badge-danger` / `badge-info` | Status chips |
+| **`filter-bar-segmented`** | Row of **equal-width** segments (grid `grid-cols-4`): location + Day + Aft + Night pattern |
+| **`page-content-inner`** | Standard centered content column |
+
+## Segmented filter bar (location + filters)
+
+When you need a horizontal strip of **N** equal segments (typical: 4 — location, day, afternoon, night):
+
+1. Wrap segments in **`filter-bar-segmented`** (fixed `grid-cols-4`).
+2. Each segment: `flex min-w-0 items-center justify-center gap-1 … rounded-xl px-1.5 py-2 text-xs font-medium sm:px-2 sm:py-2.5 sm:text-sm` with active/inactive states (white/90 + border when selected; muted when off) — copy from `CalendarPage.jsx` `breakHeaderControls`.
+3. **Long labels** (e.g. location name): `min-w-0 truncate text-left text-[10px] sm:text-xs` so one column does not steal width (grid keeps columns equal).
+4. Optional: short mobile label + long desktop label (e.g. `Aft` / `Afternoon`) with `sm:hidden` / `hidden sm:inline`.
+
+## Motion
+
+`framer-motion` is used on several screens for enter/exit and stagger. Prefer **subtle** transitions (`duration-200`, spring with reasonable stiffness) and reuse patterns from `ShunterOfTheMonthCard.jsx`, `CalendarGrid.jsx`, or `PreCheckReminder.jsx` rather than inventing new motion systems.
+
+## Checklist for a new page
+
+- [ ] Outer scroll + `page-content-inner` (or same spacing tokens).
+- [ ] Text and labels in English.
+- [ ] Colors from theme (`rota`, `charcoal`, `slate` for neutrals) — no random hex in JSX.
+- [ ] Surfaces: `card-modern` / `glass-card` or documented gradient patterns from existing pages.
+- [ ] Multi-segment filters: `filter-bar-segmented` + equal columns + truncate for long text.

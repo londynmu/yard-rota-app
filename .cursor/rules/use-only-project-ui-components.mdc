@@ -7,6 +7,10 @@ alwaysApply: true
 
 When adding or changing UI, use **only** the existing components and patterns from this project. Do not invent new buttons, cards, modals, or page layouts.
 
+## Page layout, glass surfaces, and modern tokens
+
+For **new pages** and shared surfaces (scroll shell, `card-modern`, `glass-card`, `filter-bar-segmented`, `btn-primary` / `btn-secondary` from `src/index.css`), follow **`.cursor/rules/modern-page-design-system.mdc`**. Keep using this rule for **Modal**, **ConfirmDialog**, and outline-button rules inside those dialogs.
+
 ## Canonical components (use these)
 
 | Purpose | Component | Path |
