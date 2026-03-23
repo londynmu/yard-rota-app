@@ -55,7 +55,7 @@ export default function InductionGuidePage() {
     if (!target) return;
 
     const container = scrollContainerRef.current;
-    const topOffset = 8;
+    const topOffset = 0;
 
     if (container) {
       const containerRect = container.getBoundingClientRect();
@@ -71,10 +71,22 @@ export default function InductionGuidePage() {
   }, []);
 
   const goToSection = useCallback((id) => {
-    setCollapsedSections((prev) => ({ ...prev, [id]: false }));
-    requestAnimationFrame(() => {
-      scrollSectionToTop(id);
+    // Match My Rota behavior: one expanded card, then align it to top.
+    setCollapsedSections((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => {
+        next[k] = true;
+      });
+      next[id] = false;
+      return next;
     });
+
+    // Wait briefly for layout update before scrolling (same pattern as My Rota).
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        scrollSectionToTop(id);
+      });
+    }, 320);
   }, [scrollSectionToTop]);
 
   return (
@@ -125,13 +137,7 @@ export default function InductionGuidePage() {
                     type="button"
                     onClick={() => {
                       if (isCollapsed) {
-                        setCollapsedSections((prevState) => ({
-                          ...prevState,
-                          [section.id]: false,
-                        }));
-                        requestAnimationFrame(() => {
-                          scrollSectionToTop(section.id);
-                        });
+                        goToSection(section.id);
                         return;
                       }
                       setCollapsedSections((prevState) => ({
