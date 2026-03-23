@@ -11,6 +11,10 @@ export default function InductionGuidePage() {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeSectionId, setActiveSectionId] = useState(null);
+  const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('yard_guide_nav_collapsed') === 'true');
+  const [mobileSectionsOpen, setMobileSectionsOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,9 +41,126 @@ export default function InductionGuidePage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    localStorage.setItem('yard_guide_nav_collapsed', String(navCollapsed));
+  }, [navCollapsed]);
+
+  useEffect(() => {
+    if (!mobileSectionsOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [mobileSectionsOpen]);
+
+  useEffect(() => {
+    if (!sections.length) return;
+
+    setCollapsedSections((prev) => {
+      const next = {};
+      sections.forEach((s) => {
+        next[s.id] = prev[s.id] ?? false;
+      });
+      return next;
+    });
+
+    if (!activeSectionId) {
+      setActiveSectionId(sections[0].id);
+    }
+  }, [sections, activeSectionId]);
+
+  useEffect(() => {
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) {
+          const id = visible[0].target.getAttribute('data-section-id');
+          if (id) setActiveSectionId(id);
+        }
+      },
+      {
+        root: null,
+        // Keep active section stable while reading inside section content.
+        rootMargin: '-20% 0px -55% 0px',
+        threshold: [0.1, 0.25, 0.5],
+      }
+    );
+
+    sections.forEach((section) => {
+      const el = document.getElementById(`induction-section-${section.id}`);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [sections]);
+
+  const goToSection = useCallback((id) => {
+    const target = document.getElementById(`induction-section-${id}`);
+    if (target) {
+      setCollapsedSections((prev) => ({ ...prev, [id]: false }));
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSectionId(id);
+      setMobileSectionsOpen(false);
+    }
+  }, []);
+
+  const collapseAllSections = useCallback(() => {
+    const next = {};
+    sections.forEach((s) => {
+      next[s.id] = true;
+    });
+    setCollapsedSections(next);
+  }, [sections]);
+
+  const expandAllSections = useCallback(() => {
+    const next = {};
+    sections.forEach((s) => {
+      next[s.id] = false;
+    });
+    setCollapsedSections(next);
+  }, [sections]);
+
+  const renderNavItems = (compact = false) => (
+    <ul className={compact ? 'space-y-1.5' : 'space-y-2'}>
+      {sections.map((s, idx) => {
+        const isActive = activeSectionId === s.id;
+        return (
+          <li key={s.id}>
+            <button
+              type="button"
+              onClick={() => goToSection(s.id)}
+              className={`w-full text-left rounded-lg border px-2.5 py-2 text-sm transition-colors ${
+                isActive
+                  ? 'border-blue-200 bg-blue-50/80 text-blue-800'
+                  : 'border-slate-200/80 bg-white/70 text-slate-700 hover:bg-slate-50'
+              }`}
+              aria-current={isActive ? 'true' : undefined}
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="text-xs text-slate-500">{idx + 1}.</span>
+                <span className="truncate">{s.title}</span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
-      <div className="page-content-inner">
+      <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter yard induction</h1>
@@ -74,41 +195,146 @@ export default function InductionGuidePage() {
         )}
 
         {!loading && !error && sections.length > 0 && (
-          <nav className="card-modern p-4 mb-6" aria-label="Guide sections">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">On this page</p>
-            <ul className="flex flex-wrap gap-2">
-              {sections.map((s) => (
-                <li key={s.id}>
-                  <a
-                    href={`#induction-section-${s.id}`}
-                    className="inline-flex items-center rounded-lg px-2.5 py-1 text-sm text-blue-700 bg-blue-50/80 border border-blue-100 hover:bg-blue-100/80 transition-colors"
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start">
+            <div className="space-y-6">
+              <div className="card-modern p-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={expandAllSections}
+                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  onClick={collapseAllSections}
+                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                >
+                  Collapse all
+                </button>
+              </div>
+
+              {sections.map((section, idx) => {
+                const isCollapsed = !!collapsedSections[section.id];
+                const prev = idx > 0 ? sections[idx - 1] : null;
+                const next = idx < sections.length - 1 ? sections[idx + 1] : null;
+
+                return (
+                  <article
+                    key={section.id}
+                    id={`induction-section-${section.id}`}
+                    data-section-id={section.id}
+                    className="card-modern p-5 md:p-6 scroll-mt-24"
                   >
-                    {s.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+                    <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-200/80 pb-2">
+                      <h2 className="text-xl font-bold text-charcoal">{section.title}</h2>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedSections((prevState) => ({
+                            ...prevState,
+                            [section.id]: !prevState[section.id],
+                          }))
+                        }
+                        className="btn-secondary btn-modern text-xs py-1 px-2.5"
+                        aria-expanded={!isCollapsed}
+                      >
+                        {isCollapsed ? 'Expand' : 'Collapse'}
+                      </button>
+                    </div>
+
+                    {!isCollapsed && (
+                      <>
+                        <div className="induction-guide-prose">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                            {section.body_markdown || ''}
+                          </ReactMarkdown>
+                        </div>
+                        <div className="mt-6 pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2">
+                          {prev ? (
+                            <button
+                              type="button"
+                              onClick={() => goToSection(prev.id)}
+                              className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                            >
+                              Previous section
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+                          {next ? (
+                            <button
+                              type="button"
+                              onClick={() => goToSection(next.id)}
+                              className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                            >
+                              Next section
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
+            <aside className="hidden lg:block sticky top-20">
+              <nav className="card-modern p-4 max-h-[calc(100vh-7rem)] overflow-y-auto" aria-label="Guide sections">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sections</p>
+                  <button
+                    type="button"
+                    onClick={() => setNavCollapsed((prev) => !prev)}
+                    className="btn-secondary btn-modern text-xs py-1 px-2"
+                    aria-expanded={!navCollapsed}
+                  >
+                    {navCollapsed ? 'Expand' : 'Collapse'}
+                  </button>
+                </div>
+                {!navCollapsed && renderNavItems()}
+              </nav>
+            </aside>
+          </div>
         )}
 
-        <div className="space-y-6">
-          {sections.map((section) => (
-            <article
-              key={section.id}
-              id={`induction-section-${section.id}`}
-              className="card-modern p-5 md:p-6 scroll-mt-24"
+        {!loading && !error && sections.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setMobileSectionsOpen(true)}
+              className="lg:hidden fixed right-4 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom)+0.5rem)] rounded-full border border-slate-200/80 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md backdrop-blur-sm"
             >
-              <h2 className="text-xl font-bold text-charcoal mb-4 border-b border-slate-200/80 pb-2">
-                {section.title}
-              </h2>
-              <div className="induction-guide-prose">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                  {section.body_markdown || ''}
-                </ReactMarkdown>
+              Sections
+            </button>
+
+            {mobileSectionsOpen && (
+              <div className="lg:hidden fixed inset-0 z-40 overscroll-none">
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/40"
+                  aria-label="Close sections panel"
+                  onClick={() => setMobileSectionsOpen(false)}
+                />
+                <div className="absolute z-10 left-0 right-0 bottom-0 rounded-t-2xl border-t border-slate-200 bg-white p-4 max-h-[78vh] overflow-y-auto overscroll-contain touch-pan-y shadow-2xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-charcoal">Sections</p>
+                    <button
+                      type="button"
+                      onClick={() => setNavCollapsed((prev) => !prev)}
+                      className="btn-secondary btn-modern text-xs py-1 px-2"
+                    >
+                      {navCollapsed ? 'Expand' : 'Collapse'}
+                    </button>
+                  </div>
+                  {!navCollapsed && renderNavItems(true)}
+                </div>
               </div>
-            </article>
-          ))}
-        </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
