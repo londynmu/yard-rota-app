@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabaseClient';
@@ -10,8 +10,8 @@ export default function InductionGuidePage() {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeSectionId, setActiveSectionId] = useState(null);
   const [collapsedSections, setCollapsedSections] = useState({});
+  const scrollContainerRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,52 +48,37 @@ export default function InductionGuidePage() {
       });
       return next;
     });
-
-    if (!activeSectionId) {
-      setActiveSectionId(sections[0].id);
-    }
-  }, [sections, activeSectionId]);
-
-  useEffect(() => {
-    if (!sections.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) {
-          const id = visible[0].target.getAttribute('data-section-id');
-          if (id) setActiveSectionId(id);
-        }
-      },
-      {
-        root: null,
-        // Keep active section stable while reading inside section content.
-        rootMargin: '-20% 0px -55% 0px',
-        threshold: [0.1, 0.25, 0.5],
-      }
-    );
-
-    sections.forEach((section) => {
-      const el = document.getElementById(`induction-section-${section.id}`);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
   }, [sections]);
 
-  const goToSection = useCallback((id) => {
+  const scrollSectionToTop = useCallback((id, behavior = 'smooth') => {
     const target = document.getElementById(`induction-section-${id}`);
-    if (target) {
-      setCollapsedSections((prev) => ({ ...prev, [id]: false }));
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setActiveSectionId(id);
+    if (!target) return;
+
+    const container = scrollContainerRef.current;
+    const topOffset = 8;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const nextTop = container.scrollTop + (targetRect.top - containerRect.top) - topOffset;
+      container.scrollTo({ top: Math.max(0, nextTop), behavior });
+      return;
     }
+
+    const targetRect = target.getBoundingClientRect();
+    const nextTop = window.scrollY + targetRect.top - topOffset;
+    window.scrollTo({ top: Math.max(0, nextTop), behavior });
   }, []);
 
+  const goToSection = useCallback((id) => {
+    setCollapsedSections((prev) => ({ ...prev, [id]: false }));
+    requestAnimationFrame(() => {
+      scrollSectionToTop(id);
+    });
+  }, [scrollSectionToTop]);
+
   return (
-    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
@@ -138,12 +123,22 @@ export default function InductionGuidePage() {
                 >
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      if (isCollapsed) {
+                        setCollapsedSections((prevState) => ({
+                          ...prevState,
+                          [section.id]: false,
+                        }));
+                        requestAnimationFrame(() => {
+                          scrollSectionToTop(section.id);
+                        });
+                        return;
+                      }
                       setCollapsedSections((prevState) => ({
                         ...prevState,
-                        [section.id]: !prevState[section.id],
-                      }))
-                    }
+                        [section.id]: true,
+                      }));
+                    }}
                     className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-4 border-b border-slate-200/80 pb-2'}`}
                     aria-expanded={!isCollapsed}
                   >
