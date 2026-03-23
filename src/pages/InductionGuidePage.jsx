@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabaseClient';
@@ -13,7 +12,6 @@ export default function InductionGuidePage() {
   const [error, setError] = useState('');
   const [activeSectionId, setActiveSectionId] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('yard_guide_nav_collapsed') === 'true');
-  const [mobileSectionsOpen, setMobileSectionsOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
 
   const load = useCallback(async () => {
@@ -46,27 +44,12 @@ export default function InductionGuidePage() {
   }, [navCollapsed]);
 
   useEffect(() => {
-    if (!mobileSectionsOpen) return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
-    };
-  }, [mobileSectionsOpen]);
-
-  useEffect(() => {
     if (!sections.length) return;
 
     setCollapsedSections((prev) => {
       const next = {};
       sections.forEach((s) => {
-        next[s.id] = prev[s.id] ?? false;
+        next[s.id] = prev[s.id] ?? true;
       });
       return next;
     });
@@ -111,28 +94,11 @@ export default function InductionGuidePage() {
       setCollapsedSections((prev) => ({ ...prev, [id]: false }));
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setActiveSectionId(id);
-      setMobileSectionsOpen(false);
     }
   }, []);
 
-  const collapseAllSections = useCallback(() => {
-    const next = {};
-    sections.forEach((s) => {
-      next[s.id] = true;
-    });
-    setCollapsedSections(next);
-  }, [sections]);
-
-  const expandAllSections = useCallback(() => {
-    const next = {};
-    sections.forEach((s) => {
-      next[s.id] = false;
-    });
-    setCollapsedSections(next);
-  }, [sections]);
-
-  const renderNavItems = (compact = false) => (
-    <ul className={compact ? 'space-y-1.5' : 'space-y-2'}>
+  const renderNavItems = () => (
+    <ul className="space-y-2">
       {sections.map((s, idx) => {
         const isActive = activeSectionId === s.id;
         return (
@@ -168,12 +134,6 @@ export default function InductionGuidePage() {
               Essential rules, procedures and yard organisation for shunters on site.
             </p>
           </div>
-          <Link
-            to="/calendar"
-            className="btn-secondary btn-modern text-sm shrink-0 self-start"
-          >
-            Back to main page
-          </Link>
         </div>
 
         {loading && (
@@ -197,23 +157,6 @@ export default function InductionGuidePage() {
         {!loading && !error && sections.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start">
             <div className="space-y-6">
-              <div className="card-modern p-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={expandAllSections}
-                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  onClick={collapseAllSections}
-                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                >
-                  Collapse all
-                </button>
-              </div>
-
               {sections.map((section, idx) => {
                 const isCollapsed = !!collapsedSections[section.id];
                 const prev = idx > 0 ? sections[idx - 1] : null;
@@ -300,41 +243,6 @@ export default function InductionGuidePage() {
           </div>
         )}
 
-        {!loading && !error && sections.length > 0 && (
-          <>
-            <button
-              type="button"
-              onClick={() => setMobileSectionsOpen(true)}
-              className="lg:hidden fixed right-4 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom)+0.5rem)] rounded-full border border-slate-200/80 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md backdrop-blur-sm"
-            >
-              Sections
-            </button>
-
-            {mobileSectionsOpen && (
-              <div className="lg:hidden fixed inset-0 z-40 overscroll-none">
-                <button
-                  type="button"
-                  className="absolute inset-0 bg-black/40"
-                  aria-label="Close sections panel"
-                  onClick={() => setMobileSectionsOpen(false)}
-                />
-                <div className="absolute z-10 left-0 right-0 bottom-0 rounded-t-2xl border-t border-slate-200 bg-white p-4 max-h-[78vh] overflow-y-auto overscroll-contain touch-pan-y shadow-2xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-charcoal">Sections</p>
-                    <button
-                      type="button"
-                      onClick={() => setNavCollapsed((prev) => !prev)}
-                      className="btn-secondary btn-modern text-xs py-1 px-2"
-                    >
-                      {navCollapsed ? 'Expand' : 'Collapse'}
-                    </button>
-                  </div>
-                  {!navCollapsed && renderNavItems(true)}
-                </div>
-              </div>
-            )}
-          </>
-        )}
       </div>
     </div>
   );
