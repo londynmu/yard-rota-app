@@ -7,6 +7,7 @@ import {
   INDUCTION_GUIDE_MAX_IMAGE_BYTES,
 } from '../../lib/inductionGuideConstants';
 import { getInductionMarkdownComponents } from '../InductionGuide/inductionMarkdownComponents';
+import InductionMarkdownEditor from '../InductionGuide/InductionMarkdownEditor';
 import { useToast } from '../ui/ToastContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -296,14 +297,17 @@ export default function InductionGuideManager() {
               Place the cursor where you want the photo, then use Insert image. Images are stored in Supabase
               Storage and linked in the text.
             </p>
+            <p className="text-xs text-slate-500 mb-2">
+              Use toolbar colors: <code>::color-info[text]</code>, <code>::color-warning[text]</code>,{' '}
+              <code>::color-danger[text]</code>, <code>::color-success[text]</code>.
+            </p>
             <div className={`grid gap-4 ${showPreview ? 'md:grid-cols-2' : ''}`}>
-              <textarea
-                ref={bodyRef}
+              <InductionMarkdownEditor
+                textareaRef={bodyRef}
                 value={form.body_markdown}
-                onChange={(e) => setForm((f) => ({ ...f, body_markdown: e.target.value }))}
+                onChange={(nextValue) => setForm((f) => ({ ...f, body_markdown: nextValue }))}
                 rows={18}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono text-charcoal focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                placeholder="Write Markdown here. Use **bold**, lists, and Insert image for photos."
+                placeholder="Write Markdown here. Use toolbar actions and Insert image for photos."
               />
               {showPreview && (
                 <div className="rounded-xl border border-slate-200 bg-white/90 p-4 overflow-y-auto max-h-[28rem] text-sm">
