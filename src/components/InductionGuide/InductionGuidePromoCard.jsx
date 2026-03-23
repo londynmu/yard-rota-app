@@ -18,8 +18,8 @@ export default function InductionGuidePromoCard() {
         to="/yard-guide"
         className="block max-w-4xl mx-auto card-modern overflow-hidden group transition-shadow hover:shadow-xl"
       >
-        <div className="flex items-center gap-4 px-4 py-3.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-b border-slate-200/60">
-          <div className="p-2.5 rounded-xl bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 group-hover:scale-105 transition-transform">
+        <div className="min-h-[74px] flex items-center gap-4 px-4 py-3.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-b border-slate-200/60">
+          <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 group-hover:scale-105 transition-transform">
             <BookOpen className="w-6 h-6" strokeWidth={1.75} aria-hidden />
           </div>
           <div className="flex-1 min-w-0 text-left">
@@ -27,7 +27,7 @@ export default function InductionGuidePromoCard() {
               Shunter Guide
             </p>
           </div>
-          <span className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0 text-sm font-medium">
+          <span className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0 text-sm font-semibold">
             Open
           </span>
         </div>

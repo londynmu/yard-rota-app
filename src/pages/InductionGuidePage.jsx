@@ -11,7 +11,6 @@ export default function InductionGuidePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeSectionId, setActiveSectionId] = useState(null);
-  const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('yard_guide_nav_collapsed') === 'true');
   const [collapsedSections, setCollapsedSections] = useState({});
 
   const load = useCallback(async () => {
@@ -38,10 +37,6 @@ export default function InductionGuidePage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    localStorage.setItem('yard_guide_nav_collapsed', String(navCollapsed));
-  }, [navCollapsed]);
 
   useEffect(() => {
     if (!sections.length) return;
@@ -97,39 +92,12 @@ export default function InductionGuidePage() {
     }
   }, []);
 
-  const renderNavItems = () => (
-    <ul className="space-y-2">
-      {sections.map((s, idx) => {
-        const isActive = activeSectionId === s.id;
-        return (
-          <li key={s.id}>
-            <button
-              type="button"
-              onClick={() => goToSection(s.id)}
-              className={`w-full text-left rounded-lg border px-2.5 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'border-blue-200 bg-blue-50/80 text-blue-800'
-                  : 'border-slate-200/80 bg-white/70 text-slate-700 hover:bg-slate-50'
-              }`}
-              aria-current={isActive ? 'true' : undefined}
-            >
-              <span className="inline-flex items-center gap-2">
-                <span className="text-xs text-slate-500">{idx + 1}.</span>
-                <span className="truncate">{s.title}</span>
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-
   return (
     <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter Handbook</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter Guide</h1>
             <p className="text-sm text-slate-600 mt-1">
               Key safety rules and daily yard procedures for shunters.
             </p>
@@ -155,107 +123,88 @@ export default function InductionGuidePage() {
         )}
 
         {!loading && !error && sections.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start">
-            <div className="space-y-6">
-              {sections.map((section, idx) => {
-                const isCollapsed = !!collapsedSections[section.id];
-                const prev = idx > 0 ? sections[idx - 1] : null;
-                const next = idx < sections.length - 1 ? sections[idx + 1] : null;
+          <div className="space-y-6">
+            {sections.map((section, idx) => {
+              const isCollapsed = !!collapsedSections[section.id];
+              const prev = idx > 0 ? sections[idx - 1] : null;
+              const next = idx < sections.length - 1 ? sections[idx + 1] : null;
 
-                return (
-                  <article
-                    key={section.id}
-                    id={`induction-section-${section.id}`}
-                    data-section-id={section.id}
-                    className="card-modern p-5 md:p-6 scroll-mt-24"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCollapsedSections((prevState) => ({
-                          ...prevState,
-                          [section.id]: !prevState[section.id],
-                        }))
-                      }
-                      className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-4 border-b border-slate-200/80 pb-2'}`}
-                      aria-expanded={!isCollapsed}
-                    >
-                      <h2 className="text-xl font-bold text-charcoal group-hover:text-slate-900 transition-colors">
-                        {section.title}
-                      </h2>
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-200/90 bg-white text-slate-500 group-hover:text-slate-700 group-hover:border-slate-300 transition-colors shadow-sm">
-                        <svg
-                          className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </span>
-                    </button>
-
-                    {!isCollapsed && (
-                      <>
-                        <div className="induction-guide-prose">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                            {section.body_markdown || ''}
-                          </ReactMarkdown>
-                        </div>
-                        <div className="mt-4 flex items-center justify-between gap-2">
-                          {prev ? (
-                            <button
-                              type="button"
-                              onClick={() => goToSection(prev.id)}
-                              className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                            >
-                              Previous section
-                            </button>
-                          ) : (
-                            <span />
-                          )}
-                          {next ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCollapsedSections((prevState) => ({
-                                  ...prevState,
-                                  [section.id]: true,
-                                }));
-                                goToSection(next.id);
-                              }}
-                              className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                            >
-                              Next section
-                            </button>
-                          ) : (
-                            <span />
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-
-            <aside className="hidden lg:block sticky top-20">
-              <nav className="card-modern p-4 max-h-[calc(100vh-7rem)] overflow-y-auto" aria-label="Guide sections">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sections</p>
+              return (
+                <article
+                  key={section.id}
+                  id={`induction-section-${section.id}`}
+                  data-section-id={section.id}
+                  className="card-modern p-5 md:p-6 scroll-mt-24"
+                >
                   <button
                     type="button"
-                    onClick={() => setNavCollapsed((prev) => !prev)}
-                    className="btn-secondary btn-modern text-xs py-1 px-2"
-                    aria-expanded={!navCollapsed}
+                    onClick={() =>
+                      setCollapsedSections((prevState) => ({
+                        ...prevState,
+                        [section.id]: !prevState[section.id],
+                      }))
+                    }
+                    className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-4 border-b border-slate-200/80 pb-2'}`}
+                    aria-expanded={!isCollapsed}
                   >
-                    {navCollapsed ? 'Expand' : 'Collapse'}
+                    <h2 className="text-xl font-bold text-charcoal group-hover:text-slate-900 transition-colors">
+                      {section.title}
+                    </h2>
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-200/90 bg-white text-slate-500 group-hover:text-slate-700 group-hover:border-slate-300 transition-colors shadow-sm">
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
                   </button>
-                </div>
-                {!navCollapsed && renderNavItems()}
-              </nav>
-            </aside>
+
+                  {!isCollapsed && (
+                    <>
+                      <div className="induction-guide-prose">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                          {section.body_markdown || ''}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-2">
+                        {prev ? (
+                          <button
+                            type="button"
+                            onClick={() => goToSection(prev.id)}
+                            className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                          >
+                            Previous section
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        {next ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCollapsedSections((prevState) => ({
+                                ...prevState,
+                                [section.id]: true,
+                              }));
+                              goToSection(next.id);
+                            }}
+                            className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                          >
+                            Next section
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
 

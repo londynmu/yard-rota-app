@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy } from 'lucide-react';
 import { getMonthlyAwards } from '../../utils/shunterAwardsApi';
 
 const getMonthLabel = (monthKey) => {
@@ -111,13 +112,16 @@ function ShunterOfTheMonthCard() {
           onClick={() => setOpen((prev) => !prev)}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          className="w-full px-5 py-3.5 flex items-center justify-between bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border-b border-slate-200/60"
+          className="w-full min-h-[74px] px-4 py-3.5 flex items-center justify-between gap-4 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border-b border-slate-200/60"
         >
-          <p className="text-sm font-semibold text-slate-800">Shunter of the Month</p>
+          <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm text-blue-600">
+            <Trophy className="w-6 h-6" strokeWidth={1.75} aria-hidden />
+          </div>
+          <p className="flex-1 min-w-0 text-left text-sm font-semibold text-slate-800">Shunter of the Month</p>
           <motion.svg
             animate={{ rotate: open ? 180 : 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="w-5 h-5 text-slate-600"
+            className="w-5 h-5 text-slate-600 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
