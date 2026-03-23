@@ -169,22 +169,32 @@ export default function InductionGuidePage() {
                     data-section-id={section.id}
                     className="card-modern p-5 md:p-6 scroll-mt-24"
                   >
-                    <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-200/80 pb-2">
-                      <h2 className="text-xl font-bold text-charcoal">{section.title}</h2>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedSections((prevState) => ({
-                            ...prevState,
-                            [section.id]: !prevState[section.id],
-                          }))
-                        }
-                        className="btn-secondary btn-modern text-xs py-1 px-2.5"
-                        aria-expanded={!isCollapsed}
-                      >
-                        {isCollapsed ? 'Expand' : 'Collapse'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCollapsedSections((prevState) => ({
+                          ...prevState,
+                          [section.id]: !prevState[section.id],
+                        }))
+                      }
+                      className="w-full flex items-center justify-between gap-2 mb-4 border-b border-slate-200/80 pb-2 text-left group"
+                      aria-expanded={!isCollapsed}
+                    >
+                      <h2 className="text-xl font-bold text-charcoal group-hover:text-slate-900 transition-colors">
+                        {section.title}
+                      </h2>
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-200/90 bg-white text-slate-500 group-hover:text-slate-700 group-hover:border-slate-300 transition-colors shadow-sm">
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </span>
+                    </button>
 
                     {!isCollapsed && (
                       <>
