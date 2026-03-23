@@ -129,9 +129,9 @@ export default function InductionGuidePage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter yard induction</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-charcoal">Shunter Handbook</h1>
             <p className="text-sm text-slate-600 mt-1">
-              Essential rules, procedures and yard organisation for shunters on site.
+              Key safety rules and daily yard procedures for shunters.
             </p>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function InductionGuidePage() {
                           [section.id]: !prevState[section.id],
                         }))
                       }
-                      className="w-full flex items-center justify-between gap-2 mb-4 border-b border-slate-200/80 pb-2 text-left group"
+                      className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-4 border-b border-slate-200/80 pb-2'}`}
                       aria-expanded={!isCollapsed}
                     >
                       <h2 className="text-xl font-bold text-charcoal group-hover:text-slate-900 transition-colors">
@@ -203,7 +203,7 @@ export default function InductionGuidePage() {
                             {section.body_markdown || ''}
                           </ReactMarkdown>
                         </div>
-                        <div className="mt-6 pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2">
+                        <div className="mt-4 flex items-center justify-between gap-2">
                           {prev ? (
                             <button
                               type="button"
@@ -218,7 +218,13 @@ export default function InductionGuidePage() {
                           {next ? (
                             <button
                               type="button"
-                              onClick={() => goToSection(next.id)}
+                              onClick={() => {
+                                setCollapsedSections((prevState) => ({
+                                  ...prevState,
+                                  [section.id]: true,
+                                }));
+                                goToSection(next.id);
+                              }}
                               className="btn-secondary btn-modern text-xs py-1.5 px-3"
                             >
                               Next section
