@@ -14,6 +14,7 @@ import ProtectedRoute from './Auth/ProtectedRoute';
 import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
 import PreCheckReminder from './PreCheck/PreCheckReminder';
+import InductionGuidePromoCard from './InductionGuide/InductionGuidePromoCard';
 
 /**
  * Wrapper for React.lazy that adds retry logic for failed chunk loads
@@ -65,6 +66,7 @@ const TugManager = lazyWithRetry(() => import('../components/Admin/PreCheck/TugM
 const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/PreCheckList'));
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
 const TransportManagerDashboard = lazyWithRetry(() => import('../pages/TransportManagerDashboard'));
+const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePage'));
 
 /** Desktop top nav links — glass / Figma-aligned */
 function topNavLinkClassName(isActive) {
@@ -217,6 +219,7 @@ export default function HomePage() {
     if (path === '/vmu/prechecks') return 'PreChecks';
     if (path === '/vmu/check-items') return 'Check Items';
     if (path === '/transport-dashboard') return 'Dashboard';
+    if (path === '/yard-guide') return 'Yard induction';
     
     return 'My Rota';
   }, [location.pathname]);
@@ -290,7 +293,8 @@ export default function HomePage() {
   const path = location.pathname;
   const hideHeaderOnMobile =
     path === '/my-rota' || path === '/brakes' || path === '/calendar' ||
-    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard';
+    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard' ||
+    path === '/yard-guide';
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
@@ -304,7 +308,8 @@ export default function HomePage() {
           path === '/performance' ||
           path.startsWith('/precheck') ||
           path.startsWith('/vmu') ||
-          path === '/transport-dashboard';
+          path === '/transport-dashboard' ||
+          path === '/yard-guide';
         const isAdminPage = path === '/admin';
         const isProfilePage = path === '/profile';
         const isTransportDashboardPage = path === '/transport-dashboard';
@@ -541,8 +546,17 @@ export default function HomePage() {
               element={
                 <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
                   <PreCheckReminder />
+                  <InductionGuidePromoCard />
                   <ShunterOfTheMonthCard />
                   <CalendarPage />
+                </React.Suspense>
+              }
+            />
+            <Route
+              path="/yard-guide"
+              element={
+                <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
+                  <InductionGuidePage />
                 </React.Suspense>
               }
             />

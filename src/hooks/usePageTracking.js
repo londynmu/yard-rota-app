@@ -23,7 +23,8 @@ const getPageTitle = (pathname) => {
     '/profile': 'Profile',
     '/brakes': 'Breaks',
     '/performance': 'Performance Leaderboard',
-    '/admin/approvals': 'User Approvals'
+    '/admin/approvals': 'User Approvals',
+    '/yard-guide': 'Yard induction guide'
   };
   return titleMap[pathname] || pathname;
 };

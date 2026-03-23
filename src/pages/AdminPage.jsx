@@ -16,6 +16,7 @@ import TugManager from '../components/Admin/PreCheck/TugManager';
 import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
 import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
 import AttendancePage from './AttendancePage';
+import InductionGuideManager from '../components/Admin/InductionGuideManager';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -31,7 +32,7 @@ export default function AdminPage() {
     const validSections = [
       'dashboard', 'users', 'approvals', 'availability', 
       'rota-planner', 'breaks', 'attendance', 'performance', 'stats', 
-      'shunter-month', 'settings', 'tugs', 'prechecks', 'check-items'
+      'shunter-month', 'settings', 'tugs', 'prechecks', 'check-items', 'induction-guide'
     ];
     return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
   });
@@ -57,7 +58,8 @@ export default function AdminPage() {
       'tugs': 'Tug Management',
       'prechecks': 'PreCheck Reports',
       'check-items': 'Check Items',
-      'settings': 'Settings'
+      'settings': 'Settings',
+      'induction-guide': 'Yard induction guide'
     };
     const label = titles[activeSection] || 'Admin Panel';
     const titleElement = document.getElementById('page-title');
@@ -378,6 +380,8 @@ export default function AdminPage() {
         return <PerformanceImport />;
       case 'stats':
         return <LoginStats />;
+      case 'induction-guide':
+        return <InductionGuideManager />;
       default:
         return <DashboardView />;
     }

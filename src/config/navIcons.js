@@ -24,6 +24,7 @@ import {
   Wrench,
   Shield,
   UserCircle2,
+  BookOpen,
 } from 'lucide-react';
 
 const sizeClass = 'w-6 h-6 flex-shrink-0';
@@ -59,6 +60,7 @@ export function getAdminMenuItems(pendingApprovals = 0) {
     { id: 'tugs', label: 'Tugs', Icon: Truck, colorClass: colors.primary, description: 'Manage tug fleet & QR codes' },
     { id: 'prechecks', label: 'PreChecks', Icon: CheckSquare, colorClass: colors.success, description: 'Tug inspection reports' },
     { id: 'check-items', label: 'Check Items', Icon: ListTodo, colorClass: colors.info, description: 'Manage checklist & tooltips' },
+    { id: 'induction-guide', label: 'Yard induction guide', Icon: BookOpen, colorClass: colors.accent, description: 'New shunter guide content & images' },
     { id: 'shunter-month', label: 'Shunter of the Month', Icon: Medal, colorClass: colors.gold, description: 'Monthly Day & Night awards' },
     { id: 'settings', label: 'Settings', Icon: Cog, colorClass: colors.slate, description: 'Locations & Agencies' },
   ].map((item) => ({
