@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabaseClient';
@@ -11,6 +11,7 @@ export default function InductionGuidePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [collapsedSections, setCollapsedSections] = useState({});
+  const scrollContainerRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,22 +50,57 @@ export default function InductionGuidePage() {
     });
   }, [sections]);
 
-  const toggleSection = useCallback((id) => {
-    setCollapsedSections((prevState) => ({
-      ...prevState,
-      [id]: !prevState[id],
-    }));
+  const scrollSectionToTop = useCallback((id, behavior = 'smooth') => {
+    const target = document.getElementById(`induction-section-${id}`);
+    if (!target) return;
+
+    const container = scrollContainerRef.current;
+    const canScrollContainer = container && container.scrollHeight > container.clientHeight + 1;
+
+    if (canScrollContainer) {
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const nextTop = container.scrollTop + (targetRect.top - containerRect.top);
+      container.scrollTo({ top: Math.max(0, nextTop), behavior });
+      return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const nextTop = window.scrollY + targetRect.top;
+    window.scrollTo({ top: Math.max(0, nextTop), behavior });
   }, []);
 
-  const openSection = useCallback((id) => {
-    setCollapsedSections((prevState) => ({
-      ...prevState,
-      [id]: false,
-    }));
-  }, []);
+  const handleSectionClick = useCallback((id) => {
+    setCollapsedSections((prevState) => {
+      const isCurrentlyCollapsed = prevState[id] ?? true;
+
+      // Clicking an open card closes it.
+      if (!isCurrentlyCollapsed) {
+        return {
+          ...prevState,
+          [id]: true,
+        };
+      }
+
+      // Clicking a closed card opens only this one.
+      const next = { ...prevState };
+      Object.keys(next).forEach((key) => {
+        next[key] = true;
+      });
+      next[id] = false;
+      return next;
+    });
+
+    // Match My Rota pattern: wait for DOM update, then align selected card near top.
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        scrollSectionToTop(id);
+      });
+    }, 320);
+  }, [scrollSectionToTop]);
 
   return (
-    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
       <div className="page-content-inner">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
@@ -95,20 +131,18 @@ export default function InductionGuidePage() {
 
         {!loading && !error && sections.length > 0 && (
           <div className="space-y-6">
-            {sections.map((section, idx) => {
+            {sections.map((section) => {
               const isCollapsed = !!collapsedSections[section.id];
-              const prev = idx > 0 ? sections[idx - 1] : null;
-              const next = idx < sections.length - 1 ? sections[idx + 1] : null;
 
               return (
                 <article
                   key={section.id}
                   id={`induction-section-${section.id}`}
-                  className="card-modern p-4 md:p-5"
+                  className="card-modern p-4 md:p-5 scroll-mt-24"
                 >
                   <button
                     type="button"
-                    onClick={() => toggleSection(section.id)}
+                    onClick={() => handleSectionClick(section.id)}
                     className={`w-full flex items-center justify-between gap-2 text-left group ${isCollapsed ? '' : 'mb-3 border-b border-slate-200/80 pb-2'}`}
                     aria-expanded={!isCollapsed}
                   >
@@ -129,37 +163,11 @@ export default function InductionGuidePage() {
                   </button>
 
                   {!isCollapsed && (
-                    <>
-                      <div className="induction-guide-prose">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                          {section.body_markdown || ''}
-                        </ReactMarkdown>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        {prev ? (
-                          <button
-                            type="button"
-                            onClick={() => openSection(prev.id)}
-                            className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                          >
-                            Previous section
-                          </button>
-                        ) : (
-                          <span />
-                        )}
-                        {next ? (
-                          <button
-                            type="button"
-                            onClick={() => openSection(next.id)}
-                            className="btn-secondary btn-modern text-xs py-1.5 px-3"
-                          >
-                            Next section
-                          </button>
-                        ) : (
-                          <span />
-                        )}
-                      </div>
-                    </>
+                    <div className="induction-guide-prose">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                        {section.body_markdown || ''}
+                      </ReactMarkdown>
+                    </div>
                   )}
                 </article>
               );
