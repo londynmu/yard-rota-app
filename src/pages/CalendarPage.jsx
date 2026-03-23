@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
@@ -49,6 +49,17 @@ export default function CalendarPage() {
   
   // Ref to track popup timeout for cleanup
   const popupTimeoutRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    if (typeof document !== 'undefined') {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = 0;
+  }, []);
   
   // Function to show popup with proper cleanup
   const showPopup = useCallback((type, message, duration = 3000) => {
@@ -275,7 +286,10 @@ export default function CalendarPage() {
       )}
       
       {/* Main scrollable container */}
-      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
+      <div
+        ref={scrollContainerRef}
+        className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6"
+      >
         <div className="page-content-inner">
           
           {/* Availability Calendar Section - No white container */}
