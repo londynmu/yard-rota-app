@@ -112,7 +112,7 @@ export default function InductionGuidePage() {
         </div>
 
         {loading && (
-          <div className="card-modern p-8 animate-pulse space-y-3">
+          <div className="card-modern p-8 animate-pulse space-y-3 min-h-[min(24rem,55vh)]">
             <div className="h-6 bg-slate-100 rounded w-1/2" />
             <div className="h-4 bg-slate-100 rounded w-full" />
             <div className="h-4 bg-slate-100 rounded w-5/6" />

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../lib/NotificationContext';
+import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 const UserApprovalPage = () => {
   const { user } = useAuth();
@@ -206,8 +207,11 @@ const UserApprovalPage = () => {
                         {user.avatar_url ? (
                           <img
                             className="h-10 w-10 rounded-full object-cover"
-                            src={user.avatar_url}
+                            src={normalizeAvatarStorageUrl(user.avatar_url) || user.avatar_url}
                             alt={`${user.first_name || ''} ${user.last_name || ''}`}
+                            width={40}
+                            height={40}
+                            decoding="async"
                           />
                         ) : (
                           <span className="text-charcoal text-sm font-semibold">

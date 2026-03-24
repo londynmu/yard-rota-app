@@ -113,7 +113,8 @@ export function getInductionMarkdownComponents() {
         src={src}
         alt={alt || ''}
         loading="lazy"
-        className="max-w-full rounded-xl border border-slate-200/80 shadow-sm my-4"
+        decoding="async"
+        className="max-w-full h-auto max-h-[min(80vh,40rem)] rounded-xl border border-slate-200/80 shadow-sm my-4"
         {...rest}
       />
     ),

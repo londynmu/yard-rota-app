@@ -7,6 +7,7 @@ const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
+import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 const RANGE_OPTIONS = [
   { value: 'last_day', label: 'Last Day', durationDays: 1 },
@@ -257,7 +258,7 @@ const PerformanceLeaderboard = () => {
             userId,
             firstName: record.profiles.first_name,
             lastName: record.profiles.last_name,
-            avatarUrl: record.profiles.avatar_url,
+            avatarUrl: normalizeAvatarStorageUrl(record.profiles.avatar_url) || record.profiles.avatar_url,
             yardSystemId: record.profiles.yard_system_id,
             shiftPreference: record.profiles?.shift_preference ?? null,
             totalMoves: 0,

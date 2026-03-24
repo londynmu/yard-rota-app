@@ -7,6 +7,7 @@ import { useAdminStatus } from '../../hooks/useAdminStatus';
 import UserEditForm from './UserEditForm';
 import AddViolationModal from './AddViolationModal';
 import { formatDistanceToNow } from 'date-fns';
+import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 
 // Create a modal portal component
 const Modal = ({ isOpen, onClose, children }) => {
@@ -479,14 +480,16 @@ export default function UserList({ users, onRefresh }) {
 
       // If user has an avatar, delete it from storage
       if (userData?.avatar_url) {
-        const avatarPath = userData.avatar_url.split('/').slice(-2).join('/'); // Get 'avatars/filename.ext'
-        const { error: storageError } = await supabase.storage
-          .from('avatars')
-          .remove([avatarPath]);
+        const ref = parseAvatarStorageRef(userData.avatar_url);
+        if (ref) {
+          const { error: storageError } = await supabase.storage
+            .from(ref.bucket)
+            .remove([ref.objectPath]);
 
-        if (storageError) {
-          console.error('Error deleting avatar:', storageError);
-          // Continue with user deletion even if avatar deletion fails
+          if (storageError) {
+            console.error('Error deleting avatar:', storageError);
+            // Continue with user deletion even if avatar deletion fails
+          }
         }
       }
       
@@ -778,7 +781,7 @@ export default function UserList({ users, onRefresh }) {
                   {/* Avatar */}
                   <div className="flex-shrink-0 h-10 w-10 relative">
                     {user.avatar_url ? (
-                      <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt="" />
+                      <img className="h-10 w-10 rounded-full object-cover" src={normalizeAvatarStorageUrl(user.avatar_url) || user.avatar_url} alt="" width={40} height={40} decoding="async" />
                     ) : (
                       <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center">
                         <span className="text-charcoal text-sm font-semibold">

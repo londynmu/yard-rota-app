@@ -6,6 +6,7 @@ import HomePage from './components/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import { supabase } from './lib/supabaseClient';
 import { PROFILE_SELECT_FIELDS } from './lib/AuthContext';
+import { normalizeAvatarStorageUrl } from './utils/avatarUrl';
 import ResetPassword from './pages/ResetPassword';
 import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
@@ -97,7 +98,10 @@ function AppContent() {
             setError(error.message);
           }
         } else {
-          setSessionProfile(data);
+          setSessionProfile({
+            ...data,
+            avatar_url: normalizeAvatarStorageUrl(data.avatar_url) ?? data.avatar_url,
+          });
           // Admin, VMU and Transport Manager users bypass profile completion and approval checks
           if (data?.role === 'admin' || data?.role === 'vmu' || data?.role === 'transport_manager') {
             setIsProfileComplete(true);

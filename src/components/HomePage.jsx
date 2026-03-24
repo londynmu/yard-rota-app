@@ -15,6 +15,7 @@ import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
 import PreCheckReminder from './PreCheck/PreCheckReminder';
 import InductionGuidePromoCard from './InductionGuide/InductionGuidePromoCard';
+import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 /**
  * Wrapper for React.lazy that adds retry logic for failed chunk loads
@@ -113,7 +114,7 @@ export default function HomePage() {
 
     if (sessionProfile) {
       setAvatarLoaded(false);
-      setAvatarUrl(sessionProfile.avatar_url || '');
+      setAvatarUrl(normalizeAvatarStorageUrl(sessionProfile.avatar_url) || '');
       if (sessionProfile.first_name || sessionProfile.last_name) {
         setProfileName(
           `${sessionProfile.first_name || ''} ${sessionProfile.last_name || ''}`.trim()
@@ -141,7 +142,7 @@ export default function HomePage() {
         }
         if (data) {
           setAvatarLoaded(false);
-          setAvatarUrl(data.avatar_url || '');
+          setAvatarUrl(normalizeAvatarStorageUrl(data.avatar_url) || '');
           if (data.first_name || data.last_name) {
             setProfileName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
           } else {
@@ -361,6 +362,9 @@ export default function HomePage() {
                             <img
                               src={avatarUrl}
                               alt="Profile"
+                              width={40}
+                              height={40}
+                              decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
                             />
@@ -408,6 +412,9 @@ export default function HomePage() {
                             <img
                               src={avatarUrl}
                               alt="Profile"
+                              width={40}
+                              height={40}
+                              decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
                             />
@@ -455,6 +462,9 @@ export default function HomePage() {
                             <img
                               src={avatarUrl}
                               alt="Profile"
+                              width={40}
+                              height={40}
+                              decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
                             />
@@ -523,6 +533,9 @@ export default function HomePage() {
                         <img 
                           src={avatarUrl} 
                           alt="Profile" 
+                          width={40}
+                          height={40}
+                          decoding="async"
                           className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                           onLoad={() => setAvatarLoaded(true)}
                         />

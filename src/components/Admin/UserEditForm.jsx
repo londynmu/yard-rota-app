@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
+import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -93,7 +94,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       setShiftPreference(user.shift_preference || '');
       setIsActive(user.is_active !== false); // Default to true if not set
       setPerformanceScore(user.performance_score || 50);
-      setAvatarUrl(user.avatar_url || null);
+      setAvatarUrl(normalizeAvatarStorageUrl(user.avatar_url) || null);
       setCustomStartTime(user.custom_start_time || '');
       setPreferredLocation(user.preferred_location || '');
       setAgencyId(user.agency_id || null);
@@ -208,8 +209,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       if (avatar) {
         const fileExt = avatar.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-        
+        const filePath = fileName;
+
         const { error: uploadError } = await supabase
           .storage
           .from('user-avatars')

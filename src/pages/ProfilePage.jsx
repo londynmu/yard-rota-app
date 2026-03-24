@@ -4,6 +4,7 @@ import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
 import { format } from 'date-fns';
+import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -88,7 +89,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setFirstName(data.first_name || '');
         setLastName(data.last_name || '');
         setShiftPreference(data.shift_preference || 'day');
-        setAvatarUrl(data.avatar_url || '');
+        setAvatarUrl(normalizeAvatarStorageUrl(data.avatar_url) || '');
         // Load Rota Planner fields
         setCustomStartTime(data.custom_start_time || '');
         setPreferredLocation(data.preferred_location || '');
@@ -326,8 +327,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         
         const fileExt = avatar.name.split('.').pop();
         const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-        
+        const filePath = fileName;
+
         const { error: uploadError } = await supabaseClient.storage
           .from('avatars')
           .upload(filePath, avatar);

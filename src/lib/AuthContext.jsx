@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
 import { resetCalendarStaticCache } from '../utils/calendarStaticCache';
+import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 // Site URL for redirects - load from environment variables
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
@@ -30,6 +31,12 @@ export function AuthProvider({ children }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const newUser = session?.user || null;
+      if (!newUser) {
+        setUser(null);
+        setSessionProfile(null);
+        resetCalendarStaticCache();
+        return;
+      }
       // Only update state if user identity changed (login/logout/switch user)
       // Skip update on token refresh to prevent unnecessary re-renders across the app
       setUser(prev => (prev?.id === newUser?.id) ? prev : newUser);
