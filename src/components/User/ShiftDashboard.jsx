@@ -540,7 +540,7 @@ export default function ShiftDashboard({
         aria-label="Loading breaks"
       >
         {/* Match filter-bar-segmented + list height to reduce CLS when data arrives */}
-        <div className="mb-4 grid grid-cols-4 gap-1.5 rounded-2xl border border-slate-200/60 bg-white/50 py-2.5 px-2 sm:gap-2 sm:py-3 sm:px-3">
+        <div className="mb-4 grid grid-cols-4 gap-1.5 sm:gap-2">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}

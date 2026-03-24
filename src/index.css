@@ -115,9 +115,9 @@
     @apply bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-2xl shadow-lg overflow-hidden;
   }
 
-  /** Equal-width segmented control row (e.g. location + shift filters). See .cursor/rules/modern-page-design-system.mdc */
+  /** Equal-width segmented control row (e.g. location + shift filters). Layout only — no outer frame; segments are pill buttons. See .cursor/rules/modern-page-design-system.mdc */
   .filter-bar-segmented {
-    @apply w-full max-w-full min-w-0 md:w-max md:max-w-full grid grid-cols-4 gap-1.5 sm:gap-2 py-2.5 px-2 sm:py-3 sm:px-3 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50/95 to-white/90 backdrop-blur-sm shadow-sm overflow-hidden;
+    @apply w-full max-w-full min-w-0 md:w-max md:max-w-full grid grid-cols-4 gap-1.5 sm:gap-2;
   }
 
   /** Standard page content width + vertical rhythm (matches Calendar and main flows) */
