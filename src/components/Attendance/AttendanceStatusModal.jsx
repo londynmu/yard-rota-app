@@ -25,8 +25,8 @@ function AttendanceStatusModal({ open, onClose, slot, currentStatus, onSave, sav
   ];
 
   return (
-    <div className="fixed inset-0 bg-rota-modal-overlay flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl shadow-strong p-6 max-w-sm w-full">
+    <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 rounded-2xl shadow-strong p-6 max-w-sm w-full">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-charcoal">Mark attendance</h3>
           <button

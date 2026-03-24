@@ -36,6 +36,29 @@ const WeeklyRotaPage = () => {
   const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
   const [attendanceModalSlot, setAttendanceModalSlot] = useState(null);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
+  const isAnyModalOpen = showWeekModal || showLocationModal || showShiftModal || !!attendanceModalSlot;
+
+  // Lock background scroll while any modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousTouchAction = body.style.touchAction;
+
+    if (isAnyModalOpen) {
+      body.style.overflow = 'hidden';
+      documentElement.style.overflow = 'hidden';
+      body.style.touchAction = 'none';
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.touchAction = previousTouchAction;
+    };
+  }, [isAnyModalOpen]);
 
   // After changing expanded day on mobile, align the selected day just below the sticky header
   // When closing (expandedDayMobile becomes null), scroll back to top
@@ -757,7 +780,7 @@ const WeeklyRotaPage = () => {
             <button
               type="button"
               onClick={() => setShowWeekModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-slate-300/70"
+              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0"
             >
               Week {getWeek(weekStart)}
             </button>
@@ -766,7 +789,7 @@ const WeeklyRotaPage = () => {
             <button
               type="button"
               onClick={() => setShowLocationModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-slate-300/70 min-w-0 truncate"
+              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 min-w-0 truncate"
             >
               <span className="min-w-0 truncate">{selectedLocation || 'Hub'}</span>
             </button>
@@ -775,7 +798,7 @@ const WeeklyRotaPage = () => {
             <button
               type="button"
               onClick={() => setShowShiftModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-slate-300/70"
+              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-indigo-50/90 via-white to-violet-50/70 border border-indigo-200/60 shadow-sm hover:from-indigo-100/90 hover:to-violet-100/70 hover:border-indigo-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0"
             >
               {selectedShiftType === 'all' ? 'All'
                 : selectedShiftType === 'day' ? 'Day'
@@ -837,8 +860,8 @@ const WeeklyRotaPage = () => {
 
       {/* Week Selection Modal */}
       {showWeekModal && createPortal(
-        <div className="fixed inset-0 bg-rota-modal-overlay flex items-center justify-center z-50 p-4">
-          <div className="glass-card p-6 max-w-sm w-full shadow-strong rounded-2xl">
+        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-strong rounded-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-charcoal">Select Week</h3>
               <button
@@ -876,8 +899,8 @@ const WeeklyRotaPage = () => {
 
       {/* Location Selection Modal */}
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 bg-rota-modal-overlay flex items-center justify-center z-50 p-4">
-          <div className="glass-card p-6 max-w-sm w-full max-h-[80vh] flex flex-col shadow-strong rounded-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full max-h-[80vh] flex flex-col shadow-strong rounded-2xl overflow-hidden">
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
               <h3 className="text-xl font-bold text-charcoal">Select Location</h3>
               <button
@@ -910,8 +933,8 @@ const WeeklyRotaPage = () => {
 
       {/* Shift Type Selection Modal */}
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 bg-rota-modal-overlay flex items-center justify-center z-50 p-4">
-          <div className="glass-card p-6 max-w-sm w-full shadow-strong rounded-2xl">
+        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-strong rounded-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-charcoal">Select Shift Type</h3>
               <button
