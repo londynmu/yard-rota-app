@@ -724,7 +724,7 @@ const WeeklyRotaPage = () => {
       <>
         {/* Navigation skeleton */}
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
-          <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
+          <div className="w-full px-4 py-3 md:px-6 md:py-3.5">
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
@@ -734,7 +734,7 @@ const WeeklyRotaPage = () => {
         </div>
 
         <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
-          <div className="page-content-inner">
+          <div className="w-full space-y-6 min-h-screen">
           {/* Skeleton grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-2 mt-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -774,7 +774,7 @@ const WeeklyRotaPage = () => {
     <>
       {/* Week Navigation */}
       <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
-        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
+        <div className="w-full px-4 py-3 md:px-6 md:py-3.5">
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {/* Week Button */}
             <button
@@ -810,7 +810,7 @@ const WeeklyRotaPage = () => {
       </div>
 
       <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
-        <div className="page-content-inner">
+        <div className="w-full space-y-6 min-h-screen">
         {/* Week Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-2 mt-2">
           {/* Generate 7 days starting from weekStart */}
