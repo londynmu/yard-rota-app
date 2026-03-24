@@ -1,13 +1,25 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
-import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart2 } from 'lucide-react';
 const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
+import Modal from '../components/ui/Modal';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
-import { useAuth } from '../lib/AuthContext';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+
+/** Match CalendarPage break segment (selected state) */
+const FILTER_SEGMENT_CLASS =
+  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-slate-300/70 hover:shadow-sm';
+
+const modalOptionClass = (selected) =>
+  [
+    'w-full px-4 py-3 rounded-xl border text-sm font-medium transition-colors text-left',
+    selected
+      ? 'border-slate-200/60 bg-white/90 text-charcoal shadow-sm'
+      : 'border-transparent bg-white/60 text-slate-500 hover:border-slate-200/60 hover:bg-white/90 hover:text-slate-800',
+  ].join(' ');
 
 const RANGE_OPTIONS = [
   { value: 'last_day', label: 'Last Day', durationDays: 1 },
@@ -96,7 +108,6 @@ const secondsToTime = (totalSeconds) => {
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const lastFetchTime = useRef(0);
@@ -462,7 +473,7 @@ const PerformanceLeaderboard = () => {
 
   const getRankBadge = (rank) => {
     return (
-      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-gray-300 font-bold text-charcoal shadow-sm">
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 border-2 border-slate-200/60 font-semibold text-charcoal shadow-sm">
         {rank}
       </div>
     );
@@ -471,16 +482,15 @@ const PerformanceLeaderboard = () => {
   const getRowBackgroundClass = (rank) => {
     switch (rank) {
       case 1:
-        return 'bg-gradient-to-br from-yellow-100 via-amber-50 to-yellow-100 border-amber-300';
+        return 'bg-gradient-to-br from-amber-50/95 via-yellow-50/80 to-amber-50/90 border-amber-200/60';
       case 2:
-        return 'bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 border-gray-300';
+        return 'bg-gradient-to-br from-slate-100 to-base-50 border-slate-200/60';
       case 3:
-        return 'bg-gradient-to-br from-orange-100 via-amber-50 to-orange-100 border-orange-300';
+        return 'bg-gradient-to-br from-orange-50/90 to-amber-50/70 border-orange-200/60';
       default:
-        // Subtle alternating colors for other ranks
-        return rank % 2 === 0 
-          ? 'bg-blue-50 border-blue-200' 
-          : 'bg-green-50 border-green-200';
+        return rank % 2 === 0
+          ? 'bg-base-50/50 border-slate-200/60'
+          : 'bg-white/90 border-slate-200/60';
     }
   };
 
@@ -528,51 +538,52 @@ const PerformanceLeaderboard = () => {
     const tags = getPerformanceTags(user);
 
     return (
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        {/* Stats Grid - Compact 3 columns */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100">
-          <div className="p-2 text-center bg-gray-50">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Moves</p>
-            <p className="text-lg font-bold text-charcoal">{user.totalMoves.toLocaleString()}</p>
+      <div className="rounded-xl border border-slate-200/60 bg-white/90 backdrop-blur-sm shadow-sm overflow-hidden">
+        <div className="grid grid-cols-3 divide-x divide-slate-200/60">
+          <div className="p-2 text-center bg-base-50/80">
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Moves</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">{user.totalMoves.toLocaleString()}</p>
           </div>
-          <div className="p-2 text-center bg-gray-50">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Per Day</p>
-            <p className="text-lg font-bold text-charcoal">{movesPerDay}</p>
+          <div className="p-2 text-center bg-base-50/80">
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Per Day</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">{movesPerDay}</p>
           </div>
-          <div className="p-2 text-center bg-gray-50">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Days</p>
-            <p className="text-lg font-bold text-charcoal">{user.daysWorked}</p>
+          <div className="p-2 text-center bg-base-50/80">
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Days</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">{user.daysWorked}</p>
           </div>
         </div>
         {user.productivityRatio != null && (
-          <div className="px-2 py-1.5 border-t border-gray-100 bg-gray-50/50">
-            <p className="text-sm text-gray-600 text-center">Vs team avg: {Math.round(user.productivityRatio * 100)}%</p>
+          <div className="px-2 py-1.5 border-t border-slate-200/60 bg-base-50/50">
+            <p className="text-sm text-slate-600 text-center">
+              Vs team avg: {Math.round(user.productivityRatio * 100)}%
+            </p>
           </div>
         )}
-        
-        {/* Times Row */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+
+        <div className="grid grid-cols-3 divide-x divide-slate-200/60 border-t border-slate-200/60">
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Collect</p>
-            <p className="text-lg font-bold text-charcoal">{user.avgCollectTime}</p>
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Collect</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">{user.avgCollectTime}</p>
           </div>
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Travel</p>
-            <p className="text-lg font-bold text-charcoal">{user.avgTravelTime}</p>
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Travel</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">{user.avgTravelTime}</p>
           </div>
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-gray-500 font-medium">Full Loc</p>
-            <p className="text-lg font-bold text-charcoal">{(user.totalFullLocations || 0).toLocaleString()}</p>
+            <p className="text-[10px] uppercase text-slate-500 font-medium">Full Loc</p>
+            <p className="text-lg font-semibold text-charcoal tabular-nums">
+              {(user.totalFullLocations || 0).toLocaleString()}
+            </p>
           </div>
         </div>
 
-        {/* Tags - Inline */}
         {tags.length > 0 && (
-          <div className="px-2 py-1.5 border-t border-gray-100 flex flex-wrap gap-1.5">
+          <div className="px-2 py-1.5 border-t border-slate-200/60 flex flex-wrap gap-1.5">
             {tags.map((tag) => (
               <span
                 key={`${user.userId}-${tag}`}
-                className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200"
+                className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-base-100 text-slate-600 border border-slate-200/60"
               >
                 {tag}
               </span>
@@ -584,212 +595,188 @@ const PerformanceLeaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Sticky Badge Header (jak w My Rota) */}
-      <div className="sticky top-0 z-30 bg-slate-200 border-b border-gray-300 pt-safe">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="min-h-screen bg-transparent">
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
+        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
             <button
+              type="button"
               onClick={() => setShowRangeModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
+              className={FILTER_SEGMENT_CLASS}
             >
-              {getRangeLabel(selectedRange)}
+              <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{getRangeLabel(selectedRange)}</span>
             </button>
-            <button
-              onClick={() => setShowSortModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
-            >
+            <button type="button" onClick={() => setShowSortModal(true)} className={FILTER_SEGMENT_CLASS}>
               Sort
             </button>
-            <button
-              onClick={() => setShowShiftModal(true)}
-              className="flex items-center justify-center px-2 py-1.5 rounded-full border-2 border-slate-300 bg-slate-50 text-slate-700 text-sm font-semibold shadow-lg hover:bg-slate-100 transition-colors whitespace-nowrap flex-1 min-w-0"
-            >
-              Shift: {shiftFilter === 'all' ? 'All' : shiftFilter === 'day' ? 'Day' : 'Night'}
+            <button type="button" onClick={() => setShowShiftModal(true)} className={FILTER_SEGMENT_CLASS}>
+              <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">
+                Shift: {shiftFilter === 'all' ? 'All' : shiftFilter === 'day' ? 'Day' : 'Night'}
+              </span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Next report at 06:30 banner (00:00–06:29) */}
       {(() => {
         const d = new Date();
         const h = d.getHours();
         const m = d.getMinutes();
         const showNextReportAt0630 = h < 6 || (h === 6 && m < 30);
         return showNextReportAt0630 ? (
-          <div className="bg-slate-100 border-b border-slate-300 px-4 py-2 text-center">
+          <div className="border-b border-slate-200/60 bg-base-50/80 backdrop-blur-sm px-4 py-2 text-center">
             <p className="text-sm text-slate-700 font-medium">Next report will be available at 06:30.</p>
           </div>
         ) : null;
       })()}
 
-      {/* Range Modal */}
-      {showRangeModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-2xl w-full max-w-sm p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Select Range</h3>
-              <button
-                onClick={() => setShowRangeModal(false)}
-                className="text-gray-500 hover:text-charcoal transition-colors"
-                aria-label="Close range modal"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="pt-4 space-y-2">
-              {RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    setSelectedRange(option.value);
-                    setShowRangeModal(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-colors ${
-                    selectedRange === option.value
-                      ? 'bg-orange-600 text-white border-orange-600'
-                      : 'bg-white text-charcoal border-gray-200'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+      <Modal isOpen={showRangeModal} onClose={() => setShowRangeModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
+        <div className="p-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+            <h3 className="text-lg font-bold text-charcoal">Select Range</h3>
+            <button
+              type="button"
+              onClick={() => setShowRangeModal(false)}
+              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              aria-label="Close range modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Sort Modal */}
-      {showSortModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-2xl w-full max-w-sm p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Sort Leaderboard</h3>
+          <div className="pt-4 space-y-2">
+            {RANGE_OPTIONS.map((option) => (
               <button
-                onClick={() => setShowSortModal(false)}
-                className="text-gray-500 hover:text-charcoal transition-colors"
-                aria-label="Close sort modal"
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setSelectedRange(option.value);
+                  setShowRangeModal(false);
+                }}
+                className={modalOptionClass(selectedRange === option.value)}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                {option.label}
               </button>
-            </div>
-            <div className="pt-4 space-y-2">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    setSortOption(option.value);
-                    setShowSortModal(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-colors ${
-                    sortOption === option.value
-                      ? 'bg-orange-600 text-white border-orange-600'
-                      : 'bg-white text-charcoal border-gray-200'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+      </Modal>
 
-      {/* Shift Filter Modal */}
-      {showShiftModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-2xl w-full max-w-sm p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-charcoal">Shift</h3>
+      <Modal isOpen={showSortModal} onClose={() => setShowSortModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
+        <div className="p-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+            <h3 className="text-lg font-bold text-charcoal">Sort Leaderboard</h3>
+            <button
+              type="button"
+              onClick={() => setShowSortModal(false)}
+              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              aria-label="Close sort modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="pt-4 space-y-2">
+            {SORT_OPTIONS.map((option) => (
               <button
-                onClick={() => setShowShiftModal(false)}
-                className="text-gray-500 hover:text-charcoal transition-colors"
-                aria-label="Close shift modal"
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setSortOption(option.value);
+                  setShowSortModal(false);
+                }}
+                className={modalOptionClass(sortOption === option.value)}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                {option.label}
               </button>
-            </div>
-            <div className="pt-4 space-y-2">
-              {[
-                { value: 'all', label: 'All' },
-                { value: 'day', label: 'Day' },
-                { value: 'night', label: 'Night' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    setShiftFilter(option.value);
-                    setShowShiftModal(false);
-                  }}
-                  className={`w-full px-4 py-3 rounded-xl border-2 font-semibold transition-colors ${
-                    shiftFilter === option.value
-                      ? 'bg-orange-600 text-white border-orange-600'
-                      : 'bg-white text-charcoal border-gray-200'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+      </Modal>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-4 md:py-6">
+      <Modal isOpen={showShiftModal} onClose={() => setShowShiftModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
+        <div className="p-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+            <h3 className="text-lg font-bold text-charcoal">Shift</h3>
+            <button
+              type="button"
+              onClick={() => setShowShiftModal(false)}
+              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              aria-label="Close shift modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="pt-4 space-y-2">
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'day', label: 'Day' },
+              { value: 'night', label: 'Night' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setShiftFilter(option.value);
+                  setShowShiftModal(false);
+                }}
+                className={modalOptionClass(shiftFilter === option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+        <div className="page-content-inner">
+        <h1 className="sr-only">Performance leaderboard</h1>
         {loading ? (
           <div className="space-y-4 animate-pulse">
-            {/* Team Overview Skeleton */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-slate-200">
+            <div className="card-modern p-6">
               <div className="flex justify-between items-center mb-4">
-                <div className="h-6 bg-slate-300 rounded w-40" />
-                <div className="h-8 w-8 bg-slate-300 rounded-full" />
+                <div className="h-6 bg-base-200 rounded-lg w-40" />
+                <div className="h-8 w-8 bg-base-200 rounded-full" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-100 rounded-lg p-4">
-                  <div className="h-4 bg-slate-300 rounded w-24 mb-2" />
-                  <div className="h-8 bg-slate-300 rounded w-16" />
+                <div className="bg-base-100/80 rounded-xl p-4 border border-slate-200/40">
+                  <div className="h-4 bg-base-200 rounded w-24 mb-2" />
+                  <div className="h-8 bg-base-200 rounded w-16" />
                 </div>
-                <div className="bg-slate-100 rounded-lg p-4">
-                  <div className="h-4 bg-slate-300 rounded w-28 mb-2" />
-                  <div className="h-8 bg-slate-300 rounded w-20" />
+                <div className="bg-base-100/80 rounded-xl p-4 border border-slate-200/40">
+                  <div className="h-4 bg-base-200 rounded w-28 mb-2" />
+                  <div className="h-8 bg-base-200 rounded w-20" />
                 </div>
-                <div className="bg-slate-100 rounded-lg p-4">
-                  <div className="h-4 bg-slate-300 rounded w-32 mb-2" />
-                  <div className="h-8 bg-slate-300 rounded w-20" />
+                <div className="bg-base-100/80 rounded-xl p-4 border border-slate-200/40">
+                  <div className="h-4 bg-base-200 rounded w-32 mb-2" />
+                  <div className="h-8 bg-base-200 rounded w-20" />
                 </div>
               </div>
             </div>
 
-            {/* Leaderboard Items Skeleton */}
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-lg p-4 border-2 border-slate-200">
+              <div key={i} className="card-modern p-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-300 rounded-full" />
+                  <div className="w-12 h-12 bg-base-200 rounded-full" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-5 bg-slate-300 rounded w-40" />
-                    <div className="h-4 bg-slate-200 rounded w-60" />
+                    <div className="h-5 bg-base-200 rounded-lg w-40" />
+                    <div className="h-4 bg-base-100 rounded-lg w-60" />
                   </div>
-                  <div className="h-8 w-8 bg-slate-300 rounded-full" />
+                  <div className="h-8 w-8 bg-base-200 rounded-full" />
                 </div>
               </div>
             ))}
           </div>
         ) : leaderboardData.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold text-charcoal mb-2">No Performance Data</h3>
-            <p className="text-gray-600">No data available for the selected period.</p>
+          <div className="card-modern p-10 text-center">
+            <BarChart2 className="w-14 h-14 mx-auto mb-4 text-slate-400" strokeWidth={1.5} aria-hidden />
+            <h2 className="text-xl font-bold text-charcoal mb-2">No Performance Data</h2>
+            <p className="text-slate-600 text-sm">No data available for the selected period.</p>
           </div>
         ) : (
           <>
@@ -797,26 +784,27 @@ const PerformanceLeaderboard = () => {
             <section className="mb-6">
               <motion.div
                 layout
-                className={`overflow-hidden shadow-lg cursor-pointer ${
-                  teamOverviewExpanded 
-                    ? 'rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 border-2 border-slate-300' 
-                    : 'rounded-full bg-gradient-to-r from-slate-400 to-slate-300'
+                className={`card-modern overflow-hidden cursor-pointer transition-shadow ${
+                  teamOverviewExpanded ? 'shadow-lg' : 'shadow-md'
                 }`}
                 onClick={() => setTeamOverviewExpanded(!teamOverviewExpanded)}
-                whileTap={{ scale: teamOverviewExpanded ? 0.99 : 0.95 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
+                whileTap={{ scale: teamOverviewExpanded ? 0.99 : 0.98 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
               >
-                {/* Header - Always Visible */}
-                <motion.div 
-                  className={`flex items-center justify-between ${teamOverviewExpanded ? 'p-4' : 'px-6 py-3'}`}
+                <motion.div
+                  className={`flex items-center justify-between border-b border-slate-200/60 bg-gradient-to-r from-base-50 to-white ${
+                    teamOverviewExpanded ? 'p-4' : 'px-4 py-3'
+                  }`}
                   layout
                 >
-                  <div className="flex items-center gap-3">
-                    <motion.span layout className={teamOverviewExpanded ? 'text-xl' : 'text-2xl'}>
-                      📊
-                    </motion.span>
-                    <div>
-                      <motion.p layout className={`font-bold text-sm ${teamOverviewExpanded ? 'text-charcoal' : 'text-white'}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <BarChart2
+                      className={`shrink-0 ${teamOverviewExpanded ? 'w-6 h-6 text-blue-600' : 'w-7 h-7 text-blue-600'}`}
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                    <div className="min-w-0">
+                      <motion.p layout className="font-bold text-sm text-charcoal">
                         Team Overview
                       </motion.p>
                       {!teamOverviewExpanded && (
@@ -824,17 +812,17 @@ const PerformanceLeaderboard = () => {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="text-white text-xs"
+                          className="text-slate-600 text-xs truncate"
                         >
                           {leaderboardData.length} active shunters
                         </motion.p>
                       )}
                     </div>
                   </div>
-                  <motion.svg 
-                    className={`w-5 h-5 flex-shrink-0 ${teamOverviewExpanded ? 'text-charcoal' : 'text-white'}`} 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <motion.svg
+                    className="w-5 h-5 flex-shrink-0 text-charcoal"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                     animate={{ rotate: teamOverviewExpanded ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
@@ -853,26 +841,26 @@ const PerformanceLeaderboard = () => {
                       transition={{ duration: 0.4, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-4 pb-4 space-y-2 pointer-events-none">
-                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                      <div className="px-4 pb-4 pt-2 space-y-2 pointer-events-none bg-white/50">
+                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
                           <span className="text-sm text-slate-700">Active shunters</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.activeShunters}</span>
+                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.activeShunters}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
                           <span className="text-sm text-slate-700">Total moves</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.totalMoves.toLocaleString()}</span>
+                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.totalMoves.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
                           <span className="text-sm text-slate-700">Avg moves / day</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
+                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-300">
+                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
                           <span className="text-sm text-slate-700">Total full locations</span>
-                          <span className="text-lg font-bold text-charcoal">{teamHighlights.totalFullLocations.toLocaleString()}</span>
+                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.totalFullLocations.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between py-2">
                           <span className="text-sm text-slate-700">Top performer</span>
-                          <span className="text-lg font-bold text-charcoal">
+                          <span className="text-lg font-semibold text-charcoal truncate max-w-[55%] text-right">
                             {rankedLeaderboardData.list[0] ? formatShunterName(rankedLeaderboardData.list[0]) : '—'}
                           </span>
                         </div>
@@ -887,43 +875,41 @@ const PerformanceLeaderboard = () => {
             <section className="mb-8">
               <Suspense
                 fallback={
-                  <div className="w-full aspect-video min-h-[200px] rounded-xl bg-slate-100/90 animate-pulse" aria-hidden />
+                  <div className="card-modern w-full min-h-[220px] animate-pulse bg-base-50/90" aria-hidden />
                 }
               >
                 <PerformanceChart data={trendSeries} isAllTime={selectedRange === 'all'} />
               </Suspense>
             </section>
 
-            {/* Detailed list - Floating cards */}
             <section>
-              <div className="flex items-end justify-between mb-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Detailed view</p>
+                  <h2 className="text-xl font-bold text-charcoal tracking-tight">Detailed view</h2>
                   {rankedLeaderboardData.list.length === 0 ? (
-                    <p className="text-sm text-gray-600 mt-0.5">No shunters match the current filters.</p>
+                    <p className="text-sm text-slate-600 mt-1">No shunters match the current filters.</p>
                   ) : (
-                    <p className="text-sm text-gray-600 mt-0.5">
+                    <p className="text-sm text-slate-600 mt-1">
                       {rankedLeaderboardData.list.length} shunters ({rankedLeaderboardData.belowAverageCount} below average)
                     </p>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Tap card for details</p>
+                <p className="text-sm text-slate-500 shrink-0">Tap card for details</p>
               </div>
               <div className="space-y-3">
-                {/* Floating Cards - Unified Design */}
                 {rankedLeaderboardData.list.map((user) => {
                   const isExpanded = expandedUserId === user.userId;
                   const cardBgClass = getRowBackgroundClass(user.rank);
                   return (
                     <motion.div
                       key={user.userId}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: user.rank * 0.03 }}
-                      whileHover={{ y: -2, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
-                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.25, delay: user.rank * 0.03 }}
+                      whileHover={{ y: -1, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)' }}
+                      whileTap={{ scale: 0.99 }}
                       onClick={() => toggleExpandedUser(user.userId)}
-                      className={`${cardBgClass} rounded-2xl border-2 p-4 shadow-md cursor-pointer transition-all ${user.isBelowAverage ? 'border-l-4 border-l-amber-700/60' : ''}`}
+                      className={`${cardBgClass} rounded-2xl border p-4 shadow-sm cursor-pointer transition-all backdrop-blur-sm ${user.isBelowAverage ? 'border-l-4 border-l-amber-600/70' : ''}`}
                     >
                       {/* Header Row */}
                       <div className="flex items-center gap-3">
@@ -937,61 +923,61 @@ const PerformanceLeaderboard = () => {
                             className="w-12 h-12 md:w-10 md:h-10 rounded-full border-2 border-white shadow-md"
                           />
                         ) : (
-                          <div className="w-12 h-12 md:w-10 md:h-10 rounded-full bg-gray-400 flex items-center justify-center font-bold text-white shadow-md">
+                          <div className="w-12 h-12 md:w-10 md:h-10 rounded-full bg-slate-400 flex items-center justify-center font-semibold text-white text-sm shadow-md">
                             {user.firstName?.charAt(0)}
                             {user.lastName?.charAt(0)}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-charcoal truncate">
+                          <div className="font-medium text-charcoal truncate">
                             {formatShunterName(user)}
                           </div>
-                          <div className="text-xs text-gray-600 font-mono">{user.yardSystemId}</div>
+                          <div className="text-xs text-slate-600 font-mono">{user.yardSystemId}</div>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             {user.shiftPreference && (
-                              <span className="text-[10px] font-medium text-gray-500">
+                              <span className="text-[10px] font-medium text-slate-500">
                                 {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : 'Night'}
                               </span>
                             )}
                             {user.isBelowAverage && (
-                              <span className="text-[10px] font-semibold text-amber-700">Below average output</span>
+                              <span className="text-[10px] font-medium text-amber-700">Below average output</span>
                             )}
                             {user.isHighOutput && (
-                              <span className="text-[10px] font-semibold text-emerald-600">High output</span>
+                              <span className="text-[10px] font-medium text-emerald-600">High output</span>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right tabular-nums">
                           {sortOption === 'moves' && (
                             <>
-                              <div className="text-2xl font-bold text-charcoal">{user.totalMoves}</div>
-                              <div className="text-xs text-gray-600">moves</div>
+                              <div className="text-2xl font-semibold text-charcoal">{user.totalMoves}</div>
+                              <div className="text-xs text-slate-600">moves</div>
                             </>
                           )}
                           {sortOption === 'collect' && (
                             <>
-                              <div className="text-2xl font-bold text-charcoal">{user.avgCollectTime}</div>
-                              <div className="text-xs text-gray-600">collect</div>
+                              <div className="text-2xl font-semibold text-charcoal">{user.avgCollectTime}</div>
+                              <div className="text-xs text-slate-600">collect</div>
                             </>
                           )}
                           {sortOption === 'travel' && (
                             <>
-                              <div className="text-2xl font-bold text-charcoal">{user.avgTravelTime}</div>
-                              <div className="text-xs text-gray-600">travel</div>
+                              <div className="text-2xl font-semibold text-charcoal">{user.avgTravelTime}</div>
+                              <div className="text-xs text-slate-600">travel</div>
                             </>
                           )}
                           {sortOption === 'per_day' && (
                             <>
-                              <div className="text-2xl font-bold text-charcoal">{user.movesPerDay != null ? user.movesPerDay.toFixed(1) : '—'}</div>
-                              <div className="text-xs text-gray-600">per day</div>
+                              <div className="text-2xl font-semibold text-charcoal">{user.movesPerDay != null ? user.movesPerDay.toFixed(1) : '—'}</div>
+                              <div className="text-xs text-slate-600">per day</div>
                             </>
                           )}
                           {sortOption === 'shift' && (
                             <>
-                              <div className="text-2xl font-bold text-charcoal">
+                              <div className="text-2xl font-semibold text-charcoal">
                                 {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : user.shiftPreference === 'night' ? 'Night' : '—'}
                               </div>
-                              <div className="text-xs text-gray-600">shift</div>
+                              <div className="text-xs text-slate-600">shift</div>
                             </>
                           )}
                         </div>
@@ -1018,6 +1004,7 @@ const PerformanceLeaderboard = () => {
             </section>
           </>
         )}
+        </div>
       </div>
     </div>
   );
