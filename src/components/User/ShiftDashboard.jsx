@@ -1154,7 +1154,7 @@ export default function ShiftDashboard({
                   };
 
                   return (
-                    <div className="space-y-3 mb-4">
+                    <div className="mb-4 flex flex-col gap-3 pt-3">
                       {breakHeaderControls && (
                         <div className="w-full">
                           {breakHeaderControls}
