@@ -28,7 +28,7 @@ const getInitialSelectedShifts = () => {
   }
 };
 
-export default function CalendarPage() {
+export default function CalendarPage({ desktopBelowCalendar = null }) {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -290,143 +290,272 @@ export default function CalendarPage() {
         ref={scrollContainerRef}
         className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6"
       >
-        <div className="page-content-inner">
-          
-          {/* Availability Calendar Section - No white container */}
-          <div>
-            {errorMessage && (
-              <div className="mb-4 p-3 bg-rota-alert-error-bg text-rota-alert-error-text border border-rota-alert-error-border rounded-xl shadow-sm">
-                {errorMessage}
+        <div className="page-content-inner-desktop-wide">
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-rota-alert-error-bg text-rota-alert-error-text border border-rota-alert-error-border rounded-xl shadow-sm">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="md:hidden">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={handlePreviousMonth}
+                  className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                  aria-label="Previous month"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                <h3 className="text-2xl font-bold text-charcoal tracking-tight">
+                  {format(currentDate, 'MMMM yyyy')}
+                </h3>
+
+                <button
+                  onClick={handleNextMonth}
+                  className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                  aria-label="Next month"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              <CalendarGrid
+                currentDate={currentDate}
+                dayData={dayData}
+                onDayClick={handleDayClick}
+                isLoading={loading}
+              />
+            </div>
+
+            {showManageBreaksButton && (
+              <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
+                <Link
+                  to="/brakes"
+                  className="inline-flex items-center justify-center gap-2 w-full md:max-w-md px-4 py-3 text-sm font-medium rounded-xl bg-white/90 backdrop-blur-sm border-2 border-rota-btn-outline-border text-charcoal hover:border-charcoal/40 hover:bg-white hover:shadow-md transition-all duration-200 active:scale-[0.99]"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Manage my breaks
+                </Link>
               </div>
             )}
-            
-            {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={handlePreviousMonth}
-                className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
-                aria-label="Previous month"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <h3 className="text-2xl font-bold text-charcoal tracking-tight">
-                {format(currentDate, 'MMMM yyyy')}
-              </h3>
-              
-              <button
-                onClick={handleNextMonth}
-                className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
-                aria-label="Next month"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Calendar Grid */}
-            <CalendarGrid
-              currentDate={currentDate}
-              dayData={dayData}
-              onDayClick={handleDayClick}
-              isLoading={loading}
+
+            <ShiftDashboard
+              initialView="breaks"
+              hideTabSwitcher={true}
+              hideLocationButton={true}
+              selectedLocation={selectedLocation}
+              renderShiftBadges={true}
+              selectedShifts={selectedShifts}
+              onShiftCountsChange={setShiftCounts}
+              onUserBreakLabelChange={setUserBreakLabel}
+              breakHeaderControls={(
+                <div className="filter-bar-segmented">
+                  <button
+                    type="button"
+                    onClick={handleLocationToggle}
+                    disabled={availableLocations.length === 0}
+                    className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
+                      availableLocations.length === 0
+                        ? 'text-slate-300 cursor-not-allowed'
+                        : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
+                    }`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+                    <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleShiftToggle('day')}
+                    title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                    aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                    className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                      selectedShifts.includes('day')
+                        ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
+                        : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                    }`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
+                    <span>Day</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleShiftToggle('afternoon')}
+                    title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                    aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                    className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                      selectedShifts.includes('afternoon')
+                        ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
+                        : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                    }`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
+                    <span>
+                      <span className="sm:hidden">Aft</span>
+                      <span className="hidden sm:inline">Afternoon</span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleShiftToggle('night')}
+                    title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                    aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                    className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                      selectedShifts.includes('night')
+                        ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
+                        : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                    }`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
+                    <span>Night</span>
+                  </button>
+                </div>
+              )}
             />
           </div>
-          
-          {showManageBreaksButton && (
-          <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
-            <Link
-              to="/brakes"
-              className="inline-flex items-center justify-center gap-2 w-full md:max-w-md px-4 py-3 text-sm font-medium rounded-xl bg-white/90 backdrop-blur-sm border-2 border-rota-btn-outline-border text-charcoal hover:border-charcoal/40 hover:bg-white hover:shadow-md transition-all duration-200 active:scale-[0.99]"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Manage my breaks
-            </Link>
-          </div>
-          )}
-          
-          {/* Today's Breaks List - No container, full width like calendar */}
-          <ShiftDashboard 
-            initialView="breaks" 
-            hideTabSwitcher={true} 
-            hideLocationButton={true}
-            selectedLocation={selectedLocation}
-            renderShiftBadges={true}
-            selectedShifts={selectedShifts}
-            onShiftCountsChange={setShiftCounts}
-            onUserBreakLabelChange={setUserBreakLabel}
-            breakHeaderControls={(
-              <div className="filter-bar-segmented">
+
+          <div className="hidden md:grid md:grid-cols-2 md:gap-6 md:items-start">
+            <div>
+              <div className="flex items-center justify-between mb-4">
                 <button
-                  type="button"
-                  onClick={handleLocationToggle}
-                  disabled={availableLocations.length === 0}
-                  className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
-                    availableLocations.length === 0
-                      ? 'text-slate-300 cursor-not-allowed'
-                      : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
-                  }`}
+                  onClick={handlePreviousMonth}
+                  className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                  aria-label="Previous month"
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
-                  <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleShiftToggle('day')}
-                  title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
-                  aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
-                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                    selectedShifts.includes('day')
-                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
-                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                  }`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
-                  <span>Day</span>
-                </button>
+                <h3 className="text-2xl font-bold text-charcoal tracking-tight">
+                  {format(currentDate, 'MMMM yyyy')}
+                </h3>
 
                 <button
-                  type="button"
-                  onClick={() => handleShiftToggle('afternoon')}
-                  title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
-                  aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
-                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                    selectedShifts.includes('afternoon')
-                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
-                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                  }`}
+                  onClick={handleNextMonth}
+                  className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                  aria-label="Next month"
                 >
-                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
-                  <span>
-                    <span className="sm:hidden">Aft</span>
-                    <span className="hidden sm:inline">Afternoon</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleShiftToggle('night')}
-                  title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
-                  aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
-                  className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                    selectedShifts.includes('night')
-                      ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
-                      : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                  }`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
-                  <span>Night</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
-            )}
-          />
-          
+
+              <CalendarGrid
+                currentDate={currentDate}
+                dayData={dayData}
+                onDayClick={handleDayClick}
+                isLoading={loading}
+              />
+
+              <div className="mt-4 space-y-3">
+                {desktopBelowCalendar}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {showManageBreaksButton && (
+                <div className="w-full">
+                  <Link
+                    to="/brakes"
+                    className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 text-sm font-medium rounded-xl bg-white/90 backdrop-blur-sm border-2 border-rota-btn-outline-border text-charcoal hover:border-charcoal/40 hover:bg-white hover:shadow-md transition-all duration-200 active:scale-[0.99]"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-charcoal/70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Manage my breaks
+                  </Link>
+                </div>
+              )}
+
+              <ShiftDashboard
+                initialView="breaks"
+                hideTabSwitcher={true}
+                hideLocationButton={true}
+                selectedLocation={selectedLocation}
+                renderShiftBadges={true}
+                selectedShifts={selectedShifts}
+                onShiftCountsChange={setShiftCounts}
+                onUserBreakLabelChange={setUserBreakLabel}
+                breakHeaderControls={(
+                  <div className="filter-bar-segmented filter-bar-segmented-desktop-full">
+                    <button
+                      type="button"
+                      onClick={handleLocationToggle}
+                      disabled={availableLocations.length === 0}
+                      className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
+                        availableLocations.length === 0
+                          ? 'text-slate-300 cursor-not-allowed'
+                          : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
+                      }`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+                      <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleShiftToggle('day')}
+                      title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                      aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+                      className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                        selectedShifts.includes('day')
+                          ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
+                          : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                      }`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
+                      <span>Day</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleShiftToggle('afternoon')}
+                      title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                      aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+                      className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                        selectedShifts.includes('afternoon')
+                          ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
+                          : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                      }`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
+                      <span>
+                        <span className="sm:hidden">Aft</span>
+                        <span className="hidden sm:inline">Afternoon</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleShiftToggle('night')}
+                      title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                      aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+                      className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+                        selectedShifts.includes('night')
+                          ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
+                          : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+                      }`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
+                      <span>Night</span>
+                    </button>
+                  </div>
+                )}
+              />
+            </div>
+          </div>
         </div>
       </div>
       

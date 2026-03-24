@@ -72,8 +72,8 @@ function ShunterOfTheMonthCard() {
 
   if (loading) {
     return (
-      <div className="mb-3 px-4 mt-2">
-        <div className="max-w-4xl mx-auto card-modern px-4 py-3 min-h-[48px] flex items-center">
+      <div className="mb-3 px-4 mt-2 md:px-0 md:mt-0">
+        <div className="max-w-4xl md:max-w-none mx-auto card-modern px-4 py-3 min-h-[48px] flex items-center">
           <div className="flex-1">
             <div className="h-4 w-40 bg-slate-100 rounded animate-pulse" />
           </div>
@@ -104,9 +104,9 @@ function ShunterOfTheMonthCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="mb-3 px-4 mt-2"
+      className="mb-3 px-4 mt-2 md:px-0 md:mt-0"
     >
-      <div className="max-w-4xl mx-auto card-modern">
+      <div className="max-w-4xl md:max-w-none mx-auto card-modern">
         <motion.button
           type="button"
           onClick={() => setOpen((prev) => !prev)}

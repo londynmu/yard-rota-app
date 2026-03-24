@@ -124,6 +124,20 @@
   .page-content-inner {
     @apply max-w-4xl mx-auto space-y-6 min-h-screen;
   }
+
+  .page-content-inner-desktop-compact {
+    @apply page-content-inner md:min-h-0;
+  }
+
+  .page-content-inner-desktop-wide {
+    @apply page-content-inner-desktop-compact md:max-w-none;
+  }
+
+  /* Desktop variant: segmented break filters fill full column width */
+  .filter-bar-segmented-desktop-full {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 @layer utilities {

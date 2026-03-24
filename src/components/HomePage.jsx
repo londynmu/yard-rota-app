@@ -546,9 +546,21 @@ export default function HomePage() {
               element={
                 <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
                   <PreCheckReminder />
-                  <InductionGuidePromoCard />
-                  <ShunterOfTheMonthCard />
-                  <CalendarPage />
+                  <div className="md:hidden">
+                    <InductionGuidePromoCard />
+                    <ShunterOfTheMonthCard />
+                    <CalendarPage />
+                  </div>
+                  <div className="hidden md:block">
+                    <CalendarPage
+                      desktopBelowCalendar={
+                        <>
+                          <InductionGuidePromoCard />
+                          <ShunterOfTheMonthCard />
+                        </>
+                      }
+                    />
+                  </div>
                 </React.Suspense>
               }
             />

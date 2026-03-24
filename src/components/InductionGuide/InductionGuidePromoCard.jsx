@@ -12,11 +12,11 @@ export default function InductionGuidePromoCard() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="mb-3 px-4 mt-2"
+      className="mb-3 px-4 mt-2 md:px-0 md:mt-0"
     >
       <Link
         to="/yard-guide"
-        className="block max-w-4xl mx-auto card-modern overflow-hidden group transition-shadow hover:shadow-xl"
+        className="block max-w-4xl md:max-w-none mx-auto card-modern overflow-hidden group transition-shadow hover:shadow-xl"
       >
         <div className="min-h-[74px] flex items-center gap-4 px-4 py-3.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-b border-slate-200/60">
           <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 group-hover:scale-105 transition-transform">
