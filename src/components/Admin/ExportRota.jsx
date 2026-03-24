@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 // Funkcja pomocnicza do uzyskania następnej soboty lub bieżącej, jeśli dzisiaj jest sobota
 const getNextOrCurrentSaturday = (date) => {

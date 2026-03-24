@@ -104,6 +104,11 @@ export default defineConfig(({ mode }) => {
   ],
   base: '/',
   build: {
+    // Do not preload vendor-charts on first paint — charts load only on /performance etc.
+    modulePreload: {
+      resolveDependencies: (filename, deps) =>
+        deps.filter((dep) => !dep.includes('vendor-charts')),
+    },
     rollupOptions: {
       output: {
         manualChunks: {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-24T20:08:15.448Z",
+  "generatedAt": "2026-03-24T20:33:18.193Z",
   "baseUrl": "https://shunters.net",
   "gatherMode": "navigation",
   "pages": [
@@ -8,16 +8,16 @@
       "requestedUrl": "https://shunters.net/calendar",
       "finalDisplayedUrl": "https://shunters.net/login",
       "metrics": {
-        "performanceCategoryScore": 0.69,
-        "firstContentfulPaintMs": 4763.754,
-        "largestContentfulPaintMs": 4946.754,
-        "totalBlockingTimeMs": 66.5,
+        "performanceCategoryScore": 0.76,
+        "firstContentfulPaintMs": 2899.6055,
+        "largestContentfulPaintMs": 4888.6055,
+        "totalBlockingTimeMs": 69.5,
         "cumulativeLayoutShift": 0,
         "interactionToNextPaintMs": null,
-        "speedIndex": 5305.971078000432,
-        "timeToInteractiveMs": 5029.254,
-        "maxPotentialFidMs": 183,
-        "networkServerLatencyMs": 263.754
+        "speedIndex": 3566.8969199984417,
+        "timeToInteractiveMs": 4971.1055,
+        "maxPotentialFidMs": 189,
+        "networkServerLatencyMs": 199.6055
       }
     },
     {
@@ -25,16 +25,16 @@
       "requestedUrl": "https://shunters.net/admin",
       "finalDisplayedUrl": "https://shunters.net/login",
       "metrics": {
-        "performanceCategoryScore": 0.66,
-        "firstContentfulPaintMs": 4848.6584,
-        "largestContentfulPaintMs": 4882.6584,
-        "totalBlockingTimeMs": 33,
+        "performanceCategoryScore": 0.65,
+        "firstContentfulPaintMs": 4894.5387,
+        "largestContentfulPaintMs": 4985.0387,
+        "totalBlockingTimeMs": 0,
         "cumulativeLayoutShift": 0,
         "interactionToNextPaintMs": null,
-        "speedIndex": 7657.049729892757,
-        "timeToInteractiveMs": 4946.4584,
-        "maxPotentialFidMs": 116,
-        "networkServerLatencyMs": 232.6584
+        "speedIndex": 8276.183269999861,
+        "timeToInteractiveMs": 4985.0387,
+        "maxPotentialFidMs": 16,
+        "networkServerLatencyMs": 275.5387
       }
     }
   ]

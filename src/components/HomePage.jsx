@@ -8,13 +8,10 @@ import ProfilePage from '../pages/ProfilePage';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
-import ShunterOfTheMonthCard from './User/ShunterOfTheMonthCard';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
 import ProtectedRoute from './Auth/ProtectedRoute';
 import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
-import PreCheckReminder from './PreCheck/PreCheckReminder';
-import InductionGuidePromoCard from './InductionGuide/InductionGuidePromoCard';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 /**
@@ -68,6 +65,9 @@ const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/Pr
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
 const TransportManagerDashboard = lazyWithRetry(() => import('../pages/TransportManagerDashboard'));
 const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePage'));
+const PreCheckReminder = lazyWithRetry(() => import('./PreCheck/PreCheckReminder'));
+const InductionGuidePromoCard = lazyWithRetry(() => import('./InductionGuide/InductionGuidePromoCard'));
+const ShunterOfTheMonthCard = lazyWithRetry(() => import('./User/ShunterOfTheMonthCard'));
 
 /** Desktop top nav links — glass / Figma-aligned */
 function topNavLinkClassName(isActive) {
