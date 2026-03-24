@@ -66,6 +66,8 @@ export default defineConfig(({ mode }) => {
         ]
       : []),
     VitePWA({
+      // Manual registerSW in main.jsx after load — avoids render-blocking /registerSW.js in <head> (LCP)
+      injectRegister: null,
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
       srcDir: 'src',
