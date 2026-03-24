@@ -702,7 +702,7 @@ const WeeklyRotaPage = () => {
         {/* Navigation skeleton */}
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
           <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
-            <div className="filter-bar-segmented grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
@@ -752,7 +752,7 @@ const WeeklyRotaPage = () => {
       {/* Week Navigation */}
       <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
         <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
-          <div className="filter-bar-segmented grid-cols-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {/* Week Button */}
             <button
               type="button"
