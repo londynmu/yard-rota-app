@@ -9,9 +9,15 @@ import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
-/** Match CalendarPage break segment (selected state) */
-const FILTER_SEGMENT_CLASS =
-  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-slate-300/70 hover:shadow-sm';
+/** Match WeeklyRotaPage top nav — light gradients per column */
+const FILTER_RANGE_CLASS =
+  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0';
+
+const FILTER_SORT_CLASS =
+  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0';
+
+const FILTER_SHIFT_CLASS =
+  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-indigo-50/90 via-white to-violet-50/70 border border-indigo-200/60 shadow-sm hover:from-indigo-100/90 hover:to-violet-100/70 hover:border-indigo-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 min-w-0';
 
 const modalOptionClass = (selected) =>
   [
@@ -602,14 +608,14 @@ const PerformanceLeaderboard = () => {
             <button
               type="button"
               onClick={() => setShowRangeModal(true)}
-              className={FILTER_SEGMENT_CLASS}
+              className={FILTER_RANGE_CLASS}
             >
               <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{getRangeLabel(selectedRange)}</span>
             </button>
-            <button type="button" onClick={() => setShowSortModal(true)} className={FILTER_SEGMENT_CLASS}>
+            <button type="button" onClick={() => setShowSortModal(true)} className={FILTER_SORT_CLASS}>
               Sort
             </button>
-            <button type="button" onClick={() => setShowShiftModal(true)} className={FILTER_SEGMENT_CLASS}>
+            <button type="button" onClick={() => setShowShiftModal(true)} className={FILTER_SHIFT_CLASS}>
               <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">
                 Shift: {shiftFilter === 'all' ? 'All' : shiftFilter === 'day' ? 'Day' : 'Night'}
               </span>
