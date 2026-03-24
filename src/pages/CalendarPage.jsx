@@ -286,7 +286,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             </div>
           )}
 
-          <div className="md:hidden">
+          <div className="min-w-0 md:hidden">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -414,7 +414,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
           </div>
 
           <div className="hidden md:grid md:grid-cols-2 md:gap-6 md:items-start">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={handlePreviousMonth}
@@ -453,7 +453,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               {showManageBreaksButton && (
                 <div className="w-full">
                   <Link

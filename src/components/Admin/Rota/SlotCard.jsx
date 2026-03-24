@@ -330,18 +330,22 @@ const SlotCard = ({
           (() => {
             return (
               <div
-                className="fixed z-50 min-w-[160px] max-w-[280px] rounded-xl border border-rota-badge-full-border bg-rota-modal-bg px-3 py-2.5 shadow-lg pointer-events-none"
+                className="fixed z-50 flex min-h-[7.5rem] min-w-[160px] max-w-[280px] flex-col rounded-xl border border-rota-badge-full-border bg-rota-modal-bg px-3 py-2.5 shadow-lg pointer-events-none"
                 style={{
                   left: tooltipPosition.x,
                   top: tooltipPosition.y,
                 }}
               >
-                <p className="mb-2 text-sm font-semibold text-rota-text-primary">
+                <p className="mb-2 shrink-0 text-sm font-semibold text-rota-text-primary">
                   Available for this slot
                 </p>
-                <div className="text-sm text-rota-text-muted">
+                <div className="min-h-[4.5rem] flex-1 text-sm text-rota-text-muted">
                   {availableLoading ? (
-                    <span>Loading…</span>
+                    <div className="space-y-1.5 pt-0.5" aria-hidden="true">
+                      <div className="h-3.5 w-[85%] animate-pulse rounded bg-rota-toolbar-border/70" />
+                      <div className="h-3.5 w-[65%] animate-pulse rounded bg-rota-toolbar-border/70" />
+                      <div className="h-3.5 w-[72%] animate-pulse rounded bg-rota-toolbar-border/70" />
+                    </div>
                   ) : availableForSlot.length === 0 ? (
                     <span>No one available</span>
                   ) : (

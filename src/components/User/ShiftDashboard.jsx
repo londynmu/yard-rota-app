@@ -534,11 +534,30 @@ export default function ShiftDashboard({
 
   if (loading) {
     return (
-      <div className="w-full mb-4 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-        <div className="h-5 bg-gray-200 rounded w-2/5 mb-4 animate-pulse"></div>
+      <div
+        className="w-full mb-4 min-h-[min(22rem,55vh)] rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50/95 to-white/90 p-3 shadow-sm sm:p-4"
+        aria-busy="true"
+        aria-label="Loading breaks"
+      >
+        {/* Match filter-bar-segmented + list height to reduce CLS when data arrives */}
+        <div className="mb-4 grid grid-cols-4 gap-1.5 rounded-2xl border border-slate-200/60 bg-white/50 py-2.5 px-2 sm:gap-2 sm:py-3 sm:px-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-9 rounded-xl bg-slate-200/80 animate-pulse sm:h-10"
+            />
+          ))}
+        </div>
+        <div className="mb-3 h-20 rounded-2xl border border-dashed border-slate-200/70 bg-white/40 animate-pulse" />
         <div className="space-y-3">
-          <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+          <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-4 animate-pulse">
+            <div className="mb-3 h-4 w-2/3 rounded bg-slate-200/80" />
+            <div className="h-3 w-1/2 rounded bg-slate-200/60" />
+          </div>
+          <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-4 animate-pulse">
+            <div className="mb-3 h-4 w-1/2 rounded bg-slate-200/80" />
+            <div className="h-3 w-2/3 rounded bg-slate-200/60" />
+          </div>
         </div>
       </div>
     );

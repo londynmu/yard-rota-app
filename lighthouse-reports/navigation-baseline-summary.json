@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-24T19:52:47.435Z",
+  "generatedAt": "2026-03-24T20:08:15.448Z",
   "baseUrl": "https://shunters.net",
   "gatherMode": "navigation",
   "pages": [
@@ -8,16 +8,16 @@
       "requestedUrl": "https://shunters.net/calendar",
       "finalDisplayedUrl": "https://shunters.net/login",
       "metrics": {
-        "performanceCategoryScore": 0.56,
-        "firstContentfulPaintMs": 4759.1990000000005,
-        "largestContentfulPaintMs": 5280.1990000000005,
-        "totalBlockingTimeMs": 471,
+        "performanceCategoryScore": 0.69,
+        "firstContentfulPaintMs": 4763.754,
+        "largestContentfulPaintMs": 4946.754,
+        "totalBlockingTimeMs": 66.5,
         "cumulativeLayoutShift": 0,
         "interactionToNextPaintMs": null,
-        "speedIndex": 5293.978511999565,
-        "timeToInteractiveMs": 5430.1990000000005,
-        "maxPotentialFidMs": 521,
-        "networkServerLatencyMs": 259.199
+        "speedIndex": 5305.971078000432,
+        "timeToInteractiveMs": 5029.254,
+        "maxPotentialFidMs": 183,
+        "networkServerLatencyMs": 263.754
       }
     },
     {
@@ -25,16 +25,16 @@
       "requestedUrl": "https://shunters.net/admin",
       "finalDisplayedUrl": "https://shunters.net/login",
       "metrics": {
-        "performanceCategoryScore": 0.65,
-        "firstContentfulPaintMs": 4906.3597,
-        "largestContentfulPaintMs": 4906.3597,
-        "totalBlockingTimeMs": 50,
+        "performanceCategoryScore": 0.66,
+        "firstContentfulPaintMs": 4848.6584,
+        "largestContentfulPaintMs": 4882.6584,
+        "totalBlockingTimeMs": 33,
         "cumulativeLayoutShift": 0,
         "interactionToNextPaintMs": null,
-        "speedIndex": 7897.087754677697,
-        "timeToInteractiveMs": 4988.8597,
-        "maxPotentialFidMs": 195,
-        "networkServerLatencyMs": 211.35969999999998
+        "speedIndex": 7657.049729892757,
+        "timeToInteractiveMs": 4946.4584,
+        "maxPotentialFidMs": 116,
+        "networkServerLatencyMs": 232.6584
       }
     }
   ]
