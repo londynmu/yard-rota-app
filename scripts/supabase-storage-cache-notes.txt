@@ -1,0 +1,11 @@
+Supabase Storage: cache TTL for images (Lighthouse cache-insight)
+
+Problem: public object URLs may return Cache-Control with a short TTL (e.g. ~1 hour), which Lighthouse flags under "Use efficient cache lifetimes".
+
+This is controlled by Supabase / CDN, not by the React app.
+
+Options (ops / dashboard; no code change required for UI):
+- Supabase project: Storage settings and CDN / edge configuration — increase cache lifetime for public buckets (avatars, induction-guide-images) if your product allows immutable URLs after upload.
+- If URLs are immutable per object version, long-lived caching is safe; if objects are overwritten in place, prefer versioned paths or cache-busting query params instead of only raising TTL.
+
+After changing CDN headers, re-run Lighthouse Navigation baseline (npm run lighthouse:nav) and compare repeat-visit behavior.

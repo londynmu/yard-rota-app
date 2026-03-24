@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const buildTimestamp = new Date().toISOString()
 
@@ -31,7 +32,9 @@ function replaceOklabInCss() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const analyze = mode === 'analyze'
+  return {
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
     __PRECHECK_SCHEMA_VERSION__: JSON.stringify('3'),
@@ -51,6 +54,17 @@ export default defineConfig({
         })
       },
     },
+    ...(analyze
+      ? [
+          visualizer({
+            filename: 'dist/bundle-stats.html',
+            gzipSize: true,
+            brotliSize: true,
+            open: false,
+            template: 'treemap',
+          }),
+        ]
+      : []),
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
@@ -116,5 +130,6 @@ export default defineConfig({
         '**/*.config.js'
       ]
     }
+  }
   }
 })

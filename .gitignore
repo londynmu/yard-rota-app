@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist/bundle-stats.html
+
+# Lighthouse full JSON dumps (optional LIGHTHOUSE_FULL_JSON=1)
+lighthouse-reports/nav-detail-*.json
 *.local
 
 # Environment variables

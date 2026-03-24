@@ -1,0 +1,16 @@
+Bundle analysis (Rollup / Vite)
+
+Run: npm run build:analyze
+Open: dist/bundle-stats.html (treemap; not committed)
+
+manualChunks in vite.config.js (intended grouping):
+- vendor-react: react, react-dom, react-router-dom — always needed for SPA shell
+- vendor-supabase: @supabase/supabase-js — auth and data
+- vendor-charts: recharts, echarts, echarts-for-react — heavy; lazy routes should avoid loading until /performance (PerformanceChart is lazy)
+- vendor-calendar: react-big-calendar, react-datepicker — calendar flows
+- vendor-pdf: jspdf, jspdf-autotable — PDF flows
+- vendor-utils: date-fns, framer-motion — widely used utilities / motion
+
+Lazy-loaded route components (see HomePage.jsx) pull additional chunks on navigation; the treemap shows which app modules sit in index-* vs async chunks.
+
+Use this before further manualChunks changes to avoid splitting shared deps incorrectly.
