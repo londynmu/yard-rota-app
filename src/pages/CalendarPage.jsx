@@ -7,6 +7,10 @@ import ShiftDashboard from '../components/User/ShiftDashboard';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useAvailabilityData } from '../hooks/useAvailabilityData';
+import {
+  fetchActiveLocationNamesCached,
+  fetchShowManageBreaksCached,
+} from '../utils/calendarStaticCache';
 
 const CALENDAR_BREAKS_LOCATION_KEY = 'calendar_breaks_selected_location';
 const CALENDAR_BREAKS_SHIFT_FILTERS_KEY = 'calendar_breaks_selected_shifts';
@@ -83,23 +87,12 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     };
   }, []);
 
-  // Fetch active locations for the breaks filter
+  // Fetch active locations for the breaks filter (deduped across mounts via calendarStaticCache)
   useEffect(() => {
     const fetchLocations = async () => {
       try {
         setLocationsLoaded(false);
-        const { data, error } = await supabase
-          .from('locations')
-          .select('name')
-          .eq('is_active', true)
-          .order('name', { ascending: true });
-
-        if (error) throw error;
-
-        const sortedLocations = (data || [])
-          .map((loc) => loc.name)
-          .filter(Boolean);
-
+        const sortedLocations = await fetchActiveLocationNamesCached(supabase);
         setAvailableLocations(sortedLocations);
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -115,12 +108,8 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   useEffect(() => {
     const fetchSetting = async () => {
       try {
-        const { data } = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'show_manage_breaks_button')
-          .single();
-        setShowManageBreaksButton(data?.value !== 'false');
+        const show = await fetchShowManageBreaksCached(supabase);
+        setShowManageBreaksButton(show);
       } catch (err) {
         console.warn('CalendarPage: could not fetch show_manage_breaks_button, defaulting to true', err);
         setShowManageBreaksButton(true);

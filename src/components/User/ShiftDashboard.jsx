@@ -70,7 +70,7 @@ export default function ShiftDashboard({
   onUserBreakLabelChange = null,
   breakHeaderControls = null
 }) {
-  const { user } = useAuth();
+  const { user, sessionProfile } = useAuth();
   const [shift, setShift] = useState(null);
   const [breakInfo, setBreakInfo] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -158,9 +158,23 @@ export default function ShiftDashboard({
     onUserBreakLabelChange('You: break finished');
   }, [allBreaks, selectedShifts, user, onUserBreakLabelChange, currentTime]);
   
-  // Fetch user profile to get shift preference
+  // Shift preference / name: prefer sessionProfile from App gate; else fetch (same select as before)
   useEffect(() => {
     if (!user) return;
+
+    if (
+      sessionProfile &&
+      (sessionProfile.shift_preference !== undefined ||
+        sessionProfile.first_name !== undefined ||
+        sessionProfile.last_name !== undefined)
+    ) {
+      setUserProfile({
+        first_name: sessionProfile.first_name,
+        last_name: sessionProfile.last_name,
+        shift_preference: sessionProfile.shift_preference,
+      });
+      return;
+    }
 
     const fetchUserProfile = async () => {
       try {
@@ -178,7 +192,7 @@ export default function ShiftDashboard({
     };
 
     fetchUserProfile();
-  }, [user]);
+  }, [user, sessionProfile]);
 
   // Fetch today's shift
   useEffect(() => {
@@ -285,34 +299,45 @@ export default function ShiftDashboard({
           
         if (shiftsError) throw shiftsError;
 
-        // Fetch profiles for all unique user_ids
+        let selectedShiftsRaw = [];
         if (shiftsData && shiftsData.length > 0) {
-          // Apply date selection rules:
-          // - Day/Afternoon: always today (00:00-23:59 of 'today')
-          // - Night: before 06:00 show yesterday's night (18:00-06:00), after 06:00 show today's night
-          const selectedShiftsRaw = shiftsData.filter(s => {
+          selectedShiftsRaw = shiftsData.filter(s => {
             if (s.shift_type === 'night') {
               return beforeSix ? s.date === yesterday : s.date === today;
             }
-            return s.date === today; // day and afternoon
+            return s.date === today;
           });
+        }
+
+        // Fetch ALL breaks for today (without profiles join)
+        const { data: breaksData, error: breaksError } = await supabase
+          .from('scheduled_breaks')
+          .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
+          .eq('date', effectiveForBreaks)
+          .order('break_start_time');
           
-          // Filter out null user_ids before fetching
-          const userIds = [...new Set(selectedShiftsRaw.map(s => s.user_id).filter(id => id !== null))];
-          
+        if (breaksError) throw breaksError;
+
+        const shiftUserIds = [...new Set(selectedShiftsRaw.map(s => s.user_id).filter(id => id != null))];
+        const breakUserIds =
+          breaksData && breaksData.length > 0
+            ? [...new Set(breaksData.map(b => b.user_id).filter(id => id != null))]
+            : [];
+        const unionIds = [...new Set([...shiftUserIds, ...breakUserIds])];
+
+        const profilesMap = {};
+        if (unionIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name')
-            .in('id', userIds);
-          
-          // Map profiles to shifts
-          const profilesMap = {};
+            .in('id', unionIds);
+          if (profilesError) throw profilesError;
           profilesData?.forEach(p => {
             profilesMap[p.id] = p;
           });
-          
-          // Only include shifts where we found a profile
-          // Sort to prefer night shifts before day/afternoon before 06:00, else day/afternoon first
+        }
+
+        if (selectedShiftsRaw.length > 0) {
           const preferenceWeight = (s) => {
             if (beforeSix) return s.shift_type === 'night' ? 0 : 1;
             return s.shift_type === 'night' ? 1 : 0;
@@ -325,7 +350,6 @@ export default function ShiftDashboard({
               profiles: profilesMap[s.user_id]
             }));
           
-          // DEDUPLICATE: Remove duplicate entries - same user can have multiple shifts, show only once
           const uniqueShifts = [];
           const seenUserIds = new Set();
           
@@ -341,29 +365,8 @@ export default function ShiftDashboard({
           setAllShifts([]);
         }
 
-        // Fetch ALL breaks for today (without profiles join)
-        const { data: breaksData, error: breaksError } = await supabase
-          .from('scheduled_breaks')
-          .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
-          .eq('date', effectiveForBreaks)
-          .order('break_start_time');
-          
-        if (breaksError) throw breaksError;
-
-        // Fetch profiles for breaks
+        // Attach profiles to breaks
         if (breaksData && breaksData.length > 0) {
-          // Filter out null user_ids before fetching
-          const userIds = [...new Set(breaksData.map(b => b.user_id).filter(id => id !== null))];
-          
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name')
-            .in('id', userIds);
-          
-          const profilesMap = {};
-          profilesData?.forEach(p => {
-            profilesMap[p.id] = p;
-          });
 
           // Fetch tug assignments from today's prechecks
           const tugMap = {};

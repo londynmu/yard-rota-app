@@ -5,6 +5,7 @@ import Auth from './components/Auth/Auth';
 import HomePage from './components/HomePage';
 import ProfilePage from './pages/ProfilePage';
 import { supabase } from './lib/supabaseClient';
+import { PROFILE_SELECT_FIELDS } from './lib/AuthContext';
 import ResetPassword from './pages/ResetPassword';
 import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
@@ -21,7 +22,7 @@ const isRecoveryLink = () => {
 };
 
 function AppContent() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setSessionProfile } = useAuth();
   
   // Track page visits for analytics
   usePageTracking();
@@ -70,6 +71,7 @@ function AppContent() {
       if (!user) {
         setIsCheckingProfile(false);
         setProfileCheckCompleted(false);
+        setSessionProfile(null);
       }
       return;
     }
@@ -81,11 +83,12 @@ function AppContent() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('profile_completed, account_status, role')
+          .select(PROFILE_SELECT_FIELDS)
           .eq('id', user.id)
           .single();
 
         if (error) {
+          setSessionProfile(null);
           if (error.code === 'PGRST116') {
             setIsProfileComplete(false);
             setAccountStatus(null);
@@ -94,6 +97,7 @@ function AppContent() {
             setError(error.message);
           }
         } else {
+          setSessionProfile(data);
           // Admin, VMU and Transport Manager users bypass profile completion and approval checks
           if (data?.role === 'admin' || data?.role === 'vmu' || data?.role === 'transport_manager') {
             setIsProfileComplete(true);
@@ -106,6 +110,7 @@ function AppContent() {
         }
       } catch (error) {
         console.error('Error in profile check:', error);
+        setSessionProfile(null);
         setError(error.message);
       } finally {
         setIsCheckingProfile(false);

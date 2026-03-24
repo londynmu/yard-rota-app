@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import PerformanceChart from '../components/PerformanceChart';
+const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
 import { useAuth } from '../lib/AuthContext';
@@ -884,7 +884,13 @@ const PerformanceLeaderboard = () => {
 
             {/* Trend */}
             <section className="mb-8">
-              <PerformanceChart data={trendSeries} isAllTime={selectedRange === 'all'} />
+              <Suspense
+                fallback={
+                  <div className="w-full aspect-video min-h-[200px] rounded-xl bg-slate-100/90 animate-pulse" aria-hidden />
+                }
+              >
+                <PerformanceChart data={trendSeries} isAllTime={selectedRange === 'all'} />
+              </Suspense>
             </section>
 
             {/* Detailed list - Floating cards */}

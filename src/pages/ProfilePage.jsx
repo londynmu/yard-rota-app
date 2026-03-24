@@ -12,7 +12,7 @@ const capitalizeFirstLetter = (string) => {
 };
 
 export default function ProfilePage({ isRequired = false, supabaseClient, simplifiedView = false }) {
-  const { user } = useAuth();
+  const { user, refreshSessionProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -429,6 +429,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setAvatarUrl(avatar_url);
         setAvatar(null);
       }
+
+      await refreshSessionProfile();
       
     } catch (error) {
       console.error('Error updating profile:', error);

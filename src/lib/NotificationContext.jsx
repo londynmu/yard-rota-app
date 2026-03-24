@@ -10,7 +10,7 @@ export function useNotifications() {
 }
 
 export const NotificationProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, sessionProfile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVmu, setIsVmu] = useState(false);
   const [isTransportManager, setIsTransportManager] = useState(false);
@@ -33,41 +33,28 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(prev => prev + 1);
   }, []);
 
-  // Check if user is admin - depend on user ID only to prevent re-check on token refresh
+  // Roles come from sessionProfile (filled by App.jsx profile gate) — avoids duplicate profiles fetch
   const userId = user?.id;
   useEffect(() => {
-    async function checkIfAdmin() {
-      if (!userId) {
-        setIsAdmin(false);
-        setIsVmu(false);
-        setIsTransportManager(false);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
-
-        if (error) throw error;
-        setIsAdmin(data?.role === 'admin');
-        setIsVmu(data?.role === 'vmu');
-        setIsTransportManager(data?.role === 'transport_manager');
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        setIsAdmin(false);
-        setIsVmu(false);
-        setIsTransportManager(false);
-      } finally {
-        setLoading(false);
-      }
+    if (!userId) {
+      setIsAdmin(false);
+      setIsVmu(false);
+      setIsTransportManager(false);
+      setLoading(false);
+      return;
     }
-
-    checkIfAdmin();
-  }, [userId]);
+    if (!sessionProfile) {
+      setIsAdmin(false);
+      setIsVmu(false);
+      setIsTransportManager(false);
+      setLoading(false);
+      return;
+    }
+    setIsAdmin(sessionProfile.role === 'admin');
+    setIsVmu(sessionProfile.role === 'vmu');
+    setIsTransportManager(sessionProfile.role === 'transport_manager');
+    setLoading(false);
+  }, [userId, sessionProfile]);
 
   // Fetch pending approvals count
   useEffect(() => {

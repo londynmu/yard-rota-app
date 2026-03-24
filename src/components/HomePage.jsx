@@ -79,7 +79,7 @@ function topNavLinkClassName(isActive) {
 }
 
 export default function HomePage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, sessionProfile } = useAuth();
   const { isAdmin, isVmu, isTransportManager } = useNotifications();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -102,7 +102,7 @@ export default function HomePage() {
     if (location.pathname !== '/admin') setCurrentAdminSectionLabel('');
   }, [location.pathname]);
 
-  // Fetch profile data when user changes
+  // Header avatar/name from sessionProfile (same row as App gate) — fallback fetch if missing
   useEffect(() => {
     if (!user) {
       setProfileLoading(false);
@@ -110,10 +110,23 @@ export default function HomePage() {
       setProfileName('');
       return;
     }
-    
+
+    if (sessionProfile) {
+      setAvatarLoaded(false);
+      setAvatarUrl(sessionProfile.avatar_url || '');
+      if (sessionProfile.first_name || sessionProfile.last_name) {
+        setProfileName(
+          `${sessionProfile.first_name || ''} ${sessionProfile.last_name || ''}`.trim()
+        );
+      } else {
+        setProfileName('');
+      }
+      setProfileLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setProfileLoading(true);
-    
     supabase
       .from('profiles')
       .select('first_name, last_name, avatar_url')
@@ -121,40 +134,36 @@ export default function HomePage() {
       .single()
       .then(({ data, error }) => {
         if (cancelled) return;
-        
         if (error && error.code !== 'PGRST116') {
           console.error('[HomePage] Error fetching profile:', error);
           setProfileLoading(false);
           return;
         }
-        
         if (data) {
-          // Reset avatar loaded state for new image
           setAvatarLoaded(false);
           setAvatarUrl(data.avatar_url || '');
-          
           if (data.first_name || data.last_name) {
-            setProfileName(`${data.first_name || ''} ${data.last_name || ''}`);
+            setProfileName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
+          } else {
+            setProfileName('');
           }
         } else {
           setProfileName('');
           setAvatarUrl('');
           setAvatarLoaded(false);
         }
-        
         setProfileLoading(false);
       })
-      .catch((error) => {
+      .catch((err) => {
         if (!cancelled) {
-          console.error('[HomePage] Error fetching profile:', error);
+          console.error('[HomePage] Error fetching profile:', err);
           setProfileLoading(false);
         }
       });
-    
     return () => {
       cancelled = true;
     };
-  }, [user?.id]); // Only depend on user ID to prevent unnecessary re-fetches
+  }, [user?.id, sessionProfile]);
 
   useEffect(() => {
     function handleClickOutside(event) {

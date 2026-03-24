@@ -1,15 +1,21 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
+import { resetCalendarStaticCache } from '../utils/calendarStaticCache';
 
 // Site URL for redirects - load from environment variables
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
 
 const AuthContext = createContext();
 
+/** Shared profile row for header, notifications, ShiftDashboard — set from App.jsx after gate check */
+export const PROFILE_SELECT_FIELDS =
+  'profile_completed, account_status, role, first_name, last_name, avatar_url, shift_preference';
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionProfile, setSessionProfile] = useState(null);
 
   useEffect(() => {
     // Get user session on first load
@@ -32,6 +38,34 @@ export function AuthProvider({ children }) {
     return () => {
       subscription.unsubscribe();
     }
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setSessionProfile(null);
+      resetCalendarStaticCache();
+    }
+  }, [user]);
+
+  const refreshSessionProfile = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
+      setSessionProfile(null);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(PROFILE_SELECT_FIELDS)
+      .eq('id', uid)
+      .single();
+    if (error && error.code !== 'PGRST116') {
+      console.error('[AuthContext] refreshSessionProfile:', error);
+      return;
+    }
+    setSessionProfile(data || null);
   }, []);
 
   const signIn = async (email, password) => {
@@ -91,6 +125,8 @@ export function AuthProvider({ children }) {
     try {
       // 1. Immediately update local state
       setUser(null);
+      setSessionProfile(null);
+      resetCalendarStaticCache();
       
       // 2. Attempt to sign out from Supabase (global scope)
       try {
@@ -129,6 +165,8 @@ export function AuthProvider({ children }) {
       
       // Fallback cleanup just in case
       setUser(null);
+      setSessionProfile(null);
+      resetCalendarStaticCache();
       localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
       localStorage.removeItem('recoveryHash');
       sessionStorage.removeItem('page_tracking_session_id');
@@ -149,6 +187,9 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
+    sessionProfile,
+    setSessionProfile,
+    refreshSessionProfile,
     signIn,
     signUp,
     signOut,
