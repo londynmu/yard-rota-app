@@ -1106,7 +1106,7 @@ export default function ShiftDashboard({
                         className={cardClasses}
                       >
                         <div className="flex justify-between items-start gap-2">
-                          <p className="text-sm font-bold text-charcoal">
+                          <p className="text-sm font-medium text-charcoal">
                             {breakItem.profiles?.first_name || 'Unknown'} {breakItem.profiles?.last_name || 'User'}
                             {isMe && <span className="text-slate-500 font-medium"> (You)</span>}
                           </p>
@@ -1115,11 +1115,11 @@ export default function ShiftDashboard({
                               const shift = userShiftMap.get(breakItem.user_id);
                               return shift && isNowWithinShift(shift.start_time, shift.end_time);
                             })() && (
-                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gradient-to-br from-blue-50 to-cyan-50/80 text-blue-800 border border-blue-200/60 shadow-sm">
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-gradient-to-br from-blue-50 to-cyan-50/80 text-blue-800 border border-blue-200/60 shadow-sm">
                                 {breakItem.tug_name}
                               </span>
                             )}
-                            <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">
+                            <span className="text-sm text-slate-600 whitespace-nowrap">
                               {breakItem.break_start_time?.substring(0, 5) || '??:??'} - {endTime}
                             </span>
                           </div>
@@ -1127,11 +1127,11 @@ export default function ShiftDashboard({
 
                         {isActive && (
                           <div className="mt-2 flex items-center gap-2 text-xs">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold bg-emerald-50/80 text-emerald-800 border border-emerald-200/60">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-medium bg-emerald-50/80 text-emerald-800 border border-emerald-200/60">
                               <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
                               On break now
                             </span>
-                            <span className="text-emerald-700 font-semibold">{left}m left</span>
+                            <span className="text-emerald-700 font-medium">{left}m left</span>
                           </div>
                         )}
 
