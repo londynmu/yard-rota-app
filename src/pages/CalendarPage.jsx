@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
@@ -6,6 +7,9 @@ import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
 import ShiftDashboard from '../components/User/ShiftDashboard';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
+import { getAdminMenuItems } from '../config/navIcons';
+import NavIcon from '../components/NavIcon';
 import { useAvailabilityData } from '../hooks/useAvailabilityData';
 import {
   fetchActiveLocationNamesCached,
@@ -34,6 +38,7 @@ const getInitialSelectedShifts = () => {
 
 export default function CalendarPage({ desktopBelowCalendar = null }) {
   const { user } = useAuth();
+  const { isAdmin } = useNotifications();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -45,7 +50,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const [locationsLoaded, setLocationsLoaded] = useState(false);
   const [selectedShifts, setSelectedShifts] = useState(getInitialSelectedShifts);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
-  const [userBreakLabel, setUserBreakLabel] = useState('');
+  const [, setUserBreakLabel] = useState('');
   const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
   
   // Use custom hook for availability data fetching
@@ -284,6 +289,12 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
       showPopup('error', 'Failed to save availability. Please try again.');
     }
   }, [user, dayData, refetchAvailability, showPopup]);
+
+  const adminQuickLinkIds = ['users', 'approvals', 'rota-planner', 'breaks', 'prechecks'];
+  const adminQuickLinks = getAdminMenuItems(0).filter((item) => adminQuickLinkIds.includes(item.id));
+  const desktopCards = React.Children.toArray(
+    React.isValidElement(desktopBelowCalendar) ? desktopBelowCalendar.props?.children : desktopBelowCalendar
+  );
   
   return (
     <>
@@ -473,9 +484,39 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             </div>
 
             <div className="min-w-0">
-              <div className="card-modern p-3 md:p-4">
-                <div className="space-y-3">
-                  {desktopBelowCalendar}
+              <div
+                className="card-modern p-3 md:p-4 h-full"
+                style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
+              >
+                <div className="h-full min-h-0 flex flex-col">
+                  {isAdmin && (
+                    <div className="flex-shrink-0">
+                      <div className="grid grid-cols-2 gap-2">
+                        {adminQuickLinks.map((item) => (
+                          <Link
+                            key={item.id}
+                            to="/admin"
+                            onClick={() => localStorage.setItem('adminActiveSection', item.id)}
+                            className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-left group"
+                          >
+                            <div className="flex items-center gap-3 w-full">
+                              <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105">
+                                <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="small" animate={true} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-sm text-charcoal truncate">
+                                  {item.label}
+                                </h3>
+                              </div>
+                              <svg className="w-4 h-4 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -580,7 +621,17 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 </div>
               </div>
             </div>
-            <div aria-hidden="true" />
+            <div className="min-w-0">
+              <div className="card-modern p-3 md:p-4 h-full">
+                <div className="flex h-full min-h-0 gap-3">
+                  {desktopCards.map((card, index) => (
+                    <div key={index} className="min-w-0 h-full w-1/2 flex-shrink-0">
+                      {card}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -597,3 +648,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     </>
   );
 } 
+
+CalendarPage.propTypes = {
+  desktopBelowCalendar: PropTypes.node,
+};
