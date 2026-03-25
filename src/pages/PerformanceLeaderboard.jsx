@@ -726,7 +726,7 @@ const PerformanceLeaderboard = () => {
         </div>
       </Modal>
 
-      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+      <div className="h-full overflow-y-auto bg-transparent px-2 py-6 md:px-6 pb-bottom-nav">
         <div className="page-content-inner">
         <h1 className="sr-only">Performance leaderboard</h1>
         {loading ? (
