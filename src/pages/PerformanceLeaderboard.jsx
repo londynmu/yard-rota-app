@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
-import PropTypes from 'prop-types';
 import { format as formatDate, subDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart2 } from 'lucide-react';
@@ -726,7 +725,7 @@ const PerformanceLeaderboard = () => {
         </div>
       </Modal>
 
-      <div className="h-full overflow-y-auto bg-transparent px-2 py-6 md:px-6 pb-bottom-nav">
+      <div className="h-full overflow-y-auto bg-transparent px-2 py-0 md:px-2 md:py-3 pb-bottom-nav">
         <div className="page-content-inner">
         <h1 className="sr-only">Performance leaderboard</h1>
         {loading ? (
