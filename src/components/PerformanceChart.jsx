@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { format as formatDate, parseISO } from 'date-fns';
 import PropTypes from 'prop-types';
@@ -10,19 +10,53 @@ const CHART_AXIS = '#64748b';
 const CHART_LINE = '#e2e8f0';
 const CHART_SPLIT = '#f1f5f9';
 const CHARCOAL = '#2d2d2d';
+const SWIPE_THRESHOLD = 40;
+const DEFAULT_WINDOW_SIZE = 31;
+
+const getVisibleWindow = (records, windowStartIndex, windowSize) => {
+  if (!records || records.length === 0) return [];
+  const startIndex = Math.max(0, Math.min(windowStartIndex, records.length - 1));
+  const endIndex = Math.min(records.length, startIndex + windowSize);
+  return records.slice(startIndex, endIndex);
+};
 
 const PerformanceChart = ({ data, isAllTime = false }) => {
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) return { dates: [], values: [] };
+  const touchStartX = useRef(null);
+  const [windowStartIndex, setWindowStartIndex] = useState(0);
 
-    const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    return {
-      dates: sorted.map((item) => formatDate(parseISO(item.date), 'dd MMM')),
-      fullDates: sorted.map((item) => formatDate(parseISO(item.date), 'dd MMM yyyy')),
-      values: sorted.map((item) => item.totalMoves),
-    };
+  const fullSeries = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [data]);
+
+  const windowSize = DEFAULT_WINDOW_SIZE;
+  const maxWindowStart = Math.max(0, fullSeries.length - windowSize);
+
+  useEffect(() => {
+    if (!fullSeries.length) {
+      setWindowStartIndex(0);
+      return;
+    }
+    if (isAllTime) {
+      setWindowStartIndex(maxWindowStart);
+      return;
+    }
+    setWindowStartIndex(0);
+  }, [isAllTime, fullSeries.length, maxWindowStart]);
+
+  const visibleSeries = useMemo(() => {
+    if (!isAllTime) return fullSeries;
+    return getVisibleWindow(fullSeries, windowStartIndex, windowSize);
+  }, [fullSeries, isAllTime, windowStartIndex, windowSize]);
+
+  const chartData = useMemo(() => {
+    if (!visibleSeries.length) return { dates: [], fullDates: [], values: [] };
+    return {
+      dates: visibleSeries.map((item) => formatDate(parseISO(item.date), 'dd MMM')),
+      fullDates: visibleSeries.map((item) => formatDate(parseISO(item.date), 'dd MMM yyyy')),
+      values: visibleSeries.map((item) => item.totalMoves),
+    };
+  }, [visibleSeries]);
 
   if (!data || data.length === 0) {
     return (
@@ -32,13 +66,44 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
     );
   }
 
-  const firstDate = chartData.fullDates[0];
-  const lastDate = chartData.fullDates[chartData.fullDates.length - 1];
+  const firstDate = chartData.fullDates[0] || '—';
+  const lastDate = chartData.fullDates[chartData.fullDates.length - 1] || '—';
   const totalDays = data.length;
 
-  const totalMoves = chartData.values.reduce((sum, val) => sum + val, 0);
+  const totalMoves = fullSeries.reduce((sum, item) => sum + (item.totalMoves || 0), 0);
   const avgMoves = Math.round(totalMoves / totalDays);
-  const maxMoves = Math.max(...chartData.values);
+  const maxMoves = Math.max(...fullSeries.map((item) => item.totalMoves || 0));
+  const canGoPrev = isAllTime && windowStartIndex > 0;
+  const canGoNext = isAllTime && windowStartIndex < maxWindowStart;
+
+  const moveToPrevWindow = () => {
+    if (!canGoPrev) return;
+    setWindowStartIndex((prev) => Math.max(0, prev - windowSize));
+  };
+
+  const moveToNextWindow = () => {
+    if (!canGoNext) return;
+    setWindowStartIndex((prev) => Math.min(maxWindowStart, prev + windowSize));
+  };
+
+  const handleTouchStart = (event) => {
+    touchStartX.current = event.touches?.[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (event) => {
+    if (!isAllTime || touchStartX.current == null) return;
+    const endX = event.changedTouches?.[0]?.clientX ?? null;
+    if (endX == null) return;
+    const deltaX = endX - touchStartX.current;
+    touchStartX.current = null;
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return;
+    if (deltaX > 0) {
+      moveToPrevWindow();
+      return;
+    }
+    moveToNextWindow();
+  };
 
   const option = {
     tooltip: {
@@ -76,10 +141,15 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
       data: chartData.dates,
       boundaryGap: true,
       axisLabel: {
-        rotate: totalDays > 20 ? 45 : 0,
+        rotate: chartData.dates.length > 20 ? 40 : 0,
         fontSize: 10,
         color: CHART_AXIS,
-        interval: totalDays > 60 ? Math.floor(totalDays / 15) : totalDays > 30 ? 2 : 0,
+        interval:
+          chartData.dates.length > 26
+            ? 3
+            : chartData.dates.length > 18
+              ? 1
+              : 0,
       },
       axisLine: {
         lineStyle: {
@@ -102,17 +172,17 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
     series: [
       {
         name: 'Moves',
-        type: totalDays > 60 ? 'line' : 'bar',
+        type: chartData.dates.length > 18 ? 'line' : 'bar',
         data: chartData.values,
         smooth: true,
-        symbol: totalDays > 30 ? 'none' : 'circle',
+        symbol: chartData.dates.length > 20 ? 'none' : 'circle',
         symbolSize: 6,
         itemStyle: {
           color: CHART_PRIMARY,
-          borderRadius: totalDays <= 60 ? [6, 6, 0, 0] : 0,
+          borderRadius: chartData.dates.length <= 18 ? [6, 6, 0, 0] : 0,
         },
         areaStyle:
-          totalDays > 60
+          chartData.dates.length > 18
             ? {
                 color: {
                   type: 'linear',
@@ -128,7 +198,7 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
               }
             : undefined,
         lineStyle: {
-          width: 2,
+          width: 2.5,
           color: CHART_PRIMARY,
         },
         emphasis: {
@@ -144,7 +214,36 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
   return (
     <div className="card-modern p-4 md:p-5">
       <div className="mb-4">
-        <h3 className="text-xl font-bold text-charcoal tracking-tight mb-2">Daily Moves Trend</h3>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-xl font-bold text-charcoal tracking-tight">Daily Moves Trend</h3>
+          {isAllTime && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={moveToPrevWindow}
+                disabled={!canGoPrev}
+                className="rounded-lg border border-slate-200/70 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Show previous month window"
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={moveToNextWindow}
+                disabled={!canGoNext}
+                className="rounded-lg border border-slate-200/70 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Show next month window"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+        {isAllTime && (
+          <div className="mb-2 text-xs text-slate-500">
+            Swipe left/right on the chart to browse month windows.
+          </div>
+        )}
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <div>
             <span className="text-slate-500">Period:</span>{' '}
@@ -171,7 +270,9 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
         </div>
       </div>
 
-      <ReactECharts option={option} style={{ height: '300px', width: '100%' }} opts={{ renderer: 'canvas' }} />
+      <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <ReactECharts option={option} style={{ height: '300px', width: '100%' }} opts={{ renderer: 'canvas' }} />
+      </div>
 
       <p className="text-xs text-slate-500 text-center mt-2">Tap chart to see daily details</p>
     </div>
