@@ -1,9 +1,84 @@
-import { defineConfig } from 'vite'
+import fs from 'node:fs'
+import path from 'node:path'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
 
 const buildTimestamp = new Date().toISOString()
+
+/** Public site base URL (no trailing slash). Used for canonical, Open Graph, sitemap. */
+function siteUrlFromEnv(env) {
+  const raw = (env.VITE_SITE_URL || 'https://shunters.net').trim()
+  const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  return withProto.replace(/\/$/, '')
+}
+
+const SEO_PAGE_TITLE = 'Yard Rota | Shunter availability, rota and yard induction'
+const SEO_DESCRIPTION =
+  'Built for shunter drivers: record your availability so yard managers can plan fair rotas. View your shifts, track moves and trailer shunts, see when breaks fall, and follow full yard induction materials with practical guidance for on-shift situations.'
+
+/** Crawlers read the built index.html; inject absolute URLs for social previews and canonical. */
+function seoPlugins(siteUrl) {
+  const ogImage = `${siteUrl}/android-chrome-512x512.png`
+  return [
+    {
+      name: 'seo-inject-head',
+      transformIndexHtml(html) {
+        const jsonLd = JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          name: 'Yard Rota',
+          description: SEO_DESCRIPTION,
+          url: `${siteUrl}/`,
+          applicationCategory: 'BusinessApplication',
+          operatingSystem: 'Any',
+          image: ogImage,
+        })
+        const block = `
+    <link rel="canonical" href="${siteUrl}/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${siteUrl}/" />
+    <meta property="og:site_name" content="Yard Rota" />
+    <meta property="og:title" content="${SEO_PAGE_TITLE}" />
+    <meta property="og:description" content="${SEO_DESCRIPTION}" />
+    <meta property="og:image" content="${ogImage}" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${SEO_PAGE_TITLE}" />
+    <meta name="twitter:description" content="${SEO_DESCRIPTION}" />
+    <meta name="twitter:image" content="${ogImage}" />
+    <script type="application/ld+json">${jsonLd}</script>`
+        return html.replace(/<\/head>/i, `${block}\n  </head>`)
+      },
+    },
+    {
+      name: 'seo-write-robots-sitemap',
+      closeBundle() {
+        const distDir = path.resolve(process.cwd(), 'dist')
+        if (!fs.existsSync(distDir)) return
+        fs.writeFileSync(
+          path.join(distDir, 'robots.txt'),
+          `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`,
+          'utf8'
+        )
+        fs.writeFileSync(
+          path.join(distDir, 'sitemap.xml'),
+          `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${siteUrl}/</loc><changefreq>weekly</changefreq><priority>1</priority></url>
+  <url><loc>${siteUrl}/privacy-policy.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>
+`,
+          'utf8'
+        )
+      },
+    },
+  ]
+}
 
 // Replace oklab/oklch in CSS everywhere (dev + build) so html2canvas never sees them
 function replaceOklabInCss() {
@@ -34,6 +109,8 @@ function replaceOklabInCss() {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const analyze = mode === 'analyze'
+  const env = loadEnv(mode, process.cwd(), '')
+  const siteUrl = siteUrlFromEnv(env)
   return {
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
@@ -42,6 +119,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     replaceOklabInCss(),
     react(),
+    ...seoPlugins(siteUrl),
     // Generate version.json for runtime version checking
     {
       name: 'generate-version-json',
@@ -76,9 +154,11 @@ export default defineConfig(({ mode }) => {
       manifest: {
         name: 'Yard Rota',
         short_name: 'Yard Rota',
-        description: 'Aplikacja do zarządzania rotą w Yard',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        description:
+          'For shunter drivers: share availability for rota planning, track moves and trailer shunts, check breaks, and use full yard induction guidance.',
+        lang: 'en-GB',
+        theme_color: '#f8fafc',
+        background_color: '#f8fafc',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',

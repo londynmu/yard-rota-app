@@ -79,6 +79,26 @@ function topNavLinkClassName(isActive) {
   ].join(' ');
 }
 
+/** App icon in top bar — desktop only (`public/android-chrome-512x512.png`) */
+function DesktopNavAppIcon() {
+  return (
+    <Link
+      to="/calendar"
+      className="mr-3 hidden md:inline-flex flex-shrink-0 rounded-xl border border-slate-200/60 shadow-sm overflow-hidden transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50"
+      aria-label="Yard Rota home"
+    >
+      <img
+        src="/android-chrome-512x512.png"
+        alt=""
+        width={36}
+        height={36}
+        className="h-9 w-9 object-cover"
+        decoding="async"
+      />
+    </Link>
+  );
+}
+
 export default function HomePage() {
   const { user, signOut, sessionProfile } = useAuth();
   const { isAdmin, isVmu, isTransportManager } = useNotifications();
@@ -335,6 +355,7 @@ export default function HomePage() {
               {isVmu && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
+                  <DesktopNavAppIcon />
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -385,6 +406,7 @@ export default function HomePage() {
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
                   {isTransportDashboardPage && <span className="md:hidden font-semibold text-slate-800">Dashboard</span>}
+                  <DesktopNavAppIcon />
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -435,6 +457,7 @@ export default function HomePage() {
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
                   {/* Regular user: nav left, avatar right */}
+                  <DesktopNavAppIcon />
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => (
                       <Link
@@ -504,6 +527,7 @@ export default function HomePage() {
                 {isProfilePage && !isAdminPage && (
                   <span className="md:hidden font-semibold text-slate-800">Profile</span>
                 )}
+                <DesktopNavAppIcon />
                 <nav className="hidden md:flex space-x-2">
                   {topNavLinks.map((nav) => (
                     <Link
