@@ -15,6 +15,7 @@ import {
   fetchActiveLocationNamesCached,
   fetchShowManageBreaksCached,
 } from '../utils/calendarStaticCache';
+import { getEffectiveTodayYmd } from '../utils/operationalDay';
 
 const CALENDAR_BREAKS_LOCATION_KEY = 'calendar_breaks_selected_location';
 const CALENDAR_BREAKS_SHIFT_FILTERS_KEY = 'calendar_breaks_selected_shifts';
@@ -95,19 +96,53 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   useEffect(() => {
     const fetchTodayShiftSummary = async () => {
       try {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const today = `${y}-${m}-${d}`;
+        const today = getEffectiveTodayYmd();
 
-        const { data, error } = await supabase
+        const { data: rotaData, error: rotaError } = await supabase
           .from('scheduled_rota')
-          .select('user_id, shift_type')
+          .select('id, user_id, shift_type')
           .eq('date', today)
           .eq('location', selectedLocation);
 
-        if (error) throw error;
+        if (rotaError) throw rotaError;
+        const slots = rotaData || [];
+        if (slots.length === 0) {
+          setTodayShiftSummary({ day: 0, afternoon: 0, night: 0, total: 0 });
+          return;
+        }
+
+        const userIds = [...new Set(slots.map((s) => s.user_id).filter(Boolean))];
+        let profilesMap = {};
+        if (userIds.length) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+          if (!profilesError && profilesData) {
+            profilesData.forEach((p) => {
+              profilesMap[p.id] = p;
+            });
+          }
+        }
+
+        const slotIds = slots.map((s) => s.id).filter(Boolean);
+        const attendanceBySlotId = {};
+        if (slotIds.length) {
+          const { data: attData } = await supabase
+            .from('attendance')
+            .select('scheduled_rota_id, status')
+            .in('scheduled_rota_id', slotIds);
+          (attData || []).forEach((r) => {
+            if (r.scheduled_rota_id) {
+              attendanceBySlotId[r.scheduled_rota_id] = { status: r.status };
+            }
+          });
+        }
+
+        const presentSlots = slots.filter(
+          (s) => s.user_id && profilesMap[s.user_id] && !attendanceBySlotId[s.id]
+        );
+
         const uniqByShift = {
           day: new Set(),
           afternoon: new Set(),
@@ -115,7 +150,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
         };
         const uniqAll = new Set();
 
-        (data || []).forEach((row) => {
+        presentSlots.forEach((row) => {
           if (!row?.user_id) return;
           uniqAll.add(row.user_id);
           if (row.shift_type === 'day') uniqByShift.day.add(row.user_id);

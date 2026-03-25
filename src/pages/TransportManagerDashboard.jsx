@@ -3,6 +3,7 @@ import { format, addDays, subDays } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { supabase } from '../lib/supabaseClient';
+import { getEffectiveTodayYmd } from '../utils/operationalDay';
 
 const getWeekStart = (date) => {
   const day = date.getDay();
@@ -10,22 +11,9 @@ const getWeekStart = (date) => {
   return subDays(date, diff);
 };
 
-const getEffectiveToday = () => {
-  const now = new Date();
-  return now.getHours() < 6
-    ? format(subDays(now, 1), 'yyyy-MM-dd')
-    : format(now, 'yyyy-MM-dd');
-};
-
 export default function TransportManagerDashboard() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date();
-    const ymd = now.getHours() < 6
-      ? format(subDays(now, 1), 'yyyy-MM-dd')
-      : format(now, 'yyyy-MM-dd');
-    return ymd;
-  });
+  const [selectedDate, setSelectedDate] = useState(() => getEffectiveTodayYmd());
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('Rugby');
   const [dailyRota, setDailyRota] = useState({});
@@ -215,7 +203,7 @@ export default function TransportManagerDashboard() {
             <button
               type="button"
               onClick={() => {
-                const today = getEffectiveToday();
+                const today = getEffectiveTodayYmd();
                 setSelectedDate(today);
                 setWeekStart(getWeekStart(new Date(today + 'T12:00:00')));
               }}
