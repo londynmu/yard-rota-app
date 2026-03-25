@@ -21,10 +21,10 @@ const FILTER_SHIFT_CLASS =
 
 const modalOptionClass = (selected) =>
   [
-    'w-full px-4 py-3 rounded-xl border text-sm font-medium transition-colors text-left',
+    'w-full px-4 py-2.5 rounded-xl border font-medium transition-colors text-left',
     selected
-      ? 'border-slate-200/60 bg-white/90 text-charcoal shadow-sm'
-      : 'border-transparent bg-white/60 text-slate-500 hover:border-slate-200/60 hover:bg-white/90 hover:text-slate-800',
+      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
+      : 'text-slate-700 hover:bg-slate-50 border-slate-200/60',
   ].join(' ');
 
 const RANGE_OPTIONS = [
@@ -149,7 +149,6 @@ const PerformanceLeaderboard = () => {
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [shiftFilter, setShiftFilter] = useState('all');
   const [expandedUserId, setExpandedUserId] = useState(null);
-  const [teamOverviewExpanded, setTeamOverviewExpanded] = useState(false);
   const [rawPerformance, setRawPerformance] = useState([]);
 
   // Save preferences to localStorage
@@ -624,26 +623,14 @@ const PerformanceLeaderboard = () => {
         </div>
       </div>
 
-      {(() => {
-        const d = new Date();
-        const h = d.getHours();
-        const m = d.getMinutes();
-        const showNextReportAt0630 = h < 6 || (h === 6 && m < 30);
-        return showNextReportAt0630 ? (
-          <div className="border-b border-slate-200/60 bg-base-50/80 backdrop-blur-sm px-4 py-2 text-center">
-            <p className="text-sm text-slate-700 font-medium">Next report will be available at 06:30.</p>
-          </div>
-        ) : null;
-      })()}
-
-      <Modal isOpen={showRangeModal} onClose={() => setShowRangeModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
-        <div className="p-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
-            <h3 className="text-lg font-bold text-charcoal">Select Range</h3>
+      <Modal isOpen={showRangeModal} onClose={() => setShowRangeModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-charcoal">Select Range</h3>
             <button
               type="button"
               onClick={() => setShowRangeModal(false)}
-              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
               aria-label="Close range modal"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -651,7 +638,7 @@ const PerformanceLeaderboard = () => {
               </svg>
             </button>
           </div>
-          <div className="pt-4 space-y-2">
+          <div className="space-y-2">
             {RANGE_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -669,14 +656,14 @@ const PerformanceLeaderboard = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={showSortModal} onClose={() => setShowSortModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
-        <div className="p-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
-            <h3 className="text-lg font-bold text-charcoal">Sort Leaderboard</h3>
+      <Modal isOpen={showSortModal} onClose={() => setShowSortModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-charcoal">Sort Leaderboard</h3>
             <button
               type="button"
               onClick={() => setShowSortModal(false)}
-              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
               aria-label="Close sort modal"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -684,7 +671,7 @@ const PerformanceLeaderboard = () => {
               </svg>
             </button>
           </div>
-          <div className="pt-4 space-y-2">
+          <div className="space-y-2">
             {SORT_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -702,14 +689,14 @@ const PerformanceLeaderboard = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={showShiftModal} onClose={() => setShowShiftModal(false)} className="!p-0 max-w-sm overflow-hidden rounded-2xl border-slate-200/60 shadow-strong">
-        <div className="p-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
-            <h3 className="text-lg font-bold text-charcoal">Shift</h3>
+      <Modal isOpen={showShiftModal} onClose={() => setShowShiftModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-bold text-charcoal">Shift</h3>
             <button
               type="button"
               onClick={() => setShowShiftModal(false)}
-              className="text-slate-500 hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
               aria-label="Close shift modal"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -717,7 +704,7 @@ const PerformanceLeaderboard = () => {
               </svg>
             </button>
           </div>
-          <div className="pt-4 space-y-2">
+          <div className="space-y-2">
             {[
               { value: 'all', label: 'All' },
               { value: 'day', label: 'Day' },
@@ -786,99 +773,8 @@ const PerformanceLeaderboard = () => {
           </div>
         ) : (
           <>
-            {/* Team overview - Collapsible */}
-            <section className="mb-6">
-              <motion.div
-                layout
-                className={`card-modern overflow-hidden cursor-pointer transition-shadow ${
-                  teamOverviewExpanded ? 'shadow-lg' : 'shadow-md'
-                }`}
-                onClick={() => setTeamOverviewExpanded(!teamOverviewExpanded)}
-                whileTap={{ scale: teamOverviewExpanded ? 0.99 : 0.98 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-              >
-                <motion.div
-                  className={`flex items-center justify-between border-b border-slate-200/60 bg-gradient-to-r from-base-50 to-white ${
-                    teamOverviewExpanded ? 'p-4' : 'px-4 py-3'
-                  }`}
-                  layout
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <BarChart2
-                      className={`shrink-0 ${teamOverviewExpanded ? 'w-6 h-6 text-blue-600' : 'w-7 h-7 text-blue-600'}`}
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                    <div className="min-w-0">
-                      <motion.p layout className="font-bold text-sm text-charcoal">
-                        Team Overview
-                      </motion.p>
-                      {!teamOverviewExpanded && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="text-slate-600 text-xs truncate"
-                        >
-                          {leaderboardData.length} active shunters
-                        </motion.p>
-                      )}
-                    </div>
-                  </div>
-                  <motion.svg
-                    className="w-5 h-5 flex-shrink-0 text-charcoal"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    animate={{ rotate: teamOverviewExpanded ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </motion.svg>
-                </motion.div>
-
-                {/* Expandable Content */}
-                <AnimatePresence initial={false}>
-                  {teamOverviewExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 pb-4 pt-2 space-y-2 pointer-events-none bg-white/50">
-                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
-                          <span className="text-sm text-slate-700">Active shunters</span>
-                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.activeShunters}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
-                          <span className="text-sm text-slate-700">Total moves</span>
-                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.totalMoves.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
-                          <span className="text-sm text-slate-700">Avg moves / day</span>
-                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.avgMovesPerDay.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 border-b border-slate-200/60">
-                          <span className="text-sm text-slate-700">Total full locations</span>
-                          <span className="text-lg font-semibold text-charcoal tabular-nums">{teamHighlights.totalFullLocations.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2">
-                          <span className="text-sm text-slate-700">Top performer</span>
-                          <span className="text-lg font-semibold text-charcoal truncate max-w-[55%] text-right">
-                            {rankedLeaderboardData.list[0] ? formatShunterName(rankedLeaderboardData.list[0]) : '—'}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </section>
-
             {/* Trend */}
-            <section className="mb-8">
+            <section className="mb-6">
               <Suspense
                 fallback={
                   <div className="card-modern w-full min-h-[220px] animate-pulse bg-base-50/90" aria-hidden />
