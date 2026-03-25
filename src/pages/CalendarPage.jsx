@@ -595,7 +595,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                         <span className="text-sm font-bold text-amber-800 tabular-nums">{todayShiftSummary.day}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-charcoal">Day</p>
                         <p className="text-xs text-amber-700">Shunters on day shift</p>
                       </div>
                     </div>
@@ -605,7 +604,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                         <span className="text-sm font-bold text-orange-800 tabular-nums">{todayShiftSummary.afternoon}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-charcoal">Afternoon</p>
                         <p className="text-xs text-orange-700">Shunters on afternoon shift</p>
                       </div>
                     </div>
@@ -615,7 +613,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                         <span className="text-sm font-bold text-blue-800 tabular-nums">{todayShiftSummary.night}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-charcoal">Night</p>
                         <p className="text-xs text-blue-700">Shunters on night shift</p>
                       </div>
                     </div>
