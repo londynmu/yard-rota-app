@@ -52,6 +52,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   const [, setUserBreakLabel] = useState('');
   const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
+  const [todayShiftSummary, setTodayShiftSummary] = useState({ day: 0, afternoon: 0, night: 0, total: 0 });
   
   // Use custom hook for availability data fetching
   const { dayData, loading, refetchAvailability } = useAvailabilityData(currentDate, user);
@@ -90,6 +91,53 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
       window.removeEventListener('resize', updateHeight);
     };
   }, []);
+
+  useEffect(() => {
+    const fetchTodayShiftSummary = async () => {
+      try {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const today = `${y}-${m}-${d}`;
+
+        const { data, error } = await supabase
+          .from('scheduled_rota')
+          .select('user_id, shift_type')
+          .eq('date', today)
+          .eq('location', selectedLocation);
+
+        if (error) throw error;
+        const uniqByShift = {
+          day: new Set(),
+          afternoon: new Set(),
+          night: new Set(),
+        };
+        const uniqAll = new Set();
+
+        (data || []).forEach((row) => {
+          if (!row?.user_id) return;
+          uniqAll.add(row.user_id);
+          if (row.shift_type === 'day') uniqByShift.day.add(row.user_id);
+          if (row.shift_type === 'afternoon') uniqByShift.afternoon.add(row.user_id);
+          if (row.shift_type === 'night') uniqByShift.night.add(row.user_id);
+        });
+
+        setTodayShiftSummary({
+          day: uniqByShift.day.size,
+          afternoon: uniqByShift.afternoon.size,
+          night: uniqByShift.night.size,
+          total: uniqAll.size,
+        });
+      } catch (err) {
+        console.warn('CalendarPage: could not fetch today shift summary', err);
+        setTodayShiftSummary({ day: 0, afternoon: 0, night: 0, total: 0 });
+      }
+    };
+
+    if (!selectedLocation) return;
+    fetchTodayShiftSummary();
+  }, [selectedLocation]);
   
   // Function to show popup with proper cleanup
   const showPopup = useCallback((type, message, duration = 3000) => {
@@ -447,8 +495,8 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             />
           </div>
 
-          <div className="hidden md:grid md:grid-cols-2 md:gap-6 md:items-start">
-            <div className="min-w-0">
+          <div className="hidden md:grid md:grid-cols-4 md:gap-6 md:items-start">
+            <div className="min-w-0 md:col-span-2">
               <div ref={calendarDesktopCardRef} className="card-modern p-4 md:p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-2xl font-bold text-charcoal tracking-tight">
@@ -487,7 +535,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               </div>
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 md:col-span-1">
               <div
                 className="card-modern p-3 md:p-4 h-full"
                 style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
@@ -495,7 +543,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 <div className="h-full min-h-0 flex flex-col">
                   {isAdmin && (
                     <div className="flex-shrink-0">
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2">
                         {adminQuickLinks.map((item) => (
                           <Link
                             key={item.id}
@@ -521,6 +569,57 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+
+            <div className="min-w-0 md:col-span-1">
+              <div
+                className="card-modern p-3 md:p-4 h-full"
+                style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
+              >
+                <div className="h-full min-h-0 flex flex-col">
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-xl shadow-sm">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm">
+                        <span className="text-sm font-bold text-charcoal tabular-nums">{todayShiftSummary.total}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-charcoal truncate">Total shunters</p>
+                        <p className="text-xs text-slate-500 truncate">{selectedLocation || 'Location'} today</p>
+                      </div>
+                    </div>
+
+                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-amber-50 via-amber-50/70 to-slate-50 border border-amber-200 rounded-xl shadow-sm">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-amber-200/70 shadow-sm">
+                        <span className="text-sm font-bold text-amber-800 tabular-nums">{todayShiftSummary.day}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-charcoal">Day</p>
+                        <p className="text-xs text-amber-700">Shunters on day shift</p>
+                      </div>
+                    </div>
+
+                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-orange-50 via-orange-50/70 to-slate-50 border border-orange-200 rounded-xl shadow-sm">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-orange-200/70 shadow-sm">
+                        <span className="text-sm font-bold text-orange-800 tabular-nums">{todayShiftSummary.afternoon}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-charcoal">Afternoon</p>
+                        <p className="text-xs text-orange-700">Shunters on afternoon shift</p>
+                      </div>
+                    </div>
+
+                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-blue-50 via-blue-50/70 to-slate-50 border border-blue-200 rounded-xl shadow-sm">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-blue-200/70 shadow-sm">
+                        <span className="text-sm font-bold text-blue-800 tabular-nums">{todayShiftSummary.night}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-charcoal">Night</p>
+                        <p className="text-xs text-blue-700">Shunters on night shift</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
