@@ -173,11 +173,11 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.16, ease: 'easeOut' }}
-                  className="pointer-events-none absolute bottom-1 left-1 flex aspect-square w-1/4 min-h-0 min-w-0 items-center justify-center"
+                  className="pointer-events-none absolute bottom-1 left-1 flex aspect-square w-[34%] min-h-0 min-w-0 items-center justify-center"
                 >
                   <statusIcon.Icon
-                    className={`h-[85%] w-[85%] ${statusIcon.className}`}
-                    strokeWidth={2.25}
+                    className={`h-full w-full ${statusIcon.className}`}
+                    strokeWidth={2.4}
                     aria-hidden
                   />
                 </motion.div>
