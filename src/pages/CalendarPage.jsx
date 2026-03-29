@@ -58,7 +58,11 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const [todayShiftSummary, setTodayShiftSummary] = useState({ day: 0, afternoon: 0, night: 0, total: 0 });
   
   // Use custom hook for availability data fetching
-  const { dayData, loading, refetchAvailability } = useAvailabilityData(currentDate, user);
+  const { dayData, loading, refetchAvailability } = useAvailabilityData(
+    currentDate,
+    user,
+    selectedDate
+  );
   
   // Ref to track popup timeout for cleanup
   const popupTimeoutRef = useRef(null);
