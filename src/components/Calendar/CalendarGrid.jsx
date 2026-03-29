@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { MessageSquare } from 'lucide-react';
+import { Check, MessageSquare, TreePalm, X } from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -40,6 +40,31 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
         return 'bg-gradient-to-br from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border border-blue-300/50 text-blue-800 shadow-sm hover:shadow-md';
       default:
         return '';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'available':
+        return {
+          Icon: Check,
+          className: 'text-emerald-700/70',
+          label: 'Available',
+        };
+      case 'unavailable':
+        return {
+          Icon: X,
+          className: 'text-rose-700/70',
+          label: 'Unavailable',
+        };
+      case 'holiday':
+        return {
+          Icon: TreePalm,
+          className: 'text-blue-700/70',
+          label: 'Holiday',
+        };
+      default:
+        return null;
     }
   };
 
@@ -85,6 +110,14 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
           const colorClass = getColorByStatus(day);
           const dayInfo = dayData?.[dateString];
           const hasComment = !!dayInfo?.comment;
+          const statusIcon = getStatusIcon(dayInfo?.status);
+          const dayTitle = [
+            isPastDate ? 'Cannot set availability for past dates' : '',
+            statusIcon?.label || '',
+            hasComment ? dayInfo.comment : '',
+          ]
+            .filter(Boolean)
+            .join(' - ');
 
           return (
             <motion.button
@@ -92,13 +125,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
               type="button"
               onClick={() => !isPastDate && onDayClick(day, dayInfo)}
               disabled={isPastDate}
-              title={
-                isPastDate
-                  ? 'Cannot set availability for past dates'
-                  : hasComment
-                    ? dayInfo.comment
-                    : ''
-              }
+              title={dayTitle}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{
@@ -110,8 +137,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
               whileHover={!isPastDate ? { scale: 1.05, y: -2 } : {}}
               whileTap={!isPastDate ? { scale: 0.95 } : {}}
               className={`
-                aspect-square flex flex-col items-center justify-center
-                relative transition-all duration-200 rounded-xl
+                relative aspect-square transition-all duration-200 rounded-xl
                 ${isCurrentMonth ? 'text-slate-700 font-medium' : 'text-slate-400'}
                 ${isCurrentDay ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg scale-105 z-10' : ''}
                 ${isPastDate && !colorClass ? 'bg-slate-100/50 cursor-not-allowed text-slate-400' : ''}
@@ -137,17 +163,32 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
               )}
 
               <span
-                className={`text-sm ${isCurrentDay ? 'font-bold text-blue-600' : 'font-medium'}`}
+                className={`absolute right-1 top-1 text-sm ${isCurrentDay ? 'font-bold text-blue-600' : 'font-medium'}`}
               >
                 {format(day, 'd')}
               </span>
+
+              {statusIcon && (
+                <motion.div
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  className="pointer-events-none absolute bottom-1 left-1 flex aspect-square w-1/4 min-h-0 min-w-0 items-center justify-center"
+                >
+                  <statusIcon.Icon
+                    className={`h-[85%] w-[85%] ${statusIcon.className}`}
+                    strokeWidth={2.25}
+                    aria-hidden
+                  />
+                </motion.div>
+              )}
 
               {hasComment && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500 }}
-                  className="absolute top-1 right-1"
+                  className="absolute bottom-1 right-1"
                 >
                   <MessageSquare className="w-3 h-3 text-amber-500 fill-amber-100" aria-hidden />
                 </motion.div>

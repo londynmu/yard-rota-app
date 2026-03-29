@@ -42,8 +42,10 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const { isAdmin } = useNotifications();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDates, setSelectedDates] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [popup, setPopup] = useState({ show: false, type: 'info', message: '' });
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(
     () => localStorage.getItem(CALENDAR_BREAKS_LOCATION_KEY) || ''
   );
@@ -298,6 +300,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     // Clear any error message
     setErrorMessage('');
     setSelectedDate(date);
+    setSelectedDates([format(date, 'yyyy-MM-dd')]);
   };
   
   // Cleanup error timeout on unmount
@@ -311,6 +314,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   
   const handleCloseDialog = useCallback(() => {
     setSelectedDate(null);
+    setSelectedDates([]);
   }, []);
   
   // Handler for location toggle
@@ -333,43 +337,98 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const handleSaveAvailability = useCallback(async (data) => {
     if (!user) {
       alert('You must be logged in to save availability');
-      return;
+      return false;
     }
     
+    const requestedEntries = Array.isArray(data.entries) && data.entries.length > 0
+      ? data.entries
+        .filter((entry) => entry?.date && entry?.status)
+        .reduce((acc, entry) => {
+          acc[entry.date] = entry.status;
+          return acc;
+        }, {})
+      : ((Array.isArray(data.dates) && data.dates.length > 0)
+        ? [...new Set(data.dates)].reduce((acc, targetDate) => {
+          acc[targetDate] = data.status;
+          return acc;
+        }, {})
+        : (data.date && data.status ? { [data.date]: data.status } : {}));
+    const uniqueEntries = Object.entries(requestedEntries).map(([targetDate, targetStatus]) => ({
+      date: targetDate,
+      status: targetStatus,
+    }));
+    const isSingleDate = uniqueEntries.length === 1;
+    const shouldApplyComment = Boolean(data.applyComment && isSingleDate);
+    const normalizedComment = data.comment ?? '';
+
+    if (uniqueEntries.length === 0) {
+      showPopup('error', 'Select at least one day before saving.');
+      return false;
+    }
+
+    let successCount = 0;
+    setIsSavingAvailability(true);
+
     try {
-      // Check if we're updating an existing record
-      const existingData = dayData[data.date];
-      
-      if (existingData) {
-        // Update existing record
-        const { error } = await supabase
-          .from('availability')
-          .update({
-            status: data.status,
-            comment: data.comment
-          })
-          .eq('id', existingData.id);
-          
-        if (error) throw error;
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('availability')
-          .insert([{
-            date: data.date,
-            status: data.status,
-            comment: data.comment,
-            user_id: user.id
-          }]);
-          
-        if (error) throw error;
+      for (const { date: targetDate, status: targetStatus } of uniqueEntries) {
+        const existingData = dayData[targetDate];
+
+        if (existingData) {
+          const updatePayload = {
+            status: targetStatus,
+          };
+
+          if (shouldApplyComment) {
+            updatePayload.comment = normalizedComment;
+          }
+
+          const { error } = await supabase
+            .from('availability')
+            .update(updatePayload)
+            .eq('id', existingData.id);
+
+          if (error) throw error;
+        } else {
+          const insertPayload = {
+            date: targetDate,
+            status: targetStatus,
+            user_id: user.id,
+          };
+
+          if (shouldApplyComment) {
+            insertPayload.comment = normalizedComment;
+          }
+
+          const { error } = await supabase
+            .from('availability')
+            .insert([insertPayload]);
+
+          if (error) throw error;
+        }
+
+        successCount += 1;
       }
       
       // Refetch data using the hook's refetch function
       await refetchAvailability();
+      showPopup(
+        'success',
+        uniqueEntries.length > 1
+          ? `Saved availability for ${successCount} days.`
+          : 'Availability saved successfully.'
+      );
+      return true;
     } catch (error) {
       console.error('Error saving availability:', error);
-      showPopup('error', 'Failed to save availability. Please try again.');
+      showPopup(
+        'error',
+        successCount > 0
+          ? `Saved ${successCount} day(s), then an error occurred. Please try again.`
+          : 'Failed to save availability. Please try again.'
+      );
+      return false;
+    } finally {
+      setIsSavingAvailability(false);
     }
   }, [user, dayData, refetchAvailability, showPopup]);
 
@@ -776,8 +835,11 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
         <AvailabilityDialog
           date={selectedDate}
           initialData={dayData[format(selectedDate, 'yyyy-MM-dd')]}
+          availabilityByDate={dayData}
+          initialSelectedDates={selectedDates}
           onClose={handleCloseDialog}
           onSave={handleSaveAvailability}
+          isSaving={isSavingAvailability}
         />
       )}
     </>
