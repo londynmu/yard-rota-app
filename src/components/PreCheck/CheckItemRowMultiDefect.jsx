@@ -28,17 +28,22 @@ export default function CheckItemRowMultiDefect({
   };
 
   const isPendingResolved = (defId) => markedResolvedDamageIds.includes(defId);
+  const isSameProblemFor = (def) => {
+    const sk = `${itemKey}::${def.id}`;
+    const ci = checkItems[sk];
+    return ci?.status === 'repair_needed' && ci?.linkedDamageId === def.id;
+  };
+  const isDefectSettled = (def) => isPendingResolved(def.id) || isSameProblemFor(def);
 
   const newDefectStateKey = `${itemKey}${NEW_DEFECT_KEY}`;
   const showNewDefectForm = Boolean(checkItems[newDefectStateKey]?.status === 'repair_needed');
 
   const allDefectsResolved = defects.every(d => isPendingResolved(d.id));
-  const hasAnySameProblem = defects.some(d => {
-    const sk = `${itemKey}::${d.id}`;
-    const ci = checkItems[sk];
-    return ci?.status === 'repair_needed' && ci?.linkedDamageId === d.id;
-  });
-  const showReloadInHeader = Boolean(onReload) && (allDefectsResolved || hasAnySameProblem || showNewDefectForm);
+  const hasAnySameProblem = defects.some(isSameProblemFor);
+  const unsettledDefects = defects.filter((def) => !isDefectSettled(def));
+  const allDefectsSettled = unsettledDefects.length === 0;
+  const showCollapsedState = allDefectsSettled && !showNewDefectForm;
+  const showReloadInHeader = Boolean(onReload) && !showCollapsedState && (allDefectsResolved || hasAnySameProblem || showNewDefectForm);
 
   const handleNewDefectClick = () => {
     blurActive();
@@ -59,11 +64,9 @@ export default function CheckItemRowMultiDefect({
     el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
   }, [checkItems[newDefectStateKey]?.notes, showNewDefectForm]);
 
-  const cardHasIssue = hasAnySameProblem || showNewDefectForm;
+  const cardHasIssue = showNewDefectForm || (!showCollapsedState && hasAnySameProblem);
   const cardBg = cardHasIssue ? 'bg-red-50/50' : (allDefectsResolved ? 'bg-green-50' : 'bg-white');
   const cardBorder = cardHasIssue ? 'border-red-200' : (allDefectsResolved ? 'border-green-200' : 'border-gray-200');
-
-  const isCompleted = allDefectsResolved;
 
   return (
     <div
@@ -94,13 +97,13 @@ export default function CheckItemRowMultiDefect({
         </div>
 
         <div
-          className={`transition-all duration-300 ease-out overflow-hidden ${isCompleted ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
+          className={`transition-all duration-300 ease-out overflow-hidden ${showCollapsedState ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
         >
-        {defects.map((def) => {
+        {unsettledDefects.map((def) => {
           const stateKey = `${itemKey}::${def.id}`;
           const ci = checkItems[stateKey] || {};
           const isFixed = isPendingResolved(def.id);
-          const isSameProblem = ci.status === 'repair_needed' && ci.linkedDamageId === def.id;
+          const isSameProblem = isSameProblemFor(def);
 
           return (
             <div
@@ -187,7 +190,13 @@ export default function CheckItemRowMultiDefect({
       </div>
 
       <div className="px-4 pb-4 pt-2 flex flex-col gap-2 border-t border-gray-100">
-        {!showNewDefectForm && (
+        {showCollapsedState && allDefectsResolved && (
+          <p className="text-center text-base font-semibold text-green-700">You marked defect as fixed (on submit)</p>
+        )}
+        {showCollapsedState && !allDefectsResolved && (
+          <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
+        )}
+        {!showNewDefectForm && !showCollapsedState && (
           <button
             type="button"
             onClick={handleNewDefectClick}
@@ -196,7 +205,7 @@ export default function CheckItemRowMultiDefect({
             Add new defect?
           </button>
         )}
-        {showNewDefectForm && (
+        {showNewDefectForm && !showCollapsedState && (
           <p className="text-xs text-amber-700 italic">Describe the new defect above and add photos if needed</p>
         )}
       </div>
