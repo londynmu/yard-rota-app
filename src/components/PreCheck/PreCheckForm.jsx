@@ -677,7 +677,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const isSchemaMismatch = schemaStatus === 'mismatch';
 
   const handleCheckChange = (key, status) => {
-    const scrollY = window.scrollY;
     setCheckItems(prev => ({
       ...prev,
       [key]: {
@@ -686,10 +685,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         linkedDamageId: status !== 'repair_needed' ? null : prev[key]?.linkedDamageId,
       },
     }));
-    // Restore scroll: rAF for normal browsers, setTimeout for iOS Safari (adjusts scroll later)
-    const restore = () => window.scrollTo({ top: scrollY, behavior: 'auto' });
-    requestAnimationFrame(restore);
-    setTimeout(restore, 80);
   };
 
   // Section: title on main container, floating cards below (no wrapper box)

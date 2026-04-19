@@ -64,25 +64,16 @@ export default function CheckItemRow({
 
   const isPendingResolved = (defId) => pendingResolvedDamageIds.includes(defId);
 
-  const cardBg =
-    value === 'ok' ? 'bg-green-50'
-      : value === 'repair_needed' ? 'bg-red-50/50'
-      : value === 'na' ? 'bg-slate-50/50'
-      : 'bg-white';
-  const cardBorder =
-    value === 'ok' ? 'border-green-200'
-      : value === 'repair_needed' ? 'border-red-200'
-      : value === 'na' ? 'border-slate-200'
-      : 'border-gray-200';
+  // Keep card container visually stable - only action buttons indicate state.
+  const cardBg = 'bg-white';
+  const cardBorder = 'border-gray-200';
 
   const hasKnownDefects = knownDefects.length > 0;
   const singleDefectPendingResolved = hasKnownDefects && knownDefects.length === 1 && isPendingResolved(knownDefects[0].id);
   const showAlternativeFooter = hasKnownDefects && value !== 'repair_needed' && !showStillExistNewProblem && !singleDefectPendingResolved;
   const showSameProblemConfirmed = hasKnownDefects && value === 'repair_needed' && linkedDamageId;
   const showSimplifiedRepairView = value === 'repair_needed' && !linkedDamageId;
-  const showReloadInHeader = Boolean(onReload) && (singleDefectPendingResolved || showStillExistNewProblem || showSimplifiedRepairView || value === 'ok');
-
-  const isCompleted = value === 'ok' || singleDefectPendingResolved || showSameProblemConfirmed;
+  const showReloadInHeader = Boolean(onReload) && (singleDefectPendingResolved || showStillExistNewProblem || showSimplifiedRepairView);
 
   useEffect(() => {
     const el = notesTextareaRef.current;
@@ -100,8 +91,7 @@ export default function CheckItemRow({
         <div className="flex items-start justify-between gap-2">
           <h3
             className={`text-lg font-semibold flex-1 min-w-0 ${
-              value === 'ok' ? 'text-green-700'
-                : value === 'repair_needed' ? 'text-red-700'
+              value === 'repair_needed' ? 'text-red-700'
                 : value === 'na' ? 'text-slate-400 line-through'
                 : 'text-charcoal'
             }`}
@@ -141,9 +131,7 @@ export default function CheckItemRow({
           </div>
         </div>
 
-        <div
-          className={`transition-all duration-300 ease-out overflow-hidden ${isCompleted ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
-        >
+        <div className="overflow-hidden">
         {tooltip && value !== 'na' && (
           <p className="text-sm text-gray-600 leading-snug mt-1">{tooltip}</p>
         )}
@@ -369,13 +357,7 @@ export default function CheckItemRow({
         <div className="px-4 pb-4 pt-2 border-t border-gray-100">
           <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
         </div>
-      ) : showSimplifiedRepairView ? null : value === 'ok' ? (
-        <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex justify-center">
-          <svg className="w-14 h-14 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-      ) : (
+      ) : showSimplifiedRepairView ? null : (
         <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
           <button
             type="button"
