@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { safeAutoReload } from '../lib/reloadGuard';
 
 import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
@@ -126,6 +128,8 @@ export default function PreCheckPage() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
+    if (Capacitor.getPlatform() !== 'web') return;
+
     // Soft revalidate version when entering /precheck to avoid stale chunks
     const checkVersion = async () => {
       try {
@@ -133,7 +137,7 @@ export default function PreCheckPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (data?.version && typeof __BUILD_TIMESTAMP__ !== 'undefined' && data.version !== __BUILD_TIMESTAMP__) {
-          window.location.reload();
+          safeAutoReload('precheck.pageVersionMismatch');
         }
       } catch {
         // ignore – do not block the user

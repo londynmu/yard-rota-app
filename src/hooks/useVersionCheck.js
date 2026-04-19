@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { safeAutoReload } from '../lib/reloadGuard'
 
 /* global __BUILD_TIMESTAMP__ */
 
@@ -70,8 +71,8 @@ export function useVersionCheck() {
       console.warn('[useVersionCheck] Error during update:', err)
     }
 
-    // Final fallback: hard reload (caches are already cleared)
-    window.location.reload()
+    // Final fallback: hard reload (guarded to avoid reload loops)
+    safeAutoReload('useVersionCheck.triggerUpdate')
   }, [])
 
   // When new version is detected, auto-reload after short delay (no user action)

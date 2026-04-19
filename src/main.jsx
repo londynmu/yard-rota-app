@@ -8,6 +8,7 @@ import { ToastProvider } from './components/ui/ToastContext'
 import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
+import { safeAutoReload } from './lib/reloadGuard'
 
 const isSystemDarkMode = () =>
   typeof window !== 'undefined' &&
@@ -52,7 +53,7 @@ async function ensureLatestVersion() {
     if (!res.ok) return
     const data = await res.json()
     if (data.version && data.version !== __BUILD_TIMESTAMP__) {
-      location.reload()
+      safeAutoReload('main.ensureLatestVersion')
       return
     }
   } catch {
@@ -84,28 +85,39 @@ if (Capacitor.getPlatform() === 'web') {
 // --- PWA Auto-Update (fixes iOS Safari caching) ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then((registration) => {
+    let lastUpdateCheck = 0
+    const MIN_SW_UPDATE_INTERVAL_MS = 30 * 1000
+    const requestSwUpdate = () => {
+      const now = Date.now()
+      if (now - lastUpdateCheck < MIN_SW_UPDATE_INTERVAL_MS) return
+      lastUpdateCheck = now
+      registration.update().catch((err) => {
+        console.warn('[main] Service worker update check failed:', err)
+      })
+    }
+
     // First check after 5 s so even ~1 min sessions get one update check (users who only jump between pages, no tab switch)
-    setTimeout(() => registration.update(), 5000);
+    setTimeout(requestSwUpdate, 5000);
     // Check for SW updates every 2 minutes (align with version.json poll; catch 2–3 min sessions)
     setInterval(() => {
-      registration.update()
+      requestSwUpdate()
     }, 2 * 60 * 1000)
 
     // Check when user returns to app (iOS background resume, tab switch)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        registration.update()
+        requestSwUpdate()
       }
     })
 
     // Also check on window focus (covers more browser scenarios)
     window.addEventListener('focus', () => {
-      registration.update()
+      requestSwUpdate()
     })
 
     // Check when coming back online (e.g. after mobile data / WiFi reconnect)
     window.addEventListener('online', () => {
-      registration.update()
+      requestSwUpdate()
     })
   })
 
@@ -133,7 +145,10 @@ if ('serviceWorker' in navigator) {
     document.body.appendChild(overlay)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        window.location.reload()
+        const didReload = safeAutoReload('main.controllerChange')
+        if (!didReload) {
+          overlay.remove()
+        }
       })
     })
   })
