@@ -31,6 +31,8 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  final GlobalKey _calendarCardKey = GlobalKey();
+
   late DateTime _visibleMonth;
   CalendarMonthData? _monthData;
   Map<String, AvailabilityEntry> _availabilityByDate =
@@ -200,16 +202,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    final request = await showModalBottomSheet<SaveAvailabilityRequest>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (context) {
-        return AvailabilitySheet(
-          anchorDate: normalized,
-          availabilityByDate: _availabilityByDate,
-        );
-      },
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) {
+      return;
+    }
+
+    final request = await _showAvailabilityInCalendarSlot(
+      anchorDate: normalized,
     );
 
     if (request == null || request.items.isEmpty) {
@@ -251,6 +250,107 @@ class _CalendarScreenState extends State<CalendarScreen> {
         });
       }
     }
+  }
+
+  Rect? _readCalendarCardRect() {
+    final ctx = _calendarCardKey.currentContext;
+    if (ctx == null) {
+      return null;
+    }
+    final box = ctx.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) {
+      return null;
+    }
+    final topLeft = box.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+      topLeft.dx,
+      topLeft.dy,
+      box.size.width,
+      box.size.height,
+    );
+  }
+
+  Future<SaveAvailabilityRequest?> _showAvailabilityInCalendarSlot({
+    required DateTime anchorDate,
+  }) async {
+    if (!mounted) {
+      return null;
+    }
+    final rect = _readCalendarCardRect();
+    final availability = Map<String, AvailabilityEntry>.from(_availabilityByDate);
+
+    if (rect == null) {
+      return showDialog<SaveAvailabilityRequest>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            backgroundColor: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                maxWidth: 420,
+              ),
+              child: AvailabilitySheet(
+                anchorDate: anchorDate,
+                availabilityByDate: availability,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return showGeneralDialog<SaveAvailabilityRequest>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(dialogContext).pop(),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.42),
+                ),
+              ),
+            ),
+            Positioned(
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              child: Material(
+                color: Colors.transparent,
+                elevation: 6,
+                shadowColor: Colors.black45,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                clipBehavior: Clip.antiAlias,
+                child: AvailabilitySheet(
+                  anchorDate: anchorDate,
+                  availabilityByDate: availability,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+          child: child,
+        );
+      },
+    );
   }
 
   @override
@@ -368,9 +468,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final leading = firstWeekday - 1;
     final totalCells = leading + daysInMonth;
 
-    return AppCard(
-      surfaceOpacity: 0.5,
-      child: Column(
+    return KeyedSubtree(
+      key: _calendarCardKey,
+      child: AppCard(
+        surfaceOpacity: 0.5,
+        child: Column(
         children: [
           Row(
             children: [
@@ -485,6 +587,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             },
           ),
         ],
+      ),
       ),
     );
   }

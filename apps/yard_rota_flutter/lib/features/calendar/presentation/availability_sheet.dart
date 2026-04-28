@@ -26,6 +26,9 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   late List<String> _selectedDates;
   late Map<String, AvailabilityStatus> _statusByDate;
 
+  final ScrollController _dayCarouselController = ScrollController();
+  bool _dayCarouselArrowsDismissed = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,259 +71,251 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   }
 
   @override
+  void dispose() {
+    _dayCarouselController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return FractionallySizedBox(
-      heightFactor: 0.62,
-      child: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                colors.bgPrimary,
-                colors.bgSecondary.withValues(alpha: 0.96),
-                colors.bgPrimary,
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xl),
-            ),
-            border: Border.all(color: colors.borderDefault),
-          ),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildTopBar(context),
-                const SizedBox(height: AppSpacing.sm),
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildIntro(context),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildStatusPicker(context),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildDateCarousel(context),
-                        _buildCarouselSwipeHint(context),
-                      ],
-                    ),
-                  ),
-                ),
-                _buildActions(context),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar(BuildContext context) {
-    final colors = context.appColors;
-    return Center(
-      child: Container(
-        width: 42,
-        height: 4,
-        decoration: BoxDecoration(
-          color: colors.borderStrong,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIntro(BuildContext context) {
-    final colors = context.appColors;
+    const modalSurfaceOpacity = 0.5;
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: colors.bgPrimary.withValues(alpha: 0.72),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colors.bgPrimary.withValues(alpha: modalSurfaceOpacity),
+            colors.bgSecondary.withValues(alpha: modalSurfaceOpacity),
+            colors.bgPrimary.withValues(alpha: modalSurfaceOpacity),
+          ],
+        ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.borderDefault),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildStatusPicker(context),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildDateCarousel(context),
+                  ],
+                ),
+              ),
             ),
-            child: Icon(Icons.auto_awesome, size: 16, color: colors.primary),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Choose status, then tap days in the carousel.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-            ),
-          ),
-        ],
+            _buildActions(context),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDateCarousel(BuildContext context) {
     final colors = context.appColors;
-    return SizedBox(
-      height: 132,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _dateOptions.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final optionDate = _dateOptions[index];
-          final ymd = _toYmd(optionDate);
-          final isSelected = _selectedDates.contains(ymd);
-          final storedStatus =
-              _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
-          final tone = _toneForStatus(context, storedStatus);
-          final hasSavedStatus = storedStatus != null;
-          final cardColor = isSelected
-              ? tone.background
-              : hasSavedStatus
-              ? tone.background.withValues(alpha: 0.55)
-              : colors.bgPrimary.withValues(alpha: 0.65);
-          final borderColor = isSelected
-              ? tone.border
-              : hasSavedStatus
-              ? tone.border.withValues(alpha: 0.70)
-              : colors.borderDefault;
-          final dayTextColor = (isSelected || hasSavedStatus)
-              ? tone.text
-              : colors.textPrimary;
+    const carouselHeight = 132.0;
+    const dayCardWidth = 104.0;
+    const gutter = 22.0;
 
-          return InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            onTap: () => _toggleDate(ymd),
-            child: AnimatedContainer(
-              duration: AppMotion.normal,
-              width: 104,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.sm,
+    Widget sideArrow({required bool isLeft}) {
+      return Align(
+        alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+        child: IgnorePointer(
+          child: SizedBox(
+            width: gutter,
+            height: carouselHeight,
+            child: Center(
+              child: Icon(
+                isLeft ? Icons.chevron_left : Icons.chevron_right,
+                size: 28,
+                color: colors.primary.withValues(alpha: 0.55),
               ),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.shadow.withValues(
-                      alpha: isSelected ? 0.16 : 0.08,
-                    ),
-                    blurRadius: isSelected ? 12 : 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          _weekdayLabel(optionDate),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: (isSelected || hasSavedStatus)
-                                    ? dayTextColor.withValues(alpha: 0.82)
-                                    : colors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          _ordinalDay(optionDate.day),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: dayTextColor,
-                                fontWeight: FontWeight.w700,
-                                height: 1.05,
-                              ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _monthShortLabel(optionDate),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: (isSelected || hasSavedStatus)
-                                    ? dayTextColor.withValues(alpha: 0.78)
-                                    : colors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.4,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    _statusLabelForDisplay(
-                      _statusByDate[ymd] ??
-                          widget.availabilityByDate[ymd]?.status,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCarouselSwipeHint(BuildContext context) {
-    final colors = context.appColors;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Center(
-        child: Semantics(
-          label: 'Swipe sideways to browse more days',
-          child: Text(
-            '<- swipe sideways ->',
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-              letterSpacing: 0.35,
             ),
           ),
         ),
+      );
+    }
+
+    return SizedBox(
+      height: carouselHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final n = _dateOptions.length;
+          final totalContentWidth = n * dayCardWidth +
+              (n > 0 ? (n - 1) * AppSpacing.sm : 0);
+          final scrollable = totalContentWidth > constraints.maxWidth + 0.5;
+          final showArrows =
+              scrollable && !_dayCarouselArrowsDismissed;
+
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification n) {
+                  if (_dayCarouselArrowsDismissed || !scrollable) {
+                    return false;
+                  }
+                  if (!n.metrics.hasPixels) {
+                    return false;
+                  }
+                  if (n is ScrollUpdateNotification &&
+                      (n.scrollDelta?.abs() ?? 0) > 0) {
+                    setState(() => _dayCarouselArrowsDismissed = true);
+                  }
+                  return false;
+                },
+                child: ListView.separated(
+                  controller: _dayCarouselController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: gutter),
+                  itemCount: n,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: AppSpacing.sm),
+                  itemBuilder: (context, index) {
+                    final optionDate = _dateOptions[index];
+                    final ymd = _toYmd(optionDate);
+                    final isSelected = _selectedDates.contains(ymd);
+                    final storedStatus = _statusByDate[ymd] ??
+                        widget.availabilityByDate[ymd]?.status;
+                    final tone = _toneForStatus(context, storedStatus);
+                    final hasSavedStatus = storedStatus != null;
+                    final cardColor = isSelected
+                        ? tone.background
+                        : hasSavedStatus
+                            ? tone.background.withValues(alpha: 0.55)
+                            : colors.bgPrimary.withValues(alpha: 0.65);
+                    final borderColor = isSelected
+                        ? tone.border
+                        : hasSavedStatus
+                            ? tone.border.withValues(alpha: 0.70)
+                            : colors.borderDefault;
+                    final dayTextColor = (isSelected || hasSavedStatus)
+                        ? tone.text
+                        : colors.textPrimary;
+
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      onTap: () => _toggleDate(ymd),
+                      child: AnimatedContainer(
+                        duration: AppMotion.normal,
+                        width: dayCardWidth,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: borderColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.shadow.withValues(
+                                alpha: isSelected ? 0.16 : 0.08,
+                              ),
+                              blurRadius: isSelected ? 12 : 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _weekdayLabel(optionDate),
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: (isSelected ||
+                                                  hasSavedStatus)
+                                              ? dayTextColor
+                                                  .withValues(alpha: 0.82)
+                                              : colors.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.3,
+                                        ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    _ordinalDay(optionDate.day),
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          color: dayTextColor,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.05,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _monthShortLabel(optionDate),
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: (isSelected ||
+                                                  hasSavedStatus)
+                                              ? dayTextColor
+                                                  .withValues(alpha: 0.78)
+                                              : colors.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.4,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              _statusLabelForDisplay(
+                                _statusByDate[ymd] ??
+                                    widget.availabilityByDate[ymd]?.status,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: colors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (showArrows) sideArrow(isLeft: true),
+              if (showArrows) sideArrow(isLeft: false),
+            ],
+          );
+        },
       ),
     );
   }
