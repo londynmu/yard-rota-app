@@ -77,11 +77,11 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
                 colors.bgPrimary,
-                colors.bgSecondary.withValues(alpha: 0.92),
+                colors.bgSecondary.withValues(alpha: 0.96),
                 colors.bgPrimary,
               ],
             ),
@@ -102,6 +102,8 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               children: [
                 _buildTopBar(context),
                 const SizedBox(height: AppSpacing.sm),
+                _buildIntro(context),
+                const SizedBox(height: AppSpacing.md),
                 _buildStatusPicker(context),
                 const SizedBox(height: AppSpacing.md),
                 _buildDateCarousel(context),
@@ -140,10 +142,45 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     );
   }
 
+  Widget _buildIntro(BuildContext context) {
+    final colors = context.appColors;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.bgPrimary.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(Icons.auto_awesome, size: 16, color: colors.primary),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Choose status, then tap days in the carousel.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDateCarousel(BuildContext context) {
     final colors = context.appColors;
     return SizedBox(
-      height: 108,
+      height: 118,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _dateOptions.length,
@@ -175,7 +212,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
             onTap: () => _toggleDate(ymd),
             child: AnimatedContainer(
               duration: AppMotion.normal,
-              width: 92,
+              width: 98,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
                 vertical: AppSpacing.sm,
@@ -197,6 +234,17 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    width: 30,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? tone.border
+                          : colors.borderStrong.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     _weekdayLabel(optionDate),
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -283,14 +331,27 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                             ),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            _statusLabel(status),
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: selected
-                                      ? tone.text
-                                      : colors.textPrimary,
-                                ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _statusIcon(status),
+                                size: 14,
+                                color: selected
+                                    ? tone.text
+                                    : colors.textSecondary,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                _statusLabel(status),
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: selected
+                                          ? tone.text
+                                          : colors.textPrimary,
+                                    ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -305,30 +366,48 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   }
 
   Widget _buildActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: AppComponentTokens.buttonHeightMd,
-            child: AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: () => Navigator.of(context).pop(),
+    final colors = context.appColors;
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.borderSubtle)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: AppComponentTokens.buttonHeightMd,
+              child: AppButton(
+                label: 'Cancel',
+                variant: AppButtonVariant.secondary,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: SizedBox(
-            height: AppComponentTokens.buttonHeightMd,
-            child: AppButton(
-              label: 'Save',
-              onPressed: _selectedDates.isEmpty ? null : _save,
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: SizedBox(
+              height: AppComponentTokens.buttonHeightMd,
+              child: AppButton(
+                label: 'Save',
+                onPressed: _selectedDates.isEmpty ? null : _save,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  IconData _statusIcon(AvailabilityStatus status) {
+    switch (status) {
+      case AvailabilityStatus.available:
+        return Icons.check_circle_outline;
+      case AvailabilityStatus.unavailable:
+        return Icons.remove_circle_outline;
+      case AvailabilityStatus.holiday:
+        return Icons.beach_access_outlined;
+    }
   }
 
   void _toggleDate(String ymd) {
