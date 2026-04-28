@@ -27,10 +27,17 @@ class SupabaseApiClient implements ApiClient {
     required String email,
     required String password,
   }) async {
-    final response = await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    late final AuthResponse response;
+    try {
+      response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+    } on AuthException catch (error) {
+      throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
 
     final user = response.user;
     if (user == null) {
@@ -45,7 +52,13 @@ class SupabaseApiClient implements ApiClient {
 
   @override
   Future<void> signOut() async {
-    await _client.auth.signOut(scope: SignOutScope.global);
+    try {
+      await _client.auth.signOut(scope: SignOutScope.global);
+    } on AuthException catch (error) {
+      throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
   }
 
   @override
@@ -53,25 +66,28 @@ class SupabaseApiClient implements ApiClient {
     required int year,
     required int month,
   }) async {
-    final session = _client.auth.currentSession;
-    final user = session?.user;
-    if (user == null) {
-      throw const UnauthorizedException('User session not found.');
-    }
+    final userId = _currentUserId();
 
     final startDate = DateTime(year, month, 1);
     final endDate = DateTime(year, month + 1, 0);
     final fromDate = _toYmd(startDate);
     final toDate = _toYmd(endDate);
 
-    final rows = await _client
-        .from('scheduled_rota')
-        .select('date,start_time,end_time,location,shift_type')
-        .eq('user_id', user.id)
-        .gte('date', fromDate)
-        .lte('date', toDate)
-        .order('date')
-        .order('start_time');
+    late final List<dynamic> rows;
+    try {
+      rows = await _client
+          .from('scheduled_rota')
+          .select('date,start_time,end_time,location,shift_type')
+          .eq('user_id', userId)
+          .gte('date', fromDate)
+          .lte('date', toDate)
+          .order('date')
+          .order('start_time');
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
 
     final grouped = <DateTime, List<CalendarShift>>{};
     for (final dynamic row in rows) {
@@ -116,6 +132,95 @@ class SupabaseApiClient implements ApiClient {
     );
   }
 
+  @override
+  Future<List<AvailabilityEntry>> getAvailabilityRange({
+    required String startYmd,
+    required String endYmd,
+  }) async {
+    final userId = _currentUserId();
+
+    late final List<dynamic> rows;
+    try {
+      rows = await _client
+          .from('availability')
+          .select('id,date,status,comment')
+          .eq('user_id', userId)
+          .gte('date', startYmd)
+          .lte('date', endYmd)
+          .order('date');
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+
+    return rows
+        .whereType<Map<String, dynamic>>()
+        .map((row) {
+          return AvailabilityEntry(
+            id: row['id'] as String?,
+            dateYmd: (row['date'] as String?) ?? '',
+            status: AvailabilityStatus.fromDbValue(
+              (row['status'] as String?) ??
+                  AvailabilityStatus.available.dbValue,
+            ),
+            comment: row['comment'] as String?,
+          );
+        })
+        .where((entry) => entry.dateYmd.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> saveAvailability({
+    required SaveAvailabilityRequest request,
+  }) async {
+    if (request.items.isEmpty) {
+      return;
+    }
+
+    final userId = _currentUserId();
+    final dates = request.items.map((item) => item.dateYmd).toSet().toList()
+      ..sort();
+    final startYmd = dates.first;
+    final endYmd = dates.last;
+
+    final existing = await getAvailabilityRange(
+      startYmd: startYmd,
+      endYmd: endYmd,
+    );
+    final byDate = <String, AvailabilityEntry>{
+      for (final item in existing) item.dateYmd: item,
+    };
+
+    for (final item in request.items) {
+      final payload = <String, dynamic>{'status': item.status.dbValue};
+      if (request.applyComment && request.items.length == 1) {
+        payload['comment'] = request.comment.trim();
+      }
+
+      final current = byDate[item.dateYmd];
+      try {
+        if (current?.id != null) {
+          await _client
+              .from('availability')
+              .update(payload)
+              .eq('id', current!.id!);
+        } else {
+          await _client.from('availability').insert({
+            'user_id': userId,
+            'date': item.dateYmd,
+            ...payload,
+          });
+        }
+      } on PostgrestException catch (error) {
+        throw TransientNetworkException(error.message);
+      } catch (error) {
+        throw TransientNetworkException(error.toString());
+      }
+    }
+  }
+
   String _toYmd(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');
@@ -141,5 +246,13 @@ class SupabaseApiClient implements ApiClient {
       return value;
     }
     return '${value[0].toUpperCase()}${value.substring(1)} shift';
+  }
+
+  String _currentUserId() {
+    final user = _client.auth.currentSession?.user;
+    if (user == null) {
+      throw const UnauthorizedException('User session not found.');
+    }
+    return user.id;
   }
 }

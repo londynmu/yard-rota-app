@@ -11,6 +11,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('critical flow login to calendar is interactive', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1200));
     await tester.pumpWidget(YardRotaApp(apiClient: _IntegrationApiClient()));
     await tester.pumpAndSettle();
 
@@ -25,10 +26,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CalendarScreen), findsOneWidget);
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('availability save updates selected day status', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1200));
+    final apiClient = _IntegrationApiClient();
+    await tester.pumpWidget(YardRotaApp(apiClient: apiClient));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), 'crew@yardrota.com');
+    await tester.enterText(find.byType(TextField).at(1), 'yard123');
+    await tester.pump();
+    await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final tomorrowCell = find.descendant(
+      of: find.byType(GridView).first,
+      matching: find.text('${tomorrow.day}'),
+    );
+    await tester.ensureVisible(tomorrowCell.first);
+    await tester.tap(tomorrowCell.first);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Set availability'), findsOneWidget);
+    await tester.tap(find.text('Unavailable'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Availability saved.'), findsOneWidget);
+    expect(find.text('Availability:'), findsOneWidget);
+    expect(find.text('Unavailable'), findsOneWidget);
+    await tester.binding.setSurfaceSize(null);
   });
 }
 
 class _IntegrationApiClient implements ApiClient {
+  final Map<String, AvailabilityEntry> _availability =
+      <String, AvailabilityEntry>{};
+
+  @override
+  Future<List<AvailabilityEntry>> getAvailabilityRange({
+    required String startYmd,
+    required String endYmd,
+  }) async {
+    return _availability.values
+        .where(
+          (entry) =>
+              entry.dateYmd.compareTo(startYmd) >= 0 &&
+              entry.dateYmd.compareTo(endYmd) <= 0,
+        )
+        .toList(growable: false);
+  }
+
   @override
   Future<CalendarMonthData> getCalendarMonth({
     required int year,
@@ -74,4 +127,18 @@ class _IntegrationApiClient implements ApiClient {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> saveAvailability({
+    required SaveAvailabilityRequest request,
+  }) async {
+    for (final item in request.items) {
+      _availability[item.dateYmd] = AvailabilityEntry(
+        id: _availability[item.dateYmd]?.id ?? 'id-${item.dateYmd}',
+        dateYmd: item.dateYmd,
+        status: item.status,
+        comment: request.applyComment ? request.comment : null,
+      );
+    }
+  }
 }

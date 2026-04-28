@@ -7,6 +7,7 @@ import 'core/network/perf_metrics.dart';
 import 'core/network/retry_executor.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/login_screen.dart';
+import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
 import 'features/calendar/data/month_cache.dart';
 import 'features/calendar/presentation/calendar_screen.dart';
@@ -23,6 +24,7 @@ class YardRotaApp extends StatefulWidget {
 class _YardRotaAppState extends State<YardRotaApp> {
   late final ApiClient _apiClient;
   late final CalendarRepository _calendarRepository;
+  late final AvailabilityRepository _availabilityRepository;
   late final Stopwatch _startupStopwatch;
 
   UserSession? _session;
@@ -39,6 +41,10 @@ class _YardRotaAppState extends State<YardRotaApp> {
     _calendarRepository = CalendarRepository(
       apiClient: _apiClient,
       cache: MonthCache(ttl: const Duration(minutes: 10)),
+    );
+    _availabilityRepository = AvailabilityRepository(
+      apiClient: _apiClient,
+      ttl: const Duration(minutes: 10),
     );
     PerfMetrics.recorder = _recordMetric;
     _bootstrap();
@@ -180,6 +186,7 @@ class _YardRotaAppState extends State<YardRotaApp> {
     return CalendarScreen(
       displayName: _session!.displayName,
       calendarRepository: _calendarRepository,
+      availabilityRepository: _availabilityRepository,
       onLogout: _handleLogout,
     );
   }

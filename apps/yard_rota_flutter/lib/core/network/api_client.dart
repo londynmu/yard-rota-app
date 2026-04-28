@@ -17,6 +17,11 @@ abstract class ApiClient {
     required int year,
     required int month,
   });
+  Future<List<AvailabilityEntry>> getAvailabilityRange({
+    required String startYmd,
+    required String endYmd,
+  });
+  Future<void> saveAvailability({required SaveAvailabilityRequest request});
 }
 
 class MockApiClient implements ApiClient {
@@ -85,5 +90,30 @@ class MockApiClient implements ApiClient {
       scheduledDays: schedules,
       fetchedAt: DateTime.now(),
     );
+  }
+
+  @override
+  Future<List<AvailabilityEntry>> getAvailabilityRange({
+    required String startYmd,
+    required String endYmd,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    return const [
+      AvailabilityEntry(
+        id: 'mock-availability-1',
+        dateYmd: '2026-04-30',
+        status: AvailabilityStatus.available,
+      ),
+    ];
+  }
+
+  @override
+  Future<void> saveAvailability({
+    required SaveAvailabilityRequest request,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 160));
+    if (request.items.isEmpty) {
+      throw const TransientNetworkException('No availability items provided.');
+    }
   }
 }

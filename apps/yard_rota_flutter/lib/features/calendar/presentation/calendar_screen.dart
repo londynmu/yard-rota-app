@@ -8,18 +8,22 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_scaffold.dart';
 import '../../../core/ui/status_badge.dart';
+import '../data/availability_repository.dart';
 import '../data/calendar_repository.dart';
+import 'availability_sheet.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({
     super.key,
     required this.displayName,
     required this.calendarRepository,
+    required this.availabilityRepository,
     required this.onLogout,
   });
 
   final String displayName;
   final CalendarRepository calendarRepository;
+  final AvailabilityRepository availabilityRepository;
   final Future<void> Function() onLogout;
 
   @override
@@ -29,9 +33,12 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _visibleMonth;
   CalendarMonthData? _monthData;
+  Map<String, AvailabilityEntry> _availabilityByDate =
+      <String, AvailabilityEntry>{};
   DateTime? _selectedDay;
   bool _isLoading = true;
   bool _isRefreshing = false;
+  bool _isSavingAvailability = false;
   String? _errorMessage;
 
   @override
@@ -73,15 +80,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     try {
-      final fresh = await widget.calendarRepository.loadMonth(
-        year: _visibleMonth.year,
-        month: _visibleMonth.month,
-      );
+      final results = await Future.wait<dynamic>([
+        widget.calendarRepository.loadMonth(
+          year: _visibleMonth.year,
+          month: _visibleMonth.month,
+        ),
+        widget.availabilityRepository.loadForMonth(monthDate: _visibleMonth),
+      ]);
+      final fresh = results[0] as CalendarMonthData;
+      final availability = results[1] as Map<String, AvailabilityEntry>;
       if (!mounted) {
         return;
       }
       setState(() {
         _monthData = fresh;
+        _availabilityByDate = availability;
       });
     } catch (_) {
       if (!mounted) {
@@ -125,6 +138,75 @@ class _CalendarScreenState extends State<CalendarScreen> {
           content: Text('Month switch exceeded cache SLO target.'),
         ),
       );
+    }
+  }
+
+  Future<void> _handleDayTap(DateTime date) async {
+    setState(() {
+      _selectedDay = date;
+    });
+
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    if (date.isBefore(todayStart)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot set availability for dates in the past.'),
+        ),
+      );
+      return;
+    }
+
+    final request = await showModalBottomSheet<SaveAvailabilityRequest>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      builder: (context) {
+        return AvailabilitySheet(
+          anchorDate: date,
+          availabilityByDate: _availabilityByDate,
+        );
+      },
+    );
+
+    if (request == null || request.items.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isSavingAvailability = true;
+    });
+
+    try {
+      await widget.availabilityRepository.save(request: request);
+      final refreshed = await widget.availabilityRepository.loadForMonth(
+        monthDate: _visibleMonth,
+        modalAnchorDate: date,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _availabilityByDate = refreshed;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Availability saved.')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save availability. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingAvailability = false;
+        });
+      }
     }
   }
 
@@ -176,57 +258,87 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final data = _monthData!;
     return ListView(
       children: [
-        _buildMonthHeader(context, data),
-        const SizedBox(height: AppSpacing.lg),
-        _buildCalendarGrid(context, data),
+        _buildCalendarPanel(context, data),
         const SizedBox(height: AppSpacing.lg),
         _buildSelectedDayDetails(context, data),
       ],
     );
   }
 
-  Widget _buildMonthHeader(BuildContext context, CalendarMonthData data) {
+  Widget _buildCalendarPanel(BuildContext context, CalendarMonthData data) {
     final monthLabel = _monthName(data.month);
     final colors = context.appColors;
     return AppCard(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed: () => _shiftMonth(-1),
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'Previous month',
-          ),
-          Expanded(
-            child: Text(
-              '$monthLabel ${data.year}',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
-          if (_isRefreshing)
-            const SizedBox(
-              width: AppComponentTokens.minTouchTarget,
-              height: AppComponentTokens.minTouchTarget,
-              child: Center(
-                child: SizedBox(
-                  width: AppSpacing.lg,
-                  height: AppSpacing.lg,
-                  child: CircularProgressIndicator(strokeWidth: AppStroke.thin),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => _shiftMonth(-1),
+                icon: const Icon(Icons.chevron_left),
+                tooltip: 'Previous month',
+              ),
+              Expanded(
+                child: Text(
+                  '$monthLabel ${data.year}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
-            )
-          else
-            IconButton(
-              onPressed: () => _shiftMonth(1),
-              icon: const Icon(Icons.chevron_right),
-              tooltip: 'Next month',
+              if (_isRefreshing)
+                const SizedBox(
+                  width: AppComponentTokens.minTouchTarget,
+                  height: AppComponentTokens.minTouchTarget,
+                  child: Center(
+                    child: SizedBox(
+                      width: AppSpacing.lg,
+                      height: AppSpacing.lg,
+                      child: CircularProgressIndicator(
+                        strokeWidth: AppStroke.thin,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: () => _shiftMonth(1),
+                  icon: const Icon(Icons.chevron_right),
+                  tooltip: 'Next month',
+                ),
+            ],
+          ),
+          if (_isSavingAvailability)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                'Saving availability...',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: colors.textSecondary),
+              ),
             ),
-          if (_isRefreshing) const SizedBox(width: AppSpacing.sm),
           Text(
-            'SLO: ${NetworkPolicy.monthSwitchCachedSlo.inMilliseconds}ms',
+            'Swipe calendar left or right to change month.',
             style: Theme.of(
               context,
             ).textTheme.labelMedium?.copyWith(color: colors.textTertiary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity.abs() < 350) {
+                return;
+              }
+              if (velocity < 0) {
+                _shiftMonth(1);
+              } else {
+                _shiftMonth(-1);
+              }
+            },
+            child: _buildCalendarGrid(context, data),
           ),
         ],
       ),
@@ -278,32 +390,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
               final day = index - leading + 1;
               final date = DateTime(data.year, data.month, day);
               final selected = _selectedDay?.day == day;
+              final availability = _availabilityByDate[_toYmd(date)];
               final hasShift = data.scheduleForDay(day) != null;
 
+              final availabilityColor = _availabilityColors(
+                colors,
+                availability?.status,
+              );
               final bgColor = selected
                   ? colors.primary
-                  : hasShift
-                  ? colors.infoBg
-                  : colors.bgSecondary;
+                  : availabilityColor.background ??
+                        (hasShift ? colors.infoBg : colors.bgSecondary);
               final textColor = selected
                   ? colors.onPrimary
-                  : hasShift
-                  ? colors.info
-                  : colors.textPrimary;
+                  : availabilityColor.text ??
+                        (hasShift ? colors.info : colors.textPrimary);
+              final borderColor =
+                  availabilityColor.border ?? colors.borderDefault;
 
               return InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () {
-                  setState(() {
-                    _selectedDay = date;
-                  });
-                },
+                onTap: () => _handleDayTap(date),
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: colors.borderDefault),
+                    border: Border.all(color: borderColor),
                   ),
                   child: Text(
                     '$day',
@@ -327,6 +440,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final colors = context.appColors;
     final selected = _selectedDay ?? DateTime(data.year, data.month, 1);
     final schedule = data.scheduleForDay(selected.day);
+    final availability = _availabilityByDate[_toYmd(selected)];
+    final availabilityBadge = _availabilityBadge(availability?.status);
 
     return AppCard(
       child: Column(
@@ -342,6 +457,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const Text('Availability:'),
+              const SizedBox(width: AppSpacing.sm),
+              StatusBadge(
+                label: availabilityBadge.$1,
+                variant: availabilityBadge.$2,
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           if (schedule == null)
@@ -417,6 +543,62 @@ class _CalendarScreenState extends State<CalendarScreen> {
     ];
     return months[month - 1];
   }
+
+  String _toYmd(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  (String, BadgeVariant) _availabilityBadge(AvailabilityStatus? status) {
+    switch (status) {
+      case AvailabilityStatus.available:
+        return ('Available', BadgeVariant.success);
+      case AvailabilityStatus.unavailable:
+        return ('Unavailable', BadgeVariant.danger);
+      case AvailabilityStatus.holiday:
+        return ('Holiday', BadgeVariant.info);
+      case null:
+        return ('Not set', BadgeVariant.info);
+    }
+  }
+
+  _AvailabilityColors _availabilityColors(
+    AppColorsScheme colors,
+    AvailabilityStatus? status,
+  ) {
+    switch (status) {
+      case AvailabilityStatus.available:
+        return _AvailabilityColors(
+          background: colors.successBg,
+          border: colors.success,
+          text: colors.success,
+        );
+      case AvailabilityStatus.unavailable:
+        return _AvailabilityColors(
+          background: colors.dangerBg,
+          border: colors.danger,
+          text: colors.danger,
+        );
+      case AvailabilityStatus.holiday:
+        return _AvailabilityColors(
+          background: colors.infoBg,
+          border: colors.info,
+          text: colors.info,
+        );
+      case null:
+        return const _AvailabilityColors();
+    }
+  }
 }
 
 const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+class _AvailabilityColors {
+  const _AvailabilityColors({this.background, this.border, this.text});
+
+  final Color? background;
+  final Color? border;
+  final Color? text;
+}

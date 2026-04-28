@@ -92,3 +92,53 @@ class CalendarMonthData {
     return null;
   }
 }
+
+enum AvailabilityStatus {
+  available('available'),
+  unavailable('unavailable'),
+  holiday('holiday');
+
+  const AvailabilityStatus(this.dbValue);
+
+  final String dbValue;
+
+  static AvailabilityStatus fromDbValue(String raw) {
+    return AvailabilityStatus.values.firstWhere(
+      (value) => value.dbValue == raw,
+      orElse: () => AvailabilityStatus.available,
+    );
+  }
+}
+
+class AvailabilityEntry {
+  const AvailabilityEntry({
+    this.id,
+    required this.dateYmd,
+    required this.status,
+    this.comment,
+  });
+
+  final String? id;
+  final String dateYmd;
+  final AvailabilityStatus status;
+  final String? comment;
+}
+
+class SaveAvailabilityItem {
+  const SaveAvailabilityItem({required this.dateYmd, required this.status});
+
+  final String dateYmd;
+  final AvailabilityStatus status;
+}
+
+class SaveAvailabilityRequest {
+  const SaveAvailabilityRequest({
+    required this.items,
+    required this.comment,
+    required this.applyComment,
+  });
+
+  final List<SaveAvailabilityItem> items;
+  final String comment;
+  final bool applyComment;
+}
