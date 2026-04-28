@@ -1,0 +1,43 @@
+# Flutter Offline-First Policy
+
+## Scope
+
+This rule applies to `apps/yard_rota_flutter` for calendar and availability flows.
+
+## Core Principle
+
+The Flutter app must be offline-first:
+
+1. Read from local persistence first.
+2. Write to local persistence first.
+3. Sync with Supabase asynchronously as a second step.
+
+## Hard Rules
+
+1. UI must not block on network when local data exists.
+2. Every write must:
+   - commit locally in a transaction,
+   - enqueue an outbox record,
+   - update UI optimistically.
+3. Sync must run in the background with retry and backoff.
+4. Failed sync must preserve local user data and expose sync state.
+5. Calendar and availability must stay usable offline.
+6. In-memory cache alone is not sufficient for critical data.
+7. User-facing labels must remain English.
+
+## SQL Safety Rules
+
+1. Supabase schema changes must be additive-first.
+2. Do not remove or rename columns used by existing clients during rollout.
+3. Do not add `NOT NULL` columns without safe defaults.
+4. Keep `availability` status semantics backward-compatible.
+
+## Verification Gates
+
+Before merge:
+
+1. `flutter analyze`
+2. `flutter test`
+3. `flutter test integration_test -d flutter-tester`
+4. Quality scripts in `apps/yard_rota_flutter/tool/`
+5. SQL compatibility checklist and rollback documentation

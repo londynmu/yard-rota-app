@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/network/api_client.dart';
+import 'core/local_db/app_local_database.dart';
 import 'core/network/models.dart';
 import 'core/network/network_policy.dart';
 import 'core/network/perf_metrics.dart';
@@ -9,20 +10,26 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
-import 'features/calendar/data/month_cache.dart';
 import 'features/calendar/presentation/calendar_screen.dart';
 
 class YardRotaApp extends StatefulWidget {
-  const YardRotaApp({super.key, ApiClient? apiClient}) : _apiClient = apiClient;
+  const YardRotaApp({
+    super.key,
+    ApiClient? apiClient,
+    AppLocalDatabase? localDb,
+  }) : _apiClient = apiClient,
+       _localDb = localDb;
 
   final ApiClient? _apiClient;
+  final AppLocalDatabase? _localDb;
 
   @override
   State<YardRotaApp> createState() => _YardRotaAppState();
 }
 
-class _YardRotaAppState extends State<YardRotaApp> {
+class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   late final ApiClient _apiClient;
+  late final AppLocalDatabase _localDb;
   late final CalendarRepository _calendarRepository;
   late final AvailabilityRepository _availabilityRepository;
   late final Stopwatch _startupStopwatch;
@@ -36,18 +43,33 @@ class _YardRotaAppState extends State<YardRotaApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startupStopwatch = Stopwatch()..start();
     _apiClient = widget._apiClient ?? MockApiClient();
+    _localDb = widget._localDb ?? AppLocalDatabase.inMemory();
     _calendarRepository = CalendarRepository(
       apiClient: _apiClient,
-      cache: MonthCache(ttl: const Duration(minutes: 10)),
+      localDb: _localDb,
     );
     _availabilityRepository = AvailabilityRepository(
       apiClient: _apiClient,
-      ttl: const Duration(minutes: 10),
+      localDb: _localDb,
     );
     PerfMetrics.recorder = _recordMetric;
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _session != null) {
+      _availabilityRepository.flushOutbox();
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -70,6 +92,7 @@ class _YardRotaAppState extends State<YardRotaApp> {
       _session = restored;
       _isBootstrapping = false;
     });
+    await _availabilityRepository.flushOutbox();
     _recordStartupSlo();
   }
 
@@ -95,6 +118,7 @@ class _YardRotaAppState extends State<YardRotaApp> {
       setState(() {
         _session = session;
       });
+      await _availabilityRepository.flushOutbox();
       loginStopwatch.stop();
       if (loginStopwatch.elapsed > NetworkPolicy.loginToCalendarSlo) {
         _showMessage('Login to calendar exceeded SLO target.');
@@ -137,6 +161,7 @@ class _YardRotaAppState extends State<YardRotaApp> {
       _session = null;
       _loginError = null;
     });
+    await _localDb.clearAllUserData();
   }
 
   void _recordStartupSlo() {

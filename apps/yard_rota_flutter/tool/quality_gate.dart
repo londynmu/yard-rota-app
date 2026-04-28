@@ -15,6 +15,11 @@ void main() {
     'lib/core/network/network_policy.dart',
     'tool/perf_slo_check.dart',
     'docs/merge_checklist.md',
+    'docs/sql_compatibility_checklist.md',
+    'docs/supabase_migration_inventory.md',
+    'docs/CHANGE_AUDIT.md',
+    'docs/DB_IMPACT.md',
+    'docs/ROLLBACK_PLAYBOOK.md',
   ];
 
   for (final path in requiredFiles) {

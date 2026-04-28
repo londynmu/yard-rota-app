@@ -1,22 +1,53 @@
+import 'dart:async';
+
 import '../../../core/network/api_client.dart';
+import '../../../core/local_db/app_local_database.dart';
 import '../../../core/network/models.dart';
 import '../../../core/network/perf_metrics.dart';
 import '../../../core/network/retry_executor.dart';
-import 'month_cache.dart';
 
 class CalendarRepository {
-  CalendarRepository({required ApiClient apiClient, required MonthCache cache})
-    : _apiClient = apiClient,
-      _cache = cache;
+  CalendarRepository({
+    required ApiClient apiClient,
+    required AppLocalDatabase localDb,
+  }) : _apiClient = apiClient,
+       _localDb = localDb;
 
   final ApiClient _apiClient;
-  final MonthCache _cache;
+  final AppLocalDatabase _localDb;
+  final Map<String, CalendarMonthData> _memoryCache =
+      <String, CalendarMonthData>{};
 
   CalendarMonthData? readCachedMonth({required int year, required int month}) {
-    return _cache.read(year: year, month: month);
+    return _memoryCache['$year-$month'];
   }
 
   Future<CalendarMonthData> loadMonth({
+    required int year,
+    required int month,
+  }) async {
+    final key = '$year-$month';
+    final inMemory = _memoryCache[key];
+    if (inMemory != null) {
+      unawaited(_refreshMonth(year: year, month: month));
+      _prefetchAdjacentMonths(year: year, month: month);
+      return inMemory;
+    }
+
+    final local = await _localDb.readCalendarMonth(year: year, month: month);
+    if (local != null) {
+      _memoryCache[key] = local;
+      unawaited(_refreshMonth(year: year, month: month));
+      _prefetchAdjacentMonths(year: year, month: month);
+      return local;
+    }
+
+    final fresh = await _refreshMonth(year: year, month: month);
+    _prefetchAdjacentMonths(year: year, month: month);
+    return fresh;
+  }
+
+  Future<CalendarMonthData> _refreshMonth({
     required int year,
     required int month,
   }) async {
@@ -26,8 +57,8 @@ class CalendarRepository {
         task: () => _apiClient.getCalendarMonth(year: year, month: month),
       ),
     );
-    _cache.write(fresh);
-    _prefetchAdjacentMonths(year: year, month: month);
+    _memoryCache['$year-$month'] = fresh;
+    await _localDb.writeCalendarMonth(fresh);
     return fresh;
   }
 
@@ -45,14 +76,23 @@ class CalendarRepository {
   }
 
   Future<void> _prefetch(int year, int month) async {
-    if (_cache.read(year: year, month: month) != null) {
+    if (_memoryCache['$year-$month'] != null) {
+      return;
+    }
+    final hasLocal = await _localDb.hasCalendarMonth(year: year, month: month);
+    if (hasLocal) {
+      final local = await _localDb.readCalendarMonth(year: year, month: month);
+      if (local != null) {
+        _memoryCache['$year-$month'] = local;
+      }
       return;
     }
     try {
       final data = await RetryExecutor.run(
         task: () => _apiClient.getCalendarMonth(year: year, month: month),
       );
-      _cache.write(data);
+      _memoryCache['$year-$month'] = data;
+      await _localDb.writeCalendarMonth(data);
     } catch (_) {
       // Prefetch must never block UI if adjacent month fetch fails.
     }

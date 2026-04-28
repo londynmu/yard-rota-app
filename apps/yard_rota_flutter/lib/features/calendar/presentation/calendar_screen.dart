@@ -77,40 +77,66 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     }
 
+    CalendarMonthData? loadedMonth;
+    Map<String, AvailabilityEntry>? loadedAvailability;
+    var monthFailed = false;
+    var availabilityFailed = false;
+
     try {
-      final results = await Future.wait<dynamic>([
-        widget.calendarRepository.loadMonth(
-          year: _visibleMonth.year,
-          month: _visibleMonth.month,
-        ),
-        widget.availabilityRepository.loadForMonth(monthDate: _visibleMonth),
-      ]);
-      final fresh = results[0] as CalendarMonthData;
-      final availability = results[1] as Map<String, AvailabilityEntry>;
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _monthData = fresh;
-        _availabilityByDate = availability;
-      });
+      loadedMonth = await widget.calendarRepository.loadMonth(
+        year: _visibleMonth.year,
+        month: _visibleMonth.month,
+      );
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      if (_monthData == null) {
-        setState(() {
-          _errorMessage = 'Calendar could not be loaded. Please retry.';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isRefreshing = false;
-        });
-      }
+      monthFailed = true;
     }
+
+    try {
+      loadedAvailability = await widget.availabilityRepository.loadForMonth(
+        monthDate: _visibleMonth,
+      );
+    } catch (_) {
+      availabilityFailed = true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (loadedMonth != null || loadedAvailability != null) {
+      setState(() {
+        if (loadedMonth != null) {
+          _monthData = loadedMonth;
+        }
+        if (loadedAvailability != null) {
+          _availabilityByDate = loadedAvailability;
+        }
+      });
+    } else if (_monthData == null) {
+      setState(() {
+        _errorMessage = 'Calendar could not be loaded. Please retry.';
+      });
+    }
+
+    if (monthFailed && _monthData != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Calendar refresh failed. Showing cached data.'),
+        ),
+      );
+    }
+    if (availabilityFailed && _availabilityByDate.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Availability refresh failed. Showing local data.'),
+        ),
+      );
+    }
+
+    setState(() {
+      _isLoading = false;
+      _isRefreshing = false;
+    });
   }
 
   Future<void> _shiftMonth(int delta) async {
