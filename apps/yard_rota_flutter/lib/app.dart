@@ -12,18 +12,21 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
-import 'features/calendar/presentation/calendar_screen.dart';
+import 'features/shell/main_shell.dart';
+import 'core/theme/theme_mode_storage.dart';
 
 class YardRotaApp extends StatefulWidget {
   const YardRotaApp({
     super.key,
     ApiClient? apiClient,
     AppLocalDatabase? localDb,
+    this.initialThemeMode = ThemeMode.system,
   }) : _apiClient = apiClient,
        _localDb = localDb;
 
   final ApiClient? _apiClient;
   final AppLocalDatabase? _localDb;
+  final ThemeMode initialThemeMode;
 
   @override
   State<YardRotaApp> createState() => _YardRotaAppState();
@@ -41,10 +44,12 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   bool _isBootstrapping = true;
   bool _isLoginLoading = false;
   String? _loginError;
+  late ThemeMode _themeMode;
 
   @override
   void initState() {
     super.initState();
+    _themeMode = widget.initialThemeMode;
     WidgetsBinding.instance.addObserver(this);
     _startupStopwatch = Stopwatch()..start();
     _apiClient = widget._apiClient ?? MockApiClient();
@@ -176,6 +181,16 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     await _localDb.clearAllUserData();
   }
 
+  Future<void> _handleThemeModeChanged(ThemeMode mode) async {
+    await writeSavedThemeMode(mode);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _themeMode = mode;
+    });
+  }
+
   void _recordStartupSlo() {
     _startupStopwatch.stop();
     if (_startupStopwatch.elapsed > NetworkPolicy.startupInteractiveSlo) {
@@ -202,7 +217,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       home: _resolveHome(),
     );
   }
@@ -220,11 +235,13 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       );
     }
 
-    return CalendarScreen(
+    return MainShell(
       displayName: _session!.displayName,
       calendarRepository: _calendarRepository,
       availabilityRepository: _availabilityRepository,
       onLogout: _handleLogout,
+      themeMode: _themeMode,
+      onThemeModeChanged: _handleThemeModeChanged,
     );
   }
 }

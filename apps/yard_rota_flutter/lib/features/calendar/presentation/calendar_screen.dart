@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
+import 'package:flutter/material.dart';
+import '../../../core/assets/app_assets.dart';
 import '../../../core/network/models.dart';
 import '../../../core/network/network_policy.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -254,9 +256,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Scaffold(
-      backgroundColor: colors.bgPrimary,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mq = MediaQuery.of(context);
+    final topContentInset = mq.padding.top + kToolbarHeight;
+
+    final scaffold = Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isDark
+                      ? [
+                          colors.bgPrimary.withValues(alpha: 0.0),
+                          colors.bgPrimary.withValues(alpha: 0.28),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.42),
+                        ],
+                ),
+              ),
+            ),
+          ),
+        ),
         title: const Text('Calendar'),
         actions: [
           IconButton(
@@ -266,15 +299,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          color: colors.bgPrimary,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: _buildBody(context),
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              isDark ? AppAssets.homeDarkFigmaBg : AppAssets.homeLightFigmaBg,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              topContentInset,
+              AppSpacing.lg,
+              mq.padding.bottom + AppSpacing.lg,
+            ),
+            child: _buildBody(context),
+          ),
+        ],
       ),
     );
+
+    return scaffold;
   }
 
   Widget _buildBody(BuildContext context) {

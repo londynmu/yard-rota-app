@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_tokens.dart';
 import 'theme_extensions.dart';
@@ -60,6 +61,25 @@ class AppTheme {
         titleTextStyle: AppTypography.titleLarge.copyWith(
           color: colors.textPrimary,
         ),
+        // Transparent AppBars still need explicit style so status icons match
+        // the theme (especially light mode over mesh backgrounds).
+        systemOverlayStyle: brightness == Brightness.light
+            ? const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarBrightness: Brightness.light,
+                statusBarIconBrightness: Brightness.dark,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: Brightness.dark,
+                systemNavigationBarDividerColor: Colors.transparent,
+              )
+            : const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarBrightness: Brightness.dark,
+                statusBarIconBrightness: Brightness.light,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: Brightness.light,
+                systemNavigationBarDividerColor: Colors.transparent,
+              ),
       ),
 
       cardTheme: CardThemeData(
@@ -185,6 +205,22 @@ class AppTheme {
         unselectedLabelStyle: AppTypography.labelMedium,
         elevation: AppElevation.level2,
         type: BottomNavigationBarType.fixed,
+      ),
+
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: colors.bgElevated,
+        indicatorColor: colors.primary.withValues(alpha: 0.18),
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStatePropertyAll(
+          AppTypography.labelMedium.copyWith(color: colors.textSecondary),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? colors.primary : colors.textTertiary,
+            size: 24,
+          );
+        }),
       ),
     );
   }

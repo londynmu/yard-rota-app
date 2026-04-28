@@ -180,7 +180,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   Widget _buildDateCarousel(BuildContext context) {
     final colors = context.appColors;
     return SizedBox(
-      height: 118,
+      height: 132,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _dateOptions.length,
@@ -212,9 +212,9 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
             onTap: () => _toggleDate(ymd),
             child: AnimatedContainer(
               duration: AppMotion.normal,
-              width: 98,
+              width: 104,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
+                horizontal: AppSpacing.xs,
                 vertical: AppSpacing.sm,
               ),
               decoration: BoxDecoration(
@@ -232,42 +232,63 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 30,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? tone.border
-                          : colors.borderStrong.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(AppRadius.full),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          _weekdayLabel(optionDate),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: (isSelected || hasSavedStatus)
+                                    ? dayTextColor.withValues(alpha: 0.82)
+                                    : colors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3,
+                              ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          _ordinalDay(optionDate.day),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: dayTextColor,
+                                fontWeight: FontWeight.w700,
+                                height: 1.05,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _monthShortLabel(optionDate),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: (isSelected || hasSavedStatus)
+                                    ? dayTextColor.withValues(alpha: 0.78)
+                                    : colors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.4,
+                              ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    _weekdayLabel(optionDate),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${optionDate.day}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(color: dayTextColor),
-                  ),
-                  const Spacer(),
                   Text(
                     _statusLabelForDisplay(
                       _statusByDate[ymd] ??
                           widget.availabilityByDate[ymd]?.status,
                     ),
+                    textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.textSecondary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -534,6 +555,40 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   String _weekdayLabel(DateTime date) {
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return labels[date.weekday - 1];
+  }
+
+  String _ordinalDay(int day) {
+    if (day >= 11 && day <= 13) {
+      return '${day}th';
+    }
+    switch (day % 10) {
+      case 1:
+        return '${day}st';
+      case 2:
+        return '${day}nd';
+      case 3:
+        return '${day}rd';
+      default:
+        return '${day}th';
+    }
+  }
+
+  String _monthShortLabel(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[date.month - 1];
   }
 
   String _toYmd(DateTime date) {
