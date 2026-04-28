@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'core/network/api_client.dart';
@@ -110,6 +112,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
         () => RetryExecutor.run(
           task: () => _apiClient.login(email: email, password: password),
           retryUnauthorized: false,
+          requestTimeout: NetworkPolicy.authRequestTimeout,
         ),
       );
       if (!mounted) {
@@ -129,9 +132,18 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       }
       setState(() {
         if (error is UnauthorizedException) {
-          _loginError = 'Invalid credentials. Please try again.';
+          final detail = error.message.trim();
+          _loginError = detail.isEmpty
+              ? 'Sign in failed. Please check your email and password.'
+              : detail;
+        } else if (error is TimeoutException) {
+          _loginError =
+              'Request timed out. Check your connection and try again.';
+        } else if (error is TransientNetworkException) {
+          _loginError =
+              'Could not reach the server. Check your connection and try again.';
         } else {
-          _loginError = 'Network issue detected. Please retry.';
+          _loginError = 'Something went wrong. Please try again.';
         }
       });
     } finally {

@@ -10,6 +10,7 @@ class RetryExecutor {
   static Future<T> run<T>({
     required TaskRunner<T> task,
     bool retryUnauthorized = false,
+    Duration? requestTimeout,
   }) async {
     var attempt = 0;
     Duration backoff = NetworkPolicy.initialBackoff;
@@ -18,7 +19,9 @@ class RetryExecutor {
       attempt += 1;
 
       try {
-        return await task().timeout(NetworkPolicy.requestTimeout);
+        return await task().timeout(
+          requestTimeout ?? NetworkPolicy.requestTimeout,
+        );
       } on UnauthorizedException {
         if (!retryUnauthorized || attempt > NetworkPolicy.maxRetryAttempts) {
           rethrow;

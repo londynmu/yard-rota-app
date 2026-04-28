@@ -71,7 +71,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return FractionallySizedBox(
-      heightFactor: 0.74,
+      heightFactor: 0.62,
       child: SafeArea(
         top: false,
         child: Container(
@@ -98,16 +98,27 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildTopBar(context),
                 const SizedBox(height: AppSpacing.sm),
-                _buildIntro(context),
-                const SizedBox(height: AppSpacing.md),
-                _buildStatusPicker(context),
-                const SizedBox(height: AppSpacing.md),
-                _buildDateCarousel(context),
-                const Spacer(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildIntro(context),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildStatusPicker(context),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildDateCarousel(context),
+                        _buildCarouselSwipeHint(context),
+                      ],
+                    ),
+                  ),
+                ),
                 _buildActions(context),
               ],
             ),
@@ -264,6 +275,31 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCarouselSwipeHint(BuildContext context) {
+    final colors = context.appColors;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Center(
+        child: Semantics(
+          label: 'Swipe sideways to browse more days',
+          child: Text(
+            '<- swipe sideways ->',
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+              letterSpacing: 0.35,
+            ),
+          ),
+        ),
       ),
     );
   }
