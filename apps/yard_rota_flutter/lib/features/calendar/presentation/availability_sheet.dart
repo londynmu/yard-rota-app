@@ -119,26 +119,15 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
 
   Widget _buildTopBar(BuildContext context) {
     final colors = context.appColors;
-    return Row(
-      children: [
-        Expanded(
-          child: Center(
-            child: Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.borderStrong,
-                borderRadius: BorderRadius.circular(AppRadius.full),
-              ),
-            ),
-          ),
+    return Center(
+      child: Container(
+        width: 42,
+        height: 4,
+        decoration: BoxDecoration(
+          color: colors.borderStrong,
+          borderRadius: BorderRadius.circular(AppRadius.full),
         ),
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.close),
-          tooltip: 'Close',
-        ),
-      ],
+      ),
     );
   }
 
