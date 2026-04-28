@@ -5,6 +5,7 @@ import 'package:yard_rota_flutter/app.dart';
 import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
+import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
 
 void main() {
@@ -50,16 +51,19 @@ void main() {
     await tester.tap(tomorrowCell.first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Set availability'), findsOneWidget);
-    await tester.tap(find.text('Unavailable'));
+    expect(find.byType(AvailabilitySheet), findsOneWidget);
+    final modalUnavailable = find.descendant(
+      of: find.byType(AvailabilitySheet),
+      matching: find.text('Unavailable'),
+    );
+    await tester.tap(modalUnavailable);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Save'));
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     expect(find.text('Availability saved.'), findsOneWidget);
-    expect(find.text('Availability:'), findsOneWidget);
-    expect(find.text('Unavailable'), findsOneWidget);
+    expect(apiClient.hasAnyStatus(AvailabilityStatus.unavailable), isTrue);
     await tester.binding.setSurfaceSize(null);
   });
 }
@@ -67,6 +71,9 @@ void main() {
 class _IntegrationApiClient implements ApiClient {
   final Map<String, AvailabilityEntry> _availability =
       <String, AvailabilityEntry>{};
+
+  bool hasAnyStatus(AvailabilityStatus status) =>
+      _availability.values.any((entry) => entry.status == status);
 
   @override
   Future<List<AvailabilityEntry>> getAvailabilityRange({

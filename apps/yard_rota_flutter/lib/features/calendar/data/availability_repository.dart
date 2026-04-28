@@ -63,7 +63,11 @@ class AvailabilityRepository {
         modalAnchorDate.month,
         modalAnchorDate.day,
       );
-      final anchorEnd = anchorStart.add(const Duration(days: 13));
+      final anchorEnd = DateTime(
+        modalAnchorDate.year,
+        modalAnchorDate.month + 1,
+        modalAnchorDate.day,
+      );
       if (anchorStart.isBefore(start)) {
         start = anchorStart;
       }

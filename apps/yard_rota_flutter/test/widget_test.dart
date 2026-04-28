@@ -4,6 +4,7 @@ import 'package:yard_rota_flutter/app.dart';
 import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
+import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
 
 void main() {
@@ -52,12 +53,11 @@ void main() {
       of: find.byType(GridView).first,
       matching: find.text('${yesterday.day}'),
     );
-
     await tester.ensureVisible(yesterdayCell.first);
     await tester.tap(yesterdayCell.first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Set availability'), findsNothing);
+    expect(find.byType(AvailabilitySheet), findsNothing);
     expect(
       find.text('You cannot set availability for dates in the past.'),
       findsOneWidget,
@@ -80,13 +80,11 @@ void main() {
       of: find.byType(GridView).first,
       matching: find.text('${tomorrow.day}'),
     );
-
     await tester.ensureVisible(tomorrowCell.first);
     await tester.tap(tomorrowCell.first);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Set availability'), findsOneWidget);
-    expect(find.text('Comment (optional)'), findsOneWidget);
+    expect(find.byType(AvailabilitySheet), findsOneWidget);
     await tester.binding.setSurfaceSize(null);
   });
 }

@@ -21,7 +21,6 @@ class AvailabilitySheet extends StatefulWidget {
 
 class _AvailabilitySheetState extends State<AvailabilitySheet> {
   late final List<DateTime> _dateOptions;
-  late final TextEditingController _commentController;
 
   late AvailabilityStatus _activeStatus;
   late List<String> _selectedDates;
@@ -31,8 +30,20 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   void initState() {
     super.initState();
 
+    final anchorStart = DateTime(
+      widget.anchorDate.year,
+      widget.anchorDate.month,
+      widget.anchorDate.day,
+    );
+    final anchorEnd = DateTime(
+      widget.anchorDate.year,
+      widget.anchorDate.month + 1,
+      widget.anchorDate.day,
+    );
+    final daysInWindow = anchorEnd.difference(anchorStart).inDays + 1;
+
     _dateOptions = List<DateTime>.generate(
-      12,
+      daysInWindow,
       (index) => DateTime(
         widget.anchorDate.year,
         widget.anchorDate.month,
@@ -54,29 +65,26 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     _statusByDate = seededStatuses;
     _activeStatus =
         seededStatuses[clickedDateYmd] ?? AvailabilityStatus.available;
-
-    _commentController = TextEditingController(
-      text: widget.availabilityByDate[clickedDateYmd]?.comment ?? '',
-    );
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-
     return FractionallySizedBox(
-      heightFactor: 0.88,
+      heightFactor: 0.74,
       child: SafeArea(
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            color: colors.bgPrimary,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.bgPrimary,
+                colors.bgSecondary.withValues(alpha: 0.92),
+                colors.bgPrimary,
+              ],
+            ),
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(AppRadius.xl),
             ),
@@ -89,33 +97,19 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               AppSpacing.md,
               AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final gridHeight = (constraints.maxHeight * 0.38).clamp(
-                  180.0,
-                  280.0,
-                );
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTopBar(context),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildHeader(context),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildCard(
-                      context,
-                      child: _buildDateGrid(context, gridHeight: gridHeight),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildCard(context, child: _buildStatusSelector(context)),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildCard(context, child: _buildComment(context)),
-                    const Spacer(),
-                    _buildActions(context),
-                  ],
-                );
-              },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTopBar(context),
+                const SizedBox(height: AppSpacing.sm),
+                _buildHeader(context),
+                const SizedBox(height: AppSpacing.md),
+                _buildDateCarousel(context),
+                const SizedBox(height: AppSpacing.md),
+                _buildStatusPicker(context),
+                const Spacer(),
+                _buildActions(context),
+              ],
             ),
           ),
         ),
@@ -125,7 +119,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
 
   Widget _buildTopBar(BuildContext context) {
     final colors = context.appColors;
-
     return Row(
       children: [
         Expanded(
@@ -151,7 +144,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
 
   Widget _buildHeader(BuildContext context) {
     final colors = context.appColors;
-
     return Row(
       children: [
         Expanded(
@@ -162,13 +154,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                 'Set availability',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                _formatFullDate(widget.anchorDate),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-              ),
             ],
           ),
         ),
@@ -178,7 +163,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
             vertical: AppSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: colors.bgSecondary,
+            color: colors.bgPrimary.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(AppRadius.full),
             border: Border.all(color: colors.borderDefault),
           ),
@@ -193,141 +178,148 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     );
   }
 
-  Widget _buildDateGrid(BuildContext context, {required double gridHeight}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Apply to days', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: gridHeight,
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _dateOptions.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: AppSpacing.sm,
-              mainAxisSpacing: AppSpacing.sm,
-              childAspectRatio: 2.7,
-            ),
-            itemBuilder: (context, index) {
-              final optionDate = _dateOptions[index];
-              final ymd = _toYmd(optionDate);
-              final isSelected = _selectedDates.contains(ymd);
-              final status =
-                  _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
-              final tone = _toneForStatus(context, status);
+  Widget _buildDateCarousel(BuildContext context) {
+    final colors = context.appColors;
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _dateOptions.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          final optionDate = _dateOptions[index];
+          final ymd = _toYmd(optionDate);
+          final isSelected = _selectedDates.contains(ymd);
+          final storedStatus =
+              _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
+          final tone = _toneForStatus(context, storedStatus);
+          final hasSavedStatus = storedStatus != null;
+          final cardColor = isSelected
+              ? tone.background
+              : hasSavedStatus
+              ? tone.background.withValues(alpha: 0.55)
+              : colors.bgPrimary.withValues(alpha: 0.65);
+          final borderColor = isSelected
+              ? tone.border
+              : hasSavedStatus
+              ? tone.border.withValues(alpha: 0.70)
+              : colors.borderDefault;
+          final dayTextColor = (isSelected || hasSavedStatus)
+              ? tone.text
+              : colors.textPrimary;
 
-              return InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () => _toggleDate(ymd),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? tone.background
-                        : tone.background.withValues(alpha: 0.50),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                      color: isSelected
-                          ? tone.border
-                          : context.appColors.borderDefault,
+          return InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () => _toggleDate(ymd),
+            child: AnimatedContainer(
+              duration: AppMotion.normal,
+              width: 92,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.shadow.withValues(
+                      alpha: isSelected ? 0.16 : 0.08,
+                    ),
+                    blurRadius: isSelected ? 12 : 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _weekdayLabel(optionDate),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
                     ),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${_weekdayLabel(optionDate)} ${optionDate.day}',
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${optionDate.day}',
                     style: Theme.of(
                       context,
-                    ).textTheme.labelLarge?.copyWith(color: tone.text),
-                    textAlign: TextAlign.center,
+                    ).textTheme.titleLarge?.copyWith(color: dayTextColor),
                   ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+                  const Spacer(),
+                  Text(
+                    _statusLabelForDisplay(
+                      _statusByDate[ymd] ??
+                          widget.availabilityByDate[ymd]?.status,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildStatusSelector(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Status', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: AvailabilityStatus.values
-              .map((status) {
-                final selected = _activeStatus == status;
-                final tone = _toneForStatus(context, status);
-
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: status == AvailabilityStatus.holiday
-                          ? 0
-                          : AppSpacing.sm,
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      onTap: () {
-                        setState(() {
-                          _activeStatus = status;
-                        });
-                      },
-                      child: Container(
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? tone.background
-                              : context.appColors.bgSecondary,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: selected
-                                ? tone.border
-                                : context.appColors.borderDefault,
-                          ),
+  Widget _buildStatusPicker(BuildContext context) {
+    final colors = context.appColors;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: colors.bgPrimary.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Row(
+        children: AvailabilityStatus.values
+            .map((status) {
+              final selected = _activeStatus == status;
+              final tone = _toneForStatus(context, status);
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: status == AvailabilityStatus.holiday
+                        ? 0
+                        : AppSpacing.xs,
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    onTap: () {
+                      setState(() {
+                        _activeStatus = status;
+                      });
+                    },
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: selected ? tone.background : colors.bgSecondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: selected ? tone.border : colors.borderDefault,
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _statusLabel(status),
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: selected
-                                    ? tone.text
-                                    : context.appColors.textPrimary,
-                              ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _statusLabel(status),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: selected ? tone.text : colors.textPrimary,
                         ),
                       ),
                     ),
                   ),
-                );
-              })
-              .toList(growable: false),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildComment(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Comment', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.xs),
-        TextField(
-          controller: _commentController,
-          maxLines: 2,
-          enabled: _selectedDates.length == 1,
-          decoration: InputDecoration(
-            labelText: 'Comment (optional)',
-            hintText: _selectedDates.length == 1
-                ? 'Add short note'
-                : 'Select one day to edit comment',
-          ),
-        ),
-      ],
+                ),
+              );
+            })
+            .toList(growable: false),
+      ),
     );
   }
 
@@ -355,19 +347,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCard(BuildContext context, {required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: context.appColors.bgPrimary,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: context.appColors.borderDefault),
-      ),
-      child: child,
     );
   }
 
@@ -414,13 +393,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
         .toList(growable: false);
 
     Navigator.of(context).pop(
-      SaveAvailabilityRequest(
-        items: items,
-        comment: _selectedDates.length == 1
-            ? _commentController.text.trim()
-            : '',
-        applyComment: _selectedDates.length == 1,
-      ),
+      SaveAvailabilityRequest(items: items, comment: '', applyComment: false),
     );
   }
 
@@ -466,19 +439,16 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     }
   }
 
+  String _statusLabelForDisplay(AvailabilityStatus? status) {
+    if (status == null) {
+      return 'Not set';
+    }
+    return _statusLabel(status);
+  }
+
   String _weekdayLabel(DateTime date) {
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return labels[date.weekday - 1];
-  }
-
-  String _dayMonthLabel(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day/$month';
-  }
-
-  String _formatFullDate(DateTime date) {
-    return '${_weekdayLabel(date)}, ${_dayMonthLabel(date)}/${date.year}';
   }
 
   String _toYmd(DateTime date) {
