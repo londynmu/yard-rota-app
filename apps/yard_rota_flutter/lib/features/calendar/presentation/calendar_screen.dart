@@ -42,6 +42,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isRefreshing = false;
   bool _isSavingAvailability = false;
   String? _errorMessage;
+  /// While availability modal is open: hide month grid so only home mesh shows.
+  bool _calendarHiddenForAvailabilityModal = false;
 
   @override
   void initState() {
@@ -202,11 +204,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) {
-      return;
-    }
-
     final request = await _showAvailabilityInCalendarSlot(
       anchorDate: normalized,
     );
@@ -276,81 +273,101 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (!mounted) {
       return null;
     }
-    final rect = _readCalendarCardRect();
+    var rect = _readCalendarCardRect();
+    if (rect == null) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) {
+        return null;
+      }
+      rect = _readCalendarCardRect();
+    }
     final availability = Map<String, AvailabilityEntry>.from(_availabilityByDate);
 
-    if (rect == null) {
-      return showDialog<SaveAvailabilityRequest>(
-        context: context,
-        barrierDismissible: true,
-        builder: (dialogContext) {
-          return Dialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            backgroundColor: Colors.transparent,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-                maxWidth: 420,
-              ),
-              child: AvailabilitySheet(
-                anchorDate: anchorDate,
-                availabilityByDate: availability,
-              ),
-            ),
-          );
-        },
-      );
-    }
+    // Hide calendar in the same scheduling pass as opening the route so there
+    // is no extra painted frame of empty layout before the overlay appears.
+    setState(() => _calendarHiddenForAvailabilityModal = true);
 
-    return showGeneralDialog<SaveAvailabilityRequest>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(dialogContext).pop(),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.42),
+    try {
+      if (rect == null) {
+        return await showDialog<SaveAvailabilityRequest>(
+          context: context,
+          barrierDismissible: true,
+          builder: (dialogContext) {
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              backgroundColor: Colors.transparent,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                  maxWidth: 420,
                 ),
-              ),
-            ),
-            Positioned(
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height,
-              child: Material(
-                color: Colors.transparent,
-                elevation: 6,
-                shadowColor: Colors.black45,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                clipBehavior: Clip.antiAlias,
                 child: AvailabilitySheet(
                   anchorDate: anchorDate,
                   availabilityByDate: availability,
                 ),
               ),
+            );
+          },
+        );
+      }
+
+      final slot = rect;
+      return await showGeneralDialog<SaveAvailabilityRequest>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 240),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(dialogContext).pop(),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.42),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: slot.left,
+                top: slot.top,
+                width: slot.width,
+                height: slot.height,
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 6,
+                  shadowColor: Colors.black45,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  clipBehavior: Clip.antiAlias,
+                  child: AvailabilitySheet(
+                    anchorDate: anchorDate,
+                    availabilityByDate: availability,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+        transitionBuilder:
+            (dialogContext, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOutCubic,
             ),
-          ],
-        );
-      },
-      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          ),
-          child: child,
-        );
-      },
-    );
+            child: child,
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _calendarHiddenForAvailabilityModal = false);
+      }
+    }
   }
 
   @override
@@ -457,6 +474,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     final data = _monthData!;
+    if (_calendarHiddenForAvailabilityModal) {
+      return const SizedBox.shrink();
+    }
     return ListView(children: [_buildMonthCalendar(context, data)]);
   }
 
