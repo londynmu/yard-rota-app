@@ -102,11 +102,9 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               children: [
                 _buildTopBar(context),
                 const SizedBox(height: AppSpacing.sm),
-                _buildHeader(context),
+                _buildStatusPicker(context),
                 const SizedBox(height: AppSpacing.md),
                 _buildDateCarousel(context),
-                const SizedBox(height: AppSpacing.md),
-                _buildStatusPicker(context),
                 const Spacer(),
                 _buildActions(context),
               ],
@@ -137,42 +135,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.close),
           tooltip: 'Close',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final colors = context.appColors;
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Set availability',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: colors.bgPrimary.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(AppRadius.full),
-            border: Border.all(color: colors.borderDefault),
-          ),
-          child: Text(
-            '${_selectedDates.length} selected',
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: colors.textSecondary),
-          ),
         ),
       ],
     );
@@ -272,53 +234,72 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
   Widget _buildStatusPicker(BuildContext context) {
     final colors = context.appColors;
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: colors.bgPrimary.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.borderDefault),
       ),
-      child: Row(
-        children: AvailabilityStatus.values
-            .map((status) {
-              final selected = _activeStatus == status;
-              final tone = _toneForStatus(context, status);
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: status == AvailabilityStatus.holiday
-                        ? 0
-                        : AppSpacing.xs,
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    onTap: () {
-                      setState(() {
-                        _activeStatus = status;
-                      });
-                    },
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: selected ? tone.background : colors.bgSecondary,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: selected ? tone.border : colors.borderDefault,
-                        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Set availability as',
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: colors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: AvailabilityStatus.values
+                .map((status) {
+                  final selected = _activeStatus == status;
+                  final tone = _toneForStatus(context, status);
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: status == AvailabilityStatus.holiday
+                            ? 0
+                            : AppSpacing.xs,
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _statusLabel(status),
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: selected ? tone.text : colors.textPrimary,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        onTap: () {
+                          setState(() {
+                            _activeStatus = status;
+                          });
+                        },
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? tone.background
+                                : colors.bgSecondary,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: selected
+                                  ? tone.border
+                                  : colors.borderDefault,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _statusLabel(status),
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: selected
+                                      ? tone.text
+                                      : colors.textPrimary,
+                                ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              );
-            })
-            .toList(growable: false),
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ],
       ),
     );
   }
