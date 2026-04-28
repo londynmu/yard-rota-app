@@ -369,6 +369,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final totalCells = leading + daysInMonth;
 
     return AppCard(
+      surfaceOpacity: 0.5,
       child: Column(
         children: [
           Row(
