@@ -1,13 +1,14 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import '../../../core/assets/app_assets.dart';
 import '../../../core/network/models.dart';
+import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/network/network_policy.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_toast.dart';
 import '../data/availability_repository.dart';
 import '../data/calendar_repository.dart';
 import 'availability_sheet.dart';
@@ -19,12 +20,16 @@ class CalendarScreen extends StatefulWidget {
     required this.calendarRepository,
     required this.availabilityRepository,
     required this.onLogout,
+    required this.lightHomeWallpaper,
+    required this.darkHomeWallpaper,
   });
 
   final String displayName;
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
   final Future<void> Function() onLogout;
+  final LightHomeWallpaper lightHomeWallpaper;
+  final DarkHomeWallpaper darkHomeWallpaper;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -125,18 +130,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     if (monthFailed && _monthData != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Calendar refresh failed. Showing cached data.'),
-        ),
-      );
+      AppToast.show(context, 'Calendar refresh failed. Showing cached data.');
     }
     if (availabilityFailed && _availabilityByDate.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Availability refresh failed. Showing local data.'),
-        ),
-      );
+      AppToast.show(context, 'Availability refresh failed. Showing local data.');
     }
 
     setState(() {
@@ -163,10 +160,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               month: _visibleMonth.month,
             ) !=
             null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Month switch exceeded cache SLO target.'),
-        ),
+      AppToast.show(
+        context,
+        'Month switch exceeded cache SLO target.',
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -180,10 +177,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
     if (normalized.isBefore(todayStart)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You cannot set availability for dates in the past.'),
-        ),
+      AppToast.show(
+        context,
+        'You can only set availability for today and future dates.',
       );
       return;
     }
@@ -228,17 +224,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _availabilityByDate = refreshed;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Availability saved.')));
+      AppToast.show(context, 'Availability saved.');
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to save availability. Please try again.'),
-        ),
+      AppToast.show(
+        context,
+        'Failed to save availability. Please try again.',
       );
     } finally {
       if (mounted) {
@@ -421,7 +414,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Positioned.fill(
             child: Image.asset(
-              isDark ? AppAssets.homeDarkFigmaBg : AppAssets.homeLightFigmaBg,
+              homeBackgroundAssetPath(
+                brightness:
+                    isDark ? Brightness.dark : Brightness.light,
+                lightWallpaper: widget.lightHomeWallpaper,
+                darkWallpaper: widget.darkHomeWallpaper,
+              ),
               fit: BoxFit.cover,
               alignment: Alignment.center,
               gaplessPlayback: true,

@@ -1,0 +1,25 @@
+---
+description: Flutter app — user messages as toasts
+alwaysApply: true
+---
+
+# Flutter user messages (toast)
+
+Applies to **`apps/yard_rota_flutter`**.
+
+## Rule
+
+All **user-visible feedback messages** (success, error, validation, “coming soon”, SLO notices, etc.) must appear as **toasts**: use **`AppToast.show`** from `lib/core/ui/app_toast.dart`.
+
+`AppToast` renders a **centered** overlay in **warning** colours (`warning` / `warningBg` from `AppColorsScheme`), with a warning icon — not bottom `SnackBar`, except a rare **no-Overlay** fallback.
+
+Do **not** call `ScaffoldMessenger.of(context).showSnackBar(SnackBar(...))` directly in feature code.
+
+## Copy
+
+- Messages must be **English**, short, and actionable where relevant.
+- Prefer one clear sentence.
+
+## Exceptions
+
+- None for routine UI feedback. **Dialogs / modals** are separate from toasts.

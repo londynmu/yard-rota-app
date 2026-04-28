@@ -5,6 +5,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/status_badge.dart';
 
 class TodayScreen extends StatelessWidget {
@@ -63,9 +64,7 @@ class TodayScreen extends StatelessWidget {
               AppButton(
                 label: 'Start pre-check',
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Pre-check started.')),
-                  );
+                  AppToast.show(context, 'Pre-check started.');
                 },
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -73,9 +72,7 @@ class TodayScreen extends StatelessWidget {
                 label: 'Report issue',
                 variant: AppButtonVariant.secondary,
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Issue report opened.')),
-                  );
+                  AppToast.show(context, 'Issue report opened.');
                 },
               ),
             ],

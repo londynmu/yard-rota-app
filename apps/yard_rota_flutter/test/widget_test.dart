@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yard_rota_flutter/app.dart';
 import 'package:yard_rota_flutter/core/network/api_client.dart';
+import 'package:yard_rota_flutter/core/ui/app_toast.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
@@ -15,6 +16,7 @@ void main() {
 
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Yard Rota'), findsOneWidget);
+    AppToast.dismissPending();
   });
 
   testWidgets('navigates from login to calendar after successful login', (
@@ -34,6 +36,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CalendarScreen), findsOneWidget);
+    AppToast.dismissPending();
   });
 
   testWidgets('tapping past day does not open availability sheet', (
@@ -59,9 +62,10 @@ void main() {
 
     expect(find.byType(AvailabilitySheet), findsNothing);
     expect(
-      find.text('You cannot set availability for dates in the past.'),
+      find.text('You can only set availability for today and future dates.'),
       findsOneWidget,
     );
+    AppToast.dismissPending();
     await tester.binding.setSurfaceSize(null);
   });
 
@@ -85,6 +89,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AvailabilitySheet), findsOneWidget);
+    AppToast.dismissPending();
     await tester.binding.setSurfaceSize(null);
   });
 }

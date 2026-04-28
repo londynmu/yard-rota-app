@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/home_wallpaper.dart';
+import '../../../core/ui/app_toast.dart';
 import '../../../core/theme/theme_extensions.dart';
 import 'themes_screen.dart';
 
@@ -9,10 +11,20 @@ class ProfileScreen extends StatelessWidget {
     super.key,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.lightHomeWallpaper,
+    required this.darkHomeWallpaper,
+    required this.onLightHomeWallpaperChanged,
+    required this.onDarkHomeWallpaperChanged,
   });
 
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
+  final LightHomeWallpaper lightHomeWallpaper;
+  final DarkHomeWallpaper darkHomeWallpaper;
+  final Future<void> Function(LightHomeWallpaper wallpaper)
+      onLightHomeWallpaperChanged;
+  final Future<void> Function(DarkHomeWallpaper wallpaper)
+      onDarkHomeWallpaperChanged;
 
   static const List<_ProfileTileSpec> _tiles = [
     _ProfileTileSpec(
@@ -67,6 +79,10 @@ class ProfileScreen extends StatelessWidget {
           builder: (context) => ThemesScreen(
             themeMode: themeMode,
             onThemeModeChanged: onThemeModeChanged,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+            onLightHomeWallpaperChanged: onLightHomeWallpaperChanged,
+            onDarkHomeWallpaperChanged: onDarkHomeWallpaperChanged,
           ),
         ),
       );
@@ -75,9 +91,7 @@ class ProfileScreen extends StatelessWidget {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('${spec.title} is coming soon.')));
+    AppToast.show(context, '${spec.title} is coming soon.');
   }
 }
 

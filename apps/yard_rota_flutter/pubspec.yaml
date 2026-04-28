@@ -69,6 +69,7 @@ flutter:
     # Figma: 48 AI mesh gradients (Community) — home (calendar) backgrounds
     - assets/images/home_dark_figma_bg.png
     - assets/images/home_light_figma_bg.png
+    - assets/images/home_light_figma_mesh_ribbon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

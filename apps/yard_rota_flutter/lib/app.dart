@@ -9,6 +9,9 @@ import 'core/network/network_policy.dart';
 import 'core/network/perf_metrics.dart';
 import 'core/network/retry_executor.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/home_wallpaper.dart';
+import 'core/theme/home_wallpaper_storage.dart';
+import 'core/ui/app_toast.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
@@ -21,12 +24,16 @@ class YardRotaApp extends StatefulWidget {
     ApiClient? apiClient,
     AppLocalDatabase? localDb,
     this.initialThemeMode = ThemeMode.system,
+    this.initialLightHomeWallpaper = LightHomeWallpaper.classic,
+    this.initialDarkHomeWallpaper = DarkHomeWallpaper.nightMesh,
   }) : _apiClient = apiClient,
        _localDb = localDb;
 
   final ApiClient? _apiClient;
   final AppLocalDatabase? _localDb;
   final ThemeMode initialThemeMode;
+  final LightHomeWallpaper initialLightHomeWallpaper;
+  final DarkHomeWallpaper initialDarkHomeWallpaper;
 
   @override
   State<YardRotaApp> createState() => _YardRotaAppState();
@@ -45,11 +52,15 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   bool _isLoginLoading = false;
   String? _loginError;
   late ThemeMode _themeMode;
+  late LightHomeWallpaper _lightHomeWallpaper;
+  late DarkHomeWallpaper _darkHomeWallpaper;
 
   @override
   void initState() {
     super.initState();
     _themeMode = widget.initialThemeMode;
+    _lightHomeWallpaper = widget.initialLightHomeWallpaper;
+    _darkHomeWallpaper = widget.initialDarkHomeWallpaper;
     WidgetsBinding.instance.addObserver(this);
     _startupStopwatch = Stopwatch()..start();
     _apiClient = widget._apiClient ?? MockApiClient();
@@ -191,6 +202,30 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _handleLightHomeWallpaperChanged(
+    LightHomeWallpaper wallpaper,
+  ) async {
+    await writeSavedLightHomeWallpaper(wallpaper);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _lightHomeWallpaper = wallpaper;
+    });
+  }
+
+  Future<void> _handleDarkHomeWallpaperChanged(
+    DarkHomeWallpaper wallpaper,
+  ) async {
+    await writeSavedDarkHomeWallpaper(wallpaper);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _darkHomeWallpaper = wallpaper;
+    });
+  }
+
   void _recordStartupSlo() {
     _startupStopwatch.stop();
     if (_startupStopwatch.elapsed > NetworkPolicy.startupInteractiveSlo) {
@@ -206,8 +241,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   }
 
   void _showMessage(String message) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(SnackBar(content: Text(message)));
+    AppToast.show(context, message, duration: const Duration(seconds: 4));
   }
 
   @override
@@ -242,6 +276,10 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       onLogout: _handleLogout,
       themeMode: _themeMode,
       onThemeModeChanged: _handleThemeModeChanged,
+      lightHomeWallpaper: _lightHomeWallpaper,
+      darkHomeWallpaper: _darkHomeWallpaper,
+      onLightHomeWallpaperChanged: _handleLightHomeWallpaperChanged,
+      onDarkHomeWallpaperChanged: _handleDarkHomeWallpaperChanged,
     );
   }
 }

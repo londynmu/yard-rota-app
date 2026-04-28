@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/home_wallpaper.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
@@ -29,6 +30,10 @@ class MainShell extends StatefulWidget {
     required this.onLogout,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.lightHomeWallpaper,
+    required this.darkHomeWallpaper,
+    required this.onLightHomeWallpaperChanged,
+    required this.onDarkHomeWallpaperChanged,
   });
 
   final String displayName;
@@ -37,6 +42,12 @@ class MainShell extends StatefulWidget {
   final Future<void> Function() onLogout;
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
+  final LightHomeWallpaper lightHomeWallpaper;
+  final DarkHomeWallpaper darkHomeWallpaper;
+  final Future<void> Function(LightHomeWallpaper wallpaper)
+      onLightHomeWallpaperChanged;
+  final Future<void> Function(DarkHomeWallpaper wallpaper)
+      onDarkHomeWallpaperChanged;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -82,10 +93,16 @@ class _MainShellState extends State<MainShell> {
             calendarRepository: widget.calendarRepository,
             availabilityRepository: widget.availabilityRepository,
             onLogout: widget.onLogout,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
           ProfileScreen(
             themeMode: widget.themeMode,
             onThemeModeChanged: widget.onThemeModeChanged,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
+            onLightHomeWallpaperChanged: widget.onLightHomeWallpaperChanged,
+            onDarkHomeWallpaperChanged: widget.onDarkHomeWallpaperChanged,
           ),
         ],
       ),
