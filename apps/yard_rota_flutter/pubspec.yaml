@@ -70,6 +70,10 @@ flutter:
     - assets/images/home_dark_figma_bg.png
     - assets/images/home_light_figma_bg.png
     - assets/images/home_light_figma_mesh_ribbon.png
+    - assets/images/home_light_figma_4_13.png
+    - assets/images/home_light_figma_4_17.png
+    - assets/images/home_light_figma_7_85.png
+    - assets/images/home_light_figma_8_95.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

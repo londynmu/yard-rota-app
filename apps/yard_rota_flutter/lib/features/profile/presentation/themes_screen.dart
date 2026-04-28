@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_toast.dart';
 
 /// Choose app appearance (light / dark / system) and per-theme home backgrounds.
-class ThemesScreen extends StatelessWidget {
+class ThemesScreen extends StatefulWidget {
   const ThemesScreen({
     super.key,
     required this.themeMode,
@@ -21,11 +22,96 @@ class ThemesScreen extends StatelessWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final Future<void> Function(LightHomeWallpaper wallpaper)
-      onLightHomeWallpaperChanged;
+  onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
-      onDarkHomeWallpaperChanged;
+  onDarkHomeWallpaperChanged;
 
-  static const List<LightHomeWallpaper> _lightOptions = LightHomeWallpaper.values;
+  static const List<LightHomeWallpaper> _lightOptions =
+      LightHomeWallpaper.values;
+
+  @override
+  State<ThemesScreen> createState() => _ThemesScreenState();
+}
+
+class _ThemesScreenState extends State<ThemesScreen> {
+  late LightHomeWallpaper _selectedLight;
+  late DarkHomeWallpaper _selectedDark;
+
+  static const Duration _wallpaperToastDuration = Duration(seconds: 2);
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLight = widget.lightHomeWallpaper;
+    _selectedDark = widget.darkHomeWallpaper;
+  }
+
+  @override
+  void didUpdateWidget(ThemesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.lightHomeWallpaper != oldWidget.lightHomeWallpaper) {
+      setState(() => _selectedLight = widget.lightHomeWallpaper);
+    }
+    if (widget.darkHomeWallpaper != oldWidget.darkHomeWallpaper) {
+      setState(() => _selectedDark = widget.darkHomeWallpaper);
+    }
+  }
+
+  Future<void> _onLightWallpaperTap(LightHomeWallpaper value) async {
+    if (_selectedLight == value) {
+      return;
+    }
+    setState(() => _selectedLight = value);
+    try {
+      await widget.onLightHomeWallpaperChanged(value);
+      if (!mounted) {
+        return;
+      }
+      AppToast.show(
+        context,
+        'Wallpaper changed.',
+        duration: _wallpaperToastDuration,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _selectedLight = widget.lightHomeWallpaper);
+      AppToast.show(
+        context,
+        'Could not save wallpaper. Try again.',
+        duration: _wallpaperToastDuration,
+      );
+    }
+  }
+
+  Future<void> _onDarkWallpaperTap(DarkHomeWallpaper value) async {
+    if (_selectedDark == value) {
+      return;
+    }
+    setState(() => _selectedDark = value);
+    try {
+      await widget.onDarkHomeWallpaperChanged(value);
+      if (!mounted) {
+        return;
+      }
+      AppToast.show(
+        context,
+        'Wallpaper changed.',
+        duration: _wallpaperToastDuration,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _selectedDark = widget.darkHomeWallpaper);
+      AppToast.show(
+        context,
+        'Could not save wallpaper. Try again.',
+        duration: _wallpaperToastDuration,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,10 +158,10 @@ class ThemesScreen extends StatelessWidget {
                   icon: Icon(Icons.brightness_auto_outlined),
                 ),
               ],
-              selected: {themeMode},
+              selected: {widget.themeMode},
               onSelectionChanged: (selected) async {
                 final mode = selected.first;
-                await onThemeModeChanged(mode);
+                await widget.onThemeModeChanged(mode);
                 if (context.mounted) {
                   Navigator.of(context).pop();
                 }
@@ -107,22 +193,25 @@ class ThemesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                for (var i = 0; i < _lightOptions.length; i++) ...[
-                  if (i > 0) SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _WallpaperChoiceTile(
-                      assetPath: _lightOptions[i].assetPath,
-                      label: _lightOptions[i].displayLabel,
-                      selected: lightHomeWallpaper == _lightOptions[i],
-                      onTap: () async {
-                        await onLightHomeWallpaperChanged(_lightOptions[i]);
-                      },
-                    ),
-                  ),
-                ],
-              ],
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: AppSpacing.md,
+                crossAxisSpacing: AppSpacing.md,
+                childAspectRatio: 0.76,
+              ),
+              itemCount: ThemesScreen._lightOptions.length,
+              itemBuilder: (context, i) {
+                final wp = ThemesScreen._lightOptions[i];
+                return _WallpaperChoiceTile(
+                  assetPath: wp.assetPath,
+                  label: wp.displayLabel,
+                  selected: _selectedLight == wp,
+                  onTap: () => _onLightWallpaperTap(wp),
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
@@ -139,12 +228,9 @@ class ThemesScreen extends StatelessWidget {
                   child: _WallpaperChoiceTile(
                     assetPath: DarkHomeWallpaper.nightMesh.assetPath,
                     label: DarkHomeWallpaper.nightMesh.displayLabel,
-                    selected: darkHomeWallpaper == DarkHomeWallpaper.nightMesh,
-                    onTap: () async {
-                      await onDarkHomeWallpaperChanged(
-                        DarkHomeWallpaper.nightMesh,
-                      );
-                    },
+                    selected: _selectedDark == DarkHomeWallpaper.nightMesh,
+                    onTap: () =>
+                        _onDarkWallpaperTap(DarkHomeWallpaper.nightMesh),
                   ),
                 ),
               ],
@@ -167,7 +253,7 @@ class _WallpaperChoiceTile extends StatelessWidget {
   final String assetPath;
   final String label;
   final bool selected;
-  final Future<void> Function() onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +271,7 @@ class _WallpaperChoiceTile extends StatelessWidget {
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () async {
-            await onTap();
-          },
+          onTap: onTap,
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: radius,

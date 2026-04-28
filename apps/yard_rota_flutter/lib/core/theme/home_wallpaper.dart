@@ -9,6 +9,18 @@ enum LightHomeWallpaper {
 
   /// Figma file `XtOUUHoZSw0ZCWscI1gBNy` node `0:4` — coral / cyan ribbon mesh.
   ribbonMesh,
+
+  /// Figma node `4:13` — white perforated / mesh plane.
+  perforatedMesh,
+
+  /// Figma node `4:17` — white ribbed organic flow.
+  ribbedFlow,
+
+  /// Figma node `7:85` — grayscale contour line terrain.
+  contourMesh,
+
+  /// Figma node `8:95` — grayscale layered stripe waves.
+  layeredWaves,
 }
 
 /// Calendar / home background for **dark** appearance.
@@ -21,11 +33,19 @@ extension LightHomeWallpaperX on LightHomeWallpaper {
   String get assetPath => switch (this) {
     LightHomeWallpaper.classic => AppAssets.homeLightFigmaBg,
     LightHomeWallpaper.ribbonMesh => AppAssets.homeLightFigmaRibbonMesh,
+    LightHomeWallpaper.perforatedMesh => AppAssets.homeLightFigma413,
+    LightHomeWallpaper.ribbedFlow => AppAssets.homeLightFigma417,
+    LightHomeWallpaper.contourMesh => AppAssets.homeLightFigma785,
+    LightHomeWallpaper.layeredWaves => AppAssets.homeLightFigma895,
   };
 
   String get displayLabel => switch (this) {
     LightHomeWallpaper.classic => 'Classic mesh',
     LightHomeWallpaper.ribbonMesh => 'Ribbon mesh',
+    LightHomeWallpaper.perforatedMesh => 'Perforated mesh',
+    LightHomeWallpaper.ribbedFlow => 'Ribbed flow',
+    LightHomeWallpaper.contourMesh => 'Contour mesh',
+    LightHomeWallpaper.layeredWaves => 'Layered waves',
   };
 }
 
