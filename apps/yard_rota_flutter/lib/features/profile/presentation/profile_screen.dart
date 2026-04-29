@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_toast.dart';
 import 'themes_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -36,6 +37,10 @@ class ProfileScreen extends StatelessWidget {
       title: 'Themes',
       icon: Icons.palette_outlined,
       isThemes: true,
+    ),
+    _ProfileTileSpec(
+      title: 'Notifications',
+      icon: Icons.notifications_none_outlined,
     ),
     _ProfileTileSpec(title: 'Logout', icon: Icons.logout, isLogout: true),
   ];
@@ -109,7 +114,7 @@ class ProfileScreen extends StatelessWidget {
                   // Same overscroll “stretch” as Calendar: scrollable even when content fits.
                   physics: const AlwaysScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                    crossAxisCount: 3,
                     mainAxisSpacing: AppSpacing.sm,
                     crossAxisSpacing: AppSpacing.sm,
                     childAspectRatio: 1.0,
@@ -150,7 +155,12 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       );
+      return;
     }
+    if (!context.mounted) {
+      return;
+    }
+    AppToast.show(context, '${spec.title} is coming soon.');
   }
 }
 
