@@ -155,11 +155,10 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final n = _dateOptions.length;
-          final totalContentWidth = n * dayCardWidth +
-              (n > 0 ? (n - 1) * AppSpacing.sm : 0);
+          final totalContentWidth =
+              n * dayCardWidth + (n > 0 ? (n - 1) * AppSpacing.sm : 0);
           final scrollable = totalContentWidth > constraints.maxWidth + 0.5;
-          final showArrows =
-              scrollable && !_dayCarouselArrowsDismissed;
+          final showArrows = scrollable && !_dayCarouselArrowsDismissed;
 
           return Stack(
             clipBehavior: Clip.hardEdge,
@@ -189,20 +188,21 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                     final optionDate = _dateOptions[index];
                     final ymd = _toYmd(optionDate);
                     final isSelected = _selectedDates.contains(ymd);
-                    final storedStatus = _statusByDate[ymd] ??
+                    final storedStatus =
+                        _statusByDate[ymd] ??
                         widget.availabilityByDate[ymd]?.status;
                     final tone = _toneForStatus(context, storedStatus);
                     final hasSavedStatus = storedStatus != null;
                     final cardColor = isSelected
                         ? tone.background
                         : hasSavedStatus
-                            ? tone.background.withValues(alpha: 0.55)
-                            : colors.bgPrimary.withValues(alpha: 0.65);
+                        ? tone.background.withValues(alpha: 0.55)
+                        : colors.bgPrimary.withValues(alpha: 0.65);
                     final borderColor = isSelected
                         ? tone.border
                         : hasSavedStatus
-                            ? tone.border.withValues(alpha: 0.70)
-                            : colors.borderDefault;
+                        ? tone.border.withValues(alpha: 0.70)
+                        : colors.borderDefault;
                     final dayTextColor = (isSelected || hasSavedStatus)
                         ? tone.text
                         : colors.textPrimary;
@@ -246,10 +246,10 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                                         .textTheme
                                         .labelMedium
                                         ?.copyWith(
-                                          color: (isSelected ||
-                                                  hasSavedStatus)
-                                              ? dayTextColor
-                                                  .withValues(alpha: 0.82)
+                                          color: (isSelected || hasSavedStatus)
+                                              ? dayTextColor.withValues(
+                                                  alpha: 0.82,
+                                                )
                                               : colors.textSecondary,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.3,
@@ -276,10 +276,10 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                                         .textTheme
                                         .labelSmall
                                         ?.copyWith(
-                                          color: (isSelected ||
-                                                  hasSavedStatus)
-                                              ? dayTextColor
-                                                  .withValues(alpha: 0.78)
+                                          color: (isSelected || hasSavedStatus)
+                                              ? dayTextColor.withValues(
+                                                  alpha: 0.78,
+                                                )
                                               : colors.textSecondary,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0.4,
@@ -296,9 +296,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: colors.textSecondary,
                                     fontWeight: FontWeight.w500,
@@ -322,86 +320,96 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
 
   Widget _buildStatusPicker(BuildContext context) {
     final colors = context.appColors;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.bgPrimary.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.borderDefault),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Set availability as',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: colors.textSecondary),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Set availability as',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: colors.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: AvailabilityStatus.values
-                .map((status) {
-                  final selected = _activeStatus == status;
-                  final tone = _toneForStatus(context, status);
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: status == AvailabilityStatus.holiday
-                            ? 0
-                            : AppSpacing.xs,
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        onTap: () {
-                          setState(() {
-                            _activeStatus = status;
-                          });
-                        },
-                        child: Container(
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? tone.background
-                                : colors.bgSecondary,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: selected
-                                  ? tone.border
-                                  : colors.borderDefault,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _statusIcon(status),
-                                size: 14,
-                                color: selected
-                                    ? tone.text
-                                    : colors.textSecondary,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                _statusLabel(status),
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(
-                                      color: selected
-                                          ? tone.text
-                                          : colors.textPrimary,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < AvailabilityStatus.values.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.xs),
+                _buildFloatingStatusPill(context, AvailabilityStatus.values[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFloatingStatusPill(
+    BuildContext context,
+    AvailabilityStatus status,
+  ) {
+    final colors = context.appColors;
+    final selected = _activeStatus == status;
+    final tone = _toneForStatus(context, status);
+    final radius = BorderRadius.circular(AppRadius.sm);
+
+    return Material(
+      color: Colors.transparent,
+      elevation: 0,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: () => setState(() => _activeStatus = status),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: selected ? tone.background : colors.bgSecondary,
+            borderRadius: radius,
+            border: Border.all(
+              color: selected ? tone.border : colors.borderDefault,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: colors.shadow.withValues(alpha: selected ? 0.18 : 0.12),
+                blurRadius: selected ? 6 : 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 36),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _statusIcon(status),
+                    size: 14,
+                    color: selected ? tone.text : colors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    _statusLabel(status),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: selected ? tone.text : colors.textPrimary,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                     ),
-                  );
-                })
-                .toList(growable: false),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
