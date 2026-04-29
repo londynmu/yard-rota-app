@@ -29,6 +29,8 @@ class ThemesScreen extends StatefulWidget {
   static const List<LightHomeWallpaper> _lightOptions =
       LightHomeWallpaper.values;
 
+  static const List<DarkHomeWallpaper> _darkOptions = DarkHomeWallpaper.values;
+
   @override
   State<ThemesScreen> createState() => _ThemesScreenState();
 }
@@ -116,6 +118,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final showDarkWallpapers = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: colors.bgPrimary,
       appBar: AppBar(title: const Text('Themes')),
@@ -162,9 +165,6 @@ class _ThemesScreenState extends State<ThemesScreen> {
               onSelectionChanged: (selected) async {
                 final mode = selected.first;
                 await widget.onThemeModeChanged(mode);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
               },
             ),
             const SizedBox(height: AppSpacing.xxl),
@@ -177,8 +177,8 @@ class _ThemesScreenState extends State<ThemesScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Background shown on the calendar home. Each appearance has '
-              'its own wallpaper.',
+              'Background on the calendar home. Wallpapers below match the '
+              'appearance you select above (including System).',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colors.textSecondary,
                 height: 1.35,
@@ -186,55 +186,55 @@ class _ThemesScreenState extends State<ThemesScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Light theme',
+              showDarkWallpapers ? 'Dark theme' : 'Light theme',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: AppSpacing.md,
-                crossAxisSpacing: AppSpacing.md,
-                childAspectRatio: 0.76,
-              ),
-              itemCount: ThemesScreen._lightOptions.length,
-              itemBuilder: (context, i) {
-                final wp = ThemesScreen._lightOptions[i];
-                return _WallpaperChoiceTile(
-                  assetPath: wp.assetPath,
-                  label: wp.displayLabel,
-                  selected: _selectedLight == wp,
-                  onTap: () => _onLightWallpaperTap(wp),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'Dark theme',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: _WallpaperChoiceTile(
-                    assetPath: DarkHomeWallpaper.nightMesh.assetPath,
-                    label: DarkHomeWallpaper.nightMesh.displayLabel,
-                    selected: _selectedDark == DarkHomeWallpaper.nightMesh,
-                    onTap: () =>
-                        _onDarkWallpaperTap(DarkHomeWallpaper.nightMesh),
-                  ),
+            if (showDarkWallpapers)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.76,
                 ),
-              ],
-            ),
+                itemCount: ThemesScreen._darkOptions.length,
+                itemBuilder: (context, i) {
+                  final wp = ThemesScreen._darkOptions[i];
+                  return _WallpaperChoiceTile(
+                    assetPath: wp.assetPath,
+                    label: wp.displayLabel,
+                    selected: _selectedDark == wp,
+                    onTap: () => _onDarkWallpaperTap(wp),
+                  );
+                },
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.76,
+                ),
+                itemCount: ThemesScreen._lightOptions.length,
+                itemBuilder: (context, i) {
+                  final wp = ThemesScreen._lightOptions[i];
+                  return _WallpaperChoiceTile(
+                    assetPath: wp.assetPath,
+                    label: wp.displayLabel,
+                    selected: _selectedLight == wp,
+                    onTap: () => _onLightWallpaperTap(wp),
+                  );
+                },
+              ),
           ],
         ),
       ),

@@ -68,6 +68,10 @@ flutter:
   assets:
     # Figma: 48 AI mesh gradients (Community) — home (calendar) backgrounds
     - assets/images/home_dark_figma_bg.png
+    - assets/images/home_dark_figma_5_59.png
+    - assets/images/home_dark_figma_5_71.png
+    - assets/images/home_dark_figma_6_81.png
+    - assets/images/home_dark_figma_5_73.png
     - assets/images/home_light_figma_bg.png
     - assets/images/home_light_figma_mesh_ribbon.png
     - assets/images/home_light_figma_4_13.png

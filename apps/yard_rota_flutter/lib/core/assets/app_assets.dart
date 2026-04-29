@@ -5,8 +5,25 @@ class AppAssets {
   /// Figma `XtOUUHoZSw0ZCWscI1gBNy` node `5:57` — dark home background.
   static const String homeDarkFigmaBg = 'assets/images/home_dark_figma_bg.png';
 
+  /// Figma node `5:59` — dark hex mesh landscape.
+  static const String homeDarkFigma559 =
+      'assets/images/home_dark_figma_5_59.png';
+
+  /// Figma node `5:71` — dark dimpled relief waves.
+  static const String homeDarkFigma571 =
+      'assets/images/home_dark_figma_5_71.png';
+
+  /// Figma node `6:81` — dark velvet mesh waves.
+  static const String homeDarkFigma681 =
+      'assets/images/home_dark_figma_6_81.png';
+
+  /// Figma node `5:73` — dark ridged monochrome waves.
+  static const String homeDarkFigma573 =
+      'assets/images/home_dark_figma_5_73.png';
+
   /// Figma `XtOUUHoZSw0ZCWscI1gBNy` node `5:49` — light home background.
-  static const String homeLightFigmaBg = 'assets/images/home_light_figma_bg.png';
+  static const String homeLightFigmaBg =
+      'assets/images/home_light_figma_bg.png';
 
   /// Figma `XtOUUHoZSw0ZCWscI1gBNy` node `0:4` — light ribbon mesh (community file).
   static const String homeLightFigmaRibbonMesh =

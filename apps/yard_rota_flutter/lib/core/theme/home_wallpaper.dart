@@ -25,8 +25,20 @@ enum LightHomeWallpaper {
 
 /// Calendar / home background for **dark** appearance.
 enum DarkHomeWallpaper {
-  /// Figma node `5:57` — current dark mesh.
+  /// Figma node `5:57`.
   nightMesh,
+
+  /// Figma node `5:59` — hex mesh terrain.
+  glowHexTerrain,
+
+  /// Figma node `5:71` — dimpled metallic waves.
+  dimpledMetal,
+
+  /// Figma node `6:81` — velvet mesh waves.
+  velvetWaves,
+
+  /// Figma node `5:73` — ridged monochrome depth.
+  ridgedDepth,
 }
 
 extension LightHomeWallpaperX on LightHomeWallpaper {
@@ -50,10 +62,20 @@ extension LightHomeWallpaperX on LightHomeWallpaper {
 }
 
 extension DarkHomeWallpaperX on DarkHomeWallpaper {
-  String get assetPath => AppAssets.homeDarkFigmaBg;
+  String get assetPath => switch (this) {
+    DarkHomeWallpaper.nightMesh => AppAssets.homeDarkFigmaBg,
+    DarkHomeWallpaper.glowHexTerrain => AppAssets.homeDarkFigma559,
+    DarkHomeWallpaper.dimpledMetal => AppAssets.homeDarkFigma571,
+    DarkHomeWallpaper.velvetWaves => AppAssets.homeDarkFigma681,
+    DarkHomeWallpaper.ridgedDepth => AppAssets.homeDarkFigma573,
+  };
 
   String get displayLabel => switch (this) {
     DarkHomeWallpaper.nightMesh => 'Night mesh',
+    DarkHomeWallpaper.glowHexTerrain => 'Hex terrain',
+    DarkHomeWallpaper.dimpledMetal => 'Dimpled metal',
+    DarkHomeWallpaper.velvetWaves => 'Velvet waves',
+    DarkHomeWallpaper.ridgedDepth => 'Ridged depth',
   };
 }
 

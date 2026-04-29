@@ -37,6 +37,12 @@ String storageValueForLightHomeWallpaper(LightHomeWallpaper wallpaper) {
 
 DarkHomeWallpaper darkHomeWallpaperFromStorageValue(String? raw) {
   return switch (raw) {
+    'glow_hex' => DarkHomeWallpaper.glowHexTerrain,
+    'dimpled_metal' => DarkHomeWallpaper.dimpledMetal,
+    'velvet_waves' => DarkHomeWallpaper.velvetWaves,
+    'ridged_depth' => DarkHomeWallpaper.ridgedDepth,
+    'night_mesh' => DarkHomeWallpaper.nightMesh,
+    null => DarkHomeWallpaper.nightMesh,
     _ => DarkHomeWallpaper.nightMesh,
   };
 }
@@ -45,6 +51,14 @@ String storageValueForDarkHomeWallpaper(DarkHomeWallpaper wallpaper) {
   switch (wallpaper) {
     case DarkHomeWallpaper.nightMesh:
       return 'night_mesh';
+    case DarkHomeWallpaper.glowHexTerrain:
+      return 'glow_hex';
+    case DarkHomeWallpaper.dimpledMetal:
+      return 'dimpled_metal';
+    case DarkHomeWallpaper.velvetWaves:
+      return 'velvet_waves';
+    case DarkHomeWallpaper.ridgedDepth:
+      return 'ridged_depth';
   }
 }
 
