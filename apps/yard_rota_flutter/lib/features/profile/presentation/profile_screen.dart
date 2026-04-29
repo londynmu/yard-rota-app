@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
-import '../../../core/ui/app_toast.dart';
 import 'themes_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -30,10 +29,7 @@ class ProfileScreen extends StatelessWidget {
   onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
 
-  /// Fixed profile grid: 3 columns × 4 rows.
-  static const int _gridCrossAxisCount = 3;
-  static const int _gridRowCount = 4;
-  static const int _gridCellCount = _gridCrossAxisCount * _gridRowCount;
+  static const double _cardFillOpacity = 0.5;
 
   static const List<_ProfileTileSpec> _tiles = [
     _ProfileTileSpec(
@@ -41,14 +37,7 @@ class ProfileScreen extends StatelessWidget {
       icon: Icons.palette_outlined,
       isThemes: true,
     ),
-    _ProfileTileSpec(
-      title: 'Notifications',
-      icon: Icons.notifications_none_outlined,
-    ),
-    _ProfileTileSpec(title: 'Privacy', icon: Icons.lock_outline),
     _ProfileTileSpec(title: 'Logout', icon: Icons.logout, isLogout: true),
-    _ProfileTileSpec(title: 'About', icon: Icons.info_outline),
-    _ProfileTileSpec(title: 'Account', icon: Icons.person_outline),
   ];
 
   @override
@@ -120,18 +109,16 @@ class ProfileScreen extends StatelessWidget {
                   // Same overscroll “stretch” as Calendar: scrollable even when content fits.
                   physics: const AlwaysScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: _gridCrossAxisCount,
+                    crossAxisCount: 2,
                     mainAxisSpacing: AppSpacing.sm,
                     crossAxisSpacing: AppSpacing.sm,
                     childAspectRatio: 1.0,
                   ),
-                  itemCount: _gridCellCount,
+                  itemCount: _tiles.length,
                   itemBuilder: (context, index) {
-                    if (index >= _tiles.length) {
-                      return const _ProfileGridEmptySlot();
-                    }
                     final spec = _tiles[index];
                     return _ProfileGridCard(
+                      fillOpacity: _cardFillOpacity,
                       spec: spec,
                       onTap: () => _onTileTap(context, spec),
                     );
@@ -163,12 +150,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       );
-      return;
     }
-    if (!context.mounted) {
-      return;
-    }
-    AppToast.show(context, '${spec.title} is coming soon.');
   }
 }
 
@@ -187,8 +169,13 @@ class _ProfileTileSpec {
 }
 
 class _ProfileGridCard extends StatelessWidget {
-  const _ProfileGridCard({required this.spec, required this.onTap});
+  const _ProfileGridCard({
+    required this.fillOpacity,
+    required this.spec,
+    required this.onTap,
+  });
 
+  final double fillOpacity;
   final _ProfileTileSpec spec;
   final VoidCallback onTap;
 
@@ -196,13 +183,14 @@ class _ProfileGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Material(
-      color: colors.bgElevated,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
+            color: colors.bgElevated.withValues(alpha: fillOpacity),
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: colors.borderDefault),
           ),
@@ -227,23 +215,6 @@ class _ProfileGridCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Same footprint as [_ProfileGridCard], no action (fills 3×4 grid slots).
-class _ProfileGridEmptySlot extends StatelessWidget {
-  const _ProfileGridEmptySlot();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.borderDefault.withValues(alpha: 0.55)),
       ),
     );
   }
