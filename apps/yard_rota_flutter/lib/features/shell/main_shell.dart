@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,11 +14,12 @@ import '../profile/presentation/profile_screen.dart';
 const double kMainShellNavRowExtent =
     AppSpacing.sm + _kMainShellNavTapHeight + AppSpacing.sm;
 
-/// Min vertical extent of one nav pill (blur + icon + label + padding).
+/// Min vertical extent of one nav tap target (icon + label + padding).
 const double _kMainShellNavTapHeight = 60;
 
-/// Root shell after sign-in: bottom navigation (Home, Profile). Transparent
-/// bar; rounded frosted blur behind each tab control.
+/// Root shell after sign-in: bottom navigation (Home, Profile). Icons sit in
+/// a [Positioned] strip at the physical bottom of the body stack (no glass
+/// pills).
 class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
@@ -45,9 +44,9 @@ class MainShell extends StatefulWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final Future<void> Function(LightHomeWallpaper wallpaper)
-      onLightHomeWallpaperChanged;
+  onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
-      onDarkHomeWallpaperChanged;
+  onDarkHomeWallpaperChanged;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -112,10 +111,20 @@ class _MainShellState extends State<MainShell> {
       value: overlay,
       child: Scaffold(
         extendBody: true,
-        body: paddedBody,
-        bottomNavigationBar: _MainShellBottomNav(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            paddedBody,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _MainShellBottomNav(
+                selectedIndex: _index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -134,7 +143,6 @@ class _MainShellBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
     final safeBottom = mq.padding.bottom;
 
@@ -150,42 +158,28 @@ class _MainShellBottomNav extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Positioned.fill(
-                    child: IgnorePointer(child: SizedBox.expand()),
-                  ),
-                  _MainShellNavItem(
-                    selected: selectedIndex == 0,
-                    label: 'Home',
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    isDark: isDark,
-                    colors: colors,
-                    onTap: () => onDestinationSelected(0),
-                  ),
-                ],
+              child: Center(
+                child: _MainShellNavItem(
+                  selected: selectedIndex == 0,
+                  label: 'Home',
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  colors: colors,
+                  onTap: () => onDestinationSelected(0),
+                ),
               ),
             ),
             SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Positioned.fill(
-                    child: IgnorePointer(child: SizedBox.expand()),
-                  ),
-                  _MainShellNavItem(
-                    selected: selectedIndex == 1,
-                    label: 'Profile',
-                    icon: Icons.person_outline,
-                    selectedIcon: Icons.person,
-                    isDark: isDark,
-                    colors: colors,
-                    onTap: () => onDestinationSelected(1),
-                  ),
-                ],
+              child: Center(
+                child: _MainShellNavItem(
+                  selected: selectedIndex == 1,
+                  label: 'Profile',
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  colors: colors,
+                  onTap: () => onDestinationSelected(1),
+                ),
               ),
             ),
           ],
@@ -201,7 +195,6 @@ class _MainShellNavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
-    required this.isDark,
     required this.colors,
     required this.onTap,
   });
@@ -210,7 +203,6 @@ class _MainShellNavItem extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
-  final bool isDark;
   final AppColorsScheme colors;
   final VoidCallback onTap;
 
@@ -220,75 +212,51 @@ class _MainShellNavItem extends StatelessWidget {
     final idleColor = colors.textPrimary;
     final iconColor = selected ? colors.primary : idleColor;
     final labelColor = selected ? colors.primary : idleColor;
-    final pillRadius = BorderRadius.circular(AppRadius.xl);
-    final frostTint = colors.bgElevated.withValues(
-      alpha: isDark ? 0.26 : 0.4,
-    );
+    final tapRadius = BorderRadius.circular(AppRadius.xl);
 
     return Semantics(
       button: true,
       selected: selected,
       label: label,
-      child: ClipRRect(
-        borderRadius: pillRadius,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: pillRadius,
-                    color: frostTint,
-                  ),
-                ),
-              ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: tapRadius,
+          splashColor: colors.primary.withValues(alpha: 0.12),
+          highlightColor: colors.primary.withValues(alpha: 0.06),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 88,
+              minHeight: _kMainShellNavTapHeight,
             ),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: pillRadius,
-                splashColor: colors.primary.withValues(alpha: 0.12),
-                highlightColor: colors.primary.withValues(alpha: 0.06),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minWidth: 88,
-                    minHeight: _kMainShellNavTapHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    selected ? selectedIcon : icon,
+                    size: 24,
+                    color: iconColor,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          selected ? selectedIcon : icon,
-                          size: 24,
-                          color: iconColor,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          label,
-                          style: AppTypography.labelMedium.copyWith(
-                            color: labelColor,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                            letterSpacing: 0.1,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    label,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: labelColor,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                      letterSpacing: 0.1,
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

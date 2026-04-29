@@ -234,10 +234,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   }
 
   void _recordMetric(String name, Duration duration) {
-    if (name == 'calendar.month.fetch' &&
-        duration > NetworkPolicy.monthSwitchCachedSlo) {
-      _showMessage('Calendar fetch exceeded SLO target.');
-    }
+    // Perf hook reserved for analytics; avoid surfacing internal SLO thresholds as toasts.
   }
 
   void _showMessage(String message) {

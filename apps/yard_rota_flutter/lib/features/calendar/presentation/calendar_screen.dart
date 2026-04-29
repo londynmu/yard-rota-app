@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/network/models.dart';
 import '../../../core/theme/home_wallpaper.dart';
-import '../../../core/network/network_policy.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
@@ -148,23 +147,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _visibleMonth = DateTime(switched.year, switched.month);
     });
 
-    final stopwatch = Stopwatch()..start();
     await _loadMonth(showGlobalLoader: false);
-    stopwatch.stop();
-
-    if (mounted &&
-        stopwatch.elapsed > NetworkPolicy.monthSwitchCachedSlo &&
-        widget.calendarRepository.readCachedMonth(
-              year: _visibleMonth.year,
-              month: _visibleMonth.month,
-            ) !=
-            null) {
-      AppToast.show(
-        context,
-        'Month switch exceeded cache SLO target.',
-        duration: const Duration(seconds: 4),
-      );
-    }
   }
 
   Future<void> _handleDayTap(DateTime date) async {

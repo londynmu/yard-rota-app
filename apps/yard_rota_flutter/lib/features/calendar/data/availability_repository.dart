@@ -27,16 +27,15 @@ class AvailabilityRepository {
     );
     final startYmd = _toYmd(range.start);
     final endYmd = _toYmd(range.end);
-    final local = await _localDb.readAvailabilityRange(
-      startYmd: startYmd,
-      endYmd: endYmd,
-    );
-    if (local.isNotEmpty) {
-      unawaited(_refreshFromRemote(startYmd: startYmd, endYmd: endYmd));
-      return local;
-    }
 
-    return _refreshFromRemote(startYmd: startYmd, endYmd: endYmd);
+    // Always sync from remote for this range, then read SQLite. Returning early
+    // when local was only partially filled (e.g. edge days in ±7d padding) left
+    // most month cells without status until a later navigation.
+    try {
+      return await _refreshFromRemote(startYmd: startYmd, endYmd: endYmd);
+    } catch (_) {
+      return _localDb.readAvailabilityRange(startYmd: startYmd, endYmd: endYmd);
+    }
   }
 
   Future<Map<String, AvailabilityEntry>> _refreshFromRemote({
