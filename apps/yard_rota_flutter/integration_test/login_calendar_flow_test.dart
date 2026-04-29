@@ -4,6 +4,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:yard_rota_flutter/app.dart';
 import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
+import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
@@ -148,4 +149,31 @@ class _IntegrationApiClient implements ApiClient {
       );
     }
   }
+
+  @override
+  Future<List<LocationOption>> getActiveLocations() async {
+    return const [
+      LocationOption(id: '1', name: 'Rugby'),
+      LocationOption(id: '2', name: 'NRC'),
+    ];
+  }
+
+  @override
+  Future<MyRotaWeekData> getMyRotaWeek({
+    required String weekStartYmd,
+    required String locationName,
+    required String shiftTypeFilter,
+  }) async {
+    return MyRotaWeekData(
+      slotsByDateYmd: const {},
+      attendanceBySlotId: const {},
+      fetchedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> saveMyRotaAttendance({
+    required String scheduledRotaId,
+    MyRotaAttendanceStatus? status,
+  }) async {}
 }

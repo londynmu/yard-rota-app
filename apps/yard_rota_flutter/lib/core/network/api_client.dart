@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'models.dart';
+import 'my_rota_models.dart';
 import 'network_policy.dart';
 
 /// API abstraction for shunter-focused MVP flows.
@@ -22,6 +23,20 @@ abstract class ApiClient {
     required String endYmd,
   });
   Future<void> saveAvailability({required SaveAvailabilityRequest request});
+
+  Future<List<LocationOption>> getActiveLocations();
+
+  Future<MyRotaWeekData> getMyRotaWeek({
+    required String weekStartYmd,
+    required String locationName,
+    required String shiftTypeFilter,
+  });
+
+  /// [status] null clears attendance for the slot (admin).
+  Future<void> saveMyRotaAttendance({
+    required String scheduledRotaId,
+    MyRotaAttendanceStatus? status,
+  });
 }
 
 class MockApiClient implements ApiClient {
@@ -43,7 +58,11 @@ class MockApiClient implements ApiClient {
     if (password != 'yard123') {
       throw const UnauthorizedException('Invalid credentials.');
     }
-    return const UserSession(userId: 'shunter-01', displayName: 'Shunter One');
+    return const UserSession(
+      userId: 'shunter-01',
+      displayName: 'Shunter One',
+      userRole: 'admin',
+    );
   }
 
   @override
@@ -115,5 +134,51 @@ class MockApiClient implements ApiClient {
     if (request.items.isEmpty) {
       throw const TransientNetworkException('No availability items provided.');
     }
+  }
+
+  @override
+  Future<List<LocationOption>> getActiveLocations() async {
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    return const [
+      LocationOption(id: 'mock-1', name: 'Rugby'),
+      LocationOption(id: 'mock-2', name: 'NRC'),
+    ];
+  }
+
+  @override
+  Future<MyRotaWeekData> getMyRotaWeek({
+    required String weekStartYmd,
+    required String locationName,
+    required String shiftTypeFilter,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final start = DateTime.tryParse(weekStartYmd) ?? DateTime.now();
+    final ymds = List<String>.generate(7, (i) {
+      final d = DateTime(
+        start.year,
+        start.month,
+        start.day,
+      ).add(Duration(days: i));
+      final y = d.year.toString().padLeft(4, '0');
+      final m = d.month.toString().padLeft(2, '0');
+      final day = d.day.toString().padLeft(2, '0');
+      return '$y-$m-$day';
+    });
+    final byDate = <String, List<MyRotaSlot>>{
+      for (final k in ymds) k: <MyRotaSlot>[],
+    };
+    return MyRotaWeekData(
+      slotsByDateYmd: byDate,
+      attendanceBySlotId: const {},
+      fetchedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> saveMyRotaAttendance({
+    required String scheduledRotaId,
+    MyRotaAttendanceStatus? status,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
   }
 }

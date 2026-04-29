@@ -36,7 +36,7 @@ This folder contains a separate Flutter client for shunter-focused flows.
 - `lib/core/theme` token system and themes
 - `lib/core/ui` shared UI components
 - `lib/core/network` API abstractions and data models
-- `lib/features/*` shunter flows (auth, calendar)
+- `lib/features/*` shunter flows (auth, calendar, my_rota)
 - `tool/quality_gate.dart` static checks for hardcoded style regressions
 - `docs/merge_checklist.md` merge checklist with performance gates
 
@@ -55,6 +55,7 @@ dart run tool/quality_gate.dart
 - The Flutter app is connected to the same Supabase backend used by the web app.
 - Auth uses `signInWithPassword` and session restore from Supabase Auth.
 - Calendar month data is loaded from `scheduled_rota`.
+- **My Rota** (Profile → My Rota): weekly roster for a chosen **location** and optional **shift type** filter (`all` / day / afternoon / night). Uses `scheduled_rota` (date range + location + shift filter), `profiles` for names, `locations` for the hub list, and `attendance` for No show / Sick / Late badges and present counts. Week starts on **Saturday** (same convention as the web `WeeklyRotaPage`). Admins can tap a person to update or clear attendance.
 - Optional overrides for environment-specific projects:
 
 ```bash

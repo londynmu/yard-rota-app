@@ -550,31 +550,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ],
               ),
-                  if (_isSavingAvailability)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Text(
-                        'Saving availability...',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: colors.textSecondary),
-                      ),
+              if (_isSavingAvailability)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    'Saving availability...',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
                     ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: _weekdayLabels
-                        .map(
-                          (label) => Expanded(
-                            child: Text(
-                              label,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(color: colors.textSecondary),
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: _weekdayLabels
+                    .map(
+                      (label) => Expanded(
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 240),
                 switchInCurve: Curves.easeOutCubic,
@@ -586,10 +587,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   return Stack(
                     alignment: Alignment.topCenter,
                     clipBehavior: Clip.none,
-                    children: [
-                      ...previousChildren,
-                      ?currentChild,
-                    ],
+                    children: [...previousChildren, ?currentChild],
                   );
                 },
                 child: KeyedSubtree(
@@ -600,11 +598,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     itemCount: totalCells,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      childAspectRatio: 1.0,
-                      crossAxisSpacing: AppSpacing.xs,
-                      mainAxisSpacing: AppSpacing.xs,
-                    ),
+                          crossAxisCount: 7,
+                          childAspectRatio: 1.0,
+                          crossAxisSpacing: AppSpacing.xs,
+                          mainAxisSpacing: AppSpacing.xs,
+                        ),
                     itemBuilder: (context, index) {
                       if (index < leading) {
                         return const SizedBox.shrink();
@@ -613,13 +611,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       final day = index - leading + 1;
                       final date = DateTime(data.year, data.month, day);
                       final now = DateTime.now();
-                      final todayStart =
-                          DateTime(now.year, now.month, now.day);
+                      final todayStart = DateTime(now.year, now.month, now.day);
                       final isToday = _isSameDay(todayStart, date);
                       final isPast = date.isBefore(todayStart);
                       final availability = _availabilityByDate[_toYmd(date)];
-                      final tones =
-                          _availabilityColors(colors, availability?.status);
+                      final tones = _availabilityColors(
+                        colors,
+                        availability?.status,
+                      );
 
                       final borderColor = isToday
                           ? colors.primary
@@ -628,16 +627,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                       Widget dayCell = InkWell(
                         splashFactory: NoSplash.splashFactory,
-                        overlayColor:
-                            WidgetStateProperty.all(Colors.transparent),
+                        overlayColor: WidgetStateProperty.all(
+                          Colors.transparent,
+                        ),
                         borderRadius: BorderRadius.circular(AppRadius.full),
                         onTap: () => _handleDayTap(date),
                         child: Container(
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: tones.background ?? colors.bgSecondary,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.full),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
                             border: Border.all(
                               color: borderColor,
                               width: borderWidth,
@@ -645,9 +644,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                           child: Text(
                             '$day',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
+                            style: Theme.of(context).textTheme.labelLarge
                                 ?.copyWith(
                                   color: tones.text ?? colors.textPrimary,
                                 ),

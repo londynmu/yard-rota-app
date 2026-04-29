@@ -8,6 +8,7 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(AppComponentTokens.cardPadding),
+
     /// 0–1 opacity of [AppColorsScheme.bgElevated] fill. `null` = theme default.
     this.surfaceOpacity,
   });
@@ -21,14 +22,11 @@ class AppCard extends StatelessWidget {
     final colors = context.appColors;
     final customSurface = surfaceOpacity == null
         ? null
-        : colors.bgElevated.withValues(
-            alpha: surfaceOpacity!.clamp(0.0, 1.0),
-          );
+        : colors.bgElevated.withValues(alpha: surfaceOpacity!.clamp(0.0, 1.0));
 
     return Card(
       color: customSurface,
-      surfaceTintColor:
-          customSurface != null ? Colors.transparent : null,
+      surfaceTintColor: customSurface != null ? Colors.transparent : null,
       child: Padding(padding: padding, child: child),
     );
   }

@@ -360,8 +360,9 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textStyle?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         color: isSelected
                             ? colors.textPrimary
                             : colors.textSecondary,
@@ -404,17 +405,9 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: segment(0, ThemeMode.light)),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: colors.divider,
-                ),
+                VerticalDivider(width: 1, thickness: 1, color: colors.divider),
                 Expanded(child: segment(1, ThemeMode.dark)),
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: colors.divider,
-                ),
+                VerticalDivider(width: 1, thickness: 1, color: colors.divider),
                 Expanded(child: segment(2, ThemeMode.system)),
               ],
             ),
@@ -606,10 +599,7 @@ class _WallpaperM3CarouselItem extends StatelessWidget {
                               size: 26,
                               color: colors.primary,
                               shadows: const [
-                                Shadow(
-                                  color: Color(0x66FFFFFF),
-                                  blurRadius: 4,
-                                ),
+                                Shadow(color: Color(0x66FFFFFF), blurRadius: 4),
                               ],
                             ),
                           ),

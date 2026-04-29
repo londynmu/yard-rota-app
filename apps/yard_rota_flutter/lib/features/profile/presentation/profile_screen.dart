@@ -2,10 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../my_rota/data/my_rota_repository.dart';
+import '../../my_rota/presentation/my_rota_screen.dart';
 import 'themes_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -19,6 +22,8 @@ class ProfileScreen extends StatelessWidget {
     required this.onLightHomeWallpaperChanged,
     required this.onDarkHomeWallpaperChanged,
     required this.onLogout,
+    required this.session,
+    required this.myRotaRepository,
   });
 
   /// From [MainShell]; bumps when user selects Profile so tile drop replays (IndexedStack).
@@ -33,17 +38,27 @@ class ProfileScreen extends StatelessWidget {
   final Future<void> Function(DarkHomeWallpaper wallpaper)
   onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
+  final UserSession session;
+  final MyRotaRepository myRotaRepository;
 
-  static const List<_ProfileTileSpec> _tiles = [
+  static const List<_ProfileTileSpec> _topTiles = [
     _ProfileTileSpec(
       title: 'Themes',
       icon: Icons.palette_outlined,
       isThemes: true,
     ),
     _ProfileTileSpec(
+      title: 'My Rota',
+      icon: Icons.calendar_view_week_outlined,
+      isMyRota: true,
+    ),
+    _ProfileTileSpec(
       title: 'Notifications',
       icon: Icons.notifications_none_outlined,
     ),
+  ];
+
+  static const List<_ProfileTileSpec> _bottomTiles = [
     _ProfileTileSpec(title: 'Logout', icon: Icons.logout, isLogout: true),
   ];
 
@@ -101,43 +116,63 @@ class ProfileScreen extends StatelessWidget {
               gaplessPlayback: true,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              topContentInset,
-              AppSpacing.lg,
-              mq.padding.bottom + AppSpacing.lg,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              clipBehavior: Clip.none,
-              child: Builder(
-                builder: (ctx) {
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final maxW = constraints.maxWidth;
-                      final gap = AppSpacing.sm;
-                      final tileW = (maxW - 2 * gap) / 3;
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 1,
-                          childAspectRatio: maxW / tileW,
-                        ),
-                        itemCount: 1,
-                        itemBuilder: (context, _) {
-                          return _ProfileTileRow(
-                            key: ValueKey(tileEntranceSignal),
-                            gap: gap,
-                            tiles: _tiles,
-                            onTileTap: (spec) => _onTileTap(ctx, spec),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                topContentInset,
+                AppSpacing.lg,
+                mq.padding.bottom + AppSpacing.lg,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                clipBehavior: Clip.none,
+                child: Builder(
+                  builder: (ctx) {
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final maxW = constraints.maxWidth.isFinite
+                            ? constraints.maxWidth
+                            : MediaQuery.sizeOf(context).width -
+                                AppSpacing.lg * 2;
+                        final gap = AppSpacing.sm;
+                        final tileW = (maxW - 2 * gap) / 3;
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: tileW,
+                                child: _ProfileTileRow(
+                                  key: ValueKey<Object>((
+                                    tileEntranceSignal,
+                                    'top',
+                                  )),
+                                  gap: gap,
+                                  tiles: _topTiles,
+                                  onTileTap: (spec) => _onTileTap(ctx, spec),
+                                ),
+                              ),
+                              SizedBox(height: gap),
+                              SizedBox(
+                                height: tileW,
+                                child: _ProfileTileRow(
+                                  key: ValueKey<Object>((
+                                    tileEntranceSignal,
+                                    'bottom',
+                                  )),
+                                  gap: gap,
+                                  tiles: _bottomTiles,
+                                  onTileTap: (spec) => _onTileTap(ctx, spec),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -166,6 +201,19 @@ class ProfileScreen extends StatelessWidget {
       );
       return;
     }
+    if (spec.isMyRota) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => MyRotaScreen(
+            repository: myRotaRepository,
+            session: session,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+          ),
+        ),
+      );
+      return;
+    }
     if (!context.mounted) {
       return;
     }
@@ -178,12 +226,14 @@ class _ProfileTileSpec {
     required this.title,
     required this.icon,
     this.isThemes = false,
+    this.isMyRota = false,
     this.isLogout = false,
   });
 
   final String title;
   final IconData icon;
   final bool isThemes;
+  final bool isMyRota;
   final bool isLogout;
 }
 

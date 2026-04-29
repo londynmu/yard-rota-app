@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yard_rota_flutter/core/local_db/app_local_database.dart';
 import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
+import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/features/calendar/data/availability_repository.dart';
 
 void main() {
@@ -144,4 +145,24 @@ class _FakeApiClient implements ApiClient {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<List<LocationOption>> getActiveLocations() async => const [];
+
+  @override
+  Future<MyRotaWeekData> getMyRotaWeek({
+    required String weekStartYmd,
+    required String locationName,
+    required String shiftTypeFilter,
+  }) async => MyRotaWeekData(
+    slotsByDateYmd: const {},
+    attendanceBySlotId: const {},
+    fetchedAt: DateTime.now(),
+  );
+
+  @override
+  Future<void> saveMyRotaAttendance({
+    required String scheduledRotaId,
+    MyRotaAttendanceStatus? status,
+  }) async {}
 }

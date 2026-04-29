@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/network/models.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/home_wallpaper.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
 import '../calendar/presentation/calendar_screen.dart';
+import '../my_rota/data/my_rota_repository.dart';
 import '../profile/presentation/profile_screen.dart';
 import 'main_shell_nav_metrics.dart';
 
@@ -16,9 +18,10 @@ import 'main_shell_nav_metrics.dart';
 class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
-    required this.displayName,
+    required this.session,
     required this.calendarRepository,
     required this.availabilityRepository,
+    required this.myRotaRepository,
     required this.onLogout,
     required this.themeMode,
     required this.onThemeModeChanged,
@@ -28,9 +31,10 @@ class MainShell extends StatefulWidget {
     required this.onDarkHomeWallpaperChanged,
   });
 
-  final String displayName;
+  final UserSession session;
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
+  final MyRotaRepository myRotaRepository;
   final Future<void> Function() onLogout;
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
@@ -93,7 +97,7 @@ class _MainShellState extends State<MainShell> {
         index: _index,
         children: [
           CalendarScreen(
-            displayName: widget.displayName,
+            displayName: widget.session.displayName,
             calendarRepository: widget.calendarRepository,
             availabilityRepository: widget.availabilityRepository,
             lightHomeWallpaper: widget.lightHomeWallpaper,
@@ -108,6 +112,8 @@ class _MainShellState extends State<MainShell> {
             onLightHomeWallpaperChanged: widget.onLightHomeWallpaperChanged,
             onDarkHomeWallpaperChanged: widget.onDarkHomeWallpaperChanged,
             onLogout: widget.onLogout,
+            session: widget.session,
+            myRotaRepository: widget.myRotaRepository,
           ),
         ],
       ),

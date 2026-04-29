@@ -15,6 +15,7 @@ import 'core/ui/app_toast.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
+import 'features/my_rota/data/my_rota_repository.dart';
 import 'features/shell/main_shell.dart';
 import 'core/theme/theme_mode_storage.dart';
 
@@ -44,6 +45,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   late final AppLocalDatabase _localDb;
   late final CalendarRepository _calendarRepository;
   late final AvailabilityRepository _availabilityRepository;
+  late final MyRotaRepository _myRotaRepository;
   late final Stopwatch _startupStopwatch;
 
   UserSession? _session;
@@ -73,6 +75,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       apiClient: _apiClient,
       localDb: _localDb,
     );
+    _myRotaRepository = MyRotaRepository(apiClient: _apiClient);
     PerfMetrics.recorder = _recordMetric;
     _bootstrap();
   }
@@ -267,9 +270,10 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     }
 
     return MainShell(
-      displayName: _session!.displayName,
+      session: _session!,
       calendarRepository: _calendarRepository,
       availabilityRepository: _availabilityRepository,
+      myRotaRepository: _myRotaRepository,
       onLogout: _handleLogout,
       themeMode: _themeMode,
       onThemeModeChanged: _handleThemeModeChanged,

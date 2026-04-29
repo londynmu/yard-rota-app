@@ -25,11 +25,7 @@ abstract final class AppToast {
     _activeEntry = null;
   }
 
-  static void show(
-    BuildContext context,
-    String message, {
-    Duration? duration,
-  }) {
+  static void show(BuildContext context, String message, {Duration? duration}) {
     if (!context.mounted) {
       return;
     }

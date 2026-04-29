@@ -1,8 +1,17 @@
 class UserSession {
-  const UserSession({required this.userId, required this.displayName});
+  const UserSession({
+    required this.userId,
+    required this.displayName,
+    this.userRole,
+  });
 
   final String userId;
   final String displayName;
+
+  /// `profiles.role` from Supabase (e.g. `admin`); null if unknown / mock.
+  final String? userRole;
+
+  bool get isAdmin => userRole == 'admin';
 }
 
 class ShiftOverview {
