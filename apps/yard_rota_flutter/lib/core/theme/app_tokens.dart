@@ -290,6 +290,28 @@ class AppOpacity {
   static const subtle = 0.72;
   static const overlayLight = 0.32;
   static const overlayStrong = 0.70;
+
+  /// M3 segmented-button track scrim over wallpaper (Figma M3 kit — Segmented button).
+  static const segmentedTrackFill = 0.5;
+}
+
+/// Material 3 Design Kit (Community) — baseline segmented button, density 0.
+/// Source: `…/Material-3-Design-Kit--Community-` → Segmented button (e.g. 3 segments, 48×310).
+@immutable
+class AppM3SegmentedButton {
+  const AppM3SegmentedButton._();
+
+  static const double trackCornerRadius = 28;
+  static const double slotCornerRadius = 20;
+  static const double slotAdjacentCornerTightRatio = 0.35;
+  static const double slotMiddleCornerRatio = 0.45;
+  static const double trackHeight = 48;
+  static const double trackPadding = 4;
+  static const double iconSize = 20;
+  static const double selectionCheckIconSize = 18;
+  static const double selectedShadowBlur = 8;
+  static const double selectedShadowOffsetY = 2;
+  static const double selectedShadowAlpha = 0.14;
 }
 
 @immutable

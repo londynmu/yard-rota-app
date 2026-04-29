@@ -15,6 +15,7 @@ Cursor does not connect to Figma directly. To have Cursor use your Figma design,
 Add or update tokens in:
 
 - **`tailwind.config.js`** – in `theme.extend.colors` (and optionally `spacing`, `borderRadius`, etc.). The project already uses `rota.*` and `charcoal` / `offwhite` / etc.
+- **`apps/yard_rota_flutter/lib/core/theme/app_tokens.dart`** – for the Flutter app: spacing, radii, opacities, motion, and namespaced M3-style constants (`AppM3*`); see `.cursor/rules/flutter-figma-tokens.mdc`.
 - Optionally **`src/styles/theme.css`** or a `design-tokens.json` if you prefer a single source.
 
 Keep one source of truth (e.g. “Figma → tailwind”) and document it here or in a short README.
@@ -34,6 +35,7 @@ Then Cursor will use **your** layout and components, not generic ones.
 | Goal | Action |
 |------|--------|
 | Cursor uses your colors/spacing | Put tokens in `tailwind.config.js` (or theme file); use them in components. |
+| Flutter app colours/spacing from Figma | Put tokens in `apps/yard_rota_flutter/lib/core/theme/app_tokens.dart`; follow `flutter-figma-tokens.mdc`. |
 | Cursor uses your components/layout | Document in `.cursor/rules/*.mdc` (visual reference rules). |
 | New Figma design | Export tokens → update Tailwind/theme; write or update a visual-reference rule for that screen/component. |
 

@@ -1,0 +1,18 @@
+---
+description: Figma-derived values in Flutter must land in app_tokens for reuse
+alwaysApply: true
+---
+
+# Flutter: Figma → design tokens
+
+Applies to **`apps/yard_rota_flutter`**.
+
+When you add or adjust UI using **Figma** (MCP `get_design_context`, inspect, M3 kit URLs, or exported specs):
+
+1. **Do not leave design numbers in feature widgets** (radii, opacities, fixed heights, shadow blur/offset, segment sizes, etc.) unless they are truly one-off and documented as such.
+2. **Add reusable values to** `apps/yard_rota_flutter/lib/core/theme/app_tokens.dart`:
+   - Prefer existing buckets: `AppSpacing`, `AppRadius`, `AppOpacity`, `AppStroke`, `AppElevation`, `AppMotion`.
+   - For **Material 3 kit** components or cross-screen M3 patterns, use a **namespaced holder** (e.g. `AppM3SegmentedButton`, `AppM3Carousel`) with a short **Figma file / section** comment on the class.
+3. **Wire feature code to those tokens** so the next Figma tweak updates one place.
+
+Semantic colours stay on **`AppColorsScheme`** / theme — Figma hex for *brand* colours belongs there after mapping to the palette, not scattered in widgets.

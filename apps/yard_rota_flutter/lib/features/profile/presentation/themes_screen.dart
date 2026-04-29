@@ -7,7 +7,7 @@ import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_toast.dart';
 
-/// Choose app appearance (light / dark / system) and per-theme home backgrounds.
+/// Theme mode (light / dark / system) and per-theme home backgrounds.
 class ThemesScreen extends StatefulWidget {
   const ThemesScreen({
     super.key,
@@ -189,45 +189,9 @@ class _ThemesScreenState extends State<ThemesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Appearance',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Light and dark use Yard Rota tokens. System follows the device.',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.light,
-                      label: Text('Light'),
-                      icon: Icon(Icons.light_mode_outlined),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.dark,
-                      label: Text('Dark'),
-                      icon: Icon(Icons.dark_mode_outlined),
-                    ),
-                    ButtonSegment<ThemeMode>(
-                      value: ThemeMode.system,
-                      label: Text('System'),
-                      icon: Icon(Icons.brightness_auto_outlined),
-                    ),
-                  ],
-                  selected: {_selectedThemeMode},
-                  onSelectionChanged: (selected) async {
-                    final mode = selected.first;
+                _ThemesModeM3SegmentedBar(
+                  selected: _selectedThemeMode,
+                  onSelect: (ThemeMode mode) async {
                     setState(() => _selectedThemeMode = mode);
                     try {
                       await widget.onThemeModeChanged(mode);
@@ -294,6 +258,168 @@ class _ThemesScreenState extends State<ThemesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// M3 baseline segmented control; dimensions from [AppM3SegmentedButton] / [AppOpacity].
+class _ThemesModeM3SegmentedBar extends StatelessWidget {
+  const _ThemesModeM3SegmentedBar({
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final ThemeMode selected;
+  final Future<void> Function(ThemeMode mode) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final textStyle = Theme.of(context).textTheme.labelLarge;
+    final r = AppM3SegmentedButton.slotCornerRadius;
+    final tight = r * AppM3SegmentedButton.slotAdjacentCornerTightRatio;
+    final mid = r * AppM3SegmentedButton.slotMiddleCornerRatio;
+
+    Widget segment(int index, ThemeMode mode) {
+      final isSelected = selected == mode;
+      final (IconData icon, String label) = switch (mode) {
+        ThemeMode.light => (Icons.light_mode_outlined, 'Light'),
+        ThemeMode.dark => (Icons.dark_mode_outlined, 'Dark'),
+        ThemeMode.system => (Icons.brightness_auto_outlined, 'System'),
+      };
+
+      BorderRadius slotRadius() {
+        if (!isSelected) {
+          return BorderRadius.circular(r);
+        }
+        if (index == 0) {
+          return BorderRadius.horizontal(
+            left: Radius.circular(r),
+            right: Radius.circular(tight),
+          );
+        }
+        if (index == 2) {
+          return BorderRadius.horizontal(
+            left: Radius.circular(tight),
+            right: Radius.circular(r),
+          );
+        }
+        return BorderRadius.circular(mid);
+      }
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onSelect(mode),
+          borderRadius: slotRadius(),
+          child: AnimatedContainer(
+            duration: AppMotion.normal,
+            curve: AppMotion.emphasized,
+            decoration: BoxDecoration(
+              color: isSelected ? colors.bgElevated : Colors.transparent,
+              borderRadius: slotRadius(),
+              border: isSelected
+                  ? Border.all(
+                      color: colors.borderStrong,
+                      width: AppStroke.medium,
+                    )
+                  : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: colors.shadow.withValues(
+                          alpha: AppM3SegmentedButton.selectedShadowAlpha,
+                        ),
+                        blurRadius: AppM3SegmentedButton.selectedShadowBlur,
+                        offset: Offset(
+                          0,
+                          AppM3SegmentedButton.selectedShadowOffsetY,
+                        ),
+                      ),
+                    ]
+                  : null,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: AppM3SegmentedButton.iconSize,
+                    color: isSelected
+                        ? colors.textPrimary
+                        : colors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textStyle?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? colors.textPrimary
+                            : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (isSelected) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Icon(
+                      Icons.check,
+                      size: AppM3SegmentedButton.selectionCheckIconSize,
+                      color: colors.textPrimary,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      label: 'Theme appearance',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.bgPrimary.withValues(
+            alpha: AppOpacity.segmentedTrackFill,
+          ),
+          borderRadius: BorderRadius.circular(
+            AppM3SegmentedButton.trackCornerRadius,
+          ),
+          border: Border.all(color: colors.borderDefault),
+        ),
+        child: SizedBox(
+          height: AppM3SegmentedButton.trackHeight,
+          child: Padding(
+            padding: const EdgeInsets.all(AppM3SegmentedButton.trackPadding),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: segment(0, ThemeMode.light)),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: colors.divider,
+                ),
+                Expanded(child: segment(1, ThemeMode.dark)),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: colors.divider,
+                ),
+                Expanded(child: segment(2, ThemeMode.system)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
