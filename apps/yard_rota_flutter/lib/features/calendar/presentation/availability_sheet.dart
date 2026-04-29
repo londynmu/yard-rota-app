@@ -105,17 +105,32 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildStatusPicker(context),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildDateCarousel(context),
-                  ],
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      // Slightly below geometric centre: optical balance with the
+                      // action bar and header weight reads more centred.
+                      child: Align(
+                        alignment: const Alignment(0, 0.95),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildStatusPicker(context),
+                            const SizedBox(height: AppSpacing.md),
+                            _buildDateCarousel(context),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             _buildActions(context),
@@ -213,6 +228,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                       child: AnimatedContainer(
                         duration: AppMotion.normal,
                         width: dayCardWidth,
+                        height: carouselHeight,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.xs,
                           vertical: AppSpacing.sm,
@@ -232,62 +248,46 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                           ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _weekdayLabel(optionDate),
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: (isSelected || hasSavedStatus)
-                                              ? dayTextColor.withValues(
-                                                  alpha: 0.82,
-                                                )
-                                              : colors.textSecondary,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.3,
-                                        ),
+                            Text(
+                              _weekdayLabel(optionDate),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: (isSelected || hasSavedStatus)
+                                        ? dayTextColor.withValues(alpha: 0.82)
+                                        : colors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
                                   ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    _ordinalDay(optionDate.day),
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                          color: dayTextColor,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.05,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _monthShortLabel(optionDate),
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: (isSelected || hasSavedStatus)
-                                              ? dayTextColor.withValues(
-                                                  alpha: 0.78,
-                                                )
-                                              : colors.textSecondary,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.4,
-                                        ),
-                                  ),
-                                ],
-                              ),
                             ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              _ordinalDay(optionDate.day),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: dayTextColor,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.05,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _monthShortLabel(optionDate),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: (isSelected || hasSavedStatus)
+                                        ? dayTextColor.withValues(alpha: 0.78)
+                                        : colors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.4,
+                                  ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
                             Text(
                               _statusLabelForDisplay(
                                 _statusByDate[ymd] ??
