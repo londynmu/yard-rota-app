@@ -1,10 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
-import '../../../core/ui/app_toast.dart';
 import '../../../core/theme/theme_extensions.dart';
-import '../../shell/main_shell_nav_metrics.dart';
+import '../../../core/ui/app_toast.dart';
 import 'themes_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -24,9 +25,9 @@ class ProfileScreen extends StatelessWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final Future<void> Function(LightHomeWallpaper wallpaper)
-      onLightHomeWallpaperChanged;
+  onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
-      onDarkHomeWallpaperChanged;
+  onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
 
   /// Fixed profile grid: 3 columns × 4 rows.
@@ -45,11 +46,7 @@ class ProfileScreen extends StatelessWidget {
       icon: Icons.notifications_none_outlined,
     ),
     _ProfileTileSpec(title: 'Privacy', icon: Icons.lock_outline),
-    _ProfileTileSpec(
-      title: 'Logout',
-      icon: Icons.logout,
-      isLogout: true,
-    ),
+    _ProfileTileSpec(title: 'Logout', icon: Icons.logout, isLogout: true),
     _ProfileTileSpec(title: 'About', icon: Icons.info_outline),
     _ProfileTileSpec(title: 'Account', icon: Icons.person_outline),
   ];
@@ -57,41 +54,93 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mq = MediaQuery.of(context);
+    final topContentInset = mq.padding.top + kToolbarHeight;
+
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
-      appBar: AppBar(title: const Text('Profile')),
-      body: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.lg +
-                MediaQuery.viewPaddingOf(context).bottom +
-                kMainShellContentExtraBottomInset,
-          ),
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _gridCrossAxisCount,
-              mainAxisSpacing: AppSpacing.sm,
-              crossAxisSpacing: AppSpacing.sm,
-              childAspectRatio: 1.0,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isDark
+                      ? [
+                          colors.bgPrimary.withValues(alpha: 0.0),
+                          colors.bgPrimary.withValues(alpha: 0.28),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.42),
+                        ],
+                ),
+              ),
             ),
-            itemCount: _gridCellCount,
-            itemBuilder: (context, index) {
-              if (index >= _tiles.length) {
-                return const _ProfileGridEmptySlot();
-              }
-              final spec = _tiles[index];
-              return _ProfileGridCard(
-                spec: spec,
-                onTap: () => _onTileTap(context, spec),
-              );
-            },
           ),
         ),
+        title: const Text('Profile'),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              homeBackgroundAssetPath(
+                brightness: isDark ? Brightness.dark : Brightness.light,
+                lightWallpaper: lightHomeWallpaper,
+                darkWallpaper: darkHomeWallpaper,
+              ),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              topContentInset,
+              AppSpacing.lg,
+              mq.padding.bottom + AppSpacing.lg,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              clipBehavior: Clip.hardEdge,
+              child: ClipRect(
+                child: GridView.builder(
+                  // Same overscroll “stretch” as Calendar: scrollable even when content fits.
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _gridCrossAxisCount,
+                    mainAxisSpacing: AppSpacing.sm,
+                    crossAxisSpacing: AppSpacing.sm,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: _gridCellCount,
+                  itemBuilder: (context, index) {
+                    if (index >= _tiles.length) {
+                      return const _ProfileGridEmptySlot();
+                    }
+                    final spec = _tiles[index];
+                    return _ProfileGridCard(
+                      spec: spec,
+                      onTap: () => _onTileTap(context, spec),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
