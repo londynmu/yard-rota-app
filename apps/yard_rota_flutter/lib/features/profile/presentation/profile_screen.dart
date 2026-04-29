@@ -15,6 +15,7 @@ class ProfileScreen extends StatelessWidget {
     required this.darkHomeWallpaper,
     required this.onLightHomeWallpaperChanged,
     required this.onDarkHomeWallpaperChanged,
+    required this.onLogout,
   });
 
   final ThemeMode themeMode;
@@ -25,6 +26,12 @@ class ProfileScreen extends StatelessWidget {
       onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
       onDarkHomeWallpaperChanged;
+  final Future<void> Function() onLogout;
+
+  /// Fixed profile grid: 3 columns × 5 rows.
+  static const int _gridCrossAxisCount = 3;
+  static const int _gridRowCount = 5;
+  static const int _gridCellCount = _gridCrossAxisCount * _gridRowCount;
 
   static const List<_ProfileTileSpec> _tiles = [
     _ProfileTileSpec(
@@ -37,7 +44,11 @@ class ProfileScreen extends StatelessWidget {
       icon: Icons.notifications_none_outlined,
     ),
     _ProfileTileSpec(title: 'Privacy', icon: Icons.lock_outline),
-    _ProfileTileSpec(title: 'Help', icon: Icons.help_outline),
+    _ProfileTileSpec(
+      title: 'Logout',
+      icon: Icons.logout,
+      isLogout: true,
+    ),
     _ProfileTileSpec(title: 'About', icon: Icons.info_outline),
     _ProfileTileSpec(title: 'Account', icon: Icons.person_outline),
   ];
@@ -53,13 +64,16 @@ class ProfileScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: GridView.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+              crossAxisCount: _gridCrossAxisCount,
               mainAxisSpacing: AppSpacing.md,
               crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 1.05,
+              childAspectRatio: 1.0,
             ),
-            itemCount: _tiles.length,
+            itemCount: _gridCellCount,
             itemBuilder: (context, index) {
+              if (index >= _tiles.length) {
+                return const _ProfileGridEmptySlot();
+              }
               final spec = _tiles[index];
               return _ProfileGridCard(
                 spec: spec,
@@ -73,6 +87,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _onTileTap(BuildContext context, _ProfileTileSpec spec) async {
+    if (spec.isLogout) {
+      await onLogout();
+      return;
+    }
     if (spec.isThemes) {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
@@ -100,11 +118,13 @@ class _ProfileTileSpec {
     required this.title,
     required this.icon,
     this.isThemes = false,
+    this.isLogout = false,
   });
 
   final String title;
   final IconData icon;
   final bool isThemes;
+  final bool isLogout;
 }
 
 class _ProfileGridCard extends StatelessWidget {
@@ -148,6 +168,23 @@ class _ProfileGridCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Same footprint as [_ProfileGridCard], no action (fills 3×5 grid slots).
+class _ProfileGridEmptySlot extends StatelessWidget {
+  const _ProfileGridEmptySlot();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.bgElevated.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.borderDefault.withValues(alpha: 0.55)),
       ),
     );
   }

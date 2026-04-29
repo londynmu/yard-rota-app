@@ -18,7 +18,6 @@ class CalendarScreen extends StatefulWidget {
     required this.displayName,
     required this.calendarRepository,
     required this.availabilityRepository,
-    required this.onLogout,
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
   });
@@ -26,7 +25,6 @@ class CalendarScreen extends StatefulWidget {
   final String displayName;
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
-  final Future<void> Function() onLogout;
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
 
@@ -47,7 +45,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isSavingAvailability = false;
   String? _errorMessage;
   bool _isMonthSwitching = false;
-  bool _hideSideMonthArrows = false;
   double _horizontalDragDx = 0.0;
 
   /// While availability modal is open: hide month grid so only home mesh shows.
@@ -195,12 +192,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (monthDelta == 0) {
       return;
-    }
-
-    if (!_hideSideMonthArrows) {
-      setState(() {
-        _hideSideMonthArrows = true;
-      });
     }
 
     _shiftMonth(monthDelta);
@@ -438,13 +429,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ),
         title: const Text('Calendar'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: widget.onLogout,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -543,15 +527,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onHorizontalDragEnd: _handleCalendarDragEnd,
         child: AppCard(
           surfaceOpacity: 0.5,
-          child: Stack(
+          child: Column(
             children: [
-              Column(
+              Row(
                 children: [
-                  Text(
-                    '$monthLabel ${data.year}',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  IconButton(
+                    onPressed: _isMonthSwitching ? null : () => _shiftMonth(-1),
+                    icon: const Icon(Icons.chevron_left),
+                    tooltip: 'Previous month',
                   ),
+                  Expanded(
+                    child: Text(
+                      '$monthLabel ${data.year}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _isMonthSwitching ? null : () => _shiftMonth(1),
+                    icon: const Icon(Icons.chevron_right),
+                    tooltip: 'Next month',
+                  ),
+                ],
+              ),
                   if (_isSavingAvailability)
                     Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -577,131 +575,103 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         .toList(growable: false),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 240),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                    layoutBuilder: (currentChild, previousChildren) {
-                      return Stack(
-                        alignment: Alignment.topCenter,
-                        clipBehavior: Clip.none,
-                        children: [
-                          ...previousChildren,
-                          ?currentChild,
-                        ],
-                      );
-                    },
-                    child: KeyedSubtree(
-                      key: ValueKey<String>('grid-${data.year}-${data.month}'),
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: totalCells,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 7,
-                          childAspectRatio: 1.0,
-                          crossAxisSpacing: AppSpacing.xs,
-                          mainAxisSpacing: AppSpacing.xs,
-                        ),
-                        itemBuilder: (context, index) {
-                          if (index < leading) {
-                            return const SizedBox.shrink();
-                          }
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    alignment: Alignment.topCenter,
+                    clipBehavior: Clip.none,
+                    children: [
+                      ...previousChildren,
+                      ?currentChild,
+                    ],
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey<String>('grid-${data.year}-${data.month}'),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: totalCells,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 7,
+                      childAspectRatio: 1.0,
+                      crossAxisSpacing: AppSpacing.xs,
+                      mainAxisSpacing: AppSpacing.xs,
+                    ),
+                    itemBuilder: (context, index) {
+                      if (index < leading) {
+                        return const SizedBox.shrink();
+                      }
 
-                          final day = index - leading + 1;
-                          final date = DateTime(data.year, data.month, day);
-                          final now = DateTime.now();
-                          final todayStart =
-                              DateTime(now.year, now.month, now.day);
-                          final isToday = _isSameDay(todayStart, date);
-                          final isPast = date.isBefore(todayStart);
-                          final availability = _availabilityByDate[_toYmd(date)];
-                          final tones =
-                              _availabilityColors(colors, availability?.status);
+                      final day = index - leading + 1;
+                      final date = DateTime(data.year, data.month, day);
+                      final now = DateTime.now();
+                      final todayStart =
+                          DateTime(now.year, now.month, now.day);
+                      final isToday = _isSameDay(todayStart, date);
+                      final isPast = date.isBefore(todayStart);
+                      final availability = _availabilityByDate[_toYmd(date)];
+                      final tones =
+                          _availabilityColors(colors, availability?.status);
 
-                          final borderColor = isToday
-                              ? colors.primary
-                              : (tones.border ?? colors.borderDefault);
-                          final borderWidth = isToday ? 2.0 : 1.0;
+                      final borderColor = isToday
+                          ? colors.primary
+                          : (tones.border ?? colors.borderDefault);
+                      final borderWidth = isToday ? 2.0 : 1.0;
 
-                          Widget dayCell = InkWell(
-                            splashFactory: NoSplash.splashFactory,
-                            overlayColor:
-                                WidgetStateProperty.all(Colors.transparent),
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                            onTap: () => _handleDayTap(date),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: tones.background ?? colors.bgSecondary,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.full),
-                                border: Border.all(
-                                  color: borderColor,
-                                  width: borderWidth,
-                                ),
-                              ),
-                              child: Text(
-                                '$day',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(
-                                      color: tones.text ?? colors.textPrimary,
-                                    ),
-                              ),
+                      Widget dayCell = InkWell(
+                        splashFactory: NoSplash.splashFactory,
+                        overlayColor:
+                            WidgetStateProperty.all(Colors.transparent),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        onTap: () => _handleDayTap(date),
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: tones.background ?? colors.bgSecondary,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.full),
+                            border: Border.all(
+                              color: borderColor,
+                              width: borderWidth,
                             ),
-                          );
+                          ),
+                          child: Text(
+                            '$day',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  color: tones.text ?? colors.textPrimary,
+                                ),
+                          ),
+                        ),
+                      );
 
-                          dayCell = Tooltip(
-                            message: _dayCellTooltip(day, availability),
-                            child: dayCell,
-                          );
+                      dayCell = Tooltip(
+                        message: _dayCellTooltip(day, availability),
+                        child: dayCell,
+                      );
 
-                          if (isPast) {
-                            dayCell = Opacity(
-                              opacity: _pastDayOpacity,
-                              child: dayCell,
-                            );
-                          }
+                      if (isPast) {
+                        dayCell = Opacity(
+                          opacity: _pastDayOpacity,
+                          child: dayCell,
+                        );
+                      }
 
-                          return dayCell;
-                        },
-                      ),
-                    ),
+                      return dayCell;
+                    },
                   ),
-                ],
+                ),
               ),
-              if (!_hideSideMonthArrows) ...[
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: IconButton(
-                      onPressed: _isMonthSwitching ? null : () => _shiftMonth(-1),
-                      icon: const Icon(Icons.chevron_left),
-                      tooltip: 'Previous month',
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: IconButton(
-                      onPressed: _isMonthSwitching ? null : () => _shiftMonth(1),
-                      icon: const Icon(Icons.chevron_right),
-                      tooltip: 'Next month',
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
