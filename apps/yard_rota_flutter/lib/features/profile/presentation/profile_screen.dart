@@ -4,6 +4,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../shell/main_shell_nav_metrics.dart';
 import 'themes_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -28,9 +29,9 @@ class ProfileScreen extends StatelessWidget {
       onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
 
-  /// Fixed profile grid: 3 columns × 5 rows.
+  /// Fixed profile grid: 3 columns × 4 rows.
   static const int _gridCrossAxisCount = 3;
-  static const int _gridRowCount = 5;
+  static const int _gridRowCount = 4;
   static const int _gridCellCount = _gridCrossAxisCount * _gridRowCount;
 
   static const List<_ProfileTileSpec> _tiles = [
@@ -60,13 +61,22 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: colors.bgPrimary,
       appBar: AppBar(title: const Text('Profile')),
       body: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg +
+                MediaQuery.viewPaddingOf(context).bottom +
+                kMainShellContentExtraBottomInset,
+          ),
           child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: _gridCrossAxisCount,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.sm,
               childAspectRatio: 1.0,
             ),
             itemCount: _gridCellCount,
@@ -173,7 +183,7 @@ class _ProfileGridCard extends StatelessWidget {
   }
 }
 
-/// Same footprint as [_ProfileGridCard], no action (fills 3×5 grid slots).
+/// Same footprint as [_ProfileGridCard], no action (fills 3×4 grid slots).
 class _ProfileGridEmptySlot extends StatelessWidget {
   const _ProfileGridEmptySlot();
 

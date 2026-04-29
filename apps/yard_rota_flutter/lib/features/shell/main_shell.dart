@@ -8,14 +8,7 @@ import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
 import '../calendar/presentation/calendar_screen.dart';
 import '../profile/presentation/profile_screen.dart';
-
-/// Vertical space taken by the floating tab row (excluding system safe bottom).
-/// Must match [_MainShellBottomNav] inner layout.
-const double kMainShellNavRowExtent =
-    AppSpacing.sm + _kMainShellNavTapHeight + AppSpacing.sm;
-
-/// Min vertical extent of one nav tap target (icon + label + padding).
-const double _kMainShellNavTapHeight = 60;
+import 'main_shell_nav_metrics.dart';
 
 /// Root shell after sign-in: bottom navigation (Home, Profile). Icons sit in
 /// a [Positioned] strip at the physical bottom of the body stack (no glass
@@ -81,7 +74,7 @@ class _MainShellState extends State<MainShell> {
     final paddedBody = MediaQuery(
       data: mq.copyWith(
         padding: mq.padding.copyWith(
-          bottom: mq.padding.bottom + kMainShellNavRowExtent,
+          bottom: mq.padding.bottom + kMainShellContentExtraBottomInset,
         ),
       ),
       child: IndexedStack(
@@ -228,7 +221,7 @@ class _MainShellNavItem extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minWidth: 88,
-              minHeight: _kMainShellNavTapHeight,
+              minHeight: kMainShellNavItemMinHeight,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
