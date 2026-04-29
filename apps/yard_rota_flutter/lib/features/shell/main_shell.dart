@@ -48,6 +48,18 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
+  /// Bumped when the user opens the Profile tab so tile entrance animation replays (IndexedStack keeps Profile built off-stage).
+  int _profileEntranceSignal = 0;
+
+  void _onShellTabSelected(int i) {
+    setState(() {
+      if (i == 1) {
+        _profileEntranceSignal++;
+      }
+      _index = i;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -88,6 +100,7 @@ class _MainShellState extends State<MainShell> {
             darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
           ProfileScreen(
+            tileEntranceSignal: _profileEntranceSignal,
             themeMode: widget.themeMode,
             onThemeModeChanged: widget.onThemeModeChanged,
             lightHomeWallpaper: widget.lightHomeWallpaper,
@@ -114,7 +127,7 @@ class _MainShellState extends State<MainShell> {
               bottom: 0,
               child: _MainShellBottomNav(
                 selectedIndex: _index,
-                onDestinationSelected: (i) => setState(() => _index = i),
+                onDestinationSelected: _onShellTabSelected,
               ),
             ),
           ],

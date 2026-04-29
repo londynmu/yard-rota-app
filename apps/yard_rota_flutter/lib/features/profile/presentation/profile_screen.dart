@@ -11,6 +11,7 @@ import 'themes_screen.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
     super.key,
+    required this.tileEntranceSignal,
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.lightHomeWallpaper,
@@ -19,6 +20,9 @@ class ProfileScreen extends StatelessWidget {
     required this.onDarkHomeWallpaperChanged,
     required this.onLogout,
   });
+
+  /// From [MainShell]; bumps when user selects Profile so tile drop replays (IndexedStack).
+  final int tileEntranceSignal;
 
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
@@ -29,8 +33,6 @@ class ProfileScreen extends StatelessWidget {
   final Future<void> Function(DarkHomeWallpaper wallpaper)
   onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
-
-  static const double _cardFillOpacity = 0.5;
 
   static const List<_ProfileTileSpec> _tiles = [
     _ProfileTileSpec(
@@ -108,28 +110,34 @@ class ProfileScreen extends StatelessWidget {
             ),
             child: Material(
               color: Colors.transparent,
-              clipBehavior: Clip.hardEdge,
-              child: ClipRect(
-                child: GridView.builder(
-                  // Same overscroll “stretch” as Calendar: scrollable even when content fits.
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: AppSpacing.sm,
-                    crossAxisSpacing: AppSpacing.sm,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: _tiles.length,
-                  itemBuilder: (context, index) {
-                    final spec = _tiles[index];
-                    return _AnimatedProfileGridCard(
-                      index: index,
-                      fillOpacity: _cardFillOpacity,
-                      spec: spec,
-                      onTap: () => _onTileTap(context, spec),
-                    );
-                  },
-                ),
+              clipBehavior: Clip.none,
+              child: Builder(
+                builder: (ctx) {
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxW = constraints.maxWidth;
+                      final gap = AppSpacing.sm;
+                      final tileW = (maxW - 2 * gap) / 3;
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 1,
+                          childAspectRatio: maxW / tileW,
+                        ),
+                        itemCount: 1,
+                        itemBuilder: (context, _) {
+                          return _ProfileTileRow(
+                            key: ValueKey(tileEntranceSignal),
+                            gap: gap,
+                            tiles: _tiles,
+                            onTileTap: (spec) => _onTileTap(ctx, spec),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ),
@@ -179,149 +187,231 @@ class _ProfileTileSpec {
   final bool isLogout;
 }
 
-/// Staggered fade/slide-in plus a gentle vertical drift so tiles feel alive.
-class _AnimatedProfileGridCard extends StatefulWidget {
-  const _AnimatedProfileGridCard({
-    required this.index,
-    required this.fillOpacity,
-    required this.spec,
-    required this.onTap,
+/// Row of profile tiles — **one-shot** staggered fade + drop from above when shown.
+class _ProfileTileRow extends StatefulWidget {
+  const _ProfileTileRow({
+    super.key,
+    required this.gap,
+    required this.tiles,
+    required this.onTileTap,
   });
 
-  final int index;
-  final double fillOpacity;
-  final _ProfileTileSpec spec;
-  final VoidCallback onTap;
+  final double gap;
+  final List<_ProfileTileSpec> tiles;
+  final void Function(_ProfileTileSpec spec) onTileTap;
 
   @override
-  State<_AnimatedProfileGridCard> createState() =>
-      _AnimatedProfileGridCardState();
+  State<_ProfileTileRow> createState() => _ProfileTileRowState();
 }
 
-class _AnimatedProfileGridCardState extends State<_AnimatedProfileGridCard>
-    with TickerProviderStateMixin {
-  late final AnimationController _enter;
-  late final AnimationController _float;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
+class _ProfileTileRowState extends State<_ProfileTileRow>
+    with SingleTickerProviderStateMixin {
+  static const Duration _enterDuration = Duration(milliseconds: 760);
 
-  static const Duration _enterDuration = Duration(milliseconds: 460);
-  static const int _staggerMs = 70;
+  /// Vertical offset (px) above rest position when progress is 0 (falls into place).
+  static const double _enterDropPx = 56;
+
+  late final AnimationController _enterController;
 
   @override
   void initState() {
     super.initState();
-    _enter = AnimationController(vsync: this, duration: _enterDuration);
-    _float = AnimationController(
+    _enterController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 2480 + widget.index * 220),
-    )..repeat(reverse: true);
-
-    _fade = CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.14),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic));
-
+      duration: _enterDuration,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(
-        Duration(milliseconds: _staggerMs * widget.index),
-        () {
-          if (mounted) {
-            _enter.forward();
-          }
-        },
-      );
+      if (mounted) {
+        _enterController.forward();
+      }
     });
   }
 
   @override
   void dispose() {
-    _enter.dispose();
-    _float.dispose();
+    _enterController.dispose();
     super.dispose();
+  }
+
+  /// Staggered 0…1 per tile along the shared controller (runs once).
+  double _entranceProgress(int index) {
+    const stagger = 0.12;
+    const each = 0.46;
+    final t = _enterController.value;
+    final start = index * stagger;
+    final end = start + each;
+    if (t <= start) {
+      return 0;
+    }
+    if (t >= end) {
+      return 1;
+    }
+    return Curves.easeOutCubic.transform((t - start) / (end - start));
+  }
+
+  Widget _tileSlot(int index) {
+    final p = _entranceProgress(index);
+    return Opacity(
+      opacity: p.clamp(0.0, 1.0),
+      child: Transform.translate(
+        offset: Offset(0, -_enterDropPx * (1 - p)),
+        child: _ProfileTileCard(
+          spec: widget.tiles[index],
+          onTap: () => widget.onTileTap(widget.tiles[index]),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_enter, _float]),
+      animation: _enterController,
       builder: (context, _) {
-        final bob = -2.2 + 4.4 * _float.value;
-        final iconTilt = (_float.value - 0.5) * 0.06;
-        return Transform.translate(
-          offset: Offset(0, bob),
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              child: _ProfileTileSurface(
-                fillOpacity: widget.fillOpacity,
-                spec: widget.spec,
-                onTap: widget.onTap,
-                iconTilt: iconTilt,
-              ),
-            ),
-          ),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < widget.tiles.length; i++) ...[
+              if (i > 0) SizedBox(width: widget.gap),
+              Expanded(child: _tileSlot(i)),
+            ],
+          ],
         );
       },
     );
   }
 }
 
-/// Tile chrome; [iconTilt] is driven by the parent float loop.
-class _ProfileTileSurface extends StatelessWidget {
-  const _ProfileTileSurface({
-    required this.fillOpacity,
-    required this.spec,
-    required this.onTap,
-    required this.iconTilt,
-  });
+class _ProfileTileCard extends StatelessWidget {
+  const _ProfileTileCard({required this.spec, required this.onTap});
 
-  final double fillOpacity;
+  static const double _meshOpacity = 0.5;
+
+  static const _onMeshLabel = Color(0xFFF2F6FA);
+  static const _onMeshIcon = Color(0xFFE8EEF5);
+
   final _ProfileTileSpec spec;
   final VoidCallback onTap;
-  final double iconTilt;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
-
-    return Material(
-      color: Colors.transparent,
+    return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: colors.bgElevated.withValues(alpha: fillOpacity),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: colors.borderDefault),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Opacity(opacity: _meshOpacity, child: const _AuroraMesh()),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Transform.rotate(
-                  angle: iconTilt,
-                  child: Icon(spec.icon, size: 32, color: colors.primary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  spec.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              splashColor: Colors.white24,
+              highlightColor: Colors.white10,
+              child: Ink(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
                   ),
                 ),
-              ],
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(spec.icon, size: 32, color: _onMeshIcon),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        spec.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: _onMeshLabel,
+                          fontWeight: FontWeight.w600,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x66000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aurora / Bonus (Figma `76:4754`) — shared mesh for all profile tiles.
+class _AuroraMesh extends StatelessWidget {
+  const _AuroraMesh();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: Color(0xFF04030A)),
+        _RadialMeshLayer(
+          center: Alignment(0.88, -0.72),
+          radius: 1.32,
+          colors: [
+            Color(0xFF6BD4E0),
+            Color(0x995868C8),
+            Color(0x33221440),
+            Color(0x0004030A),
+          ],
+          stops: [0.0, 0.28, 0.55, 1.0],
+        ),
+        _RadialMeshLayer(
+          center: Alignment(-0.55, 0.75),
+          radius: 1.0,
+          colors: [Color(0x66402070), Color(0x0004030A)],
+          stops: [0.0, 1.0],
+        ),
+        _RadialMeshLayer(
+          center: Alignment(0.35, 0.2),
+          radius: 0.85,
+          colors: [Color(0x40205080), Color(0x00000000)],
+          stops: [0.0, 1.0],
+        ),
+      ],
+    );
+  }
+}
+
+class _RadialMeshLayer extends StatelessWidget {
+  const _RadialMeshLayer({
+    required this.center,
+    required this.radius,
+    required this.colors,
+    required this.stops,
+  });
+
+  final Alignment center;
+  final double radius;
+  final List<Color> colors;
+  final List<double> stops;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: center,
+          radius: radius,
+          colors: colors,
+          stops: stops,
         ),
       ),
     );
