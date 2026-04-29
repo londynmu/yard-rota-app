@@ -44,10 +44,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   CalendarMonthData? _monthData;
   Map<String, AvailabilityEntry> _availabilityByDate =
       <String, AvailabilityEntry>{};
-  bool _isLoading = true;
-  bool _isRefreshing = false;
   bool _isSavingAvailability = false;
   String? _errorMessage;
+  bool _isMonthSwitching = false;
+  bool _hideSideMonthArrows = false;
+  double _horizontalDragDx = 0.0;
 
   /// While availability modal is open: hide month grid so only home mesh shows.
   bool _calendarHiddenForAvailabilityModal = false;
@@ -62,25 +63,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _loadMonth({required bool showGlobalLoader}) async {
     if (showGlobalLoader) {
+      final cachedMonth = widget.calendarRepository.readCachedMonth(
+        year: _visibleMonth.year,
+        month: _visibleMonth.month,
+      );
       setState(() {
-        _isLoading = true;
         _errorMessage = null;
-      });
-    } else {
-      setState(() {
-        _isRefreshing = true;
-        _errorMessage = null;
-      });
-    }
-
-    final cached = widget.calendarRepository.readCachedMonth(
-      year: _visibleMonth.year,
-      month: _visibleMonth.month,
-    );
-    if (cached != null) {
-      setState(() {
-        _monthData = cached;
-        _isLoading = false;
+        if (cachedMonth != null) {
+          _monthData = cachedMonth;
+        }
       });
     }
 
@@ -110,20 +101,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    if (loadedMonth != null || loadedAvailability != null) {
-      setState(() {
-        if (loadedMonth != null) {
-          _monthData = loadedMonth;
+    final cachedMonth = widget.calendarRepository.readCachedMonth(
+      year: _visibleMonth.year,
+      month: _visibleMonth.month,
+    );
+
+    setState(() {
+      if (loadedMonth != null) {
+        _monthData = loadedMonth;
+      } else if (cachedMonth != null) {
+        final wrongMonth =
+            _monthData == null ||
+            _monthData!.year != _visibleMonth.year ||
+            _monthData!.month != _visibleMonth.month;
+        if (wrongMonth) {
+          _monthData = cachedMonth;
         }
-        if (loadedAvailability != null) {
-          _availabilityByDate = loadedAvailability;
-        }
-      });
-    } else if (_monthData == null) {
-      setState(() {
+      }
+
+      if (loadedAvailability != null) {
+        _availabilityByDate = loadedAvailability;
+      }
+
+      if (_monthData == null) {
         _errorMessage = 'Calendar could not be loaded. Please retry.';
-      });
-    }
+      } else {
+        _errorMessage = null;
+      }
+    });
 
     if (monthFailed && _monthData != null) {
       AppToast.show(context, 'Calendar refresh failed. Showing cached data.');
@@ -134,20 +139,71 @@ class _CalendarScreenState extends State<CalendarScreen> {
         'Availability refresh failed. Showing local data.',
       );
     }
-
-    setState(() {
-      _isLoading = false;
-      _isRefreshing = false;
-    });
   }
 
   Future<void> _shiftMonth(int delta) async {
+    if (_isMonthSwitching) {
+      return;
+    }
+
     final switched = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+    final y = switched.year;
+    final m = switched.month;
+    final cachedMonth = widget.calendarRepository.readCachedMonth(
+      year: y,
+      month: m,
+    );
     setState(() {
-      _visibleMonth = DateTime(switched.year, switched.month);
+      _isMonthSwitching = true;
+      _visibleMonth = DateTime(y, m);
+      _monthData = cachedMonth;
+      _errorMessage = null;
     });
 
-    await _loadMonth(showGlobalLoader: false);
+    try {
+      await _loadMonth(showGlobalLoader: false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMonthSwitching = false;
+        });
+      }
+    }
+  }
+
+  void _handleCalendarDragStart(DragStartDetails details) {
+    _horizontalDragDx = 0.0;
+  }
+
+  void _handleCalendarDragUpdate(DragUpdateDetails details) {
+    _horizontalDragDx += details.delta.dx;
+  }
+
+  void _handleCalendarDragEnd(DragEndDetails details) {
+    if (_isMonthSwitching) {
+      return;
+    }
+
+    final velocityDx = details.primaryVelocity ?? 0.0;
+    var monthDelta = 0;
+    if (velocityDx.abs() >= 180) {
+      monthDelta = velocityDx < 0 ? 1 : -1;
+    } else if (_horizontalDragDx.abs() >= 36) {
+      monthDelta = _horizontalDragDx < 0 ? 1 : -1;
+    }
+    _horizontalDragDx = 0.0;
+
+    if (monthDelta == 0) {
+      return;
+    }
+
+    if (!_hideSideMonthArrows) {
+      setState(() {
+        _hideSideMonthArrows = true;
+      });
+    }
+
+    _shiftMonth(monthDelta);
   }
 
   Future<void> _handleDayTap(DateTime date) async {
@@ -421,11 +477,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return scaffold;
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_isLoading && _monthData == null) {
-      return const Center(child: CircularProgressIndicator());
+  /// Month grid for [_visibleMonth]; empty schedule when cache not ready yet.
+  CalendarMonthData _resolvedMonthDataForVisible() {
+    final md = _monthData;
+    if (md != null &&
+        md.year == _visibleMonth.year &&
+        md.month == _visibleMonth.month) {
+      return md;
     }
+    return CalendarMonthData(
+      year: _visibleMonth.year,
+      month: _visibleMonth.month,
+      scheduledDays: const [],
+      fetchedAt: DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
 
+  Widget _buildBody(BuildContext context) {
     if (_errorMessage != null && _monthData == null) {
       return Center(
         child: ConstrainedBox(
@@ -451,7 +519,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    final data = _monthData!;
+    final data = _resolvedMonthDataForVisible();
     if (_calendarHiddenForAvailabilityModal) {
       return const SizedBox.shrink();
     }
@@ -468,136 +536,174 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return KeyedSubtree(
       key: _calendarCardKey,
-      child: AppCard(
-        surfaceOpacity: 0.5,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => _shiftMonth(-1),
-                  icon: const Icon(Icons.chevron_left),
-                  tooltip: 'Previous month',
-                ),
-                Expanded(
-                  child: Text(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragStart: _handleCalendarDragStart,
+        onHorizontalDragUpdate: _handleCalendarDragUpdate,
+        onHorizontalDragEnd: _handleCalendarDragEnd,
+        child: AppCard(
+          surfaceOpacity: 0.5,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  Text(
                     '$monthLabel ${data.year}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-                if (_isRefreshing)
-                  const SizedBox(
-                    width: AppComponentTokens.minTouchTarget,
-                    height: AppComponentTokens.minTouchTarget,
-                    child: Center(
-                      child: SizedBox(
-                        width: AppSpacing.lg,
-                        height: AppSpacing.lg,
-                        child: CircularProgressIndicator(
-                          strokeWidth: AppStroke.thin,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  IconButton(
-                    onPressed: () => _shiftMonth(1),
-                    icon: const Icon(Icons.chevron_right),
-                    tooltip: 'Next month',
-                  ),
-              ],
-            ),
-            if (_isSavingAvailability)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Text(
-                  'Saving availability...',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: _weekdayLabels
-                  .map(
-                    (label) => Expanded(
+                  if (_isSavingAvailability)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: Text(
-                        label,
-                        textAlign: TextAlign.center,
+                        'Saving availability...',
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(color: colors.textSecondary),
                       ),
                     ),
-                  )
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: totalCells,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: 1.0,
-                crossAxisSpacing: AppSpacing.xs,
-                mainAxisSpacing: AppSpacing.xs,
-              ),
-              itemBuilder: (context, index) {
-                if (index < leading) {
-                  return const SizedBox.shrink();
-                }
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: _weekdayLabels
+                        .map(
+                          (label) => Expanded(
+                            child: Text(
+                              label,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(color: colors.textSecondary),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 240),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.topCenter,
+                        clipBehavior: Clip.none,
+                        children: [
+                          ...previousChildren,
+                          ?currentChild,
+                        ],
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey<String>('grid-${data.year}-${data.month}'),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: totalCells,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 7,
+                          childAspectRatio: 1.0,
+                          crossAxisSpacing: AppSpacing.xs,
+                          mainAxisSpacing: AppSpacing.xs,
+                        ),
+                        itemBuilder: (context, index) {
+                          if (index < leading) {
+                            return const SizedBox.shrink();
+                          }
 
-                final day = index - leading + 1;
-                final date = DateTime(data.year, data.month, day);
-                final now = DateTime.now();
-                final todayStart = DateTime(now.year, now.month, now.day);
-                final isToday = _isSameDay(todayStart, date);
-                final isPast = date.isBefore(todayStart);
-                final availability = _availabilityByDate[_toYmd(date)];
-                final tones = _availabilityColors(colors, availability?.status);
+                          final day = index - leading + 1;
+                          final date = DateTime(data.year, data.month, day);
+                          final now = DateTime.now();
+                          final todayStart =
+                              DateTime(now.year, now.month, now.day);
+                          final isToday = _isSameDay(todayStart, date);
+                          final isPast = date.isBefore(todayStart);
+                          final availability = _availabilityByDate[_toYmd(date)];
+                          final tones =
+                              _availabilityColors(colors, availability?.status);
 
-                final borderColor = isToday
-                    ? colors.primary
-                    : (tones.border ?? colors.borderDefault);
-                final borderWidth = isToday ? 2.0 : 1.0;
+                          final borderColor = isToday
+                              ? colors.primary
+                              : (tones.border ?? colors.borderDefault);
+                          final borderWidth = isToday ? 2.0 : 1.0;
 
-                Widget dayCell = InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                  onTap: () => _handleDayTap(date),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: tones.background ?? colors.bgSecondary,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                      border: Border.all(
-                        color: borderColor,
-                        width: borderWidth,
-                      ),
-                    ),
-                    child: Text(
-                      '$day',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: tones.text ?? colors.textPrimary,
+                          Widget dayCell = InkWell(
+                            splashFactory: NoSplash.splashFactory,
+                            overlayColor:
+                                WidgetStateProperty.all(Colors.transparent),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                            onTap: () => _handleDayTap(date),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: tones.background ?? colors.bgSecondary,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: borderWidth,
+                                ),
+                              ),
+                              child: Text(
+                                '$day',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(
+                                      color: tones.text ?? colors.textPrimary,
+                                    ),
+                              ),
+                            ),
+                          );
+
+                          dayCell = Tooltip(
+                            message: _dayCellTooltip(day, availability),
+                            child: dayCell,
+                          );
+
+                          if (isPast) {
+                            dayCell = Opacity(
+                              opacity: _pastDayOpacity,
+                              child: dayCell,
+                            );
+                          }
+
+                          return dayCell;
+                        },
                       ),
                     ),
                   ),
-                );
-
-                dayCell = Tooltip(
-                  message: _dayCellTooltip(day, availability),
-                  child: dayCell,
-                );
-
-                if (isPast) {
-                  dayCell = Opacity(opacity: _pastDayOpacity, child: dayCell);
-                }
-
-                return dayCell;
-              },
-            ),
-          ],
+                ],
+              ),
+              if (!_hideSideMonthArrows) ...[
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: IconButton(
+                      onPressed: _isMonthSwitching ? null : () => _shiftMonth(-1),
+                      icon: const Icon(Icons.chevron_left),
+                      tooltip: 'Previous month',
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: IconButton(
+                      onPressed: _isMonthSwitching ? null : () => _shiftMonth(1),
+                      icon: const Icon(Icons.chevron_right),
+                      tooltip: 'Next month',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
