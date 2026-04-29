@@ -122,7 +122,8 @@ class ProfileScreen extends StatelessWidget {
                   itemCount: _tiles.length,
                   itemBuilder: (context, index) {
                     final spec = _tiles[index];
-                    return _ProfileGridCard(
+                    return _AnimatedProfileGridCard(
+                      index: index,
                       fillOpacity: _cardFillOpacity,
                       spec: spec,
                       onTap: () => _onTileTap(context, spec),
@@ -178,20 +179,114 @@ class _ProfileTileSpec {
   final bool isLogout;
 }
 
-class _ProfileGridCard extends StatelessWidget {
-  const _ProfileGridCard({
+/// Staggered fade/slide-in plus a gentle vertical drift so tiles feel alive.
+class _AnimatedProfileGridCard extends StatefulWidget {
+  const _AnimatedProfileGridCard({
+    required this.index,
     required this.fillOpacity,
     required this.spec,
     required this.onTap,
   });
 
+  final int index;
   final double fillOpacity;
   final _ProfileTileSpec spec;
   final VoidCallback onTap;
 
   @override
+  State<_AnimatedProfileGridCard> createState() =>
+      _AnimatedProfileGridCardState();
+}
+
+class _AnimatedProfileGridCardState extends State<_AnimatedProfileGridCard>
+    with TickerProviderStateMixin {
+  late final AnimationController _enter;
+  late final AnimationController _float;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  static const Duration _enterDuration = Duration(milliseconds: 460);
+  static const int _staggerMs = 70;
+
+  @override
+  void initState() {
+    super.initState();
+    _enter = AnimationController(vsync: this, duration: _enterDuration);
+    _float = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 2480 + widget.index * 220),
+    )..repeat(reverse: true);
+
+    _fade = CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.14),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(
+        Duration(milliseconds: _staggerMs * widget.index),
+        () {
+          if (mounted) {
+            _enter.forward();
+          }
+        },
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _enter.dispose();
+    _float.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_enter, _float]),
+      builder: (context, _) {
+        final bob = -2.2 + 4.4 * _float.value;
+        final iconTilt = (_float.value - 0.5) * 0.06;
+        return Transform.translate(
+          offset: Offset(0, bob),
+          child: FadeTransition(
+            opacity: _fade,
+            child: SlideTransition(
+              position: _slide,
+              child: _ProfileTileSurface(
+                fillOpacity: widget.fillOpacity,
+                spec: widget.spec,
+                onTap: widget.onTap,
+                iconTilt: iconTilt,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Tile chrome; [iconTilt] is driven by the parent float loop.
+class _ProfileTileSurface extends StatelessWidget {
+  const _ProfileTileSurface({
+    required this.fillOpacity,
+    required this.spec,
+    required this.onTap,
+    required this.iconTilt,
+  });
+
+  final double fillOpacity;
+  final _ProfileTileSpec spec;
+  final VoidCallback onTap;
+  final double iconTilt;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -209,7 +304,10 @@ class _ProfileGridCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(spec.icon, size: 32, color: colors.primary),
+                Transform.rotate(
+                  angle: iconTilt,
+                  child: Icon(spec.icon, size: 32, color: colors.primary),
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   spec.title,
