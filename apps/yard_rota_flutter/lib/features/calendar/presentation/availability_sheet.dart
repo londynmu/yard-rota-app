@@ -439,6 +439,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               height: AppComponentTokens.buttonHeightMd,
               child: AppButton(
                 label: 'Save',
+                variant: AppButtonVariant.secondary,
                 onPressed: _selectedDates.isEmpty ? null : _save,
               ),
             ),
