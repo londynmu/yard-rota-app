@@ -314,6 +314,44 @@ class AppM3SegmentedButton {
   static const double selectedShadowAlpha = 0.14;
 }
 
+/// Material 3 Design Kit (Community) — Carousel + Building blocks (card items).
+/// Figma: Carousel / Full screen + item corners `extra-large` 28px; track `gap` 8 for multi-item layouts.
+@immutable
+class AppM3Carousel {
+  const AppM3Carousel._();
+
+  /// M3 shape corner extra-large on carousel page cards (matches kit building blocks).
+  static const double pageCardRadius = 28;
+
+  /// Horizontal gap between carousel items in multi-item kit layouts (peek v2).
+  static const double pageGap = 8;
+
+  /// Left/right padding on each My Rota day page; pair sums to [pageGap] between cards.
+  static const double pageCardHorizontalPadding = 4;
+}
+
+/// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
+@immutable
+class AppMyRotaListSpacing {
+  const AppMyRotaListSpacing._();
+
+  static const double sectionBottom = AppSpacing.xs;
+  static const double timeInlineIconSize = 14;
+  /// Fixed width for time+icon column so follow-up rows (same slot time) align without repeating time.
+  static const double timeColumnFixedWidth = 118;
+  /// Vertical padding per person row (tighter list).
+  static const double slotRowVertical = AppSpacing.xxs;
+  static const double slotRowHorizontal = AppSpacing.sm;
+  static const double dayCardBottom = AppSpacing.sm;
+  static const double dayCardHeaderAll = AppSpacing.sm;
+  /// Inset for weekday+date line from card inner edge (My Rota day header).
+  static const double dayCardHeaderTextLeadInset = 6;
+  static const double chipWrapSpacing = AppSpacing.xxs;
+  static const double chipWrapRunSpacing = AppSpacing.xxs;
+  static const double emptyStateInset = AppSpacing.sm;
+  static const double personTaskGap = AppSpacing.xxs;
+}
+
 @immutable
 class AppMotion {
   const AppMotion._();
