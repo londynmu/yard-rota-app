@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import LocationConfigManager from './LocationConfigManager';
 import AgencyConfigManager from './AgencyConfigManager';
+import { parseMaxConsecutiveWorkDays } from '../../utils/consecutiveWorkDays';
 
 export default function SettingsManager() {
   const [activeSection, setActiveSection] = useState('locations');
@@ -11,6 +12,10 @@ export default function SettingsManager() {
   const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [rotaSettingsLoading, setRotaSettingsLoading] = useState(false);
+  const [rotaSettingsSaving, setRotaSettingsSaving] = useState(false);
+  const [enforceMaxConsecutiveWorkDays, setEnforceMaxConsecutiveWorkDays] = useState(false);
+  const [maxConsecutiveWorkDaysStr, setMaxConsecutiveWorkDaysStr] = useState('6');
 
   useEffect(() => {
     setIsLoading(false);
@@ -36,6 +41,94 @@ export default function SettingsManager() {
     };
     fetchSetting();
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'rota') return;
+    const fetchRotaSettings = async () => {
+      setRotaSettingsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['enforce_max_consecutive_work_days', 'max_consecutive_work_days']);
+
+        if (error) throw error;
+
+        const byKey = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
+        setEnforceMaxConsecutiveWorkDays(
+          String(byKey.enforce_max_consecutive_work_days || '').toLowerCase().trim() === 'true'
+        );
+        const maxVal = parseMaxConsecutiveWorkDays(byKey.max_consecutive_work_days);
+        setMaxConsecutiveWorkDaysStr(String(maxVal));
+      } catch (err) {
+        console.error('[SettingsManager] Fetch consecutive work days settings error:', err);
+        setEnforceMaxConsecutiveWorkDays(false);
+        setMaxConsecutiveWorkDaysStr('6');
+      } finally {
+        setRotaSettingsLoading(false);
+      }
+    };
+    fetchRotaSettings();
+  }, [activeSection]);
+
+  const saveEnforceMaxConsecutiveWorkDays = async (enabled, rollback) => {
+    setRotaSettingsSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'enforce_max_consecutive_work_days',
+          value: enabled ? 'true' : 'false',
+          description:
+            'When true, block assignments that would create more consecutive calendar days with a shift than max_consecutive_work_days.',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.error('[SettingsManager] Save enforce_max_consecutive_work_days error:', err);
+      rollback();
+      alert('Error saving setting.');
+    } finally {
+      setRotaSettingsSaving(false);
+    }
+  };
+
+  const handleToggleEnforceConsecutive = async () => {
+    if (rotaSettingsLoading || rotaSettingsSaving) return;
+    const next = !enforceMaxConsecutiveWorkDays;
+    setEnforceMaxConsecutiveWorkDays(next);
+    await saveEnforceMaxConsecutiveWorkDays(next, () =>
+      setEnforceMaxConsecutiveWorkDays(!next)
+    );
+  };
+
+  const saveMaxConsecutiveWorkDays = async () => {
+    const parsed = parseInt(String(maxConsecutiveWorkDaysStr).trim(), 10);
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 13) {
+      alert('Enter a whole number between 1 and 13.');
+      setMaxConsecutiveWorkDaysStr(String(parseMaxConsecutiveWorkDays(maxConsecutiveWorkDaysStr)));
+      return;
+    }
+    setRotaSettingsSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'max_consecutive_work_days',
+          value: String(parsed),
+          description:
+            'Maximum allowed consecutive calendar days with at least one shift (the next day is blocked when enforcement is on).',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+      setMaxConsecutiveWorkDaysStr(String(parsed));
+    } catch (err) {
+      console.error('[SettingsManager] Save max_consecutive_work_days error:', err);
+      alert('Error saving setting.');
+    } finally {
+      setRotaSettingsSaving(false);
+    }
+  };
 
   const saveShowManageBreaksButton = async (enabled, rollback) => {
     setSettingsSaving(true);
@@ -89,6 +182,7 @@ export default function SettingsManager() {
               { id: 'locations', label: 'Locations' },
               { id: 'agencies', label: 'Agencies' },
               { id: 'home-page', label: 'Home page' },
+              { id: 'rota', label: 'Rota' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -175,6 +269,65 @@ export default function SettingsManager() {
                     aria-hidden
                   />
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeSection === 'rota' && (
+          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
+            <div className="px-3 py-2 min-h-[44px] bg-gray-50 border-b border-gray-200 flex items-center">
+              <h3 className="text-sm font-semibold text-charcoal">Rota</h3>
+            </div>
+            <div className="p-3 space-y-4 bg-yellow-50/50">
+              <p className="text-xs text-gray-600 leading-relaxed">
+                When enforcement is on, the database blocks assigning a shift (including self-serve
+                claims) if it would create more consecutive calendar days with at least one shift
+                than the limit below. Existing rota rows are not changed.
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="enforce-consecutive-toggle" className="text-sm text-charcoal font-medium">
+                  Enforce max consecutive work days
+                </label>
+                <button
+                  type="button"
+                  id="enforce-consecutive-toggle"
+                  role="switch"
+                  aria-checked={enforceMaxConsecutiveWorkDays}
+                  disabled={rotaSettingsLoading || rotaSettingsSaving}
+                  onClick={handleToggleEnforceConsecutive}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    enforceMaxConsecutiveWorkDays ? 'bg-black' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
+                      enforceMaxConsecutiveWorkDays ? 'translate-x-5' : 'translate-x-1'
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3">
+                <div className="flex-1 min-w-0">
+                  <label htmlFor="max-consecutive-days" className="block text-sm text-charcoal font-medium mb-1">
+                    Maximum consecutive calendar days
+                  </label>
+                  <input
+                    id="max-consecutive-days"
+                    type="number"
+                    min={1}
+                    max={13}
+                    step={1}
+                    value={maxConsecutiveWorkDaysStr}
+                    onChange={(e) => setMaxConsecutiveWorkDaysStr(e.target.value)}
+                    onBlur={saveMaxConsecutiveWorkDays}
+                    disabled={rotaSettingsLoading || rotaSettingsSaving}
+                    className="w-full sm:max-w-[120px] rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-charcoal bg-white disabled:opacity-50"
+                  />
+                </div>
+                <p className="text-xs text-gray-600 sm:pb-1">
+                  Allowed range: 1–13 (default 6). Save runs on blur.
+                </p>
               </div>
             </div>
           </div>

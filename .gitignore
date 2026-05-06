@@ -1,4 +1,5 @@
-# Logs
+apps/yard_rota_flutter/build/
+apps/yard_rota_flutter/.dart_tool/# Logs
 logs
 *.log
 npm-debug.log*

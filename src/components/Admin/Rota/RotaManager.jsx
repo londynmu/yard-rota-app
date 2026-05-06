@@ -12,6 +12,12 @@ import { useToast } from '../../ui/ToastContext';
 
 // Add date-fns for date manipulation
 import { format, addDays, subDays, parseISO, getWeek } from 'date-fns';
+import {
+  isConsecutiveWorkDaysDbError,
+  parseMaxConsecutiveWorkDays,
+  wouldExceedConsecutiveWorkDays,
+  consecutiveWorkDaysBlockedMessage,
+} from '../../../utils/consecutiveWorkDays';
 
 // Week start on Saturday (same as My Rota)
 const getWeekStart = (date) => {
@@ -559,18 +565,31 @@ const RotaManager = ({ user }) => {
           return;
         }
 
-        // Get minimum break time setting from database
-        const { data: settingsData, error: settingsError } = await supabase
+        const { data: settingsRows, error: settingsFetchError } = await supabase
           .from('settings')
-          .select('value')
-          .eq('key', 'min_break_between_slots')
-          .single();
+          .select('key, value')
+          .in('key', [
+            'min_break_between_slots',
+            'enforce_max_consecutive_work_days',
+            'max_consecutive_work_days',
+          ]);
 
-        if (settingsError) {
-          console.error('Error fetching minimum break setting:', settingsError);
+        if (settingsFetchError) {
+          console.error('Error fetching rota settings:', settingsFetchError);
         }
 
-        const minBreakMinutes = settingsData ? parseInt(settingsData.value, 10) : 60; // Default to 60 minutes if not found
+        const settingsByKey = Object.fromEntries(
+          (settingsRows || []).map((row) => [row.key, row.value])
+        );
+        const parsedMinBreak = parseInt(settingsByKey.min_break_between_slots, 10);
+        const minBreakMinutes = Number.isFinite(parsedMinBreak) ? parsedMinBreak : 60;
+        const enforceConsecutiveWorkDays =
+          String(settingsByKey.enforce_max_consecutive_work_days || '')
+            .toLowerCase()
+            .trim() === 'true';
+        const maxConsecutiveWorkDays = parseMaxConsecutiveWorkDays(
+          settingsByKey.max_consecutive_work_days
+        );
         
         if (minBreakMinutes > 0) {
           // Find all slots where this employee is already assigned on this day
@@ -632,6 +651,36 @@ const RotaManager = ({ user }) => {
                 return;
               }
             }
+          }
+        }
+
+        if (enforceConsecutiveWorkDays) {
+          const anchor = parseISO(slotToAssign.date);
+          const fromDate = format(subDays(anchor, 20), 'yyyy-MM-dd');
+          const toDate = format(addDays(anchor, 20), 'yyyy-MM-dd');
+          const { data: streakRows, error: streakError } = await supabase
+            .from('scheduled_rota')
+            .select('date')
+            .eq('user_id', employeeId)
+            .gte('date', fromDate)
+            .lte('date', toDate);
+
+          if (streakError) {
+            console.error('Error checking consecutive work days:', streakError);
+            setError('Failed to check existing assignments');
+            return;
+          }
+
+          const distinctDates = [...new Set((streakRows || []).map((r) => r.date))];
+          if (
+            wouldExceedConsecutiveWorkDays(
+              slotToAssign.date,
+              distinctDates,
+              maxConsecutiveWorkDays
+            )
+          ) {
+            setError(consecutiveWorkDaysBlockedMessage(maxConsecutiveWorkDays));
+            return;
           }
         }
 
@@ -725,6 +774,12 @@ const RotaManager = ({ user }) => {
       }
     } catch (error) {
       console.error('Error assigning employee:', error);
+      if (isConsecutiveWorkDaysDbError(error)) {
+        setError(
+          error.message || consecutiveWorkDaysBlockedMessage(6)
+        );
+        return;
+      }
       setError('Failed to update assignment');
     }
   };
