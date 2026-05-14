@@ -3,13 +3,16 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { format, parseISO } from 'date-fns';
+import { countUniqueAssigned } from '../../../utils/rotaAssignedEmployees';
 import UserNoteModal from './UserNoteModal';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
   const [availableEmployees, setAvailableEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('available');
-  const [localAssignedCount, setLocalAssignedCount] = useState(slot.assigned_employees.length);
+  const [localAssignedCount, setLocalAssignedCount] = useState(
+    countUniqueAssigned(slot.assigned_employees)
+  );
   const [showCapacityAlert, setShowCapacityAlert] = useState(false);
   const [minBreakMinutes, setMinBreakMinutes] = useState(60); // Default value
   const [task, setTask] = useState('');
@@ -66,6 +69,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     };
   }, []);
   
+  // Keep capacity UI in sync when parent slot state refreshes (e.g. after refetch)
+  useEffect(() => {
+    setLocalAssignedCount(countUniqueAssigned(slot.assigned_employees));
+  }, [slot.id, slot.assigned_employees]);
+
   // Hide capacity alert after 3 seconds
   useEffect(() => {
     let timer;

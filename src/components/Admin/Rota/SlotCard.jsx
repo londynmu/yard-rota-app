@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
 import { createPortal } from 'react-dom';
+import {
+  countUniqueAssigned,
+  normalizeAssignedEmployeeIds,
+} from '../../../utils/rotaAssignedEmployees';
 
 // Same as AssignModal: time string (HH:MM or HH:MM:SS) to minutes since midnight
 const timeToMinutes = (timeString) => {
@@ -28,17 +32,19 @@ const SlotCard = ({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const lastFetchedSlotIdRef = useRef(null);
   const cardRef = useRef(null);
+  const availableTooltipRef = useRef(null);
 
   const TOOLTIP_OFFSET = 14;
   
   // Check if slot has assigned employees array
-  const assignedCount = slot.assigned_employees ? slot.assigned_employees.length : 0;
+  const assignedCount = countUniqueAssigned(slot.assigned_employees);
   const fillPercentage = (assignedCount / slot.capacity) * 100;
   const isSlotFull = assignedCount >= slot.capacity;
   
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!slot.assigned_employees || slot.assigned_employees.length === 0) {
+      const uniqueIds = normalizeAssignedEmployeeIds(slot.assigned_employees);
+      if (uniqueIds.length === 0) {
         setAssignedUsers([]);
         setLoading(false);
         return;
@@ -48,7 +54,7 @@ const SlotCard = ({
         const { data, error } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, avatar_url')
-          .in('id', slot.assigned_employees);
+          .in('id', uniqueIds);
           
         if (error) throw error;
         setAssignedUsers(data || []);
@@ -71,7 +77,7 @@ const SlotCard = ({
 
   const fetchAvailableForSlot = async () => {
     const slotDate = slot.date;
-    const assignedSet = new Set(slot.assigned_employees || []);
+    const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
     const normalizedSlotLocation = (slot?.location || '').trim().toLowerCase();
     const normalizedSlotShift = (slot?.shift_type || '').trim().toLowerCase();
 
@@ -196,6 +202,40 @@ const SlotCard = ({
   const handleCardMouseLeave = () => {
     setShowAvailableTooltip(false);
   };
+
+  // Keep cursor-following tooltip fully inside the viewport (fixed + portal)
+  useLayoutEffect(() => {
+    if (!showAvailableTooltip || showDeleteConfirm) return;
+    const el = availableTooltipRef.current;
+    if (!el || typeof window === 'undefined') return;
+
+    const margin = 10;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    setTooltipPosition((prev) => {
+      let left = prev.x;
+      let top = prev.y;
+      if (left + rect.width > vw - margin) {
+        left = Math.max(margin, vw - rect.width - margin);
+      }
+      if (top + rect.height > vh - margin) {
+        top = Math.max(margin, vh - rect.height - margin);
+      }
+      if (left < margin) left = margin;
+      if (top < margin) top = margin;
+      if (left === prev.x && top === prev.y) return prev;
+      return { x: left, y: top };
+    });
+  }, [
+    showAvailableTooltip,
+    showDeleteConfirm,
+    tooltipPosition.x,
+    tooltipPosition.y,
+    availableLoading,
+    availableForSlot,
+  ]);
 
   const handleCardMouseMove = (e) => {
     if (showAvailableTooltip) {
@@ -330,6 +370,7 @@ const SlotCard = ({
           (() => {
             return (
               <div
+                ref={availableTooltipRef}
                 className="fixed z-50 flex min-h-[7.5rem] min-w-[160px] max-w-[280px] flex-col rounded-xl border border-rota-badge-full-border bg-rota-modal-bg px-3 py-2.5 shadow-lg pointer-events-none"
                 style={{
                   left: tooltipPosition.x,

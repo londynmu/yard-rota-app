@@ -18,6 +18,10 @@ import {
   wouldExceedConsecutiveWorkDays,
   consecutiveWorkDaysBlockedMessage,
 } from '../../../utils/consecutiveWorkDays';
+import {
+  normalizeAssignedEmployeeIds,
+  countUniqueAssigned,
+} from '../../../utils/rotaAssignedEmployees';
 
 // Week start on Saturday (same as My Rota)
 const getWeekStart = (date) => {
@@ -241,7 +245,11 @@ const RotaManager = ({ user }) => {
           }
         });
 
-        setSlots(Array.from(slotsMap.values()));
+        const mergedSlots = Array.from(slotsMap.values()).map((s) => ({
+          ...s,
+          assigned_employees: normalizeAssignedEmployeeIds(s.assigned_employees),
+        }));
+        setSlots(mergedSlots);
 
         setTimeout(() => {
           const savedScrollPosition = localStorage.getItem('rota_planner_scroll_position');
@@ -498,12 +506,16 @@ const RotaManager = ({ user }) => {
         },
       });
 
-      // If there are assigned employees, update their records too
-      if (slotToUpdate.assigned_employees && slotToUpdate.assigned_employees.length > 0) {
-        for (const userId of slotToUpdate.assigned_employees) {
+      // If there are assigned employees, update their records too (unique user_ids only)
+      const uniqueAssignedForUpdate = normalizeAssignedEmployeeIds(
+        slotToUpdate.assigned_employees
+      );
+      if (uniqueAssignedForUpdate.length > 0) {
+        const firstAssignedId = uniqueAssignedForUpdate[0];
+        for (const userId of uniqueAssignedForUpdate) {
           if (userId) {
             // Skip the base record that we already updated above
-            if (slotToUpdate.id === slotId && slotToUpdate.assigned_employees[0] === userId) {
+            if (slotToUpdate.id === slotId && firstAssignedId === userId) {
               continue;
             }
 
@@ -559,8 +571,13 @@ const RotaManager = ({ user }) => {
 
       if (isAssigning) {
         // Adding employee to slot
-        // Check capacity first
-        if (slotToAssign.assigned_employees.length >= slotToAssign.capacity) {
+        const uniqueAssigned = normalizeAssignedEmployeeIds(slotToAssign.assigned_employees);
+        if (uniqueAssigned.includes(String(employeeId))) {
+          setError('This person is already assigned to this slot.');
+          return;
+        }
+        // Check capacity first (unique people per slot)
+        if (uniqueAssigned.length >= slotToAssign.capacity) {
           setError('Slot is already at full capacity');
           return;
         }
@@ -720,7 +737,10 @@ const RotaManager = ({ user }) => {
             if (slot.id === slotId) {
               return {
                 ...slot,
-                assigned_employees: [...slot.assigned_employees, employeeId]
+                assigned_employees: normalizeAssignedEmployeeIds([
+                  ...slot.assigned_employees,
+                  employeeId,
+                ]),
               };
             }
             return slot;
@@ -762,7 +782,9 @@ const RotaManager = ({ user }) => {
             if (slot.id === slotId) {
               return {
                 ...slot,
-                assigned_employees: slot.assigned_employees.filter(id => id !== employeeId)
+                assigned_employees: normalizeAssignedEmployeeIds(
+                  slot.assigned_employees.filter((id) => id !== employeeId)
+                ),
               };
             }
             return slot;
@@ -1487,9 +1509,9 @@ const RotaManager = ({ user }) => {
                 .filter(s => s.date === dateStr)
                 .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.end_time.localeCompare(b.end_time));
               const shiftCounts = {
-                day: slotsForDay.filter(s => s.shift_type === 'day').reduce((sum, s) => sum + (s.assigned_employees?.length || 0), 0),
-                afternoon: slotsForDay.filter(s => s.shift_type === 'afternoon').reduce((sum, s) => sum + (s.assigned_employees?.length || 0), 0),
-                night: slotsForDay.filter(s => s.shift_type === 'night').reduce((sum, s) => sum + (s.assigned_employees?.length || 0), 0)
+                day: slotsForDay.filter(s => s.shift_type === 'day').reduce((sum, s) => sum + countUniqueAssigned(s.assigned_employees), 0),
+                afternoon: slotsForDay.filter(s => s.shift_type === 'afternoon').reduce((sum, s) => sum + countUniqueAssigned(s.assigned_employees), 0),
+                night: slotsForDay.filter(s => s.shift_type === 'night').reduce((sum, s) => sum + countUniqueAssigned(s.assigned_employees), 0)
               };
               return (
                 <div
