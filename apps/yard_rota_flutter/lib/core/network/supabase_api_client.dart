@@ -2,6 +2,7 @@ import 'api_client.dart';
 import 'models.dart';
 import 'my_rota_models.dart';
 import 'network_policy.dart';
+import '../../features/my_rota/domain/my_rota_week_logic.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseApiClient implements ApiClient {
@@ -324,39 +325,48 @@ class SupabaseApiClient implements ApiClient {
     }
 
     try {
+      final now = DateTime.now();
+      final windowStart = myRotaDateOnly(now).subtract(const Duration(days: 1));
+      final windowEnd = myRotaDateOnly(now).add(const Duration(days: 14));
       final rows = await _client
           .from('scheduled_rota')
           .select('date,location,shift_type,start_time,end_time')
           .eq('user_id', trimmedUserId)
-          .gte('date', fromYmd)
+          .gte('date', _toYmd(windowStart))
+          .lte('date', _toYmd(windowEnd))
           .order('date')
-          .order('start_time')
-          .limit(1);
+          .order('start_time');
 
       if (rows.isEmpty) {
         return null;
       }
-      final row = rows.first;
 
-      final dateYmd = row['date'] as String?;
-      final location = row['location'] as String?;
-      final shiftType = row['shift_type'] as String?;
-      if (dateYmd == null ||
-          dateYmd.trim().isEmpty ||
-          location == null ||
-          location.trim().isEmpty ||
-          shiftType == null ||
-          shiftType.trim().isEmpty) {
-        return null;
+      final shifts = <MyRotaAnchorShift>[];
+      for (final row in rows) {
+        final dateYmd = row['date'] as String?;
+        final location = row['location'] as String?;
+        final shiftType = row['shift_type'] as String?;
+        if (dateYmd == null ||
+            dateYmd.trim().isEmpty ||
+            location == null ||
+            location.trim().isEmpty ||
+            shiftType == null ||
+            shiftType.trim().isEmpty) {
+          continue;
+        }
+
+        shifts.add(
+          MyRotaAnchorShift(
+            dateYmd: dateYmd,
+            location: location,
+            shiftType: shiftType,
+            startTime: (row['start_time'] as String?) ?? '',
+            endTime: (row['end_time'] as String?) ?? '',
+          ),
+        );
       }
 
-      return MyRotaAnchorShift(
-        dateYmd: dateYmd,
-        location: location,
-        shiftType: shiftType,
-        startTime: (row['start_time'] as String?) ?? '',
-        endTime: (row['end_time'] as String?) ?? '',
-      );
+      return pickMyRotaAnchorShift(shifts: shifts, now: now);
     } on PostgrestException catch (error) {
       throw TransientNetworkException(error.message);
     } catch (error) {

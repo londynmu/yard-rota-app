@@ -109,4 +109,87 @@ void main() {
       expect(slot.displayNameOrNull, 'Ann Lee');
     });
   });
+
+  group('pickMyRotaAnchorShift', () {
+    const sundayLutterworth = MyRotaAnchorShift(
+      dateYmd: '2026-05-17',
+      location: 'Lutterworth',
+      shiftType: 'night',
+      startTime: '17:45',
+      endTime: '05:45',
+    );
+    const tuesdayRugby = MyRotaAnchorShift(
+      dateYmd: '2026-05-19',
+      location: 'Rugby',
+      shiftType: 'day',
+      startTime: '06:00:00',
+      endTime: '14:00:00',
+    );
+
+    test('picks active Sunday evening shift over future shift', () {
+      final picked = pickMyRotaAnchorShift(
+        shifts: const [tuesdayRugby, sundayLutterworth],
+        now: DateTime(2026, 5, 17, 23),
+      );
+
+      expect(picked?.location, 'Lutterworth');
+      expect(picked?.dateYmd, '2026-05-17');
+    });
+
+    test('keeps overnight shift active after midnight until end time', () {
+      final picked = pickMyRotaAnchorShift(
+        shifts: const [tuesdayRugby, sundayLutterworth],
+        now: DateTime(2026, 5, 18, 2),
+      );
+
+      expect(picked?.location, 'Lutterworth');
+      expect(picked?.dateYmd, '2026-05-17');
+    });
+
+    test('picks nearest future shift when no shift is active', () {
+      final picked = pickMyRotaAnchorShift(
+        shifts: const [tuesdayRugby, sundayLutterworth],
+        now: DateTime(2026, 5, 18, 8),
+      );
+
+      expect(picked?.location, 'Rugby');
+      expect(picked?.dateYmd, '2026-05-19');
+    });
+
+    test('does not pick completed same-day shift', () {
+      final picked = pickMyRotaAnchorShift(
+        shifts: const [
+          MyRotaAnchorShift(
+            dateYmd: '2026-05-17',
+            location: 'Lutterworth',
+            shiftType: 'day',
+            startTime: '05:45',
+            endTime: '17:45',
+          ),
+          tuesdayRugby,
+        ],
+        now: DateTime(2026, 5, 17, 23),
+      );
+
+      expect(picked?.location, 'Rugby');
+    });
+
+    test('ignores invalid times', () {
+      final picked = pickMyRotaAnchorShift(
+        shifts: const [
+          MyRotaAnchorShift(
+            dateYmd: '2026-05-17',
+            location: 'Invalid',
+            shiftType: 'night',
+            startTime: 'bad',
+            endTime: '05:45',
+          ),
+          tuesdayRugby,
+        ],
+        now: DateTime(2026, 5, 17, 23),
+      );
+
+      expect(picked?.location, 'Rugby');
+    });
+  });
 }
