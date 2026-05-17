@@ -101,7 +101,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/ui": "^2.1.9",
     "autoprefixer": "^10.4.16",
-    "baseline-browser-mapping": "^2.9.18",
     "chrome-launcher": "^1.2.1",
     "eslint": "^9.25.1",
     "eslint-plugin-react": "^7.37.5",
