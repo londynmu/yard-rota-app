@@ -14,8 +14,8 @@ void main() {
     if (!content.contains('startupInteractiveSlo')) {
       violations.add('startupInteractiveSlo is not defined.');
     }
-    if (!content.contains('loginToCalendarSlo')) {
-      violations.add('loginToCalendarSlo is not defined.');
+    if (!content.contains('loginToHomeSlo')) {
+      violations.add('loginToHomeSlo is not defined.');
     }
     if (!content.contains('monthSwitchCachedSlo')) {
       violations.add('monthSwitchCachedSlo is not defined.');

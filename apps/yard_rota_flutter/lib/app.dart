@@ -142,8 +142,8 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       });
       await _availabilityRepository.flushOutbox();
       loginStopwatch.stop();
-      if (loginStopwatch.elapsed > NetworkPolicy.loginToCalendarSlo) {
-        _showMessage('Login to calendar exceeded SLO target.');
+      if (loginStopwatch.elapsed > NetworkPolicy.loginToHomeSlo) {
+        _showMessage('Login to home exceeded SLO target.');
       }
     } catch (error) {
       if (!mounted) {

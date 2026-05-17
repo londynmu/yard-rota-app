@@ -2,20 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/network/models.dart';
-import '../../core/theme/app_tokens.dart';
 import '../../core/theme/home_wallpaper.dart';
-import '../../core/theme/theme_extensions.dart';
 import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
-import '../calendar/presentation/calendar_screen.dart';
+import '../home/presentation/home_hub_screen.dart';
 import '../my_rota/data/my_rota_repository.dart';
-import '../profile/presentation/profile_screen.dart';
-import 'main_shell_nav_metrics.dart';
 
-/// Root shell after sign-in: bottom navigation (Home, Profile). Icons sit in
-/// a [Positioned] strip at the physical bottom of the body stack (no glass
-/// pills).
-class MainShell extends StatefulWidget {
+/// Root shell after sign-in. Home acts as the hub for full-screen features.
+class MainShell extends StatelessWidget {
   const MainShell({
     super.key,
     required this.session,
@@ -46,25 +40,6 @@ class MainShell extends StatefulWidget {
   onDarkHomeWallpaperChanged;
 
   @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int _index = 0;
-
-  /// Bumped when the user opens the Profile tab so tile entrance animation replays (IndexedStack keeps Profile built off-stage).
-  int _profileEntranceSignal = 0;
-
-  void _onShellTabSelected(int i) {
-    setState(() {
-      if (i == 1) {
-        _profileEntranceSignal++;
-      }
-      _index = i;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final overlay = isDark
@@ -86,190 +61,20 @@ class _MainShellState extends State<MainShell> {
             systemNavigationBarDividerColor: Colors.transparent,
           );
 
-    final mq = MediaQuery.of(context);
-    final paddedBody = MediaQuery(
-      data: mq.copyWith(
-        padding: mq.padding.copyWith(
-          bottom: mq.padding.bottom + kMainShellContentExtraBottomInset,
-        ),
-      ),
-      child: IndexedStack(
-        index: _index,
-        children: [
-          CalendarScreen(
-            displayName: widget.session.displayName,
-            calendarRepository: widget.calendarRepository,
-            availabilityRepository: widget.availabilityRepository,
-            lightHomeWallpaper: widget.lightHomeWallpaper,
-            darkHomeWallpaper: widget.darkHomeWallpaper,
-          ),
-          ProfileScreen(
-            tileEntranceSignal: _profileEntranceSignal,
-            themeMode: widget.themeMode,
-            onThemeModeChanged: widget.onThemeModeChanged,
-            lightHomeWallpaper: widget.lightHomeWallpaper,
-            darkHomeWallpaper: widget.darkHomeWallpaper,
-            onLightHomeWallpaperChanged: widget.onLightHomeWallpaperChanged,
-            onDarkHomeWallpaperChanged: widget.onDarkHomeWallpaperChanged,
-            onLogout: widget.onLogout,
-            session: widget.session,
-            myRotaRepository: widget.myRotaRepository,
-          ),
-        ],
-      ),
-    );
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,
-      child: Scaffold(
-        extendBody: true,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            paddedBody,
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _MainShellBottomNav(
-                selectedIndex: _index,
-                onDestinationSelected: _onShellTabSelected,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MainShellBottomNav extends StatelessWidget {
-  const _MainShellBottomNav({
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final mq = MediaQuery.of(context);
-    final safeBottom = mq.padding.bottom;
-
-    return ColoredBox(
-      color: Colors.transparent,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.sm,
-          AppSpacing.lg,
-          AppSpacing.sm + safeBottom,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Center(
-                child: _MainShellNavItem(
-                  selected: selectedIndex == 0,
-                  label: 'Home',
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home,
-                  colors: colors,
-                  onTap: () => onDestinationSelected(0),
-                ),
-              ),
-            ),
-            SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Center(
-                child: _MainShellNavItem(
-                  selected: selectedIndex == 1,
-                  label: 'Profile',
-                  icon: Icons.person_outline,
-                  selectedIcon: Icons.person,
-                  colors: colors,
-                  onTap: () => onDestinationSelected(1),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MainShellNavItem extends StatelessWidget {
-  const _MainShellNavItem({
-    required this.selected,
-    required this.label,
-    required this.icon,
-    required this.selectedIcon,
-    required this.colors,
-    required this.onTap,
-  });
-
-  final bool selected;
-  final String label;
-  final IconData icon;
-  final IconData selectedIcon;
-  final AppColorsScheme colors;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // High-contrast on mesh: main text when idle, primary when selected.
-    final idleColor = colors.textPrimary;
-    final iconColor = selected ? colors.primary : idleColor;
-    final labelColor = selected ? colors.primary : idleColor;
-    final tapRadius = BorderRadius.circular(AppRadius.xl);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: tapRadius,
-          splashColor: colors.primary.withValues(alpha: 0.12),
-          highlightColor: colors.primary.withValues(alpha: 0.06),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: 88,
-              minHeight: kMainShellNavItemMinHeight,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.sm,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    selected ? selectedIcon : icon,
-                    size: 24,
-                    color: iconColor,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    label,
-                    style: AppTypography.labelMedium.copyWith(
-                      color: labelColor,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      child: HomeHubScreen(
+        themeMode: themeMode,
+        onThemeModeChanged: onThemeModeChanged,
+        lightHomeWallpaper: lightHomeWallpaper,
+        darkHomeWallpaper: darkHomeWallpaper,
+        onLightHomeWallpaperChanged: onLightHomeWallpaperChanged,
+        onDarkHomeWallpaperChanged: onDarkHomeWallpaperChanged,
+        onLogout: onLogout,
+        session: session,
+        calendarRepository: calendarRepository,
+        availabilityRepository: availabilityRepository,
+        myRotaRepository: myRotaRepository,
       ),
     );
   }

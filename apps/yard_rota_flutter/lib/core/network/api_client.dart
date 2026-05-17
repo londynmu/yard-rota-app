@@ -26,6 +26,11 @@ abstract class ApiClient {
 
   Future<List<LocationOption>> getActiveLocations();
 
+  Future<MyRotaAnchorShift?> getMyRotaAnchorShift({
+    required String userId,
+    required String fromYmd,
+  });
+
   Future<MyRotaWeekData> getMyRotaWeek({
     required String weekStartYmd,
     required String locationName,
@@ -143,6 +148,15 @@ class MockApiClient implements ApiClient {
       LocationOption(id: 'mock-1', name: 'Rugby'),
       LocationOption(id: 'mock-2', name: 'NRC'),
     ];
+  }
+
+  @override
+  Future<MyRotaAnchorShift?> getMyRotaAnchorShift({
+    required String userId,
+    required String fromYmd,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    return null;
   }
 
   @override

@@ -7,6 +7,22 @@ class LocationOption {
   final String name;
 }
 
+class MyRotaAnchorShift {
+  const MyRotaAnchorShift({
+    required this.dateYmd,
+    required this.location,
+    required this.shiftType,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  final String dateYmd;
+  final String location;
+  final String shiftType;
+  final String startTime;
+  final String endTime;
+}
+
 /// DB values: `no_show`, `sick`, `late`.
 enum MyRotaAttendanceStatus {
   noShow('no_show'),
@@ -66,11 +82,20 @@ class MyRotaSlot {
   final String? lastName;
   final String? task;
 
-  String get displayName {
+  String? get displayNameOrNull {
     final a = (firstName ?? '').trim();
     final b = (lastName ?? '').trim();
     final joined = '$a $b'.trim();
-    return joined.isEmpty ? 'Unknown User' : joined;
+    return joined.isEmpty ? null : joined;
+  }
+
+  String get displayName {
+    final value = displayNameOrNull;
+    assert(
+      value != null,
+      'MyRotaSlot.displayName requires a real profile name.',
+    );
+    return value ?? '';
   }
 
   String fmtTimeShort() {

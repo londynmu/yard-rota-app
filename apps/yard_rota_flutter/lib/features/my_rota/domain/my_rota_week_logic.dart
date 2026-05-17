@@ -40,7 +40,7 @@ int myRotaPresentCount(
     if (attendanceBySlotId[s.id] != null) {
       continue;
     }
-    if (s.firstName != null || s.lastName != null) {
+    if (s.displayNameOrNull != null) {
       n++;
     }
   }

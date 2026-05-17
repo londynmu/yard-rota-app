@@ -314,6 +314,57 @@ class SupabaseApiClient implements ApiClient {
   }
 
   @override
+  Future<MyRotaAnchorShift?> getMyRotaAnchorShift({
+    required String userId,
+    required String fromYmd,
+  }) async {
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      return null;
+    }
+
+    try {
+      final rows = await _client
+          .from('scheduled_rota')
+          .select('date,location,shift_type,start_time,end_time')
+          .eq('user_id', trimmedUserId)
+          .gte('date', fromYmd)
+          .order('date')
+          .order('start_time')
+          .limit(1);
+
+      if (rows.isEmpty) {
+        return null;
+      }
+      final row = rows.first;
+
+      final dateYmd = row['date'] as String?;
+      final location = row['location'] as String?;
+      final shiftType = row['shift_type'] as String?;
+      if (dateYmd == null ||
+          dateYmd.trim().isEmpty ||
+          location == null ||
+          location.trim().isEmpty ||
+          shiftType == null ||
+          shiftType.trim().isEmpty) {
+        return null;
+      }
+
+      return MyRotaAnchorShift(
+        dateYmd: dateYmd,
+        location: location,
+        shiftType: shiftType,
+        startTime: (row['start_time'] as String?) ?? '',
+        endTime: (row['end_time'] as String?) ?? '',
+      );
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
   Future<MyRotaWeekData> getMyRotaWeek({
     required String weekStartYmd,
     required String locationName,
@@ -360,8 +411,9 @@ class SupabaseApiClient implements ApiClient {
     }
 
     final userIds = rawSlots
-        .map((r) => r['user_id'] as String?)
+        .map((r) => (r['user_id'] as String?)?.trim())
         .whereType<String>()
+        .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
 
@@ -376,13 +428,13 @@ class SupabaseApiClient implements ApiClient {
           if (row is! Map<String, dynamic>) {
             continue;
           }
-          final id = row['id'] as String?;
-          if (id == null) {
+          final id = (row['id'] as String?)?.trim();
+          if (id == null || id.isEmpty) {
             continue;
           }
           profilesMap[id] = {
-            'first_name': (row['first_name'] as String?) ?? '',
-            'last_name': (row['last_name'] as String?) ?? '',
+            'first_name': ((row['first_name'] as String?) ?? '').trim(),
+            'last_name': ((row['last_name'] as String?) ?? '').trim(),
           };
         }
       } on PostgrestException catch (error) {
@@ -398,17 +450,24 @@ class SupabaseApiClient implements ApiClient {
     for (final row in rawSlots) {
       final id = row['id']?.toString();
       final dateYmd = row['date'] as String?;
-      final userId = row['user_id'] as String?;
-      if (id == null || dateYmd == null) {
+      final userId = (row['user_id'] as String?)?.trim();
+      if (id == null || dateYmd == null || userId == null || userId.isEmpty) {
         continue;
       }
-      final key =
-          '${userId ?? ''}-$dateYmd-${row['start_time']}-${row['end_time']}';
+      final prof = profilesMap[userId];
+      if (prof == null) {
+        continue;
+      }
+      final firstName = (prof['first_name'] ?? '').trim();
+      final lastName = (prof['last_name'] ?? '').trim();
+      if (firstName.isEmpty && lastName.isEmpty) {
+        continue;
+      }
+      final key = '$userId-$dateYmd-${row['start_time']}-${row['end_time']}';
       if (seenKeys.contains(key)) {
         continue;
       }
       seenKeys.add(key);
-      final prof = userId != null ? profilesMap[userId] : null;
       uniqueSlots.add(
         MyRotaSlot(
           id: id,
@@ -417,9 +476,9 @@ class SupabaseApiClient implements ApiClient {
           location: (row['location'] as String?) ?? locationName,
           startTime: (row['start_time'] as String?) ?? '',
           endTime: (row['end_time'] as String?) ?? '',
-          userId: userId ?? '',
-          firstName: prof?['first_name'],
-          lastName: prof?['last_name'],
+          userId: userId,
+          firstName: firstName,
+          lastName: lastName,
           task: row['task'] as String?,
         ),
       );
@@ -434,7 +493,7 @@ class SupabaseApiClient implements ApiClient {
       if (c2 != 0) {
         return c2;
       }
-      return a.displayName.compareTo(b.displayName);
+      return a.displayNameOrNull!.compareTo(b.displayNameOrNull!);
     });
 
     final grouped = <String, List<MyRotaSlot>>{};

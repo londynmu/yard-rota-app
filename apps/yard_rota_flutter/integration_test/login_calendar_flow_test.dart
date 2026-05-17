@@ -8,11 +8,12 @@ import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
+import 'package:yard_rota_flutter/features/home/presentation/home_hub_screen.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('critical flow login to calendar is interactive', (tester) async {
+  testWidgets('critical flow login to home is interactive', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1200));
     await tester.pumpWidget(YardRotaApp(apiClient: _IntegrationApiClient()));
     await tester.pumpAndSettle();
@@ -27,7 +28,8 @@ void main() {
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(CalendarScreen), findsOneWidget);
+    expect(find.byType(HomeHubScreen), findsOneWidget);
+    expect(find.byType(CalendarScreen), findsNothing);
     await tester.binding.setSurfaceSize(null);
   });
 
@@ -41,6 +43,8 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'yard123');
     await tester.pump();
     await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
     await tester.pumpAndSettle();
 
     final tomorrow = DateTime.now().add(const Duration(days: 1));
@@ -157,6 +161,12 @@ class _IntegrationApiClient implements ApiClient {
       LocationOption(id: '2', name: 'NRC'),
     ];
   }
+
+  @override
+  Future<MyRotaAnchorShift?> getMyRotaAnchorShift({
+    required String userId,
+    required String fromYmd,
+  }) async => null;
 
   @override
   Future<MyRotaWeekData> getMyRotaWeek({

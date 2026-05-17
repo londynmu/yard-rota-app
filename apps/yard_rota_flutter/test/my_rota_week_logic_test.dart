@@ -74,4 +74,39 @@ void main() {
       expect(myRotaPresentCount(slots, att), 1);
     });
   });
+
+  group('MyRotaSlot display name', () {
+    test(
+      'returns null instead of fallback text when profile name is missing',
+      () {
+        const slot = MyRotaSlot(
+          id: 'missing-profile',
+          dateYmd: '2025-01-04',
+          shiftType: 'day',
+          location: 'Rugby',
+          startTime: '06:00:00',
+          endTime: '14:00:00',
+          userId: 'missing',
+        );
+
+        expect(slot.displayNameOrNull, isNull);
+      },
+    );
+
+    test('trims and joins real profile names', () {
+      const slot = MyRotaSlot(
+        id: 'real-profile',
+        dateYmd: '2025-01-04',
+        shiftType: 'day',
+        location: 'Rugby',
+        startTime: '06:00:00',
+        endTime: '14:00:00',
+        userId: 'real',
+        firstName: ' Ann ',
+        lastName: ' Lee ',
+      );
+
+      expect(slot.displayNameOrNull, 'Ann Lee');
+    });
+  });
 }

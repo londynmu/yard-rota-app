@@ -9,7 +9,7 @@ class NetworkPolicy {
   static const Duration initialBackoff = Duration(milliseconds: 150);
   static const double backoffMultiplier = 2.0;
 
-  static const Duration loginToCalendarSlo = Duration(milliseconds: 800);
+  static const Duration loginToHomeSlo = Duration(milliseconds: 800);
   static const Duration monthSwitchCachedSlo = Duration(milliseconds: 100);
   static const Duration startupInteractiveSlo = Duration(milliseconds: 1500);
 }

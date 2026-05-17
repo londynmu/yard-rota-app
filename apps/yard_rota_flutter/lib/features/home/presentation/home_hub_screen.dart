@@ -7,14 +7,16 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../calendar/data/availability_repository.dart';
+import '../../calendar/data/calendar_repository.dart';
+import '../../calendar/presentation/calendar_screen.dart';
 import '../../my_rota/data/my_rota_repository.dart';
 import '../../my_rota/presentation/my_rota_screen.dart';
-import 'themes_screen.dart';
+import '../../profile/presentation/themes_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({
+class HomeHubScreen extends StatelessWidget {
+  const HomeHubScreen({
     super.key,
-    required this.tileEntranceSignal,
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.lightHomeWallpaper,
@@ -23,11 +25,10 @@ class ProfileScreen extends StatelessWidget {
     required this.onDarkHomeWallpaperChanged,
     required this.onLogout,
     required this.session,
+    required this.calendarRepository,
+    required this.availabilityRepository,
     required this.myRotaRepository,
   });
-
-  /// From [MainShell]; bumps when user selects Profile so tile drop replays (IndexedStack).
-  final int tileEntranceSignal;
 
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
@@ -39,27 +40,33 @@ class ProfileScreen extends StatelessWidget {
   onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
   final UserSession session;
+  final CalendarRepository calendarRepository;
+  final AvailabilityRepository availabilityRepository;
   final MyRotaRepository myRotaRepository;
 
-  static const List<_ProfileTileSpec> _topTiles = [
-    _ProfileTileSpec(
-      title: 'Themes',
-      icon: Icons.palette_outlined,
-      isThemes: true,
+  static const List<_HubTileSpec> _primaryTiles = [
+    _HubTileSpec(
+      title: 'Calendar',
+      icon: Icons.calendar_month_outlined,
+      isCalendar: true,
     ),
-    _ProfileTileSpec(
+  ];
+
+  static const List<_HubTileSpec> _workTiles = [
+    _HubTileSpec(
       title: 'My Rota',
       icon: Icons.calendar_view_week_outlined,
       isMyRota: true,
     ),
-    _ProfileTileSpec(
+    _HubTileSpec(
       title: 'Notifications',
       icon: Icons.notifications_none_outlined,
     ),
   ];
 
-  static const List<_ProfileTileSpec> _bottomTiles = [
-    _ProfileTileSpec(title: 'Logout', icon: Icons.logout, isLogout: true),
+  static const List<_HubTileSpec> _settingsTiles = [
+    _HubTileSpec(title: 'Themes', icon: Icons.palette_outlined, isThemes: true),
+    _HubTileSpec(title: 'Account', icon: Icons.person_outline),
   ];
 
   @override
@@ -99,7 +106,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ),
-        title: const Text('Profile'),
+        title: const Text('Home'),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -134,36 +141,47 @@ class ProfileScreen extends StatelessWidget {
                         final maxW = constraints.maxWidth.isFinite
                             ? constraints.maxWidth
                             : MediaQuery.sizeOf(context).width -
-                                AppSpacing.lg * 2;
+                                  AppSpacing.lg * 2;
                         final gap = AppSpacing.sm;
-                        final tileW = (maxW - 2 * gap) / 3;
+                        final primaryTileH = (maxW * 0.42).clamp(150.0, 220.0);
+                        final tileW = (maxW - gap) / 2;
+
                         return SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               SizedBox(
-                                height: tileW,
-                                child: _ProfileTileRow(
-                                  key: ValueKey<Object>((
-                                    tileEntranceSignal,
-                                    'top',
-                                  )),
+                                height: primaryTileH,
+                                child: _HubTileRow(
                                   gap: gap,
-                                  tiles: _topTiles,
+                                  tiles: _primaryTiles,
                                   onTileTap: (spec) => _onTileTap(ctx, spec),
                                 ),
                               ),
                               SizedBox(height: gap),
                               SizedBox(
                                 height: tileW,
-                                child: _ProfileTileRow(
-                                  key: ValueKey<Object>((
-                                    tileEntranceSignal,
-                                    'bottom',
-                                  )),
+                                child: _HubTileRow(
                                   gap: gap,
-                                  tiles: _bottomTiles,
+                                  tiles: _workTiles,
                                   onTileTap: (spec) => _onTileTap(ctx, spec),
+                                ),
+                              ),
+                              SizedBox(height: gap),
+                              SizedBox(
+                                height: tileW,
+                                child: _HubTileRow(
+                                  gap: gap,
+                                  tiles: _settingsTiles,
+                                  onTileTap: (spec) => _onTileTap(ctx, spec),
+                                ),
+                              ),
+                              SizedBox(height: AppSpacing.lg),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: onLogout,
+                                  icon: const Icon(Icons.logout),
+                                  label: const Text('Sign out'),
                                 ),
                               ),
                             ],
@@ -181,9 +199,19 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _onTileTap(BuildContext context, _ProfileTileSpec spec) async {
-    if (spec.isLogout) {
-      await onLogout();
+  Future<void> _onTileTap(BuildContext context, _HubTileSpec spec) async {
+    if (spec.isCalendar) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => CalendarScreen(
+            displayName: session.displayName,
+            calendarRepository: calendarRepository,
+            availabilityRepository: availabilityRepository,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+          ),
+        ),
+      );
       return;
     }
     if (spec.isThemes) {
@@ -221,44 +249,43 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class _ProfileTileSpec {
-  const _ProfileTileSpec({
+class _HubTileSpec {
+  const _HubTileSpec({
     required this.title,
     required this.icon,
+    this.isCalendar = false,
     this.isThemes = false,
     this.isMyRota = false,
-    this.isLogout = false,
   });
 
   final String title;
   final IconData icon;
+  final bool isCalendar;
   final bool isThemes;
   final bool isMyRota;
-  final bool isLogout;
 }
 
-/// Row of profile tiles — **one-shot** staggered fade + drop from above when shown.
-class _ProfileTileRow extends StatefulWidget {
-  const _ProfileTileRow({
-    super.key,
+/// Row of hub tiles with a one-shot staggered fade and drop from above.
+class _HubTileRow extends StatefulWidget {
+  const _HubTileRow({
     required this.gap,
     required this.tiles,
     required this.onTileTap,
   });
 
   final double gap;
-  final List<_ProfileTileSpec> tiles;
-  final void Function(_ProfileTileSpec spec) onTileTap;
+  final List<_HubTileSpec> tiles;
+  final void Function(_HubTileSpec spec) onTileTap;
 
   @override
-  State<_ProfileTileRow> createState() => _ProfileTileRowState();
+  State<_HubTileRow> createState() => _HubTileRowState();
 }
 
-class _ProfileTileRowState extends State<_ProfileTileRow>
+class _HubTileRowState extends State<_HubTileRow>
     with SingleTickerProviderStateMixin {
   static const Duration _enterDuration = Duration(milliseconds: 760);
 
-  /// Vertical offset (px) above rest position when progress is 0 (falls into place).
+  /// Vertical offset (px) above rest position when progress is 0.
   static const double _enterDropPx = 56;
 
   late final AnimationController _enterController;
@@ -283,7 +310,6 @@ class _ProfileTileRowState extends State<_ProfileTileRow>
     super.dispose();
   }
 
-  /// Staggered 0…1 per tile along the shared controller (runs once).
   double _entranceProgress(int index) {
     const stagger = 0.12;
     const each = 0.46;
@@ -305,7 +331,7 @@ class _ProfileTileRowState extends State<_ProfileTileRow>
       opacity: p.clamp(0.0, 1.0),
       child: Transform.translate(
         offset: Offset(0, -_enterDropPx * (1 - p)),
-        child: _ProfileTileCard(
+        child: _HubTileCard(
           spec: widget.tiles[index],
           onTap: () => widget.onTileTap(widget.tiles[index]),
         ),
@@ -332,15 +358,15 @@ class _ProfileTileRowState extends State<_ProfileTileRow>
   }
 }
 
-class _ProfileTileCard extends StatelessWidget {
-  const _ProfileTileCard({required this.spec, required this.onTap});
+class _HubTileCard extends StatelessWidget {
+  const _HubTileCard({required this.spec, required this.onTap});
 
   static const double _meshOpacity = 0.5;
 
   static const _onMeshLabel = Color(0xFFF2F6FA);
   static const _onMeshIcon = Color(0xFFE8EEF5);
 
-  final _ProfileTileSpec spec;
+  final _HubTileSpec spec;
   final VoidCallback onTap;
 
   @override
@@ -402,7 +428,7 @@ class _ProfileTileCard extends StatelessWidget {
   }
 }
 
-/// Aurora / Bonus (Figma `76:4754`) — shared mesh for all profile tiles.
+/// Aurora / Bonus (Figma `76:4754`) shared mesh for all hub tiles.
 class _AuroraMesh extends StatelessWidget {
   const _AuroraMesh();
 

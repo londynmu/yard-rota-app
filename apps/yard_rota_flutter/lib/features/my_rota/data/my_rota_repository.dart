@@ -12,6 +12,18 @@ class MyRotaRepository {
     return RetryExecutor.run(task: _apiClient.getActiveLocations);
   }
 
+  Future<MyRotaAnchorShift?> loadAnchorShift({
+    required String userId,
+    required DateTime fromDate,
+  }) async {
+    return RetryExecutor.run(
+      task: () => _apiClient.getMyRotaAnchorShift(
+        userId: userId,
+        fromYmd: myRotaToYmd(myRotaDateOnly(fromDate)),
+      ),
+    );
+  }
+
   /// Picks saved location if still valid, else [fallbackName] or first list item.
   String resolveLocationName({
     required List<LocationOption> locations,

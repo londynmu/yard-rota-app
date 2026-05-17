@@ -150,6 +150,12 @@ class _FakeApiClient implements ApiClient {
   Future<List<LocationOption>> getActiveLocations() async => const [];
 
   @override
+  Future<MyRotaAnchorShift?> getMyRotaAnchorShift({
+    required String userId,
+    required String fromYmd,
+  }) async => null;
+
+  @override
   Future<MyRotaWeekData> getMyRotaWeek({
     required String weekStartYmd,
     required String locationName,

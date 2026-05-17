@@ -91,14 +91,32 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     });
     try {
       final locs = await widget.repository.loadActiveLocations();
-      final savedLoc = await readSavedMyRotaLocationName();
-      final savedShift = await readSavedMyRotaShiftType();
-      final loc = widget.repository.resolveLocationName(
-        locations: locs,
-        savedName: savedLoc,
-        fallbackName: locs.isNotEmpty ? locs.first.name : null,
+      final anchor = await widget.repository.loadAnchorShift(
+        userId: widget.session.userId,
+        fromDate: DateTime.now(),
       );
-      final shift = widget.repository.resolveShiftTypeFilter(savedShift);
+      String loc;
+      String shift;
+      String? targetYmd;
+
+      if (anchor != null) {
+        loc = anchor.location;
+        shift = widget.repository.resolveShiftTypeFilter(anchor.shiftType);
+        targetYmd = anchor.dateYmd;
+        _weekStartSaturday = myRotaWeekStartSaturday(
+          _parseLocalYmd(anchor.dateYmd),
+        );
+      } else {
+        final savedLoc = await readSavedMyRotaLocationName();
+        final savedShift = await readSavedMyRotaShiftType();
+        loc = widget.repository.resolveLocationName(
+          locations: locs,
+          savedName: savedLoc,
+          fallbackName: locs.isNotEmpty ? locs.first.name : null,
+        );
+        shift = widget.repository.resolveShiftTypeFilter(savedShift);
+      }
+
       if (!mounted) {
         return;
       }
@@ -107,7 +125,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
         _locationName = loc;
         _shiftFilter = shift;
       });
-      await _fetchWeek();
+      await _fetchWeek(targetYmd: targetYmd);
     } catch (e) {
       if (!mounted) {
         return;
@@ -120,7 +138,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     }
   }
 
-  Future<void> _fetchWeek() async {
+  Future<void> _fetchWeek({String? targetYmd}) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -140,7 +158,12 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
       }
       final keys = myRotaWeekDateYmds(_weekStartSaturday);
       final todayYmd = myRotaToYmd(myRotaDateOnly(DateTime.now()));
-      final targetIndex = keys.contains(todayYmd) ? keys.indexOf(todayYmd) : 0;
+      final effectiveTargetYmd = targetYmd != null && keys.contains(targetYmd)
+          ? targetYmd
+          : todayYmd;
+      final targetIndex = keys.contains(effectiveTargetYmd)
+          ? keys.indexOf(effectiveTargetYmd)
+          : 0;
       setState(() {
         _slotsByDate = merged;
         _attendanceBySlotId = Map<String, MyRotaAttendanceStatus>.from(
@@ -328,7 +351,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                                 ? colors.primary
                                 : colors.textPrimary,
                             fontWeight: loc.name == _locationName
-                                ? FontWeight.w700
+                                ? FontWeight.w600
                                 : FontWeight.w500,
                           ),
                         ),
@@ -372,7 +395,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
               label,
               style: TextStyle(
                 color: sel ? colors.primary : colors.textPrimary,
-                fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: sel ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
             onTap: () => pick(value),
@@ -450,10 +473,10 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  slot.displayName,
+                  slot.displayNameOrNull ?? 'Attendance',
                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -602,18 +625,19 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                                           const AlwaysScrollableScrollPhysics(),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal:
-                                              AppM3Carousel.pageCardHorizontalPadding,
+                                          horizontal: AppM3Carousel
+                                              .pageCardHorizontalPadding,
                                         ),
                                         child: _DayCard(
-                                          headerWeekday: _weekdayUpper[
-                                              dayDate.weekday - 1],
-                                          headerOrdinal:
-                                              _dayOrdinal(dayDate.day),
+                                          headerWeekday:
+                                              _weekdayUpper[dayDate.weekday -
+                                                  1],
+                                          headerOrdinal: _dayOrdinal(
+                                            dayDate.day,
+                                          ),
                                           date: dayDate,
                                           dateYmd: ymd,
-                                          slots:
-                                              _slotsByDate[ymd] ?? const [],
+                                          slots: _slotsByDate[ymd] ?? const [],
                                           attendance: _attendanceBySlotId,
                                           sessionUserId: widget.session.userId,
                                           isAdmin: widget.session.isAdmin,
@@ -709,11 +733,14 @@ class _MyRotaDayStrip extends StatelessWidget {
     final colors = context.appColors;
     final today = myRotaDateOnly(DateTime.now());
     final innerH =
-        AppM3SegmentedButton.trackHeight - 2 * AppM3SegmentedButton.trackPadding;
+        AppM3SegmentedButton.trackHeight -
+        2 * AppM3SegmentedButton.trackPadding;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: AppOpacity.segmentedTrackFill),
+        color: colors.bgElevated.withValues(
+          alpha: AppOpacity.segmentedTrackFill,
+        ),
         borderRadius: BorderRadius.circular(
           AppM3SegmentedButton.trackCornerRadius,
         ),
@@ -768,13 +795,13 @@ class _MyRotaDayStripSegment extends StatelessWidget {
     final colors = context.appColors;
     final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
       color: selected ? colors.primary : colors.textSecondary,
-      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
       fontSize: 10,
       height: 1.1,
     );
     final numStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
       color: selected ? colors.primary : colors.textPrimary,
-      fontWeight: FontWeight.w700,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
       fontSize: 12,
       height: 1.1,
     );
@@ -799,8 +826,10 @@ class _MyRotaDayStripSegment extends StatelessWidget {
                 AppM3SegmentedButton.slotCornerRadius,
               ),
               border: Border.all(
-                color: selected ? colors.primary : colors.borderSubtle,
-                width: selected ? AppStroke.medium : AppStroke.hairline,
+                color: selected
+                    ? colors.primary.withValues(alpha: 0.58)
+                    : colors.borderSubtle,
+                width: selected ? AppStroke.thin : AppStroke.hairline,
               ),
               boxShadow: selected
                   ? [
@@ -834,8 +863,8 @@ class _MyRotaDayStripSegment extends StatelessWidget {
                         height: 4,
                         decoration: BoxDecoration(
                           color: isToday
-                              ? colors.primary
-                              : colors.primary.withValues(alpha: 0.55),
+                              ? colors.primary.withValues(alpha: 0.86)
+                              : colors.primary.withValues(alpha: 0.42),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -873,7 +902,7 @@ class _FilterBar extends StatelessWidget {
     Widget cell(String text, VoidCallback onTap) {
       return Expanded(
         child: Material(
-          color: colors.bgElevated.withValues(alpha: 0.88),
+          color: colors.bgElevated.withValues(alpha: 0.82),
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: InkWell(
             onTap: onTap,
@@ -885,7 +914,9 @@ class _FilterBar extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: colors.borderDefault),
+                border: Border.all(
+                  color: colors.borderDefault.withValues(alpha: 0.72),
+                ),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -895,7 +926,7 @@ class _FilterBar extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.textPrimary,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -946,8 +977,9 @@ class _DayCard extends StatelessWidget {
     final isToday = myRotaDateOnly(date) == today;
     final isWeekend =
         date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
-    final userHasShift =
-        slots.any((s) => _myRotaSameUserId(s.userId, sessionUserId));
+    final userHasShift = slots.any(
+      (s) => _myRotaSameUserId(s.userId, sessionUserId),
+    );
 
     final presentSlots = slots.where((s) => attendance[s.id] == null).toList();
 
@@ -957,28 +989,32 @@ class _DayCard extends StatelessWidget {
         .length;
     final nightCount = presentSlots.where((s) => s.shiftType == 'night').length;
 
-    final edgeColor = isToday ? colors.primary : colors.borderDefault;
-    final edgeWidth = isToday ? AppStroke.thick : AppStroke.thin;
+    final edgeColor = isToday
+        ? colors.primary.withValues(alpha: 0.62)
+        : colors.borderDefault;
+    final edgeWidth = isToday ? AppStroke.medium : AppStroke.thin;
     final cardBorder = Border.all(
-      color: userHasShift ? colors.primary : edgeColor,
-      width: userHasShift ? AppStroke.thick * 2 : edgeWidth,
+      color: userHasShift ? colors.primary.withValues(alpha: 0.56) : edgeColor,
+      width: userHasShift ? AppStroke.medium : edgeWidth,
     );
 
     final pageRadius = BorderRadius.circular(AppM3Carousel.pageCardRadius);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppMyRotaListSpacing.dayCardBottom),
+      padding: const EdgeInsets.only(
+        bottom: AppMyRotaListSpacing.dayCardBottom,
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.bgElevated.withValues(alpha: isWeekend ? 0.86 : 0.92),
+          color: colors.bgElevated.withValues(alpha: isWeekend ? 0.84 : 0.9),
           borderRadius: pageRadius,
           border: cardBorder,
           boxShadow: isToday
               ? [
                   BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.18),
-                    blurRadius: AppElevation.level4,
-                    offset: const Offset(0, 2),
+                    color: colors.primary.withValues(alpha: 0.1),
+                    blurRadius: AppElevation.level3,
+                    offset: const Offset(0, 1),
                   ),
                 ]
               : null,
@@ -990,7 +1026,9 @@ class _DayCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.all(AppMyRotaListSpacing.dayCardHeaderAll),
+                padding: const EdgeInsets.all(
+                  AppMyRotaListSpacing.dayCardHeaderAll,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1004,11 +1042,12 @@ class _DayCard extends StatelessWidget {
                           textAlign: TextAlign.left,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: colors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: colors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.32,
+                              ),
                         ),
                       ),
                     ),
@@ -1088,7 +1127,10 @@ class _ShiftCountChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: border.withValues(alpha: 0.6)),
+        border: Border.all(
+          color: border.withValues(alpha: 0.46),
+          width: AppStroke.hairline,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -1129,7 +1171,9 @@ class _DayDetailsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final slotsShown = List<MyRotaSlot>.from(slots);
+    final slotsShown = slots
+        .where((slot) => slot.displayNameOrNull != null)
+        .toList();
     if (slotsShown.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppMyRotaListSpacing.emptyStateInset),
@@ -1151,7 +1195,7 @@ class _DayDetailsBody extends StatelessWidget {
               if (c != 0) {
                 return c;
               }
-              return a.displayName.compareTo(b.displayName);
+              return a.displayNameOrNull!.compareTo(b.displayNameOrNull!);
             });
       if (sectionSlots.isEmpty) {
         return const SizedBox.shrink();
@@ -1173,16 +1217,23 @@ class _DayDetailsBody extends StatelessWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.bgPrimary.withValues(alpha: 0.55),
+            color: colors.bgPrimary.withValues(alpha: 0.42),
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: colors.borderSubtle),
+            border: Border.all(
+              color: colors.borderSubtle.withValues(alpha: 0.72),
+              width: AppStroke.hairline,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var ti = 0; ti < starts.length; ti++) ...[
                 if (ti > 0)
-                  Divider(height: 1, thickness: 1, color: colors.divider),
+                  Divider(
+                    height: 1,
+                    thickness: AppStroke.hairline,
+                    color: colors.divider.withValues(alpha: 0.72),
+                  ),
                 _TimeGroup(
                   startLabel: starts[ti],
                   slots: byStart[starts[ti]]!,
@@ -1200,11 +1251,7 @@ class _DayDetailsBody extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        section('day'),
-        section('afternoon'),
-        section('night'),
-      ],
+      children: [section('day'), section('afternoon'), section('night')],
     );
   }
 }
@@ -1280,11 +1327,13 @@ class _PersonRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = slot.displayNameOrNull;
+    if (displayName == null) {
+      return const SizedBox.shrink();
+    }
     final colors = context.appColors;
-    final primaryName =
-        isYou && slot.displayName == 'Unknown User' ? 'You' : slot.displayName;
     final nameStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      fontWeight: FontWeight.w600,
+      fontWeight: isYou ? FontWeight.w600 : FontWeight.w500,
       color: isYou ? AppPrimitives.amber900 : colors.textPrimary,
     );
 
@@ -1304,7 +1353,7 @@ class _PersonRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.labelMedium.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -1332,7 +1381,7 @@ class _PersonRow extends StatelessWidget {
                 runSpacing: AppSpacing.xxs,
                 children: [
                   Text(
-                    primaryName,
+                    displayName,
                     textAlign: TextAlign.right,
                     style: nameStyle,
                   ),
@@ -1345,7 +1394,9 @@ class _PersonRow extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: colors.dangerBg,
                         borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(color: colors.borderDefault),
+                        border: Border.all(
+                          color: colors.borderDefault.withValues(alpha: 0.72),
+                        ),
                       ),
                       child: Text(
                         attendance!.labelEnglish,
@@ -1354,7 +1405,7 @@ class _PersonRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (isYou && primaryName != 'You')
+                  if (isYou)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.xs,
@@ -1363,13 +1414,16 @@ class _PersonRow extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppPrimitives.amber50,
                         borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(color: AppPrimitives.amber200),
+                        border: Border.all(
+                          color: AppPrimitives.amber200.withValues(alpha: 0.72),
+                          width: AppStroke.hairline,
+                        ),
                       ),
                       child: Text(
                         'You',
                         style: AppTypography.caption.copyWith(
                           color: AppPrimitives.amber800,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1387,7 +1441,9 @@ class _PersonRow extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: colors.dangerBg,
                       borderRadius: BorderRadius.circular(AppRadius.full),
-                      border: Border.all(color: colors.borderDefault),
+                      border: Border.all(
+                        color: colors.borderDefault.withValues(alpha: 0.72),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1405,9 +1461,8 @@ class _PersonRow extends StatelessWidget {
                           child: Text(
                             slot.task!,
                             textAlign: TextAlign.right,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colors.danger,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.danger),
                           ),
                         ),
                       ],
