@@ -1272,77 +1272,59 @@ class _DayCard extends StatelessWidget {
                                           letterSpacing: 0.32,
                                         ),
                                   ),
-                                  if (isToday || userHasShift) ...[
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    Wrap(
-                                      spacing: AppSpacing.xs,
-                                      runSpacing: AppSpacing.xxs,
-                                      children: [
-                                        if (isToday)
-                                          _DayStatusChip(
-                                            label: 'Today',
-                                            fg: colors.info,
-                                            bg: colors.infoBg,
-                                            border: colors.borderDefault,
-                                          ),
-                                        if (userHasShift)
-                                          const _DayStatusChip(
-                                            label: 'You',
-                                            fg: AppPrimitives.amber800,
-                                            bg: AppPrimitives.amber50,
-                                            border: AppPrimitives.amber200,
-                                          ),
-                                      ],
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),
-                          Flexible(
-                            child: Wrap(
-                              alignment: WrapAlignment.end,
-                              spacing: AppMyRotaListSpacing.chipWrapSpacing,
-                              runSpacing:
-                                  AppMyRotaListSpacing.chipWrapRunSpacing,
-                              children: [
-                                if (dayCount > 0)
-                                  _ShiftCountChip(
-                                    icon: Icons.wb_sunny_outlined,
-                                    count: dayCount,
-                                    fg: AppPrimitives.amber800,
-                                    bg: AppPrimitives.amber50,
-                                    border: AppPrimitives.amber200,
-                                  ),
-                                if (aftCount > 0)
-                                  _ShiftCountChip(
-                                    icon: Icons.cloud_outlined,
-                                    count: aftCount,
-                                    fg: AppPrimitives.amber800,
-                                    bg: AppPrimitives.amber100,
-                                    border: AppPrimitives.amber300,
-                                  ),
-                                if (nightCount > 0)
-                                  _ShiftCountChip(
-                                    icon: Icons.nightlight_outlined,
-                                    count: nightCount,
-                                    fg: AppPrimitives.blue800,
-                                    bg: AppPrimitives.blue50,
-                                    border: AppPrimitives.blue200,
-                                  ),
-                              ],
+                          if (isToday) ...[
+                            _DayStatusChip(
+                              label: 'Today',
+                              fg: colors.info,
+                              bg: colors.infoBg,
+                              border: colors.borderDefault,
                             ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          AnimatedRotation(
-                            turns: expanded ? 0.5 : 0,
-                            duration: AppMotion.fast,
-                            curve: AppMotion.ease,
-                            child: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: colors.textSecondary,
-                              size: 22,
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              right: AppMyRotaListSpacing
+                                  .dayCardHeaderTextLeadInset,
+                            ),
+                            child: Align(
+                              alignment: Alignment.topRight,
+                              child: Wrap(
+                                alignment: WrapAlignment.end,
+                                spacing: AppMyRotaListSpacing.chipWrapSpacing,
+                                runSpacing:
+                                    AppMyRotaListSpacing.chipWrapRunSpacing,
+                                children: [
+                                  if (dayCount > 0)
+                                    _ShiftCountChip(
+                                      icon: Icons.wb_sunny_outlined,
+                                      count: dayCount,
+                                      fg: AppPrimitives.amber800,
+                                      bg: AppPrimitives.amber50,
+                                      border: AppPrimitives.amber200,
+                                    ),
+                                  if (aftCount > 0)
+                                    _ShiftCountChip(
+                                      icon: Icons.cloud_outlined,
+                                      count: aftCount,
+                                      fg: AppPrimitives.amber800,
+                                      bg: AppPrimitives.amber100,
+                                      border: AppPrimitives.amber300,
+                                    ),
+                                  if (nightCount > 0)
+                                    _ShiftCountChip(
+                                      icon: Icons.nightlight_outlined,
+                                      count: nightCount,
+                                      fg: AppPrimitives.blue800,
+                                      bg: AppPrimitives.blue50,
+                                      border: AppPrimitives.blue200,
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
