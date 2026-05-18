@@ -9,6 +9,7 @@ import 'package:yard_rota_flutter/core/network/network_policy.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/availability_sheet.dart';
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
 import 'package:yard_rota_flutter/features/home/presentation/home_hub_screen.dart';
+import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
 
 void main() {
   testWidgets('shows login screen when no session is restored', (tester) async {
@@ -202,4 +203,12 @@ class _NoSessionClient implements ApiClient {
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
   }) async {}
+
+  @override
+  Future<StatsRemoteSnapshot> getStatsPerformance({
+    String? startYmd,
+    String? endYmd,
+  }) async {
+    return StatsRemoteSnapshot(records: const [], fetchedAt: DateTime.now());
+  }
 }

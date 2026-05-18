@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../features/stats/domain/stats_models.dart';
 import 'models.dart';
 import 'my_rota_models.dart';
 import 'network_policy.dart';
@@ -41,6 +42,11 @@ abstract class ApiClient {
   Future<void> saveMyRotaAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+  });
+
+  Future<StatsRemoteSnapshot> getStatsPerformance({
+    String? startYmd,
+    String? endYmd,
   });
 }
 
@@ -194,5 +200,14 @@ class MockApiClient implements ApiClient {
     MyRotaAttendanceStatus? status,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  @override
+  Future<StatsRemoteSnapshot> getStatsPerformance({
+    String? startYmd,
+    String? endYmd,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    return StatsRemoteSnapshot(records: const [], fetchedAt: DateTime.now());
   }
 }

@@ -337,19 +337,39 @@ class AppMyRotaListSpacing {
 
   static const double sectionBottom = AppSpacing.xs;
   static const double timeInlineIconSize = 14;
+
   /// Fixed width for time+icon column so follow-up rows (same slot time) align without repeating time.
   static const double timeColumnFixedWidth = 118;
+
   /// Vertical padding per person row (tighter list).
   static const double slotRowVertical = AppSpacing.xxs;
   static const double slotRowHorizontal = AppSpacing.sm;
   static const double dayCardBottom = AppSpacing.sm;
   static const double dayCardHeaderAll = AppSpacing.sm;
+
   /// Inset for weekday+date line from card inner edge (My Rota day header).
   static const double dayCardHeaderTextLeadInset = 6;
   static const double chipWrapSpacing = AppSpacing.xxs;
   static const double chipWrapRunSpacing = AppSpacing.xxs;
   static const double emptyStateInset = AppSpacing.sm;
   static const double personTaskGap = AppSpacing.xxs;
+}
+
+@immutable
+class AppStatsChart {
+  const AppStatsChart._();
+
+  static const double chartHeight = 148;
+  static const double barRadius = 6;
+  static const double minBarHeight = 4;
+}
+
+@immutable
+class AppStatsCard {
+  const AppStatsCard._();
+
+  static const double metricMinHeight = 70;
+  static const double leaderboardAvatarSize = 44;
 }
 
 @immutable

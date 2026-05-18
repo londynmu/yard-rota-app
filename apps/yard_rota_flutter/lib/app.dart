@@ -17,6 +17,7 @@ import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
 import 'features/my_rota/data/my_rota_repository.dart';
 import 'features/shell/main_shell.dart';
+import 'features/stats/data/stats_repository.dart';
 import 'core/theme/theme_mode_storage.dart';
 
 class YardRotaApp extends StatefulWidget {
@@ -46,6 +47,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   late final CalendarRepository _calendarRepository;
   late final AvailabilityRepository _availabilityRepository;
   late final MyRotaRepository _myRotaRepository;
+  late final StatsRepository _statsRepository;
   late final Stopwatch _startupStopwatch;
 
   UserSession? _session;
@@ -76,6 +78,10 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       localDb: _localDb,
     );
     _myRotaRepository = MyRotaRepository(apiClient: _apiClient);
+    _statsRepository = StatsRepository(
+      apiClient: _apiClient,
+      localDb: _localDb,
+    );
     PerfMetrics.recorder = _recordMetric;
     _bootstrap();
   }
@@ -274,6 +280,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       calendarRepository: _calendarRepository,
       availabilityRepository: _availabilityRepository,
       myRotaRepository: _myRotaRepository,
+      statsRepository: _statsRepository,
       onLogout: _handleLogout,
       themeMode: _themeMode,
       onThemeModeChanged: _handleThemeModeChanged,

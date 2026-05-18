@@ -13,6 +13,8 @@ import '../../calendar/presentation/calendar_screen.dart';
 import '../../my_rota/data/my_rota_repository.dart';
 import '../../my_rota/presentation/my_rota_screen.dart';
 import '../../profile/presentation/themes_screen.dart';
+import '../../stats/data/stats_repository.dart';
+import '../../stats/presentation/stats_screen.dart';
 
 class HomeHubScreen extends StatelessWidget {
   const HomeHubScreen({
@@ -28,6 +30,7 @@ class HomeHubScreen extends StatelessWidget {
     required this.calendarRepository,
     required this.availabilityRepository,
     required this.myRotaRepository,
+    required this.statsRepository,
   });
 
   final ThemeMode themeMode;
@@ -43,12 +46,18 @@ class HomeHubScreen extends StatelessWidget {
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
   final MyRotaRepository myRotaRepository;
+  final StatsRepository statsRepository;
 
   static const List<_HubTileSpec> _primaryTiles = [
     _HubTileSpec(
       title: 'Calendar',
       icon: Icons.calendar_month_outlined,
       isCalendar: true,
+    ),
+    _HubTileSpec(
+      title: 'Stats',
+      icon: Icons.query_stats_outlined,
+      isStats: true,
     ),
   ];
 
@@ -226,6 +235,19 @@ class HomeHubScreen extends StatelessWidget {
         MaterialPageRoute<void>(
           builder: (context) => MyRotaScreen(
             repository: myRotaRepository,
+            session: session,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.isStats) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => StatsScreen(
+            repository: statsRepository,
             session: session,
             lightHomeWallpaper: lightHomeWallpaper,
             darkHomeWallpaper: darkHomeWallpaper,
@@ -507,6 +529,7 @@ class _HubTileSpec {
     this.isCalendar = false,
     this.isThemes = false,
     this.isMyRota = false,
+    this.isStats = false,
     this.isAccount = false,
   });
 
@@ -515,6 +538,7 @@ class _HubTileSpec {
   final bool isCalendar;
   final bool isThemes;
   final bool isMyRota;
+  final bool isStats;
   final bool isAccount;
 }
 

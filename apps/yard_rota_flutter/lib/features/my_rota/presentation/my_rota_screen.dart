@@ -721,6 +721,13 @@ class _MyRotaUserShift {
   final MyRotaSlot slot;
 }
 
+class _MyRotaUserShiftDay {
+  const _MyRotaUserShiftDay({required this.date, required this.shifts});
+
+  final DateTime date;
+  final List<_MyRotaUserShift> shifts;
+}
+
 String _myRotaShortTime(String raw) {
   if (raw.length >= 5) {
     return raw.substring(0, 5);
@@ -779,57 +786,129 @@ class _YourShiftsSection extends StatelessWidget {
   final List<_MyRotaUserShift> shifts;
   final Map<String, MyRotaAttendanceStatus> attendance;
 
+  List<_MyRotaUserShiftDay> _groupByDay() {
+    final grouped = <String, List<_MyRotaUserShift>>{};
+    for (final shift in shifts) {
+      final ymd = myRotaToYmd(myRotaDateOnly(shift.date));
+      grouped.putIfAbsent(ymd, () => <_MyRotaUserShift>[]).add(shift);
+    }
+    final keys = grouped.keys.toList()..sort();
+    return [
+      for (final key in keys)
+        _MyRotaUserShiftDay(
+          date: grouped[key]!.first.date,
+          shifts: grouped[key]!
+            ..sort((a, b) => a.slot.startTime.compareTo(b.slot.startTime)),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _SectionHeader(
-          title: 'Your shifts this week',
-          subtitle: 'Quick view of your own rota before the full team list.',
+    final shiftDays = _groupByDay();
+    if (shiftDays.isEmpty) {
+      return _YourShiftsCardShell(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Text(
+            'No shifts for you this week',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+          ),
         ),
-        if (shifts.isEmpty)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.bgElevated.withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.borderDefault),
+      );
+    }
+    return _YourShiftDayList(days: shiftDays, attendance: attendance);
+  }
+}
+
+class _YourShiftsCardShell extends StatelessWidget {
+  const _YourShiftsCardShell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.bgElevated.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: colors.borderDefault),
+          boxShadow: [
+            BoxShadow(
+              color: colors.shadow.withValues(alpha: 0.12),
+              blurRadius: AppElevation.level4,
+              offset: const Offset(0, 2),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Text(
-                'No shifts for you this week',
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: _SectionHeader(
+                title: 'Your shifts this week',
+                subtitle:
+                    'Quick view of your own rota before the full team list.',
               ),
             ),
-          )
-        else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < shifts.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppSpacing.sm),
-                _YourShiftCard(
-                  shift: shifts[i],
-                  attendance: attendance[shifts[i].slot.id],
-                ),
-              ],
-            ],
-          ),
-      ],
+            child,
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _YourShiftCard extends StatelessWidget {
-  const _YourShiftCard({required this.shift, required this.attendance});
+class _YourShiftDayList extends StatelessWidget {
+  const _YourShiftDayList({required this.days, required this.attendance});
 
-  final _MyRotaUserShift shift;
-  final MyRotaAttendanceStatus? attendance;
+  final List<_MyRotaUserShiftDay> days;
+  final Map<String, MyRotaAttendanceStatus> attendance;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return _YourShiftsCardShell(
+      child: Column(
+        children: [
+          for (var i = 0; i < days.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: AppStroke.hairline,
+                color: colors.divider.withValues(alpha: 0.72),
+              ),
+            _YourShiftDayRow(day: days[i], attendance: attendance),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _YourShiftDayRow extends StatelessWidget {
+  const _YourShiftDayRow({required this.day, required this.attendance});
+
+  final _MyRotaUserShiftDay day;
+  final Map<String, MyRotaAttendanceStatus> attendance;
 
   static const _weekdayShort = <String>[
     'Mon',
@@ -845,163 +924,103 @@ class _YourShiftCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final today = myRotaDateOnly(DateTime.now());
-    final dateOnly = myRotaDateOnly(shift.date);
+    final dateOnly = myRotaDateOnly(day.date);
     final isToday = dateOnly == today;
-    final slot = shift.slot;
-    final timeRange =
-        '${_myRotaShortTime(slot.startTime)}-${_myRotaShortTime(slot.endTime)}';
-    final dayLabel =
-        '${_weekdayShort[shift.date.weekday - 1]} ${shift.date.day}';
-    final task = slot.task?.trim();
+    final dayLabel = '${_weekdayShort[day.date.weekday - 1]} ${day.date.day}';
+    final shiftSummary = day.shifts
+        .map((shift) {
+          final slot = shift.slot;
+          return '${_myRotaShiftLabel(slot.shiftType)} ${_myRotaShortTime(slot.startTime)}-${_myRotaShortTime(slot.endTime)}';
+        })
+        .join(', ');
+    final locations = {
+      for (final shift in day.shifts) shift.slot.location.trim(),
+    }.where((location) => location.isNotEmpty).toList();
+    final locationSummary = locations.join(', ');
+    final hasTask = day.shifts.any((shift) {
+      final task = shift.slot.task?.trim();
+      return task != null && task.isNotEmpty;
+    });
+    final flaggedAttendance = day.shifts
+        .map((shift) => attendance[shift.slot.id])
+        .whereType<MyRotaAttendanceStatus>()
+        .toList();
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isToday
-              ? colors.primary.withValues(alpha: 0.6)
-              : colors.borderDefault,
-          width: isToday ? AppStroke.medium : AppStroke.thin,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: 0.12),
-            blurRadius: AppElevation.level4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isToday ? colors.infoBg : colors.bgSecondary,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(color: colors.borderDefault),
-                  ),
-                  child: Text(
-                    isToday ? 'Today' : dayLabel,
-                    style: AppTypography.caption.copyWith(
-                      color: isToday ? colors.info : colors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 62,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: isToday ? colors.infoBg : colors.bgSecondary,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                border: Border.all(color: colors.borderDefault),
+              ),
+              child: Text(
+                isToday ? 'Today' : dayLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppTypography.caption.copyWith(
+                  color: isToday ? colors.info : colors.textSecondary,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    _myRotaShiftLabel(slot.shiftType),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (attendance != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: AppSpacing.xxs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.dangerBg,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                      border: Border.all(color: colors.borderDefault),
-                    ),
-                    child: Text(
-                      attendance!.labelEnglish,
-                      style: AppTypography.caption.copyWith(
-                        color: colors.danger,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Row(
               children: [
-                Icon(
-                  Icons.schedule_outlined,
-                  size: 16,
-                  color: colors.textSecondary,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  timeRange,
-                  style: AppTypography.labelLarge.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Icon(
-                  Icons.place_outlined,
-                  size: 16,
-                  color: colors.textSecondary,
-                ),
-                const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    slot.location,
+                    locationSummary.isEmpty
+                        ? shiftSummary
+                        : '$shiftSummary · $locationSummary',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.bodyMedium.copyWith(
-                      color: colors.textSecondary,
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+                if (hasTask) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: AppPrimitives.red500,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+                if (flaggedAttendance.isNotEmpty) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    flaggedAttendance.first.labelEnglish,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: colors.danger,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ],
             ),
-            if (task != null && task.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.dangerBg,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                  border: Border.all(color: colors.borderDefault),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppPrimitives.red500,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        task,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: colors.danger),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

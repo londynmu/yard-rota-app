@@ -7,6 +7,7 @@ import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
 import '../home/presentation/home_hub_screen.dart';
 import '../my_rota/data/my_rota_repository.dart';
+import '../stats/data/stats_repository.dart';
 
 /// Root shell after sign-in. Home acts as the hub for full-screen features.
 class MainShell extends StatelessWidget {
@@ -16,6 +17,7 @@ class MainShell extends StatelessWidget {
     required this.calendarRepository,
     required this.availabilityRepository,
     required this.myRotaRepository,
+    required this.statsRepository,
     required this.onLogout,
     required this.themeMode,
     required this.onThemeModeChanged,
@@ -29,6 +31,7 @@ class MainShell extends StatelessWidget {
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
   final MyRotaRepository myRotaRepository;
+  final StatsRepository statsRepository;
   final Future<void> Function() onLogout;
   final ThemeMode themeMode;
   final Future<void> Function(ThemeMode mode) onThemeModeChanged;
@@ -75,6 +78,7 @@ class MainShell extends StatelessWidget {
         calendarRepository: calendarRepository,
         availabilityRepository: availabilityRepository,
         myRotaRepository: myRotaRepository,
+        statsRepository: statsRepository,
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/features/calendar/data/availability_repository.dart';
+import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
 
 void main() {
   group('AvailabilityRepository offline-first', () {
@@ -171,4 +172,12 @@ class _FakeApiClient implements ApiClient {
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
   }) async {}
+
+  @override
+  Future<StatsRemoteSnapshot> getStatsPerformance({
+    String? startYmd,
+    String? endYmd,
+  }) async {
+    return StatsRemoteSnapshot(records: const [], fetchedAt: DateTime.now());
+  }
 }

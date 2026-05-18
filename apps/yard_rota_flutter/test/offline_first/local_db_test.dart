@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yard_rota_flutter/core/local_db/app_local_database.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
+import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
 
 void main() {
   group('AppLocalDatabase', () {
@@ -62,6 +63,59 @@ void main() {
       expect(availability[date]?.status, AvailabilityStatus.unavailable);
       expect(outbox, hasLength(1));
       expect(outbox.first.entity, 'availability');
+    });
+
+    test('stores and clears stats snapshots for offline use', () async {
+      final db = AppLocalDatabase.inMemory();
+      final fetchedAt = DateTime(2026, 5, 18, 6, 30);
+      const profile = StatsProfileSnapshot(
+        userId: 'u1',
+        firstName: 'Ava',
+        lastName: 'Day',
+        yardSystemId: 'Y001',
+        shiftPreference: 'day',
+      );
+
+      await db.writeStatsSnapshot(
+        rangeKey: 'last_day:2026-05-18:2026-05-18',
+        startYmd: '2026-05-18',
+        endYmd: '2026-05-18',
+        snapshot: StatsRemoteSnapshot(
+          records: const [
+            StatsPerformanceRecord(
+              userId: 'u1',
+              reportDateYmd: '2026-05-18',
+              numberOfMoves: 12,
+              avgTimeToCollect: '1:30',
+              avgTimeToTravel: '2:45',
+              numberOfFullLocations: 1,
+              profile: profile,
+            ),
+          ],
+          currentProfile: profile,
+          fetchedAt: fetchedAt,
+        ),
+      );
+
+      final cached = await db.readStatsSnapshot(
+        rangeKey: 'last_day:2026-05-18:2026-05-18',
+        startYmd: '2026-05-18',
+        endYmd: '2026-05-18',
+        currentUserId: 'u1',
+      );
+
+      expect(cached, isNotNull);
+      expect(cached!.records.single.numberOfMoves, 12);
+      expect(cached.currentProfile?.yardSystemId, 'Y001');
+
+      await db.clearAllUserData();
+      final cleared = await db.readStatsSnapshot(
+        rangeKey: 'last_day:2026-05-18:2026-05-18',
+        startYmd: '2026-05-18',
+        endYmd: '2026-05-18',
+        currentUserId: 'u1',
+      );
+      expect(cleared, isNull);
     });
   });
 }

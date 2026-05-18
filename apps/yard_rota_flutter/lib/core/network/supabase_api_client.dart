@@ -3,6 +3,7 @@ import 'models.dart';
 import 'my_rota_models.dart';
 import 'network_policy.dart';
 import '../../features/my_rota/domain/my_rota_week_logic.dart';
+import '../../features/stats/domain/stats_models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseApiClient implements ApiClient {
@@ -568,5 +569,130 @@ class SupabaseApiClient implements ApiClient {
     } catch (error) {
       throw TransientNetworkException(error.toString());
     }
+  }
+
+  @override
+  Future<StatsRemoteSnapshot> getStatsPerformance({
+    String? startYmd,
+    String? endYmd,
+  }) async {
+    final currentUserId = _currentUserId();
+    final fetchedAt = DateTime.now();
+    final currentProfile = await _fetchStatsProfile(currentUserId, fetchedAt);
+    final rows = <dynamic>[];
+    const batchSize = 1000;
+    var from = 0;
+
+    try {
+      while (true) {
+        var query = _client.from('shunter_performance').select('''
+          user_id,
+          report_date,
+          number_of_moves,
+          avg_time_to_collect,
+          avg_time_to_travel,
+          number_of_full_locations,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            yard_system_id,
+            shift_preference,
+            is_active
+          )
+        ''');
+        if (startYmd != null) {
+          query = query.gte('report_date', startYmd);
+        }
+        if (endYmd != null) {
+          query = query.lte('report_date', endYmd);
+        }
+        final batch = await query
+            .order('report_date', ascending: true)
+            .range(from, from + batchSize - 1);
+        rows.addAll(batch);
+        if (batch.length < batchSize) {
+          break;
+        }
+        from += batchSize;
+      }
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+
+    final records = <StatsPerformanceRecord>[];
+    for (final dynamic row in rows) {
+      if (row is! Map<String, dynamic>) {
+        continue;
+      }
+      final userId = (row['user_id'] as String?)?.trim();
+      final reportDate = row['report_date'] as String?;
+      if (userId == null ||
+          userId.isEmpty ||
+          reportDate == null ||
+          reportDate.isEmpty) {
+        continue;
+      }
+      records.add(
+        StatsPerformanceRecord(
+          userId: userId,
+          reportDateYmd: reportDate,
+          numberOfMoves: (row['number_of_moves'] as num?)?.round() ?? 0,
+          avgTimeToCollect: (row['avg_time_to_collect'] as String?) ?? '0:00',
+          avgTimeToTravel: (row['avg_time_to_travel'] as String?) ?? '0:00',
+          numberOfFullLocations:
+              (row['number_of_full_locations'] as num?)?.round() ?? 0,
+          profile: _statsProfileFromRow(row['profiles'], fetchedAt),
+          fetchedAt: fetchedAt,
+        ),
+      );
+    }
+
+    return StatsRemoteSnapshot(
+      records: records,
+      currentProfile: currentProfile,
+      fetchedAt: fetchedAt,
+    );
+  }
+
+  Future<StatsProfileSnapshot?> _fetchStatsProfile(
+    String userId,
+    DateTime fetchedAt,
+  ) async {
+    try {
+      final row = await _client
+          .from('profiles')
+          .select(
+            'id, first_name, last_name, yard_system_id, shift_preference, is_active',
+          )
+          .eq('id', userId)
+          .maybeSingle();
+      return _statsProfileFromRow(row, fetchedAt);
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  StatsProfileSnapshot? _statsProfileFromRow(dynamic row, DateTime fetchedAt) {
+    if (row is! Map<String, dynamic>) {
+      return null;
+    }
+    final id = (row['id'] as String?)?.trim();
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+    return StatsProfileSnapshot(
+      userId: id,
+      firstName: row['first_name'] as String?,
+      lastName: row['last_name'] as String?,
+      yardSystemId: row['yard_system_id'] as String?,
+      shiftPreference: row['shift_preference'] as String?,
+      isActive: row['is_active'] != false,
+      fetchedAt: fetchedAt,
+    );
   }
 }
