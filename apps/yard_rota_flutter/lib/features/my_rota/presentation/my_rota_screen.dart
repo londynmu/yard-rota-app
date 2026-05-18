@@ -1509,10 +1509,6 @@ class _DayDetailsBody extends StatelessWidget {
           decoration: BoxDecoration(
             color: colors.bgPrimary.withValues(alpha: 0.42),
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: colors.borderSubtle.withValues(alpha: 0.72),
-              width: AppStroke.hairline,
-            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
