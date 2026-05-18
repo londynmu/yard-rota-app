@@ -215,22 +215,6 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
   }
 
-  String _dayOrdinal(int day) {
-    if (day >= 11 && day <= 13) {
-      return '${day}TH';
-    }
-    switch (day % 10) {
-      case 1:
-        return '${day}ST';
-      case 2:
-        return '${day}ND';
-      case 3:
-        return '${day}RD';
-      default:
-        return '${day}TH';
-    }
-  }
-
   Future<void> _persistLocation(String name) async {
     await writeSavedMyRotaLocationName(name);
   }
@@ -682,7 +666,6 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                                             });
                                           },
                                           parseLocalYmd: _parseLocalYmd,
-                                          dayOrdinal: _dayOrdinal,
                                           weekdayUpper: _weekdayUpper,
                                         ),
                                       ],
@@ -765,12 +748,15 @@ String _myRotaShortTime(String raw) {
   return raw;
 }
 
-String _myRotaShiftLabel(String shiftType) {
-  return switch (shiftType) {
-    'day' => 'Day',
-    'afternoon' => 'Afternoon',
-    'night' => 'Night',
-    _ => 'Shift',
+String _myRotaOrdinalSuffix(int day) {
+  if (day >= 11 && day <= 13) {
+    return 'th';
+  }
+  return switch (day % 10) {
+    1 => 'st',
+    2 => 'nd',
+    3 => 'rd',
+    _ => 'th',
   };
 }
 
@@ -950,33 +936,25 @@ class _YourShiftDayRow extends StatelessWidget {
   final Map<String, MyRotaAttendanceStatus> attendance;
   final VoidCallback onTap;
 
-  static const _weekdayShort = <String>[
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
+  static const _weekdayFull = <String>[
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final today = myRotaDateOnly(DateTime.now());
-    final dateOnly = myRotaDateOnly(day.date);
-    final isToday = dateOnly == today;
-    final dayLabel = '${_weekdayShort[day.date.weekday - 1]} ${day.date.day}';
-    final shiftSummary = day.shifts
-        .map((shift) {
-          final slot = shift.slot;
-          return '${_myRotaShiftLabel(slot.shiftType)} ${_myRotaShortTime(slot.startTime)}-${_myRotaShortTime(slot.endTime)}';
-        })
-        .join(', ');
-    final locations = {
-      for (final shift in day.shifts) shift.slot.location.trim(),
-    }.where((location) => location.isNotEmpty).toList();
-    final locationSummary = locations.join(', ');
+    final firstShift = day.shifts.first.slot;
+    final weekday = _weekdayFull[day.date.weekday - 1];
+    final location = firstShift.location.trim();
+    final locationText = location.isEmpty ? '' : ' in $location';
+    final timeText =
+        '${_myRotaShortTime(firstShift.startTime)} - ${_myRotaShortTime(firstShift.endTime)}';
     final hasTask = day.shifts.any((shift) {
       final task = shift.slot.task?.trim();
       return task != null && task.isNotEmpty;
@@ -997,45 +975,47 @@ class _YourShiftDayRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              SizedBox(
-                width: 62,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isToday ? colors.infoBg : colors.bgSecondary,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(color: colors.borderDefault),
-                  ),
-                  child: Text(
-                    isToday ? 'Today' : dayLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.caption.copyWith(
-                      color: isToday ? colors.info : colors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        locationSummary.isEmpty
-                            ? shiftSummary
-                            : '$shiftSummary · $locationSummary',
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: '$weekday ${day.date.day}'),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.top,
+                              child: Transform.translate(
+                                offset: const Offset(0, -3),
+                                child: Text(
+                                  _myRotaOrdinalSuffix(day.date.day),
+                                  style: AppTypography.caption.copyWith(
+                                    color: colors.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            TextSpan(text: locationText),
+                          ],
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodyMedium.copyWith(
                           color: colors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      timeText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (hasTask) ...[
@@ -1084,7 +1064,6 @@ class _FullRotaSection extends StatelessWidget {
     required this.dayKeys,
     required this.onToggleDay,
     required this.parseLocalYmd,
-    required this.dayOrdinal,
     required this.weekdayUpper,
   });
 
@@ -1098,7 +1077,6 @@ class _FullRotaSection extends StatelessWidget {
   final Map<String, GlobalKey> dayKeys;
   final ValueChanged<String> onToggleDay;
   final DateTime Function(String ymd) parseLocalYmd;
-  final String Function(int day) dayOrdinal;
   final List<String> weekdayUpper;
 
   @override
@@ -1121,7 +1099,6 @@ class _FullRotaSection extends StatelessWidget {
                 return _DayCard(
                   key: dayKeys[ymd],
                   headerWeekday: weekdayUpper[dayDate.weekday - 1],
-                  headerOrdinal: dayOrdinal(dayDate.day),
                   date: dayDate,
                   dateYmd: ymd,
                   slots: slotsByDate[ymd] ?? const [],
@@ -1257,7 +1234,6 @@ class _DayCard extends StatelessWidget {
   const _DayCard({
     super.key,
     required this.headerWeekday,
-    required this.headerOrdinal,
     required this.date,
     required this.dateYmd,
     required this.slots,
@@ -1270,7 +1246,6 @@ class _DayCard extends StatelessWidget {
   });
 
   final String headerWeekday;
-  final String headerOrdinal;
   final DateTime date;
   final String dateYmd;
   final List<MyRotaSlot> slots;
@@ -1318,8 +1293,25 @@ class _DayCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '$headerWeekday $headerOrdinal',
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(text: '$headerWeekday ${date.day}'),
+                                  WidgetSpan(
+                                    alignment: PlaceholderAlignment.top,
+                                    child: Transform.translate(
+                                      offset: const Offset(0, -3),
+                                      child: Text(
+                                        _myRotaOrdinalSuffix(date.day),
+                                        style: AppTypography.caption.copyWith(
+                                          color: colors.textPrimary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                               textAlign: TextAlign.left,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
