@@ -66,7 +66,7 @@ class HomeHubScreen extends StatelessWidget {
 
   static const List<_HubTileSpec> _settingsTiles = [
     _HubTileSpec(title: 'Themes', icon: Icons.palette_outlined, isThemes: true),
-    _HubTileSpec(title: 'Account', icon: Icons.person_outline),
+    _HubTileSpec(title: 'Account', icon: Icons.person_outline, isAccount: true),
   ];
 
   @override
@@ -176,14 +176,6 @@ class HomeHubScreen extends StatelessWidget {
                                   onTileTap: (spec) => _onTileTap(ctx, spec),
                                 ),
                               ),
-                              SizedBox(height: AppSpacing.lg),
-                              Center(
-                                child: TextButton.icon(
-                                  onPressed: onLogout,
-                                  icon: const Icon(Icons.logout),
-                                  label: const Text('Sign out'),
-                                ),
-                              ),
                             ],
                           ),
                         );
@@ -242,10 +234,269 @@ class HomeHubScreen extends StatelessWidget {
       );
       return;
     }
+    if (spec.isAccount) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => _AccountScreen(
+            session: session,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+            onLogout: onLogout,
+          ),
+        ),
+      );
+      return;
+    }
     if (!context.mounted) {
       return;
     }
     AppToast.show(context, '${spec.title} is coming soon.');
+  }
+}
+
+class _AccountScreen extends StatelessWidget {
+  const _AccountScreen({
+    required this.session,
+    required this.lightHomeWallpaper,
+    required this.darkHomeWallpaper,
+    required this.onLogout,
+  });
+
+  final UserSession session;
+  final LightHomeWallpaper lightHomeWallpaper;
+  final DarkHomeWallpaper darkHomeWallpaper;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mq = MediaQuery.of(context);
+    final topContentInset = mq.padding.top + kToolbarHeight;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isDark
+                      ? [
+                          colors.bgPrimary.withValues(alpha: 0.0),
+                          colors.bgPrimary.withValues(alpha: 0.28),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: 0.42),
+                        ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        title: const Text('Account'),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              homeBackgroundAssetPath(
+                brightness: isDark ? Brightness.dark : Brightness.light,
+                lightWallpaper: lightHomeWallpaper,
+                darkWallpaper: darkHomeWallpaper,
+              ),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+            ),
+          ),
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                topContentInset,
+                AppSpacing.lg,
+                mq.padding.bottom + AppSpacing.lg,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _AccountInfoCard(session: session),
+                    const SizedBox(height: AppSpacing.sm),
+                    _AccountActionCard(
+                      title: 'Sign out',
+                      subtitle: 'End this session and return to sign in.',
+                      icon: Icons.logout,
+                      onTap: onLogout,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountInfoCard extends StatelessWidget {
+  const _AccountInfoCard({required this.session});
+
+  final UserSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final role = session.userRole?.trim();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.bgElevated.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withValues(alpha: 0.12),
+            blurRadius: AppElevation.level4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.infoBg,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                border: Border.all(color: colors.borderDefault),
+              ),
+              child: Icon(Icons.person_outline, color: colors.info),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (role != null && role.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      role,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountActionCard extends StatelessWidget {
+  const _AccountActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Material(
+        color: colors.bgElevated.withValues(alpha: 0.9),
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: colors.borderDefault),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: colors.dangerBg,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      border: Border.all(color: colors.borderDefault),
+                    ),
+                    child: Icon(icon, color: colors.danger),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: colors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: colors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -256,6 +507,7 @@ class _HubTileSpec {
     this.isCalendar = false,
     this.isThemes = false,
     this.isMyRota = false,
+    this.isAccount = false,
   });
 
   final String title;
@@ -263,6 +515,7 @@ class _HubTileSpec {
   final bool isCalendar;
   final bool isThemes;
   final bool isMyRota;
+  final bool isAccount;
 }
 
 /// Row of hub tiles with a one-shot staggered fade and drop from above.
