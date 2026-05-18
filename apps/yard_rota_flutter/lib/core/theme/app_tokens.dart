@@ -381,6 +381,9 @@ class AppMyRotaListSpacing {
 
   /// Fixed width for time+icon column so follow-up rows (same slot time) align without repeating time.
   static const double timeColumnFixedWidth = 118;
+  static const double dayHeaderWeekdayColumnWidth = 82;
+  static const double dayHeaderDateColumnWidth = 34;
+  static const double locationInlineIconSize = 14;
 
   /// Vertical padding per person row (tighter list).
   static const double slotRowVertical = AppSpacing.xxs;
@@ -411,6 +414,22 @@ class AppStatsCard {
 
   static const double metricMinHeight = 70;
   static const double leaderboardAvatarSize = 44;
+  static const double compactRankBadgeSize = 46;
+  static const double compactRowMinHeight = 34;
+  static const double compactRowHorizontalPadding = 10;
+  static const double compactRowVerticalPadding = 6;
+}
+
+@immutable
+class AppPreCheckCard {
+  const AppPreCheckCard._();
+
+  static const double cardPadding = AppSpacing.md;
+  static const double accentStripWidth = 4;
+  static const double actionVerticalPadding = AppSpacing.sm;
+  static const double tugAvatarSize = 38;
+  static const double stickyHeaderExtent = 82;
+  static const double qrFrameSize = 236;
 }
 
 @immutable

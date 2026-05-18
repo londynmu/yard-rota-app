@@ -760,6 +760,39 @@ String _myRotaOrdinalSuffix(int day) {
   };
 }
 
+class _OrdinalDateText extends StatelessWidget {
+  const _OrdinalDateText({
+    required this.day,
+    required this.style,
+    required this.suffixStyle,
+  });
+
+  final int day;
+  final TextStyle? style;
+  final TextStyle suffixStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$day'),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.top,
+            child: Transform.translate(
+              offset: const Offset(0, -3),
+              child: Text(_myRotaOrdinalSuffix(day), style: suffixStyle),
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title});
 
@@ -952,7 +985,6 @@ class _YourShiftDayRow extends StatelessWidget {
     final firstShift = day.shifts.first.slot;
     final weekday = _weekdayFull[day.date.weekday - 1];
     final location = firstShift.location.trim();
-    final locationText = location.isEmpty ? '' : ' in $location';
     final timeText =
         '${_myRotaShortTime(firstShift.startTime)} - ${_myRotaShortTime(firstShift.endTime)}';
     final hasTask = day.shifts.any((shift) {
@@ -978,33 +1010,56 @@ class _YourShiftDayRow extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(text: '$weekday ${day.date.day}'),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.top,
-                              child: Transform.translate(
-                                offset: const Offset(0, -3),
-                                child: Text(
-                                  _myRotaOrdinalSuffix(day.date.day),
-                                  style: AppTypography.caption.copyWith(
-                                    color: colors.textPrimary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            TextSpan(text: locationText),
-                          ],
-                        ),
+                    SizedBox(
+                      width: AppMyRotaListSpacing.dayHeaderWeekdayColumnWidth,
+                      child: Text(
+                        weekday,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodyMedium.copyWith(
                           color: colors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: AppMyRotaListSpacing.dayHeaderDateColumnWidth,
+                      child: _OrdinalDateText(
+                        day: day.date.day,
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        suffixStyle: AppTypography.caption.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          if (location.isNotEmpty) ...[
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: AppMyRotaListSpacing.locationInlineIconSize,
+                              color: colors.textSecondary,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: Text(
+                                location,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: colors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -1293,34 +1348,46 @@ class _DayCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(text: '$headerWeekday ${date.day}'),
-                                  WidgetSpan(
-                                    alignment: PlaceholderAlignment.top,
-                                    child: Transform.translate(
-                                      offset: const Offset(0, -3),
-                                      child: Text(
-                                        _myRotaOrdinalSuffix(date.day),
-                                        style: AppTypography.caption.copyWith(
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: AppMyRotaListSpacing
+                                      .dayHeaderWeekdayColumnWidth,
+                                  child: Text(
+                                    headerWeekday,
+                                    textAlign: TextAlign.left,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
                                           color: colors.textPrimary,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.32,
                                         ),
-                                      ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: AppMyRotaListSpacing
+                                      .dayHeaderDateColumnWidth,
+                                  child: _OrdinalDateText(
+                                    day: date.day,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          color: colors.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.32,
+                                        ),
+                                    suffixStyle: AppTypography.caption.copyWith(
+                                      color: colors.textPrimary,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                ],
-                              ),
-                              textAlign: TextAlign.left,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: colors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.32,
-                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1351,25 +1418,37 @@ class _DayCard extends StatelessWidget {
                               _ShiftCountChip(
                                 icon: Icons.wb_sunny_outlined,
                                 count: dayCount,
-                                fg: AppPrimitives.amber800,
-                                bg: AppPrimitives.amber50,
-                                border: AppPrimitives.amber200,
+                                fg: colors.textPrimary,
+                                bg: AppPrimitives.amber200.withValues(
+                                  alpha: 0.42,
+                                ),
+                                border: AppPrimitives.amber300.withValues(
+                                  alpha: 0.32,
+                                ),
                               ),
                             if (aftCount > 0)
                               _ShiftCountChip(
                                 icon: Icons.cloud_outlined,
                                 count: aftCount,
-                                fg: AppPrimitives.amber800,
-                                bg: AppPrimitives.amber100,
-                                border: AppPrimitives.amber300,
+                                fg: colors.textPrimary,
+                                bg: AppPrimitives.amber100.withValues(
+                                  alpha: 0.44,
+                                ),
+                                border: AppPrimitives.amber300.withValues(
+                                  alpha: 0.28,
+                                ),
                               ),
                             if (nightCount > 0)
                               _ShiftCountChip(
                                 icon: Icons.nightlight_outlined,
                                 count: nightCount,
-                                fg: AppPrimitives.blue800,
-                                bg: AppPrimitives.blue50,
-                                border: AppPrimitives.blue200,
+                                fg: colors.textPrimary,
+                                bg: AppPrimitives.blue200.withValues(
+                                  alpha: 0.38,
+                                ),
+                                border: AppPrimitives.blue300.withValues(
+                                  alpha: 0.28,
+                                ),
                               ),
                           ],
                         ),

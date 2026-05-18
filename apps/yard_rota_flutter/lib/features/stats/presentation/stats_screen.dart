@@ -523,15 +523,17 @@ class _MyPerformanceCard extends StatelessWidget {
       );
     }
     final colors = context.appColors;
+    final teamAverageRatio = user.teamAverageRatio;
     return _StatsSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: AppStatsCard.compactRankBadgeSize,
+                height: AppStatsCard.compactRankBadgeSize,
                 decoration: BoxDecoration(
                   color: colors.primary.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
@@ -571,59 +573,135 @@ class _MyPerformanceCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                user.totalMoves.toString(),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: 'Moves/day',
-                  value: user.movesPerDay.toStringAsFixed(1),
-                ),
-              ),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _MetricTile(
-                  label: 'Days',
-                  value: user.daysWorked.toString(),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    user.totalMoves.toString(),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'moves',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: 'Collect',
-                  value: user.avgCollectLabel,
+          const SizedBox(height: AppSpacing.md),
+          _CompactStatList(
+            items: [
+              _CompactStatItem(
+                label: 'Moves/day',
+                value: user.movesPerDay.toStringAsFixed(1),
+              ),
+              _CompactStatItem(
+                label: 'Days',
+                value: user.daysWorked.toString(),
+              ),
+              _CompactStatItem(label: 'Collect', value: user.avgCollectLabel),
+              _CompactStatItem(label: 'Travel', value: user.avgTravelLabel),
+              if (teamAverageRatio != null)
+                _CompactStatItem(
+                  label: 'Team avg',
+                  value: '${(teamAverageRatio * 100).round()}%',
+                  highlighted: teamAverageRatio >= 1,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _MetricTile(label: 'Travel', value: user.avgTravelLabel),
-              ),
             ],
           ),
-          if (user.teamAverageRatio != null) ...[
-            const SizedBox(height: AppSpacing.md),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactStatItem {
+  const _CompactStatItem({
+    required this.label,
+    required this.value,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final String value;
+  final bool highlighted;
+}
+
+class _CompactStatList extends StatelessWidget {
+  const _CompactStatList({required this.items});
+
+  final List<_CompactStatItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.bgSecondary.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            _CompactStatRow(item: items[i]),
+            if (i != items.length - 1)
+              Divider(height: 1, thickness: 1, color: colors.divider),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactStatRow extends StatelessWidget {
+  const _CompactStatRow({required this.item});
+
+  final _CompactStatItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final valueColor = item.highlighted ? colors.primary : colors.textPrimary;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: AppStatsCard.compactRowMinHeight,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppStatsCard.compactRowHorizontalPadding,
+          vertical: AppStatsCard.compactRowVerticalPadding,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: colors.textSecondary),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
             Text(
-              '${(user.teamAverageRatio! * 100).round()}% of team average',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-                fontWeight: FontWeight.w600,
+              item.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: valueColor,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1062,6 +1140,7 @@ class _TeamSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return _StatsSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1069,43 +1148,28 @@ class _TeamSnapshotCard extends StatelessWidget {
           Text(
             'Team Snapshot',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: context.appColors.textPrimary,
+              color: colors.textPrimary,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: 'Team moves',
-                  value: team.totalMoves.toString(),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _MetricTile(
-                  label: 'Shunters',
-                  value: team.activeShunters.toString(),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricTile(
-                  label: 'Avg/day',
-                  value: team.avgMovesPerDay.toString(),
-                ),
+          _CompactStatList(
+            items: [
+              _CompactStatItem(
+                label: 'Team moves',
+                value: team.totalMoves.toString(),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _MetricTile(
-                  label: 'Full loc',
-                  value: team.totalFullLocations.toString(),
-                ),
+              _CompactStatItem(
+                label: 'Shunters',
+                value: team.activeShunters.toString(),
+              ),
+              _CompactStatItem(
+                label: 'Avg/day',
+                value: team.avgMovesPerDay.toString(),
+              ),
+              _CompactStatItem(
+                label: 'Full loc',
+                value: team.totalFullLocations.toString(),
               ),
             ],
           ),
