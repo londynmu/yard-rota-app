@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:label="yard_rota_flutter"
         android:name="${applicationName}"

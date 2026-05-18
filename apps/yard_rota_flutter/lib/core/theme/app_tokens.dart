@@ -330,6 +330,47 @@ class AppM3Carousel {
   static const double pageCardHorizontalPadding = 4;
 }
 
+/// Figma: Luxury Gradients (Community) — Home card gradient windows.
+@immutable
+class AppLuxuryHomeGradient {
+  const AppLuxuryHomeGradient._();
+
+  static const double cardHeight = 78;
+  static const double virtualHeight = 620;
+  static const double sliceStride = 82;
+  static const double iconSurfaceAlpha = 0.18;
+  static const double contentOverlayStartAlpha = 0.08;
+  static const double contentOverlayEndAlpha = 0.42;
+  static const double borderAlpha = 0.24;
+  static const double textShadowAlpha = 0.38;
+  static const double textEntranceSlideX = 0.35;
+  static const textEntrancePerCard = Duration(milliseconds: 130);
+  static const darkContent = Color(0xFFFFFFFF);
+  static const lightContent = Color(0xFF172033);
+
+  static const darkColors = [
+    Color(0xFF070B18),
+    Color(0xFF10182B),
+    Color(0xFF1D2946),
+    Color(0xFF25385A),
+    Color(0xFF284B5E),
+    Color(0xFF1B3652),
+    Color(0xFF090D1A),
+  ];
+
+  static const lightColors = [
+    Color(0xFFFBF8EF),
+    Color(0xFFF6EFD9),
+    Color(0xFFE9EFF7),
+    Color(0xFFD7EAF5),
+    Color(0xFFE7DCAE),
+    Color(0xFFEAF4F7),
+    Color(0xFFF8F5EC),
+  ];
+
+  static const stops = [0.0, 0.17, 0.34, 0.52, 0.68, 0.84, 1.0];
+}
+
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
 @immutable
 class AppMyRotaListSpacing {

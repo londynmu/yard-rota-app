@@ -126,6 +126,14 @@ class AppLocalDatabase extends GeneratedDatabase {
         fetched_at INTEGER NOT NULL
       );
     ''');
+
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS precheck_drafts (
+        draft_key TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    ''');
   }
 
   Future<void> clearAllUserData() async {
@@ -136,6 +144,7 @@ class AppLocalDatabase extends GeneratedDatabase {
     await customStatement('DELETE FROM stats_performance_local');
     await customStatement('DELETE FROM stats_profile_local');
     await customStatement('DELETE FROM stats_range_meta');
+    await customStatement('DELETE FROM precheck_drafts');
   }
 
   Future<CalendarMonthData?> readCalendarMonth({
@@ -408,6 +417,105 @@ class AppLocalDatabase extends GeneratedDatabase {
       WHERE id = ?
       ''',
       [attemptCount, nextRetryAt, lastError, id],
+    );
+  }
+
+  Future<String?> readPreCheckDraft(String draftKey) async {
+    final rows = await customSelect(
+      'SELECT payload_json FROM precheck_drafts WHERE draft_key = ? LIMIT 1',
+      variables: [Variable.withString(draftKey)],
+      readsFrom: const {},
+    ).get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.first.read<String>('payload_json');
+  }
+
+  Future<void> writePreCheckDraft({
+    required String draftKey,
+    required String payloadJson,
+  }) async {
+    await customStatement(
+      '''
+      INSERT OR REPLACE INTO precheck_drafts(
+        draft_key,payload_json,updated_at
+      ) VALUES(?,?,?)
+      ''',
+      [draftKey, payloadJson, DateTime.now().millisecondsSinceEpoch],
+    );
+  }
+
+  Future<void> clearPreCheckDraft(String draftKey) async {
+    await customStatement('DELETE FROM precheck_drafts WHERE draft_key = ?', [
+      draftKey,
+    ]);
+  }
+
+  Future<void> enqueuePreCheckJob({
+    required String jobKey,
+    required String opType,
+    required String payloadJson,
+  }) async {
+    final createdAt = DateTime.now().millisecondsSinceEpoch;
+    final idempotencyKey = 'precheck:$opType:$jobKey:$createdAt';
+    await customStatement(
+      '''
+      INSERT OR REPLACE INTO sync_outbox(
+        entity,entity_key,op_type,payload_json,created_at,idempotency_key
+      ) VALUES(?,?,?,?,?,?)
+      ''',
+      ['precheck', jobKey, opType, payloadJson, createdAt, idempotencyKey],
+    );
+  }
+
+  Future<List<OutboxRecord>> readPendingPreCheckJobs({int limit = 25}) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final rows = await customSelect(
+      '''
+      SELECT id,entity,entity_key,op_type,payload_json,attempt_count,next_retry_at
+      FROM sync_outbox
+      WHERE entity = 'precheck' AND next_retry_at <= ?
+      ORDER BY created_at ASC
+      LIMIT ?
+      ''',
+      variables: [Variable.withInt(nowMs), Variable.withInt(limit)],
+      readsFrom: const {},
+    ).get();
+
+    return rows
+        .map(
+          (row) => OutboxRecord(
+            id: row.read<int>('id'),
+            entity: row.read<String>('entity'),
+            entityKey: row.read<String>('entity_key'),
+            opType: row.read<String>('op_type'),
+            payloadJson: row.read<String>('payload_json'),
+            attemptCount: row.read<int>('attempt_count'),
+            nextRetryAt: row.read<int>('next_retry_at'),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<({int total, int pending, int failed})>
+  readPreCheckQueueStatus() async {
+    final rows = await customSelect('''
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN last_error IS NULL THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN last_error IS NOT NULL THEN 1 ELSE 0 END) AS failed
+      FROM sync_outbox
+      WHERE entity = 'precheck'
+      ''', readsFrom: const {}).get();
+    if (rows.isEmpty) {
+      return (total: 0, pending: 0, failed: 0);
+    }
+    final row = rows.first;
+    return (
+      total: row.read<int>('total'),
+      pending: row.readNullable<int>('pending') ?? 0,
+      failed: row.readNullable<int>('failed') ?? 0,
     );
   }
 

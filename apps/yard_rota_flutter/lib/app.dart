@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/network/api_client.dart';
 import 'core/local_db/app_local_database.dart';
@@ -16,6 +17,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
 import 'features/my_rota/data/my_rota_repository.dart';
+import 'features/pre_check/data/pre_check_repository.dart';
 import 'features/shell/main_shell.dart';
 import 'features/stats/data/stats_repository.dart';
 import 'core/theme/theme_mode_storage.dart';
@@ -25,14 +27,17 @@ class YardRotaApp extends StatefulWidget {
     super.key,
     ApiClient? apiClient,
     AppLocalDatabase? localDb,
+    PreCheckRepository? preCheckRepository,
     this.initialThemeMode = ThemeMode.system,
     this.initialLightHomeWallpaper = LightHomeWallpaper.classic,
     this.initialDarkHomeWallpaper = DarkHomeWallpaper.nightMesh,
   }) : _apiClient = apiClient,
-       _localDb = localDb;
+       _localDb = localDb,
+       _preCheckRepository = preCheckRepository;
 
   final ApiClient? _apiClient;
   final AppLocalDatabase? _localDb;
+  final PreCheckRepository? _preCheckRepository;
   final ThemeMode initialThemeMode;
   final LightHomeWallpaper initialLightHomeWallpaper;
   final DarkHomeWallpaper initialDarkHomeWallpaper;
@@ -280,6 +285,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       calendarRepository: _calendarRepository,
       availabilityRepository: _availabilityRepository,
       myRotaRepository: _myRotaRepository,
+      preCheckRepository: _resolvePreCheckRepository(),
       statsRepository: _statsRepository,
       onLogout: _handleLogout,
       themeMode: _themeMode,
@@ -289,5 +295,19 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       onLightHomeWallpaperChanged: _handleLightHomeWallpaperChanged,
       onDarkHomeWallpaperChanged: _handleDarkHomeWallpaperChanged,
     );
+  }
+
+  PreCheckRepository? _resolvePreCheckRepository() {
+    if (widget._preCheckRepository != null) {
+      return widget._preCheckRepository;
+    }
+    try {
+      return PreCheckRepository(
+        supabaseClient: Supabase.instance.client,
+        localDb: _localDb,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

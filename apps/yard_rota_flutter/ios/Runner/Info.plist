@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Yard Rota uses the camera to scan tug QR codes and attach PreCheck photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Yard Rota uses your photo library to attach PreCheck evidence photos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -12,11 +12,13 @@ import '../../calendar/data/calendar_repository.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../my_rota/data/my_rota_repository.dart';
 import '../../my_rota/presentation/my_rota_screen.dart';
+import '../../pre_check/data/pre_check_repository.dart';
+import '../../pre_check/presentation/pre_check_screen.dart';
 import '../../profile/presentation/themes_screen.dart';
 import '../../stats/data/stats_repository.dart';
 import '../../stats/presentation/stats_screen.dart';
 
-class HomeHubScreen extends StatelessWidget {
+class HomeHubScreen extends StatefulWidget {
   const HomeHubScreen({
     super.key,
     required this.themeMode,
@@ -30,6 +32,7 @@ class HomeHubScreen extends StatelessWidget {
     required this.calendarRepository,
     required this.availabilityRepository,
     required this.myRotaRepository,
+    this.preCheckRepository,
     required this.statsRepository,
   });
 
@@ -46,6 +49,7 @@ class HomeHubScreen extends StatelessWidget {
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
   final MyRotaRepository myRotaRepository;
+  final PreCheckRepository? preCheckRepository;
   final StatsRepository statsRepository;
 
   static const List<_HubTileSpec> _primaryTiles = [
@@ -68,6 +72,11 @@ class HomeHubScreen extends StatelessWidget {
       isMyRota: true,
     ),
     _HubTileSpec(
+      title: 'PreCheck',
+      icon: Icons.fact_check_outlined,
+      isPreCheck: true,
+    ),
+    _HubTileSpec(
       title: 'Notifications',
       icon: Icons.notifications_none_outlined,
     ),
@@ -77,6 +86,42 @@ class HomeHubScreen extends StatelessWidget {
     _HubTileSpec(title: 'Themes', icon: Icons.palette_outlined, isThemes: true),
     _HubTileSpec(title: 'Account', icon: Icons.person_outline, isAccount: true),
   ];
+
+  static const List<_HubTileSpec> _homeCards = [
+    ..._primaryTiles,
+    ..._workTiles,
+    ..._settingsTiles,
+  ];
+
+  @override
+  State<HomeHubScreen> createState() => _HomeHubScreenState();
+}
+
+class _HomeHubScreenState extends State<HomeHubScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _titleEntranceController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleEntranceController = AnimationController(
+      vsync: this,
+      duration:
+          AppLuxuryHomeGradient.textEntrancePerCard *
+          HomeHubScreen._homeCards.length,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _titleEntranceController.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _titleEntranceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,8 +169,8 @@ class HomeHubScreen extends StatelessWidget {
             child: Image.asset(
               homeBackgroundAssetPath(
                 brightness: isDark ? Brightness.dark : Brightness.light,
-                lightWallpaper: lightHomeWallpaper,
-                darkWallpaper: darkHomeWallpaper,
+                lightWallpaper: widget.lightHomeWallpaper,
+                darkWallpaper: widget.darkHomeWallpaper,
               ),
               fit: BoxFit.cover,
               alignment: Alignment.center,
@@ -145,48 +190,24 @@ class HomeHubScreen extends StatelessWidget {
                 clipBehavior: Clip.none,
                 child: Builder(
                   builder: (ctx) {
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final maxW = constraints.maxWidth.isFinite
-                            ? constraints.maxWidth
-                            : MediaQuery.sizeOf(context).width -
-                                  AppSpacing.lg * 2;
-                        final gap = AppSpacing.sm;
-                        final primaryTileH = (maxW * 0.42).clamp(150.0, 220.0);
-                        final tileW = (maxW - gap) / 2;
-
-                        return SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                height: primaryTileH,
-                                child: _HubTileRow(
-                                  gap: gap,
-                                  tiles: _primaryTiles,
-                                  onTileTap: (spec) => _onTileTap(ctx, spec),
-                                ),
-                              ),
-                              SizedBox(height: gap),
-                              SizedBox(
-                                height: tileW,
-                                child: _HubTileRow(
-                                  gap: gap,
-                                  tiles: _workTiles,
-                                  onTileTap: (spec) => _onTileTap(ctx, spec),
-                                ),
-                              ),
-                              SizedBox(height: gap),
-                              SizedBox(
-                                height: tileW,
-                                child: _HubTileRow(
-                                  gap: gap,
-                                  tiles: _settingsTiles,
-                                  onTileTap: (spec) => _onTileTap(ctx, spec),
-                                ),
-                              ),
-                            ],
+                    return GridView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: HomeHubScreen._homeCards.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: AppSpacing.sm,
+                            mainAxisSpacing: AppSpacing.sm,
+                            childAspectRatio: 1,
                           ),
+                      itemBuilder: (context, index) {
+                        final spec = HomeHubScreen._homeCards[index];
+                        return _HubSquareTile(
+                          spec: spec,
+                          index: index,
+                          cardCount: HomeHubScreen._homeCards.length,
+                          titleEntranceAnimation: _titleEntranceController,
+                          onTap: () => _onTileTap(ctx, spec),
                         );
                       },
                     );
@@ -205,11 +226,11 @@ class HomeHubScreen extends StatelessWidget {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => CalendarScreen(
-            displayName: session.displayName,
-            calendarRepository: calendarRepository,
-            availabilityRepository: availabilityRepository,
-            lightHomeWallpaper: lightHomeWallpaper,
-            darkHomeWallpaper: darkHomeWallpaper,
+            displayName: widget.session.displayName,
+            calendarRepository: widget.calendarRepository,
+            availabilityRepository: widget.availabilityRepository,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
         ),
       );
@@ -219,12 +240,12 @@ class HomeHubScreen extends StatelessWidget {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => ThemesScreen(
-            themeMode: themeMode,
-            onThemeModeChanged: onThemeModeChanged,
-            lightHomeWallpaper: lightHomeWallpaper,
-            darkHomeWallpaper: darkHomeWallpaper,
-            onLightHomeWallpaperChanged: onLightHomeWallpaperChanged,
-            onDarkHomeWallpaperChanged: onDarkHomeWallpaperChanged,
+            themeMode: widget.themeMode,
+            onThemeModeChanged: widget.onThemeModeChanged,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
+            onLightHomeWallpaperChanged: widget.onLightHomeWallpaperChanged,
+            onDarkHomeWallpaperChanged: widget.onDarkHomeWallpaperChanged,
           ),
         ),
       );
@@ -234,10 +255,28 @@ class HomeHubScreen extends StatelessWidget {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => MyRotaScreen(
-            repository: myRotaRepository,
-            session: session,
-            lightHomeWallpaper: lightHomeWallpaper,
-            darkHomeWallpaper: darkHomeWallpaper,
+            repository: widget.myRotaRepository,
+            session: widget.session,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.isPreCheck) {
+      final repository = widget.preCheckRepository;
+      if (repository == null) {
+        AppToast.show(context, 'PreCheck is coming soon.');
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => PreCheckScreen(
+            repository: repository,
+            session: widget.session,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
         ),
       );
@@ -247,10 +286,10 @@ class HomeHubScreen extends StatelessWidget {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => StatsScreen(
-            repository: statsRepository,
-            session: session,
-            lightHomeWallpaper: lightHomeWallpaper,
-            darkHomeWallpaper: darkHomeWallpaper,
+            repository: widget.statsRepository,
+            session: widget.session,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
         ),
       );
@@ -260,10 +299,10 @@ class HomeHubScreen extends StatelessWidget {
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => _AccountScreen(
-            session: session,
-            lightHomeWallpaper: lightHomeWallpaper,
-            darkHomeWallpaper: darkHomeWallpaper,
-            onLogout: onLogout,
+            session: widget.session,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
+            onLogout: widget.onLogout,
           ),
         ),
       );
@@ -529,6 +568,7 @@ class _HubTileSpec {
     this.isCalendar = false,
     this.isThemes = false,
     this.isMyRota = false,
+    this.isPreCheck = false,
     this.isStats = false,
     this.isAccount = false,
   });
@@ -538,235 +578,272 @@ class _HubTileSpec {
   final bool isCalendar;
   final bool isThemes;
   final bool isMyRota;
+  final bool isPreCheck;
   final bool isStats;
   final bool isAccount;
 }
 
-/// Row of hub tiles with a one-shot staggered fade and drop from above.
-class _HubTileRow extends StatefulWidget {
-  const _HubTileRow({
-    required this.gap,
-    required this.tiles,
-    required this.onTileTap,
+class _HubSquareTile extends StatelessWidget {
+  const _HubSquareTile({
+    required this.spec,
+    required this.index,
+    required this.cardCount,
+    required this.titleEntranceAnimation,
+    required this.onTap,
   });
 
-  final double gap;
-  final List<_HubTileSpec> tiles;
-  final void Function(_HubTileSpec spec) onTileTap;
+  final _HubTileSpec spec;
+  final int index;
+  final int cardCount;
+  final Animation<double> titleEntranceAnimation;
+  final VoidCallback onTap;
 
   @override
-  State<_HubTileRow> createState() => _HubTileRowState();
-}
-
-class _HubTileRowState extends State<_HubTileRow>
-    with SingleTickerProviderStateMixin {
-  static const Duration _enterDuration = Duration(milliseconds: 760);
-
-  /// Vertical offset (px) above rest position when progress is 0.
-  static const double _enterDropPx = 56;
-
-  late final AnimationController _enterController;
-
-  @override
-  void initState() {
-    super.initState();
-    _enterController = AnimationController(
-      vsync: this,
-      duration: _enterDuration,
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final contentColor = isDark
+        ? AppLuxuryHomeGradient.darkContent
+        : AppLuxuryHomeGradient.lightContent;
+    final overlayColor = isDark ? Colors.black : Colors.white;
+    final titleAnimation = CurvedAnimation(
+      parent: titleEntranceAnimation,
+      curve: Interval(
+        index / cardCount,
+        (index + 1) / cardCount,
+        curve: AppMotion.emphasized,
+      ),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _enterController.forward();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _enterController.dispose();
-    super.dispose();
-  }
-
-  double _entranceProgress(int index) {
-    const stagger = 0.12;
-    const each = 0.46;
-    final t = _enterController.value;
-    final start = index * stagger;
-    final end = start + each;
-    if (t <= start) {
-      return 0;
-    }
-    if (t >= end) {
-      return 1;
-    }
-    return Curves.easeOutCubic.transform((t - start) / (end - start));
-  }
-
-  Widget _tileSlot(int index) {
-    final p = _entranceProgress(index);
-    return Opacity(
-      opacity: p.clamp(0.0, 1.0),
-      child: Transform.translate(
-        offset: Offset(0, -_enterDropPx * (1 - p)),
-        child: _HubTileCard(
-          spec: widget.tiles[index],
-          onTap: () => widget.onTileTap(widget.tiles[index]),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.shadow.withValues(alpha: 0.14),
+                  blurRadius: AppElevation.level4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _LuxuryGradientSlice(index: index),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        overlayColor.withValues(
+                          alpha: AppLuxuryHomeGradient.contentOverlayStartAlpha,
+                        ),
+                        overlayColor.withValues(
+                          alpha: AppLuxuryHomeGradient.contentOverlayEndAlpha,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(
+                      color: contentColor.withValues(
+                        alpha: AppLuxuryHomeGradient.borderAlpha,
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: contentColor.withValues(
+                            alpha: AppLuxuryHomeGradient.iconSurfaceAlpha,
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                          border: Border.all(
+                            color: contentColor.withValues(
+                              alpha: AppLuxuryHomeGradient.borderAlpha,
+                            ),
+                          ),
+                        ),
+                        child: Icon(spec.icon, color: contentColor, size: 22),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ClipRect(
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(
+                              AppLuxuryHomeGradient.textEntranceSlideX,
+                              0,
+                            ),
+                            end: Offset.zero,
+                          ).animate(titleAnimation),
+                          child: FadeTransition(
+                            opacity: titleAnimation,
+                            child: Text(
+                              spec.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: contentColor,
+                                    fontWeight: FontWeight.w700,
+                                    shadows: [
+                                      Shadow(
+                                        color:
+                                            (isDark
+                                                    ? Colors.black
+                                                    : Colors.white)
+                                                .withValues(
+                                                  alpha: AppLuxuryHomeGradient
+                                                      .textShadowAlpha,
+                                                ),
+                                        blurRadius: AppElevation.level4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+class _LuxuryGradientSlice extends StatelessWidget {
+  const _LuxuryGradientSlice({required this.index});
+
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _enterController,
-      builder: (context, _) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < widget.tiles.length; i++) ...[
-              if (i > 0) SizedBox(width: widget.gap),
-              Expanded(child: _tileSlot(i)),
-            ],
-          ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topCenter,
+            minWidth: width,
+            maxWidth: width,
+            minHeight: AppLuxuryHomeGradient.virtualHeight,
+            maxHeight: AppLuxuryHomeGradient.virtualHeight,
+            child: Transform.translate(
+              offset: Offset(0, -index * AppLuxuryHomeGradient.sliceStride),
+              child: SizedBox(
+                width: width,
+                height: AppLuxuryHomeGradient.virtualHeight,
+                child: const _LuxuryGradientCanvas(),
+              ),
+            ),
+          ),
         );
       },
     );
   }
 }
 
-class _HubTileCard extends StatelessWidget {
-  const _HubTileCard({required this.spec, required this.onTap});
-
-  static const double _meshOpacity = 0.5;
-
-  static const _onMeshLabel = Color(0xFFF2F6FA);
-  static const _onMeshIcon = Color(0xFFE8EEF5);
-
-  final _HubTileSpec spec;
-  final VoidCallback onTap;
+class _LuxuryGradientCanvas extends StatelessWidget {
+  const _LuxuryGradientCanvas();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Opacity(opacity: _meshOpacity, child: const _AuroraMesh()),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              splashColor: Colors.white24,
-              highlightColor: Colors.white10,
-              child: Ink(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(spec.icon, size: 32, color: _onMeshIcon),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        spec.title,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: _onMeshLabel,
-                          fontWeight: FontWeight.w600,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0x66000000),
-                              blurRadius: 8,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Aurora / Bonus (Figma `76:4754`) shared mesh for all hub tiles.
-class _AuroraMesh extends StatelessWidget {
-  const _AuroraMesh();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Stack(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gradientColors = isDark
+        ? AppLuxuryHomeGradient.darkColors
+        : AppLuxuryHomeGradient.lightColors;
+    final veilColor = isDark ? Colors.black : Colors.white;
+    return Stack(
       fit: StackFit.expand,
       children: [
-        ColoredBox(color: Color(0xFF04030A)),
-        _RadialMeshLayer(
-          center: Alignment(0.88, -0.72),
-          radius: 1.32,
-          colors: [
-            Color(0xFF6BD4E0),
-            Color(0x995868C8),
-            Color(0x33221440),
-            Color(0x0004030A),
-          ],
-          stops: [0.0, 0.28, 0.55, 1.0],
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
+              stops: AppLuxuryHomeGradient.stops,
+            ),
+          ),
         ),
-        _RadialMeshLayer(
-          center: Alignment(-0.55, 0.75),
-          radius: 1.0,
-          colors: [Color(0x66402070), Color(0x0004030A)],
-          stops: [0.0, 1.0],
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0.86, -0.78),
+              radius: 0.92,
+              colors: [
+                gradientColors[5].withValues(alpha: isDark ? 0.38 : 0.30),
+                gradientColors[2].withValues(alpha: isDark ? 0.16 : 0.20),
+                Colors.transparent,
+              ],
+              stops: const [0.0, 0.42, 1.0],
+            ),
+          ),
         ),
-        _RadialMeshLayer(
-          center: Alignment(0.35, 0.2),
-          radius: 0.85,
-          colors: [Color(0x40205080), Color(0x00000000)],
-          stops: [0.0, 1.0],
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(-0.8, 0.25),
+              radius: 0.86,
+              colors: [
+                gradientColors[3].withValues(alpha: isDark ? 0.34 : 0.26),
+                gradientColors[1].withValues(alpha: isDark ? 0.15 : 0.22),
+                Colors.transparent,
+              ],
+              stops: const [0.0, 0.48, 1.0],
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(0.18, 0.92),
+              radius: 0.78,
+              colors: [
+                gradientColors[4].withValues(alpha: isDark ? 0.30 : 0.24),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                veilColor.withValues(alpha: isDark ? 0.02 : 0.08),
+                veilColor.withValues(alpha: isDark ? 0.24 : 0.18),
+              ],
+            ),
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _RadialMeshLayer extends StatelessWidget {
-  const _RadialMeshLayer({
-    required this.center,
-    required this.radius,
-    required this.colors,
-    required this.stops,
-  });
-
-  final Alignment center;
-  final double radius;
-  final List<Color> colors;
-  final List<double> stops;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: center,
-          radius: radius,
-          colors: colors,
-          stops: stops,
-        ),
-      ),
     );
   }
 }

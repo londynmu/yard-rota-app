@@ -814,7 +814,7 @@ class _YourShiftsSection extends StatelessWidget {
             AppSpacing.lg,
             0,
             AppSpacing.lg,
-            AppSpacing.lg,
+            0,
           ),
           child: Text(
             'No shifts for you this week',
@@ -863,13 +863,10 @@ class _YourShiftsCardShell extends StatelessWidget {
                 AppSpacing.lg,
                 AppSpacing.sm,
               ),
-              child: _SectionHeader(
-                title: 'Your shifts this week',
-                subtitle:
-                    'Quick view of your own rota before the full team list.',
-              ),
+              child: _SectionHeader(title: 'Your shifts this week'),
             ),
             child,
+            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),
