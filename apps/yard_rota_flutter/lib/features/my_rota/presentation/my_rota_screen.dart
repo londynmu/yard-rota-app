@@ -1619,9 +1619,40 @@ class _PersonRow extends StatelessWidget {
     }
     final colors = context.appColors;
     final nameStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      fontWeight: isYou ? FontWeight.w600 : FontWeight.w500,
-      color: isYou ? AppPrimitives.amber900 : colors.textPrimary,
+      fontWeight: FontWeight.w500,
+      color: colors.textPrimary,
     );
+    final nameLabel = isYou
+        ? ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.42,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: AppPrimitives.amber50,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                border: Border.all(
+                  color: AppPrimitives.amber200.withValues(alpha: 0.72),
+                  width: AppStroke.hairline,
+                ),
+              ),
+              child: Text(
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: AppTypography.caption.copyWith(
+                  color: AppPrimitives.amber800,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          )
+        : Text(displayName, textAlign: TextAlign.right, style: nameStyle);
 
     final timeBlock = showTimeColumn
         ? Row(
@@ -1666,11 +1697,7 @@ class _PersonRow extends StatelessWidget {
                 spacing: AppSpacing.xs,
                 runSpacing: AppSpacing.xxs,
                 children: [
-                  Text(
-                    displayName,
-                    textAlign: TextAlign.right,
-                    style: nameStyle,
-                  ),
+                  nameLabel,
                   if (attendance != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1688,28 +1715,6 @@ class _PersonRow extends StatelessWidget {
                         attendance!.labelEnglish,
                         style: AppTypography.caption.copyWith(
                           color: colors.danger,
-                        ),
-                      ),
-                    ),
-                  if (isYou)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: AppSpacing.xxs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppPrimitives.amber50,
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(
-                          color: AppPrimitives.amber200.withValues(alpha: 0.72),
-                          width: AppStroke.hairline,
-                        ),
-                      ),
-                      child: Text(
-                        'You',
-                        style: AppTypography.caption.copyWith(
-                          color: AppPrimitives.amber800,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
