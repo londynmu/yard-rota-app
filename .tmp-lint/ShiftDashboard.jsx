@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -36,14 +36,6 @@ const getNightSortValue = (timeStr) => {
   }
 
   return totalMinutes;
-};
-
-// Local calendar date as YYYY-MM-DD (toISOString would give the UTC date, which is wrong around midnight in BST)
-const toLocalYmd = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 };
 
 const parseTimeToMinutes = (timeStr) => {
@@ -203,65 +195,66 @@ export default function ShiftDashboard({
   }, [user, sessionProfile]);
 
   // Fetch today's shift
-  const fetchTodaysShift = useCallback(async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    const fetchTodaysShift = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setError(null);
-
-      // Get today's date in local YYYY-MM-DD format
-      const today = toLocalYmd(new Date());
-
-      // Fetch shift for today
-      const { data, error } = await supabase
-        .from('scheduled_rota')
-        .select(`
-          id,
-          date,
-          start_time,
-          end_time,
-          location,
-          shift_type
-        `)
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        // Get scheduled breaks if there are any
-        const { data: breaks, error: breaksError } = await supabase
-          .from('scheduled_breaks')
-          .select('*')
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Fetch shift for today
+        const { data, error } = await supabase
+          .from('scheduled_rota')
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            location,
+            shift_type
+          `)
           .eq('user_id', user.id)
           .eq('date', today)
-          .order('break_start_time', { ascending: true });
-
-        if (breaksError) {
-          console.warn('Error fetching breaks:', breaksError);
+          .order('start_time', { ascending: true });
+          
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          // Get scheduled breaks if there are any
+          const { data: breaks, error: breaksError } = await supabase
+            .from('scheduled_breaks')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .order('break_start_time', { ascending: true });
+            
+          if (breaksError) {
+            console.warn('Error fetching breaks:', breaksError);
+          }
+          
+          // Add breaks to shift data
+          setShift({
+            ...data[0],
+            breaks: breaks || []
+          });
+        } else {
+          setShift(null); // No shift today
         }
-
-        // Add breaks to shift data
-        setShift({
-          ...data[0],
-          breaks: breaks || []
-        });
-      } else {
-        setShift(null); // No shift today
+      } catch (err) {
+        console.error('Error fetching today\'s shift:', err);
+        setError('Could not load shift information');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching today\'s shift:', err);
-      setError('Could not load shift information');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
+    };
+    
     fetchTodaysShift();
     
     // Update current time every minute for progress bars and time calculations
@@ -276,18 +269,21 @@ export default function ShiftDashboard({
       clearInterval(timeIntervalId);
       clearInterval(dataIntervalId);
     };
-  }, [fetchTodaysShift]);
+  }, [user]);
 
   // Fetch ALL today's shifts and breaks for team view
-  // Retry state: transient failures (expired token right after iOS resume, flaky yard network)
-  // must not leave the break list empty until the next 15-minute interval tick.
-  const teamRetryRef = useRef({ timeoutId: null, attempts: 0 });
-
-  const fetchTeamSchedule = useCallback(async () => {
+  useEffect(() => {
+    const fetchTeamSchedule = async () => {
       if (!user) return;
 
       try {
         // Dates: keep shifts on calendar 'today', but for breaks, anchor to previous day until 06:00
+        const toLocalYmd = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
         const now = new Date();
         const today = toLocalYmd(now);
         const yesterday = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
@@ -417,36 +413,33 @@ export default function ShiftDashboard({
         } else {
           setAllBreaks([]);
         }
-        teamRetryRef.current.attempts = 0;
       } catch (err) {
         console.error('Error fetching team schedule:', err);
-        if (teamRetryRef.current.attempts < 3) {
-          teamRetryRef.current.attempts += 1;
-          clearTimeout(teamRetryRef.current.timeoutId);
-          teamRetryRef.current.timeoutId = setTimeout(() => {
-            fetchTeamSchedule();
-          }, 30 * 1000);
-        }
       }
-  }, [user]);
+    };
 
-  useEffect(() => {
     fetchTeamSchedule();
     
     // Refresh team data every 15 minutes
     const teamDataInterval = setInterval(fetchTeamSchedule, 15 * 60 * 1000);
-    const retryState = teamRetryRef.current;
-    return () => {
-      clearInterval(teamDataInterval);
-      clearTimeout(retryState.timeoutId);
-    };
-  }, [fetchTeamSchedule]);
+    return () => clearInterval(teamDataInterval);
+  }, [user]);
 
   // Fetch team break info
-  const fetchBreakInfo = useCallback(async () => {
-      if (!user || !userProfile) return;
+  useEffect(() => {
+    if (!user || !userProfile) {
+      setBreakInfo(null);
+      return;
+    }
 
+    const fetchBreakInfo = async () => {
       // Use local-date logic with a 06:00 boundary for night shift continuity
+      const toLocalYmd = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
       const now = new Date();
       const effectiveDateObj = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
       const today = toLocalYmd(effectiveDateObj); // YYYY-MM-DD format anchored to shift start day
@@ -513,43 +506,10 @@ export default function ShiftDashboard({
         console.error('Error in break info component:', e);
         setBreakInfo('error');
       }
-  }, [user, userProfile]);
+    };
 
-  useEffect(() => {
-    if (!user || !userProfile) {
-      setBreakInfo(null);
-      return;
-    }
     fetchBreakInfo();
-  }, [user, userProfile, fetchBreakInfo]);
-
-  // Refetch when the app comes back from background. iOS Safari / home-screen PWAs freeze JS
-  // timers while suspended and restore the page from memory instead of reloading it, so the
-  // 15-minute intervals alone can leave the break list stale or empty for a long time.
-  const lastResumeRefetchRef = useRef(0);
-  useEffect(() => {
-    const refetchAll = () => {
-      const nowTs = Date.now();
-      if (nowTs - lastResumeRefetchRef.current < 30 * 1000) return;
-      lastResumeRefetchRef.current = nowTs;
-      setCurrentTime(new Date());
-      fetchTodaysShift();
-      fetchTeamSchedule();
-      fetchBreakInfo();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refetchAll();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', refetchAll);
-    window.addEventListener('online', refetchAll);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', refetchAll);
-      window.removeEventListener('online', refetchAll);
-    };
-  }, [fetchTodaysShift, fetchTeamSchedule, fetchBreakInfo]);
+  }, [user, userProfile]);
 
   // Format time helpers
   const formatTime = (timeStr) => {

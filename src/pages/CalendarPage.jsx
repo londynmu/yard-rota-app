@@ -29,8 +29,9 @@ const getInitialSelectedShifts = () => {
     const parsed = JSON.parse(savedValue);
     if (!Array.isArray(parsed)) return VALID_SHIFT_TYPES;
 
-    const normalized = parsed.filter((shift) => VALID_SHIFT_TYPES.includes(shift));
-    return [...new Set(normalized)];
+    const normalized = [...new Set(parsed.filter((shift) => VALID_SHIFT_TYPES.includes(shift)))];
+    // Empty saved selection would permanently hide the whole break list on this device — fall back to all shifts
+    return normalized.length > 0 ? normalized : VALID_SHIFT_TYPES;
   } catch (error) {
     console.warn('Failed to parse saved shift filters:', error);
     return VALID_SHIFT_TYPES;
