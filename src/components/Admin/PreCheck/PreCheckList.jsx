@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/AuthContext';
+import { useToast } from '../../ui/ToastContext';
+import Modal from '../../ui/Modal';
+import { printSingleCheck, printAuditPack } from '../../../lib/precheckPrint';
 
 // ─── Shared status config for repair_status lifecycle ───
 export const STATUS_CONFIG = {
@@ -25,8 +28,23 @@ const TIME_RANGES = {
   '30d': { ms: 30 * 24 * 3600000, label: '30 days' },
 };
 
+function toDateInputValue(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function defaultPackDateRange() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 7);
+  return { from: toDateInputValue(from), to: toDateInputValue(to) };
+}
+
 export default function PreCheckList() {
   const { user } = useAuth();
+  const toast = useToast();
 
   // ─── Core state ───
   const [submissions, setSubmissions] = useState([]);
@@ -42,6 +60,12 @@ export default function PreCheckList() {
   });
   const [tugs, setTugs] = useState([]);
   const [checkItemLabels, setCheckItemLabels] = useState({});
+
+  // ─── Print pack modal ───
+  const [showPrintPackModal, setShowPrintPackModal] = useState(false);
+  const [packDates, setPackDates] = useState(defaultPackDateRange);
+  const [packCheckType, setPackCheckType] = useState('');
+  const [packPrinting, setPackPrinting] = useState(false);
 
   // ─── Faults filter (persisted in localStorage) ───
   const FAULTS_FILTER_KEY = 'precheck_faults_filter';
@@ -391,6 +415,96 @@ export default function PreCheckList() {
     setOkItemsExpandedByCard(prev => ({ ...prev, [subId]: !prev[subId] }));
   }, []);
 
+  const handlePrintCheck = useCallback((sub) => {
+    const opened = printSingleCheck(sub, checkItemLabels);
+    if (!opened) {
+      toast.error('Pop-up blocked. Allow pop-ups to print.');
+    }
+  }, [checkItemLabels, toast]);
+
+  const openPrintPackModal = useCallback(() => {
+    if (!filters.tug) return;
+    setPackDates(defaultPackDateRange());
+    setPackCheckType(filters.checkType || '');
+    setShowPrintPackModal(true);
+  }, [filters.tug, filters.checkType]);
+
+  const handlePrintPack = useCallback(async () => {
+    if (!filters.tug || packPrinting) return;
+    if (!packDates.from || !packDates.to) {
+      toast.warning('Select a date range.');
+      return;
+    }
+    if (packDates.from > packDates.to) {
+      toast.warning('From date must be on or before the to date.');
+      return;
+    }
+
+    setPackPrinting(true);
+    try {
+      let query = supabase
+        .from('precheck_submissions')
+        .select(`
+          *,
+          profiles:user_id(first_name, last_name),
+          tugs(tug_number, display_name, locations(name)),
+          precheck_items(*),
+          precheck_damages(*, resolved_profile:resolved_by(first_name, last_name))
+        `)
+        .eq('tug_id', filters.tug)
+        .gte('check_date', packDates.from)
+        .lte('check_date', packDates.to)
+        .order('check_time', { ascending: true });
+
+      if (packCheckType) {
+        query = query.eq('check_type', packCheckType);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const results = data || [];
+      if (results.length === 0) {
+        toast.info('No PreCheck reports in this date range.');
+        return;
+      }
+
+      const selectedTug = tugs.find((t) => t.id === filters.tug);
+      const tugLabel = selectedTug
+        ? (selectedTug.display_name
+          ? `${selectedTug.display_name} (${selectedTug.tug_number})`
+          : selectedTug.tug_number)
+        : (results[0]?.tugs?.display_name || results[0]?.tugs?.tug_number || 'Tug');
+
+      const opened = printAuditPack({
+        tugLabel,
+        from: packDates.from,
+        to: packDates.to,
+        submissions: results,
+        checkItemLabels,
+      });
+      if (!opened) {
+        toast.error('Pop-up blocked. Allow pop-ups to print.');
+        return;
+      }
+      setShowPrintPackModal(false);
+    } catch (err) {
+      console.error('[PreCheckList] Print pack error:', err);
+      toast.error('Failed to load reports for printing.');
+    } finally {
+      setPackPrinting(false);
+    }
+  }, [
+    filters.tug,
+    packPrinting,
+    packDates.from,
+    packDates.to,
+    packCheckType,
+    tugs,
+    checkItemLabels,
+    toast,
+  ]);
+
   // ─── Render a submission card ───
   const renderSubmissionCard = (sub) => {
     const faults = getFaults(sub);
@@ -487,6 +601,21 @@ export default function PreCheckList() {
         {/* Card body – only when expanded */}
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrintCheck(sub);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print
+              </button>
+            </div>
             {/* Faults with photos + remarks/during-shift as FaultCard boxes */}
             {(() => {
               const faultCards = faults.filter(
@@ -666,6 +795,18 @@ export default function PreCheckList() {
             <option value="faults_only">Faults only</option>
           </select>
         </div>
+        <button
+          type="button"
+          onClick={openPrintPackModal}
+          disabled={!filters.tug}
+          title={filters.tug ? 'Print audit pack for selected tug' : 'Select a tug to print an audit pack'}
+          className="w-full md:w-auto md:flex-shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium rounded-xl md:rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Print pack
+        </button>
       </div>
 
       {/* ─── Results ─── */}
@@ -720,6 +861,72 @@ export default function PreCheckList() {
           )}
         </>
       )}
+
+      <Modal
+        isOpen={showPrintPackModal}
+        onClose={() => {
+          if (!packPrinting) setShowPrintPackModal(false);
+        }}
+      >
+        <div className="text-center sm:text-left">
+          <h3 className="text-xl font-semibold mb-2 text-charcoal">Print audit pack</h3>
+          <p className="text-gray-600 mb-4 text-sm">
+            Print all PreCheck reports for the selected tug in the date range below.
+          </p>
+          <div className="space-y-3 mb-6 text-left">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-xs font-medium text-gray-600 mb-1 block">From</span>
+                <input
+                  type="date"
+                  value={packDates.from}
+                  onChange={(e) => setPackDates((prev) => ({ ...prev, from: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-gray-600 mb-1 block">To</span>
+                <input
+                  type="date"
+                  value={packDates.to}
+                  onChange={(e) => setPackDates((prev) => ({ ...prev, to: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600 mb-1 block">Type</span>
+              <select
+                value={packCheckType}
+                onChange={(e) => setPackCheckType(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+              >
+                <option value="">All types</option>
+                <option value="pre_shift">Pre-Shift</option>
+                <option value="during_shift">During Shift</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setShowPrintPackModal(false)}
+              disabled={packPrinting}
+              className="px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors order-2 sm:order-1 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintPack}
+              disabled={packPrinting}
+              className="px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors order-1 sm:order-2 disabled:opacity-50"
+            >
+              {packPrinting ? 'Loading…' : 'Print'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
