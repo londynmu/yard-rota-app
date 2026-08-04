@@ -67,6 +67,16 @@ const normalizeTimelineMinutes = (minutes, nowMinutes) => {
   return minutes;
 };
 
+/** Resolve break location: prefer scheduled_breaks.location, fallback to today's shift map */
+const getBreakLocation = (breakItem, userLocationMap) =>
+  breakItem.location || userLocationMap.get(breakItem.user_id) || null;
+
+/** Post-midnight window on next calendar day (operational day rules) */
+const isPostMidnightBreakTime = (timeStr) => {
+  const minutes = parseTimeToMinutes(timeStr);
+  return minutes != null && minutes < 6 * 60;
+};
+
 export default function ShiftDashboard({ 
   initialView = 'shift', 
   hideTabSwitcher = false, 
@@ -92,12 +102,27 @@ export default function ShiftDashboard({
   const [teamLocation, setTeamLocation] = useState(selectedLocation || ''); // location tab
   const [showLocationModal, setShowLocationModal] = useState(false);
   
-  // Sync with external selectedLocation if provided
+  // Parent CalendarPage owns location when selectedLocation is set — always sync, never override from shifts
   useEffect(() => {
     if (selectedLocation) {
       setTeamLocation(selectedLocation);
     }
   }, [selectedLocation]);
+
+  // Fallback only when parent does not control location: keep teamLocation among known locations
+  useEffect(() => {
+    if (selectedLocation) return;
+
+    const fromShifts = allShifts.map((s) => s.location).filter(Boolean);
+    const fromBreaks = allBreaks.map((b) => b.location).filter(Boolean);
+    const known = [...new Set([...fromShifts, ...fromBreaks])].sort((a, b) =>
+      (a || '').localeCompare(b || '')
+    );
+    if (known.length === 0) return;
+    if (!teamLocation || !known.includes(teamLocation)) {
+      setTeamLocation(known[0]);
+    }
+  }, [selectedLocation, allShifts, allBreaks, teamLocation]);
   
   // Update shift counts when data changes
   useEffect(() => {
@@ -109,9 +134,9 @@ export default function ShiftDashboard({
         night: allBreaks.filter(b => b.shift_type === 'night')
       };
       const counts = {
-        day: breaksByType.day.filter(b => userLocationMap.get(b.user_id) === teamLocation).length,
-        afternoon: breaksByType.afternoon.filter(b => userLocationMap.get(b.user_id) === teamLocation).length,
-        night: breaksByType.night.filter(b => userLocationMap.get(b.user_id) === teamLocation).length
+        day: breaksByType.day.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length,
+        afternoon: breaksByType.afternoon.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length,
+        night: breaksByType.night.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length
       };
       onShiftCountsChange(counts);
     }
@@ -127,6 +152,7 @@ export default function ShiftDashboard({
 
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayYmd = toLocalYmd(now);
     const userBreaks = allBreaks.filter(
       (b) => b.user_id === user.id && selectedShifts.includes(b.shift_type)
     );
@@ -139,8 +165,17 @@ export default function ShiftDashboard({
     const normalizedBreaks = userBreaks
       .map((b) => {
         const startRaw = parseTimeToMinutes(b.break_start_time);
-        const start = normalizeTimelineMinutes(startRaw, nowMinutes);
+        let start = normalizeTimelineMinutes(startRaw, nowMinutes);
         if (start == null) return null;
+        if (b.date && b.date > todayYmd) {
+          start += 24 * 60;
+        } else if (
+          b.shift_type === 'night' &&
+          start < 6 * 60 &&
+          nowMinutes >= 6 * 60
+        ) {
+          start += 24 * 60;
+        }
         const duration = b.break_duration_minutes || 0;
         return { breakItem: b, start, end: start + duration };
       })
@@ -313,14 +348,24 @@ export default function ShiftDashboard({
           });
         }
 
-        // Fetch ALL breaks for today (without profiles join)
-        const { data: breaksData, error: breaksError } = await supabase
+        // Operational day: anchor date + next calendar day (only 00:00-05:59 from next day)
+        const nextDate = toLocalYmd(new Date(
+          new Date(`${effectiveForBreaks}T12:00:00`).getTime() + 86400000
+        ));
+
+        const { data: breaksRaw, error: breaksError } = await supabase
           .from('scheduled_breaks')
-          .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date')
-          .eq('date', effectiveForBreaks)
+          .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date, location')
+          .in('date', [effectiveForBreaks, nextDate])
           .order('break_start_time');
           
         if (breaksError) throw breaksError;
+
+        const breaksData = (breaksRaw || []).filter((b) => {
+          if (b.date === effectiveForBreaks) return true;
+          if (b.date === nextDate) return isPostMidnightBreakTime(b.break_start_time);
+          return false;
+        });
 
         const shiftUserIds = [...new Set(selectedShiftsRaw.map(s => s.user_id).filter(id => id != null))];
         const breakUserIds =
@@ -745,15 +790,14 @@ export default function ShiftDashboard({
       };
     };
 
-    // Locations list sorted alphabetically from live shift data
-    const allLocations = [...new Set(allShifts.map(s => s.location))];
+    // Locations list sorted alphabetically from live shift data (+ break locations for modal)
+    const allLocations = [...new Set([
+      ...allShifts.map(s => s.location),
+      ...allBreaks.map(b => b.location),
+    ].filter(Boolean))];
     const sortedLocations = allLocations.sort((a, b) => (a || '').localeCompare(b || ''));
-    // Ensure current tab is valid
-    if (sortedLocations.length > 0 && !sortedLocations.includes(teamLocation)) {
-      setTeamLocation(sortedLocations[0]);
-    }
 
-    // Map user -> location for breaks filtering
+    // Map user -> location for breaks filtering fallback
     const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
 
     // Map user -> shift times for tug badge visibility (only show during active shift)
@@ -1051,9 +1095,14 @@ export default function ShiftDashboard({
                     return baseMinutes;
                   };
 
+                  const todayYmd = toLocalYmd(new Date());
                   const getBreakWindow = (breakItem) => {
-                    const start = normalizeBreakMinutes(breakItem.break_start_time);
+                    let start = normalizeBreakMinutes(breakItem.break_start_time);
                     if (start == null) return null;
+                    // Breaks stored on a future calendar date are later in the operational cycle
+                    if (breakItem.date && breakItem.date > todayYmd) {
+                      start += 24 * 60;
+                    }
                     const duration = breakItem.break_duration_minutes || 0;
                     const end = start + duration;
                     return { start, end, duration };
@@ -1061,15 +1110,8 @@ export default function ShiftDashboard({
 
                   const filteredBreaks = allBreaks.filter((b) => (
                     selectedShifts.includes(b.shift_type) &&
-                    userLocationMap.get(b.user_id) === teamLocation
+                    getBreakLocation(b, userLocationMap) === teamLocation
                   ));
-
-                  const currentShift = getCurrentShiftType();
-                  const shiftFlow = currentShift === 'day'
-                    ? ['day', 'afternoon', 'night']
-                    : currentShift === 'afternoon'
-                    ? ['afternoon', 'night']
-                    : ['night'];
 
                   const entries = filteredBreaks
                     .map((breakItem) => {
@@ -1087,11 +1129,13 @@ export default function ShiftDashboard({
                   };
                   const getChronoStart = (entry) => {
                     const baseStart = entry.window.start;
-                    // During day/afternoon, keep post-midnight night breaks in the visible future window.
+                    // During day/afternoon, keep same-date post-midnight night breaks in the visible future window.
+                    // (Next-calendar-date breaks already have +24h in getBreakWindow.)
                     if (
                       entry.breakItem.shift_type === 'night' &&
                       baseStart < 6 * 60 &&
-                      nowMinutes >= 6 * 60
+                      nowMinutes >= 6 * 60 &&
+                      !(entry.breakItem.date && entry.breakItem.date > todayYmd)
                     ) {
                       return baseStart + 24 * 60;
                     }
@@ -1112,6 +1156,7 @@ export default function ShiftDashboard({
                       getChronoStart(a) - getChronoStart(b)
                     );
                   const displayBreaks = [...activeEntries, ...upcomingEntries];
+                  const filterEmpty = filteredBreaks.length === 0;
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
                     const { isActiveList = false, index = 0 } = options;
@@ -1200,11 +1245,19 @@ export default function ShiftDashboard({
                           {breakHeaderControls}
                         </div>
                       )}
-                      {activeEntries.length === 0 && (
+                      {filterEmpty ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200/70 bg-white/60 backdrop-blur-sm px-4 py-6 text-center text-sm font-medium text-slate-600 shadow-sm">
+                          No breaks for this location/shift filter
+                        </div>
+                      ) : activeEntries.length === 0 && displayBreaks.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200/70 bg-white/60 backdrop-blur-sm px-4 py-6 text-center text-sm font-medium text-slate-600 shadow-sm">
+                          No active or upcoming breaks at the moment
+                        </div>
+                      ) : activeEntries.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-200/70 bg-white/60 backdrop-blur-sm px-4 py-6 text-center text-sm font-medium text-slate-600 shadow-sm">
                           No active breaks at the moment
                         </div>
-                      )}
+                      ) : null}
                       <div className="space-y-3">
                         {displayBreaks.map((entry, idx) => renderBreakCard(entry, { isActiveList: true, index: idx }))}
                       </div>

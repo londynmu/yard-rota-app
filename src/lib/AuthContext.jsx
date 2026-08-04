@@ -28,13 +28,21 @@ export function AuthProvider({ children }) {
 
     getSession();
 
-    // Listen for auth changes
+    // Listen for auth changes. On a null session (common brief blip in iOS WebViews),
+    // confirm with getSession before clearing user to avoid login/waiting redirect loops.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const newUser = session?.user || null;
       if (!newUser) {
-        setUser(null);
-        setSessionProfile(null);
-        resetCalendarStaticCache();
+        void (async () => {
+          const { data: { session: confirmed } } = await supabase.auth.getSession();
+          if (confirmed?.user) {
+            setUser((prev) => (prev?.id === confirmed.user.id ? prev : confirmed.user));
+            return;
+          }
+          setUser(null);
+          setSessionProfile(null);
+          resetCalendarStaticCache();
+        })();
         return;
       }
       // Only update state if user identity changed (login/logout/switch user)
@@ -72,7 +80,14 @@ export function AuthProvider({ children }) {
       console.error('[AuthContext] refreshSessionProfile:', error);
       return;
     }
-    setSessionProfile(data || null);
+    if (!data) {
+      setSessionProfile(null);
+      return;
+    }
+    setSessionProfile({
+      ...data,
+      avatar_url: normalizeAvatarStorageUrl(data.avatar_url) ?? data.avatar_url,
+    });
   }, []);
 
   const signIn = async (email, password) => {

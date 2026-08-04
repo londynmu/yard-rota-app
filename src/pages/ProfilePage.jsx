@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
 import PropTypes from 'prop-types';
@@ -13,7 +14,8 @@ const capitalizeFirstLetter = (string) => {
 };
 
 export default function ProfilePage({ isRequired = false, supabaseClient, simplifiedView = false }) {
-  const { user, refreshSessionProfile } = useAuth();
+  const { user, refreshSessionProfile, setSessionProfile, sessionProfile } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -409,9 +411,20 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         throw finalError; // Throw the determined error
       }
       
-      // Redirect to waiting for approval page instead of calendar when creating profile
+      // Refresh gate profile then navigate to waiting (avoid hard reload race on Capacitor)
       if (simplifiedView || isRequired) {
-        window.location.href = '/waiting-for-approval';
+        await refreshSessionProfile();
+        // Guarantee App gate leaves the required-profile screen even if refresh races
+        setSessionProfile((prev) => ({
+          ...(prev || sessionProfile || {}),
+          first_name: capitalizedFirstName,
+          last_name: capitalizedLastName,
+          shift_preference: shiftPreference,
+          avatar_url: avatar_url || prev?.avatar_url || sessionProfile?.avatar_url || null,
+          profile_completed: true,
+          account_status: 'pending_approval',
+        }));
+        navigate('/waiting-for-approval', { replace: true });
         return;
       }
       

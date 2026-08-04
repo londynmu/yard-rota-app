@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Auth from './components/Auth/Auth';
@@ -15,6 +15,9 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
 
+const AUTH_HASH_WAIT_MS = 10000;
+const PRIVILEGED_ROLES = new Set(['admin', 'vmu', 'transport_manager']);
+
 // Recovery detection function - simpler and more focused
 const isRecoveryLink = () => {
   const hash = window.location.hash;
@@ -22,29 +25,62 @@ const isRecoveryLink = () => {
   return (hash && hash.includes('type=recovery')) || (search && search.includes('type=recovery'));
 };
 
+function deriveGateFromProfile(sessionProfile) {
+  if (!sessionProfile) {
+    return { isProfileComplete: false, accountStatus: null };
+  }
+
+  if (PRIVILEGED_ROLES.has(sessionProfile.role)) {
+    return { isProfileComplete: true, accountStatus: 'approved' };
+  }
+
+  return {
+    isProfileComplete: !!sessionProfile.profile_completed,
+    accountStatus: sessionProfile.account_status || 'pending_approval',
+  };
+}
+
 function AppContent() {
-  const { user, loading: authLoading, setSessionProfile } = useAuth();
+  const { user, loading: authLoading, sessionProfile, setSessionProfile } = useAuth();
   
   // Track page visits for analytics
   usePageTracking();
   const [isCheckingProfile, setIsCheckingProfile] = useState(false);
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [profileCheckCompleted, setProfileCheckCompleted] = useState(false); // true only after first check has run (prevents profile page flash)
-  const [accountStatus, setAccountStatus] = useState(null);
   const [error, setError] = useState(null);
+  const [waitingForAuthHash, setWaitingForAuthHash] = useState(
+    () => typeof window !== 'undefined' && window.location.hash.includes('access_token')
+  );
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Memoize auth hash check - only calculate once on mount
-  const hasAuthHash = useMemo(() => 
-    window.location.hash.includes('access_token'), 
-    [] // Empty deps = calculate only once
-  );
-  
   const profileCheckRef = useRef(false); // Ref to prevent multiple profile checks
+
+  const { isProfileComplete, accountStatus } = deriveGateFromProfile(sessionProfile);
+  const isApproved = accountStatus === 'approved';
   
   // Combined loading state: auth loading OR profile checking OR profile check not yet run
-  const isLoading = authLoading || (hasAuthHash && !user) || (user && isCheckingProfile) || (user && !profileCheckCompleted);
+  const isLoading = authLoading || (waitingForAuthHash && !user) || (user && isCheckingProfile) || (user && !profileCheckCompleted);
+
+  // Clear auth-hash wait when session attaches, or time out so we never blank forever
+  useEffect(() => {
+    if (!waitingForAuthHash) return undefined;
+
+    if (user) {
+      setWaitingForAuthHash(false);
+      if (window.location.hash.includes('access_token')) {
+        const { pathname, search } = window.location;
+        window.history.replaceState(null, '', `${pathname}${search}`);
+      }
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setWaitingForAuthHash(false);
+    }, AUTH_HASH_WAIT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [waitingForAuthHash, user]);
 
   // Handle URL detection on mount and URL changes
   useEffect(() => {
@@ -65,7 +101,7 @@ function AppContent() {
     checkUrlAndRedirect();
   }, [location, navigate]);
 
-  // Check if user's profile is complete and account status
+  // Check if user's profile is complete and account status — writes sessionProfile (gate source of truth)
   useEffect(() => {
     // Prevent multiple profile checks in the same render cycle
     if (!user || profileCheckRef.current) {
@@ -91,8 +127,7 @@ function AppContent() {
         if (error) {
           setSessionProfile(null);
           if (error.code === 'PGRST116') {
-            setIsProfileComplete(false);
-            setAccountStatus(null);
+            // No profile row yet — gate will require profile completion
           } else {
             console.error('Error checking profile completion:', error);
             setError(error.message);
@@ -102,15 +137,6 @@ function AppContent() {
             ...data,
             avatar_url: normalizeAvatarStorageUrl(data.avatar_url) ?? data.avatar_url,
           });
-          // Admin, VMU and Transport Manager users bypass profile completion and approval checks
-          if (data?.role === 'admin' || data?.role === 'vmu' || data?.role === 'transport_manager') {
-            setIsProfileComplete(true);
-            setAccountStatus('approved');
-          } else {
-            const complete = !!data?.profile_completed;
-            setIsProfileComplete(complete);
-            setAccountStatus(data?.account_status || 'approved');
-          }
         }
       } catch (error) {
         console.error('Error in profile check:', error);
@@ -128,7 +154,7 @@ function AppContent() {
     } else {
       setIsCheckingProfile(false);
     }
-  }, [user?.id]); // Only depend on user ID - prevents re-check on token refresh
+  }, [user?.id, setSessionProfile]); // Only depend on user ID - prevents re-check on token refresh
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {
@@ -139,14 +165,14 @@ function AppContent() {
 
   // After login, check for saved redirect
   useEffect(() => {
-    if (user && isProfileComplete && (!accountStatus || accountStatus === 'approved')) {
+    if (user && isProfileComplete && isApproved) {
       const redirectPath = localStorage.getItem('redirect_after_login');
       if (redirectPath) {
         localStorage.removeItem('redirect_after_login');
         navigate(redirectPath, { replace: true });
       }
     }
-  }, [user, isProfileComplete, accountStatus, navigate]);
+  }, [user, isProfileComplete, isApproved, navigate]);
 
   // --- UNIFIED LOADING LOGIC ---
   // Show empty screen during:
@@ -202,7 +228,7 @@ function AppContent() {
       <Route path="/waiting-for-approval" element={<WaitingForApprovalPage />} />
       {/* Show HomePage only if user exists, profile check finished, profile is complete, and account is approved */}
       <Route path="/*" element={
-        (user && !isCheckingProfile && isProfileComplete && (!accountStatus || accountStatus === 'approved')) ? (
+        (user && !isCheckingProfile && isProfileComplete && isApproved) ? (
           <HomePage />
         ) : (
           <Navigate to={user && isProfileComplete ? "/waiting-for-approval" : "/login"} replace />

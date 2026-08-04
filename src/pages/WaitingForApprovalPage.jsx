@@ -4,45 +4,81 @@ import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 export default function WaitingForApprovalPage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshSessionProfile, sessionProfile } = useAuth();
   const [accountStatus, setAccountStatus] = useState('checking');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [readyToEnter, setReadyToEnter] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const enterIfApproved = async (status) => {
+      if (status !== 'approved') return;
+      await refreshSessionProfile();
+      if (!cancelled) {
+        setAccountStatus('approved');
+        setReadyToEnter(true);
+      }
+    };
+
     const checkApprovalStatus = async () => {
       if (!user) return;
 
       try {
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from('profiles')
           .select('account_status')
           .eq('id', user.id)
           .single();
 
-        if (error) throw error;
+        if (fetchError) throw fetchError;
 
-        setAccountStatus(data?.account_status || 'checking');
+        const status = data?.account_status || 'checking';
+        if (cancelled) return;
+
+        setAccountStatus(status);
+        if (status === 'approved') {
+          await enterIfApproved(status);
+        }
       } catch (err) {
         console.error('Error checking approval status:', err);
-        setError('Failed to load your account status. Please try again later.');
+        if (!cancelled) {
+          setError('Failed to load your account status. Please try again later.');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    checkApprovalStatus();
+    // Fast path if context already knows we are approved
+    if (sessionProfile?.account_status === 'approved') {
+      void enterIfApproved('approved').finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    } else {
+      void checkApprovalStatus();
+    }
 
-    // Set up a polling interval to check status every 30 seconds
-    const interval = setInterval(checkApprovalStatus, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
+    const interval = setInterval(() => {
+      void checkApprovalStatus();
+    }, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // sessionProfile checked only on mount for fast path; polling owns later updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount + user-driven poll
+  }, [user, refreshSessionProfile]);
 
   const handleSignOut = async () => {
     try {
       await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch (signOutError) {
+      console.error('Error signing out:', signOutError);
     }
   };
 
@@ -50,8 +86,8 @@ export default function WaitingForApprovalPage() {
     return <Navigate to="/login" replace />;
   }
 
-  // If the user has been approved, redirect to the main app
-  if (accountStatus === 'approved') {
+  // Only navigate home after sessionProfile has been refreshed (App gate reads it)
+  if (readyToEnter) {
     return <Navigate to="/" replace />;
   }
 
@@ -108,7 +144,7 @@ export default function WaitingForApprovalPage() {
           <h2 className="text-xl font-bold text-center mb-4 text-charcoal">Profile Awaiting Approval</h2>
           <p className="text-gray-600 text-center mb-6">
             Thank you for completing your profile! Your account is now awaiting administrator approval.
-            You'll gain full access to the system once approved.
+            You&apos;ll gain full access to the system once approved.
           </p>
           <p className="text-gray-500 text-sm text-center mb-6">
             This page will automatically update when your status changes.
@@ -123,4 +159,4 @@ export default function WaitingForApprovalPage() {
       )}
     </div>
   );
-} 
+}
