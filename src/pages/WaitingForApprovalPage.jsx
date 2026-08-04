@@ -15,11 +15,16 @@ export default function WaitingForApprovalPage() {
 
     const enterIfApproved = async (status) => {
       if (status !== 'approved') return;
-      await refreshSessionProfile();
-      if (!cancelled) {
+      const profile = await refreshSessionProfile();
+      if (cancelled) return;
+      if (profile?.account_status === 'approved') {
+        setError(null);
         setAccountStatus('approved');
         setReadyToEnter(true);
+        return;
       }
+      // Refresh failed or still not approved — stay on waiting (avoid / bounce)
+      setError('Could not refresh your account status. Please try again.');
     };
 
     const checkApprovalStatus = async () => {
@@ -39,6 +44,7 @@ export default function WaitingForApprovalPage() {
 
         setAccountStatus(status);
         if (status === 'approved') {
+          setError(null);
           await enterIfApproved(status);
         }
       } catch (err) {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
 import { resetCalendarStaticCache } from '../utils/calendarStaticCache';
@@ -17,6 +17,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionProfile, setSessionProfile] = useState(null);
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     // Get user session on first load
@@ -34,7 +35,19 @@ export function AuthProvider({ children }) {
       const newUser = session?.user || null;
       if (!newUser) {
         void (async () => {
+          if (signingOutRef.current) {
+            setUser(null);
+            setSessionProfile(null);
+            resetCalendarStaticCache();
+            return;
+          }
           const { data: { session: confirmed } } = await supabase.auth.getSession();
+          if (signingOutRef.current) {
+            setUser(null);
+            setSessionProfile(null);
+            resetCalendarStaticCache();
+            return;
+          }
           if (confirmed?.user) {
             setUser((prev) => (prev?.id === confirmed.user.id ? prev : confirmed.user));
             return;
@@ -69,7 +82,7 @@ export function AuthProvider({ children }) {
     const uid = session?.user?.id;
     if (!uid) {
       setSessionProfile(null);
-      return;
+      return null;
     }
     const { data, error } = await supabase
       .from('profiles')
@@ -78,16 +91,18 @@ export function AuthProvider({ children }) {
       .single();
     if (error && error.code !== 'PGRST116') {
       console.error('[AuthContext] refreshSessionProfile:', error);
-      return;
+      return null;
     }
     if (!data) {
       setSessionProfile(null);
-      return;
+      return null;
     }
-    setSessionProfile({
+    const nextProfile = {
       ...data,
       avatar_url: normalizeAvatarStorageUrl(data.avatar_url) ?? data.avatar_url,
-    });
+    };
+    setSessionProfile(nextProfile);
+    return nextProfile;
   }, []);
 
   const signIn = async (email, password) => {
@@ -144,6 +159,7 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    signingOutRef.current = true;
     try {
       // 1. Immediately update local state
       setUser(null);
@@ -227,4 +243,4 @@ AuthProvider.propTypes = {
 
 export function useAuth() {
   return useContext(AuthContext);
-} 
+}

@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { safeAutoReload } from '../lib/reloadGuard';
+import { toLocalYmd } from '../utils/operationalDay';
 
 import useNetworkStatus from '../lib/useNetworkStatus';
 import TugSelector from '../components/PreCheck/TugSelector';
@@ -226,8 +227,8 @@ export default function PreCheckPage() {
     }
     try {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
+      const today = toLocalYmd(now);
+      const yesterday = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
 
       // 1. Get user's shifts (today + yesterday for night shifts)
       const { data: shifts } = await supabase

@@ -9,6 +9,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
 import html2canvas from 'html2canvas';
+import { toLocalYmd } from '../../../utils/operationalDay';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -25,7 +26,7 @@ const BrakesManager = () => {
   
   const [selectedDate, setSelectedDate] = useState(() => {
     const savedDate = localStorage.getItem('brakes_selected_date');
-    return savedDate || new Date().toISOString().split('T')[0];
+    return savedDate || toLocalYmd();
   });
   
   const [selectedShift, setSelectedShift] = useState(() => {
@@ -70,7 +71,7 @@ const BrakesManager = () => {
 
   // Auto-navigate to today's date when entering Breaks page
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalYmd();
     const lastVisitedBreaksPage = localStorage.getItem('brakes_last_visited');
     const currentVisit = Date.now().toString();
     
@@ -610,13 +611,11 @@ const BrakesManager = () => {
             .eq('shift_type', selectedShift.toLowerCase())
             .not('user_id', 'is', null); // Only actual assignments
 
-          // Do NOT filter by location here; assignments don't carry location in DB
-
           const { data: scheduledData, error: scheduledError } = await scheduledQuery;
           
           if (scheduledError) throw scheduledError;
 
-          // Process scheduled data to match to slots
+          // Process scheduled data to match to slots (location filter applied after rota map below)
           processedScheduled = scheduledData?.map(record => {
             if (!record.profiles) {
                return null; // Skip assignments without profile data
@@ -633,7 +632,7 @@ const BrakesManager = () => {
                      slotDbBreakType === record.break_type; // Compare DB type to DB type
             });
             
-            const mappedAssignment = {
+            return {
               id: record.id,
               slot_id: matchingSlot?.id || null, // Link to our slot ID
               user_id: record.user_id,
@@ -648,17 +647,12 @@ const BrakesManager = () => {
                 break_type: record.break_type
               }
             };
-
-            // Don't filter by location at DB level; we'll filter using scheduled_rota-derived locations client-side
-            return mappedAssignment;
-          }).filter(Boolean) || []; // Filter out nulls
-          
-          setScheduledBreaks(processedScheduled);
+          }).filter(Boolean) || [];
 
         } catch (err) {
            console.error("[fetchBreakData] Error fetching existing assignments from DB:", err);
            // Continue even if assignments fail to load
-           setScheduledBreaks([]); // Clear state on error
+           processedScheduled = [];
         }
       } // End fetch from DB block
       
@@ -688,6 +682,16 @@ const BrakesManager = () => {
             locationMap.set(record.user_id, record.location || null);
           }
         });
+
+        // Prefer assignment.location; fall back to rota location for legacy null rows
+        if (locationFilter) {
+          processedScheduled = processedScheduled.filter((assignment) => {
+            const resolved =
+              assignment.location || locationMap.get(assignment.user_id) || null;
+            return resolved === locationFilter;
+          });
+        }
+        setScheduledBreaks(processedScheduled);
 
         const filteredUserIds = filteredShifts
           .filter(record => {
@@ -751,6 +755,7 @@ const BrakesManager = () => {
         console.error("[fetchBreakData] Error processing available staff:", err);
         toast.error(`Failed to load available staff: ${err.message}`);
         setAvailableStaff([]); // Ensure it's cleared on error
+        setScheduledBreaks(processedScheduled);
       }
     } catch (err) {
       console.error('Error in fetchBreakData:', err);
@@ -855,7 +860,8 @@ const BrakesManager = () => {
           break_start_time: slot.start_time,
           break_duration_minutes: slot.duration_minutes,
           break_type: dbBreakType,
-          shift_type: selectedShift.toLowerCase()
+          shift_type: selectedShift.toLowerCase(),
+          location: selectedLocation,
           // No capacity or std_slot_id for user assignments
         };
       }).filter(Boolean); // Filter out nulls if a slot wasn't found or data missing
@@ -865,6 +871,7 @@ const BrakesManager = () => {
       // const standardSlotsToUpsert = []; // Object.values(modifiedStandardSlots).map(...) - removed persistence
       
       // Prepare custom slot definitions (records with null user_id, null std_slot_id, possibly existing id)
+      // Custom slot definitions stay shared across hubs (no location column) by product design.
       const customSlotsToUpsert = breakSlots
         .filter(slot => slot.is_custom)
         .map(slot => {
@@ -878,7 +885,6 @@ const BrakesManager = () => {
                 break_type: mapToDbBreakType(slot.break_type),
                 shift_type: selectedShift.toLowerCase(),
                 capacity: slot.capacity // Include capacity for custom slots
-                // Note: location is NOT saved to DB for custom slots - it's filtered on frontend
             };
             // Only include ID if it's an existing custom slot for upsert
             if (!isNewCustomSlot) {
@@ -888,35 +894,71 @@ const BrakesManager = () => {
         });
 
       // --- Database Operations ---
-      // Fetch current assignments (user_ids) before delete so we can log who was added/removed
-      const { data: currentAssignments, error: fetchCurrentError } = await supabase
+      // Rota users at this hub — used to scope delete/diff for legacy null-location rows
+      const { data: rotaAtLocation, error: rotaLocError } = await supabase
+        .from('scheduled_rota')
+        .select('user_id')
+        .eq('date', selectedDate)
+        .eq('shift_type', selectedShift.toLowerCase())
+        .eq('location', selectedLocation)
+        .not('user_id', 'is', null);
+      if (rotaLocError) {
+        console.error("[handleSaveAllBreaks] Error fetching rota for location scope:", rotaLocError);
+      }
+      const rotaUserIdsAtLocation = new Set(
+        (rotaAtLocation || []).map((r) => r.user_id).filter(Boolean)
+      );
+
+      // Fetch current assignments in this location scope (for added/removed logs)
+      const { data: currentAssignmentsRaw, error: fetchCurrentError } = await supabase
         .from('scheduled_breaks')
-        .select('user_id, break_start_time')
+        .select('user_id, break_start_time, location')
         .eq('date', selectedDate)
         .eq('shift_type', selectedShift.toLowerCase())
         .not('user_id', 'is', null);
       if (fetchCurrentError) {
         console.error("[handleSaveAllBreaks] Error fetching current assignments:", fetchCurrentError);
       }
-      const currentUserIds = new Set((currentAssignments || []).map((r) => r.user_id));
-      const currentByUser = (currentAssignments || []).reduce((acc, r) => {
+      const currentAssignments = (currentAssignmentsRaw || []).filter((r) =>
+        r.location === selectedLocation ||
+        (!r.location && rotaUserIdsAtLocation.has(r.user_id))
+      );
+      const currentUserIds = new Set(currentAssignments.map((r) => r.user_id));
+      const currentByUser = currentAssignments.reduce((acc, r) => {
         if (!acc[r.user_id]) acc[r.user_id] = r;
         return acc;
       }, {});
 
-      // 1. Delete existing *assignments* for this date/shift
-      // Admin: delete all assignments. Regular user: delete only own (RLS allows only own rows)
+      // 1. Delete existing assignments for this date/shift/location only
+      //    (include legacy null location rows for users on this hub's rota)
       if (isAdmin) {
-        const { error: deleteAssignError } = await supabase
+        const { error: deleteByLocationError } = await supabase
           .from('scheduled_breaks')
           .delete()
           .eq('date', selectedDate)
           .eq('shift_type', selectedShift.toLowerCase())
+          .eq('location', selectedLocation)
           .not('user_id', 'is', null);
 
-        if (deleteAssignError) {
-          console.error("[handleSaveAllBreaks] Error deleting old assignments:", deleteAssignError);
-          throw deleteAssignError;
+        if (deleteByLocationError) {
+          console.error("[handleSaveAllBreaks] Error deleting location-scoped assignments:", deleteByLocationError);
+          throw deleteByLocationError;
+        }
+
+        const nullLocationRotaIds = [...rotaUserIdsAtLocation];
+        if (nullLocationRotaIds.length > 0) {
+          const { error: deleteNullError } = await supabase
+            .from('scheduled_breaks')
+            .delete()
+            .eq('date', selectedDate)
+            .eq('shift_type', selectedShift.toLowerCase())
+            .is('location', null)
+            .in('user_id', nullLocationRotaIds);
+
+          if (deleteNullError) {
+            console.error("[handleSaveAllBreaks] Error deleting legacy null-location assignments:", deleteNullError);
+            throw deleteNullError;
+          }
         }
       } else {
         // Regular user: delete only their own assignments for this date/shift
@@ -1333,9 +1375,10 @@ const BrakesManager = () => {
       if (absentUserIdsForDate.has(assignment.user_id)) return false;
       // If viewing all locations, show all
       if (selectedLocation === ALL_LOCATIONS_VALUE) return true;
-      // Otherwise, include only those whose scheduled_rota location matches the selected location
+      // Prefer assignment.location; fall back to rota-derived staff location
       const staff = availableStaff.find(s => s.id === assignment.user_id);
-      return staff?.location === selectedLocation;
+      const resolvedLocation = assignment.location || staff?.location || null;
+      return resolvedLocation === selectedLocation;
     });
   };
 

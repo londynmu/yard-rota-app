@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import { getShiftWindow } from '../../pages/PreCheckPage';
+import { toLocalYmd } from '../../utils/operationalDay';
 
 export default function PreCheckReminder() {
   const { user } = useAuth();
@@ -18,8 +19,8 @@ export default function PreCheckReminder() {
   const checkIfNeeded = async () => {
     try {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
+      const today = toLocalYmd(now);
+      const yesterday = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
 
       const { data: shifts, error: shiftError } = await supabase
         .from('scheduled_rota')

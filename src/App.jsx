@@ -53,11 +53,12 @@ function AppContent() {
   );
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const profileCheckRef = useRef(false); // Ref to prevent multiple profile checks
+  const profileCheckRequestRef = useRef(0);
 
   const { isProfileComplete, accountStatus } = deriveGateFromProfile(sessionProfile);
   const isApproved = accountStatus === 'approved';
+  const isResetPasswordRoute = location.pathname === '/reset-password';
+  const isWaitingRoute = location.pathname === '/waiting-for-approval';
   
   // Combined loading state: auth loading OR profile checking OR profile check not yet run
   const isLoading = authLoading || (waitingForAuthHash && !user) || (user && isCheckingProfile) || (user && !profileCheckCompleted);
@@ -68,7 +69,9 @@ function AppContent() {
 
     if (user) {
       setWaitingForAuthHash(false);
-      if (window.location.hash.includes('access_token')) {
+      const hash = window.location.hash;
+      // Keep recovery hash for ResetPassword; strip only non-recovery access tokens
+      if (hash.includes('access_token') && !hash.includes('type=recovery')) {
         const { pathname, search } = window.location;
         window.history.replaceState(null, '', `${pathname}${search}`);
       }
@@ -103,34 +106,36 @@ function AppContent() {
 
   // Check if user's profile is complete and account status — writes sessionProfile (gate source of truth)
   useEffect(() => {
-    // Prevent multiple profile checks in the same render cycle
-    if (!user || profileCheckRef.current) {
-      if (!user) {
-        setIsCheckingProfile(false);
-        setProfileCheckCompleted(false);
-        setSessionProfile(null);
-      }
-      return;
+    if (!user) {
+      profileCheckRequestRef.current += 1;
+      setIsCheckingProfile(false);
+      setProfileCheckCompleted(false);
+      setSessionProfile(null);
+      return undefined;
     }
 
+    const requestId = ++profileCheckRequestRef.current;
+    let cancelled = false;
+
     const checkProfileCompletion = async () => {
-      profileCheckRef.current = true; // Mark that we're checking
-      setIsCheckingProfile(true); // Start checking - this will trigger loading screen
+      setIsCheckingProfile(true);
 
       try {
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from('profiles')
           .select(PROFILE_SELECT_FIELDS)
           .eq('id', user.id)
           .single();
 
-        if (error) {
+        if (cancelled || requestId !== profileCheckRequestRef.current) return;
+
+        if (fetchError) {
           setSessionProfile(null);
-          if (error.code === 'PGRST116') {
+          if (fetchError.code === 'PGRST116') {
             // No profile row yet — gate will require profile completion
           } else {
-            console.error('Error checking profile completion:', error);
-            setError(error.message);
+            console.error('Error checking profile completion:', fetchError);
+            setError(fetchError.message);
           }
         } else {
           setSessionProfile({
@@ -138,22 +143,23 @@ function AppContent() {
             avatar_url: normalizeAvatarStorageUrl(data.avatar_url) ?? data.avatar_url,
           });
         }
-      } catch (error) {
-        console.error('Error in profile check:', error);
+      } catch (err) {
+        if (cancelled || requestId !== profileCheckRequestRef.current) return;
+        console.error('Error in profile check:', err);
         setSessionProfile(null);
-        setError(error.message);
+        setError(err.message);
       } finally {
+        if (cancelled || requestId !== profileCheckRequestRef.current) return;
         setIsCheckingProfile(false);
-        setProfileCheckCompleted(true); // Mark that we've run the check (prevents profile page flash before check)
-        profileCheckRef.current = false;
+        setProfileCheckCompleted(true);
       }
     };
 
-    if (user && !profileCheckRef.current) {
-      checkProfileCompletion();
-    } else {
-      setIsCheckingProfile(false);
-    }
+    void checkProfileCompletion();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, setSessionProfile]); // Only depend on user ID - prevents re-check on token refresh
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
@@ -203,6 +209,16 @@ function AppContent() {
     );
   }
 
+  // Allow password recovery regardless of profile/approval gate
+  if (isResetPasswordRoute) {
+    return (
+      <Routes>
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Navigate to="/reset-password" replace />} />
+      </Routes>
+    );
+  }
+
   // If user exists but profile is not complete, show profile completion page
   // Only after profile check has run (profileCheckCompleted) to avoid flashing profile on load
   if (user && profileCheckCompleted && !isProfileComplete) {
@@ -215,7 +231,7 @@ function AppContent() {
   if (user && isProfileComplete && accountStatus && accountStatus !== 'approved') {
     // Redirect to waiting for approval page if user is pending approval or rejected
     // but trying to access a different page
-    if (location.pathname !== '/waiting-for-approval') {
+    if (!isWaitingRoute) {
       return <Navigate to="/waiting-for-approval" replace />;
     }
   }
