@@ -611,6 +611,10 @@ const BrakesManager = () => {
             .eq('shift_type', selectedShift.toLowerCase())
             .not('user_id', 'is', null); // Only actual assignments
 
+          if (locationFilter) {
+            scheduledQuery.eq('location', locationFilter);
+          }
+
           const { data: scheduledData, error: scheduledError } = await scheduledQuery;
           
           if (scheduledError) throw scheduledError;
@@ -683,14 +687,6 @@ const BrakesManager = () => {
           }
         });
 
-        // Prefer assignment.location; fall back to rota location for legacy null rows
-        if (locationFilter) {
-          processedScheduled = processedScheduled.filter((assignment) => {
-            const resolved =
-              assignment.location || locationMap.get(assignment.user_id) || null;
-            return resolved === locationFilter;
-          });
-        }
         setScheduledBreaks(processedScheduled);
 
         const filteredUserIds = filteredShifts
@@ -894,91 +890,58 @@ const BrakesManager = () => {
         });
 
       // --- Database Operations ---
-      // Rota users at this hub — used to scope delete/diff for legacy null-location rows
-      const { data: rotaAtLocation, error: rotaLocError } = await supabase
-        .from('scheduled_rota')
-        .select('user_id')
+      // The save is a diff, never a wipe-and-rewrite: rows are inserted before
+      // anything is deleted, so a rejected insert leaves the schedule intact.
+      const { data: existingRaw, error: fetchCurrentError } = await supabase
+        .from('scheduled_breaks')
+        .select('id, user_id, break_start_time, break_duration_minutes, break_type')
         .eq('date', selectedDate)
         .eq('shift_type', selectedShift.toLowerCase())
         .eq('location', selectedLocation)
         .not('user_id', 'is', null);
-      if (rotaLocError) {
-        console.error("[handleSaveAllBreaks] Error fetching rota for location scope:", rotaLocError);
-      }
-      const rotaUserIdsAtLocation = new Set(
-        (rotaAtLocation || []).map((r) => r.user_id).filter(Boolean)
-      );
 
-      // Fetch current assignments in this location scope (for added/removed logs)
-      const { data: currentAssignmentsRaw, error: fetchCurrentError } = await supabase
-        .from('scheduled_breaks')
-        .select('user_id, break_start_time, location')
-        .eq('date', selectedDate)
-        .eq('shift_type', selectedShift.toLowerCase())
-        .not('user_id', 'is', null);
       if (fetchCurrentError) {
         console.error("[handleSaveAllBreaks] Error fetching current assignments:", fetchCurrentError);
+        throw fetchCurrentError;
       }
-      const currentAssignments = (currentAssignmentsRaw || []).filter((r) =>
-        r.location === selectedLocation ||
-        (!r.location && rotaUserIdsAtLocation.has(r.user_id))
-      );
+
+      // Identity of an assignment: who, when, how long, what kind.
+      const assignmentKey = (row) => [
+        row.user_id,
+        (row.break_start_time || '').substring(0, 5),
+        row.break_duration_minutes,
+        row.break_type,
+      ].join('|');
+
+      // RLS lets a regular user touch only their own rows, so scope both sides.
+      const currentAssignments = isAdmin
+        ? (existingRaw || [])
+        : (existingRaw || []).filter((r) => r.user_id === currentUser?.id);
+      const desiredAssignments = isAdmin
+        ? assignmentsToInsert
+        : assignmentsToInsert.filter((a) => a.user_id === currentUser?.id);
+
+      const currentKeys = new Set(currentAssignments.map(assignmentKey));
+      const desiredKeys = new Set(desiredAssignments.map(assignmentKey));
+
+      const rowsToInsert = [];
+      const stagedKeys = new Set(currentKeys);
+      for (const assignment of desiredAssignments) {
+        const key = assignmentKey(assignment);
+        if (stagedKeys.has(key)) continue;
+        stagedKeys.add(key);
+        rowsToInsert.push(assignment);
+      }
+
+      const idsToDelete = currentAssignments
+        .filter((r) => !desiredKeys.has(assignmentKey(r)))
+        .map((r) => r.id);
+
       const currentUserIds = new Set(currentAssignments.map((r) => r.user_id));
       const currentByUser = currentAssignments.reduce((acc, r) => {
         if (!acc[r.user_id]) acc[r.user_id] = r;
         return acc;
       }, {});
-
-      // 1. Delete existing assignments for this date/shift/location only
-      //    (include legacy null location rows for users on this hub's rota)
-      if (isAdmin) {
-        const { error: deleteByLocationError } = await supabase
-          .from('scheduled_breaks')
-          .delete()
-          .eq('date', selectedDate)
-          .eq('shift_type', selectedShift.toLowerCase())
-          .eq('location', selectedLocation)
-          .not('user_id', 'is', null);
-
-        if (deleteByLocationError) {
-          console.error("[handleSaveAllBreaks] Error deleting location-scoped assignments:", deleteByLocationError);
-          throw deleteByLocationError;
-        }
-
-        const nullLocationRotaIds = [...rotaUserIdsAtLocation];
-        if (nullLocationRotaIds.length > 0) {
-          const { error: deleteNullError } = await supabase
-            .from('scheduled_breaks')
-            .delete()
-            .eq('date', selectedDate)
-            .eq('shift_type', selectedShift.toLowerCase())
-            .is('location', null)
-            .in('user_id', nullLocationRotaIds);
-
-          if (deleteNullError) {
-            console.error("[handleSaveAllBreaks] Error deleting legacy null-location assignments:", deleteNullError);
-            throw deleteNullError;
-          }
-        }
-      } else {
-        // Regular user: delete only their own assignments for this date/shift
-        if (currentUser?.id) {
-          const { error: deleteMyError } = await supabase
-            .from('scheduled_breaks')
-            .delete()
-            .eq('date', selectedDate)
-            .eq('shift_type', selectedShift.toLowerCase())
-            .eq('user_id', currentUser.id);
-
-          if (deleteMyError) {
-            console.error("[handleSaveAllBreaks] Error deleting own assignments:", deleteMyError);
-            throw deleteMyError;
-          }
-        }
-      }
-
-      // 2. Delete existing *standard slot definitions* (records with std_slot_id) for this date/shift
-      //    (Only necessary if standard slot *definitions* were persisted - they aren't anymore)
 
       // 3. Handle Custom Slot Definitions – admin only (regular user cannot add/edit custom slots)
       if (isAdmin && customSlotsToUpsert.length > 0) {
@@ -1017,28 +980,37 @@ const BrakesManager = () => {
       //    (Not needed anymore as capacity changes are UI only)
       // if (standardSlotsToUpsert.length > 0) { ... }
 
-      // 5. Insert NEW assignments
-      // Admin: insert all. Regular user: insert only own (RLS allows only own user_id)
-      const assignmentsForInsert = isAdmin
-        ? assignmentsToInsert
-        : (assignmentsToInsert.filter((a) => a.user_id === currentUser?.id) || []);
-      if (assignmentsForInsert.length > 0) {
+      // 5. Add the assignments that are missing
+      if (rowsToInsert.length > 0) {
         const { error: insertAssignError } = await supabase
           .from('scheduled_breaks')
-          .insert(assignmentsForInsert);
+          .insert(rowsToInsert);
 
         if (insertAssignError) {
           console.error("[handleSaveAllBreaks] Error inserting assignments:", insertAssignError);
-          console.error("Data attempted for assignments:", JSON.stringify(assignmentsForInsert, null, 2));
+          console.error("Data attempted for assignments:", JSON.stringify(rowsToInsert, null, 2));
           throw insertAssignError; // This is critical, so throw
         }
       }
 
+      // 6. Only once the new rows are safely stored, drop the withdrawn ones
+      if (idsToDelete.length > 0) {
+        const { error: deleteAssignError } = await supabase
+          .from('scheduled_breaks')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteAssignError) {
+          console.error("[handleSaveAllBreaks] Error deleting withdrawn assignments:", deleteAssignError);
+          throw deleteAssignError;
+        }
+      }
+
       // Log per-person added/removed (same as Rota: Added / Removed with target user)
-      const newUserIds = new Set(assignmentsToInsert.map((a) => a.user_id));
+      const newUserIds = new Set(desiredAssignments.map((a) => a.user_id));
       const addedUserIds = [...newUserIds].filter((id) => !currentUserIds.has(id));
       const removedUserIds = [...currentUserIds].filter((id) => !newUserIds.has(id));
-      const insertByUser = assignmentsToInsert.reduce((acc, a) => {
+      const insertByUser = desiredAssignments.reduce((acc, a) => {
         if (!acc[a.user_id]) acc[a.user_id] = a;
         return acc;
       }, {});

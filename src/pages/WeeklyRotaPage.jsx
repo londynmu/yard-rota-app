@@ -124,21 +124,13 @@ const WeeklyRotaPage = () => {
             setSelectedLocation(data[0].name);
           }
         } else {
-          // Fallback to Rugby, NRC if no locations in database
-          setLocations([
-            { id: '1', name: 'Rugby' },
-            { id: '2', name: 'NRC' },
-            { id: '3', name: 'Nuneaton' }
-          ]);
+          setLocations([]);
         }
       } catch (error) {
+        // A hardcoded fallback would offer hub names that no longer match the
+        // database, and every rota lookup compares the name verbatim.
         console.error('Error fetching locations:', error);
-        // Fallback locations
-        setLocations([
-          { id: '1', name: 'Rugby' },
-          { id: '2', name: 'NRC' },
-          { id: '3', name: 'Nuneaton' }
-        ]);
+        setLocations([]);
       }
     };
 

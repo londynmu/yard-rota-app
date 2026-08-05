@@ -308,11 +308,9 @@ class SupabaseApiClient implements ApiClient {
     } catch (error) {
       throw TransientNetworkException(error.toString());
     }
-    return const [
-      LocationOption(id: '1', name: 'Rugby'),
-      LocationOption(id: '2', name: 'NRC'),
-      LocationOption(id: '3', name: 'Nuneaton'),
-    ];
+    // No hardcoded fallback: hub names are matched verbatim against the rota, so
+    // a stale name silently returns an empty schedule.
+    return const [];
   }
 
   @override
