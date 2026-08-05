@@ -67,6 +67,21 @@ const normalizeTimelineMinutes = (minutes, nowMinutes) => {
   return minutes;
 };
 
+/**
+ * Position a break on a continuous timeline measured in minutes from local midnight
+ * today, so a break carried by a neighbouring calendar date lands before or after
+ * the current day instead of being guessed from the clock.
+ */
+const breakStartOnTimeline = (breakItem, todayYmd) => {
+  const minutes = parseTimeToMinutes(breakItem.break_start_time);
+  if (minutes == null) return null;
+  if (!breakItem.date) return minutes;
+  const dayOffset = Math.round(
+    (Date.parse(`${breakItem.date}T00:00:00`) - Date.parse(`${todayYmd}T00:00:00`)) / 86400000
+  );
+  return minutes + dayOffset * 24 * 60;
+};
+
 /** Resolve break location: prefer scheduled_breaks.location, fallback to today's shift map */
 const getBreakLocation = (breakItem, userLocationMap) =>
   breakItem.location || userLocationMap.get(breakItem.user_id) || null;
@@ -124,23 +139,28 @@ export default function ShiftDashboard({
     }
   }, [selectedLocation, allShifts, allBreaks, teamLocation]);
   
-  // Update shift counts when data changes
+  // Update shift counts when data changes. Counts mirror the list, which only
+  // shows breaks that are running or still ahead.
   useEffect(() => {
     if (onShiftCountsChange && allBreaks.length > 0) {
       const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
-      const breaksByType = {
-        day: allBreaks.filter(b => b.shift_type === 'day'),
-        afternoon: allBreaks.filter(b => b.shift_type === 'afternoon'),
-        night: allBreaks.filter(b => b.shift_type === 'night')
-      };
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const todayYmd = toLocalYmd(now);
+      const stillRelevant = allBreaks.filter((b) => {
+        if (getBreakLocation(b, userLocationMap) !== teamLocation) return false;
+        const start = breakStartOnTimeline(b, todayYmd);
+        if (start == null) return false;
+        return nowMinutes < start + (b.break_duration_minutes || 0);
+      });
       const counts = {
-        day: breaksByType.day.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length,
-        afternoon: breaksByType.afternoon.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length,
-        night: breaksByType.night.filter(b => getBreakLocation(b, userLocationMap) === teamLocation).length
+        day: stillRelevant.filter(b => b.shift_type === 'day').length,
+        afternoon: stillRelevant.filter(b => b.shift_type === 'afternoon').length,
+        night: stillRelevant.filter(b => b.shift_type === 'night').length
       };
       onShiftCountsChange(counts);
     }
-  }, [allBreaks, allShifts, teamLocation, onShiftCountsChange]);
+  }, [allBreaks, allShifts, teamLocation, onShiftCountsChange, currentTime]);
 
   // Expose current user's break status for parent header (Calendar page)
   useEffect(() => {
@@ -164,18 +184,8 @@ export default function ShiftDashboard({
 
     const normalizedBreaks = userBreaks
       .map((b) => {
-        const startRaw = parseTimeToMinutes(b.break_start_time);
-        let start = normalizeTimelineMinutes(startRaw, nowMinutes);
+        const start = breakStartOnTimeline(b, todayYmd);
         if (start == null) return null;
-        if (b.date && b.date > todayYmd) {
-          start += 24 * 60;
-        } else if (
-          b.shift_type === 'night' &&
-          start < 6 * 60 &&
-          nowMinutes >= 6 * 60
-        ) {
-          start += 24 * 60;
-        }
         const duration = b.break_duration_minutes || 0;
         return { breakItem: b, start, end: start + duration };
       })
@@ -533,9 +543,13 @@ export default function ShiftDashboard({
 
         if (allBreaks && allBreaks.length > 0) {
           // Separate my breaks from team breaks
-          const myBreaks = allBreaks.filter(b => b.user_id === user.id);
+          // Carry the anchor date so break times can be placed on a timeline
+          const myBreaks = allBreaks
+            .filter(b => b.user_id === user.id)
+            .map(b => ({ ...b, date: today }));
           const teamBreaks = allBreaks.map(b => ({
             ...b,
+            date: today,
             isCurrentUser: b.user_id === user.id
           }));
           
@@ -762,9 +776,9 @@ export default function ShiftDashboard({
     const getNextBreakForUser = () => {
       if (!breakInfo || !breakInfo.myBreaks || breakInfo.myBreaks.length === 0) return null;
       const nowM = getNowMinutes();
+      const todayYmd = toLocalYmd(new Date());
       const withNorm = breakInfo.myBreaks.map((b) => {
-        const startRaw = toMinutes(b.break_start_time);
-        const start = normalizeTimelineMinutes(startRaw, nowM);
+        const start = breakStartOnTimeline(b, todayYmd);
         return { ...b, start, end: start != null ? start + (b.break_duration_minutes || 0) : null };
       }).filter((b) => b.start != null);
       const sorted = withNorm.sort((a, b) => a.start - b.start);
@@ -1078,31 +1092,10 @@ export default function ShiftDashboard({
               <div className="space-y-4">
                 {(() => {
                   const nowMinutes = getNowMinutes();
-                  const normalizeBreakMinutes = (timeStr) => {
-                    const baseMinutes = toMinutes(timeStr);
-                    if (baseMinutes == null) return null;
-
-                    // Before 06:00: treat evening breaks (18:00+) as "yesterday" so they show active when spanning midnight
-                    if (nowMinutes < 6 * 60 && baseMinutes >= 18 * 60) {
-                      return baseMinutes - 24 * 60;
-                    }
-
-                    // After 18:00: treat early-morning breaks (00:00-06:00) as "upcoming" so they appear in the list
-                    if (nowMinutes >= 18 * 60 && baseMinutes < 6 * 60) {
-                      return baseMinutes + 24 * 60;
-                    }
-
-                    return baseMinutes;
-                  };
-
                   const todayYmd = toLocalYmd(new Date());
                   const getBreakWindow = (breakItem) => {
-                    let start = normalizeBreakMinutes(breakItem.break_start_time);
+                    const start = breakStartOnTimeline(breakItem, todayYmd);
                     if (start == null) return null;
-                    // Breaks stored on a future calendar date are later in the operational cycle
-                    if (breakItem.date && breakItem.date > todayYmd) {
-                      start += 24 * 60;
-                    }
                     const duration = breakItem.break_duration_minutes || 0;
                     const end = start + duration;
                     return { start, end, duration };
@@ -1127,34 +1120,18 @@ export default function ShiftDashboard({
                     const idx = selectedShiftFlow.indexOf(shiftType);
                     return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
                   };
-                  const getChronoStart = (entry) => {
-                    const baseStart = entry.window.start;
-                    // During day/afternoon, keep same-date post-midnight night breaks in the visible future window.
-                    // (Next-calendar-date breaks already have +24h in getBreakWindow.)
-                    if (
-                      entry.breakItem.shift_type === 'night' &&
-                      baseStart < 6 * 60 &&
-                      nowMinutes >= 6 * 60 &&
-                      !(entry.breakItem.date && entry.breakItem.date > todayYmd)
-                    ) {
-                      return baseStart + 24 * 60;
-                    }
-                    return baseStart;
-                  };
+                  const byShiftThenTime = (a, b) =>
+                    shiftWeight(a.breakItem.shift_type) - shiftWeight(b.breakItem.shift_type) ||
+                    a.window.start - b.window.start;
 
                   const activeEntries = entries
                     .filter((entry) => nowMinutes >= entry.window.start && nowMinutes < entry.window.end)
-                    .sort((a, b) =>
-                      shiftWeight(a.breakItem.shift_type) - shiftWeight(b.breakItem.shift_type) ||
-                      getChronoStart(a) - getChronoStart(b)
-                    );
+                    .sort(byShiftThenTime);
 
+                  // Breaks already finished are dropped: the list only looks forward.
                   const upcomingEntries = entries
-                    .filter((entry) => getChronoStart(entry) > nowMinutes)
-                    .sort((a, b) =>
-                      shiftWeight(a.breakItem.shift_type) - shiftWeight(b.breakItem.shift_type) ||
-                      getChronoStart(a) - getChronoStart(b)
-                    );
+                    .filter((entry) => entry.window.start > nowMinutes)
+                    .sort(byShiftThenTime);
                   const displayBreaks = [...activeEntries, ...upcomingEntries];
                   const filterEmpty = filteredBreaks.length === 0;
 
