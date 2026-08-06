@@ -67,17 +67,47 @@ const normalizeTimelineMinutes = (minutes, nowMinutes) => {
   return minutes;
 };
 
+const addDaysYmd = (ymd, days) => {
+  const d = new Date(`${ymd}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return toLocalYmd(d);
+};
+
+/** Operational day anchor: previous calendar day before 06:00, otherwise today. */
+const getOperationalAnchorYmd = (now = new Date()) => {
+  if (now.getHours() < 6) {
+    return toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  }
+  return toLocalYmd(now);
+};
+
 /**
- * Position a break on a continuous timeline measured in minutes from local midnight
- * today, so a break carried by a neighbouring calendar date lands before or after
- * the current day instead of being guessed from the clock.
+ * Wall-clock date for a break.
+ * Admin stores 00:00-05:59 night slots on the night's start date (operational anchor);
+ * those happen on the next calendar morning. Rows already dated on the next day keep
+ * that date so we never double-shift.
  */
-const breakStartOnTimeline = (breakItem, todayYmd) => {
+const breakWallDateYmd = (breakItem, operationalAnchorYmd) => {
+  if (!breakItem.date) return null;
+  const minutes = parseTimeToMinutes(breakItem.break_start_time);
+  if (minutes != null && minutes < 6 * 60 && breakItem.date === operationalAnchorYmd) {
+    return addDaysYmd(breakItem.date, 1);
+  }
+  return breakItem.date;
+};
+
+/**
+ * Minutes from local midnight today to the break's real wall-clock start.
+ * Finished breaks fall before "now"; same-cycle 00:00/01:00 land after evening slots.
+ */
+const breakStartOnTimeline = (breakItem, now = new Date()) => {
   const minutes = parseTimeToMinutes(breakItem.break_start_time);
   if (minutes == null) return null;
-  if (!breakItem.date) return minutes;
+  const todayYmd = toLocalYmd(now);
+  const wallDate = breakWallDateYmd(breakItem, getOperationalAnchorYmd(now));
+  if (!wallDate) return minutes;
   const dayOffset = Math.round(
-    (Date.parse(`${breakItem.date}T00:00:00`) - Date.parse(`${todayYmd}T00:00:00`)) / 86400000
+    (Date.parse(`${wallDate}T00:00:00`) - Date.parse(`${todayYmd}T00:00:00`)) / 86400000
   );
   return minutes + dayOffset * 24 * 60;
 };
@@ -144,12 +174,11 @@ export default function ShiftDashboard({
   useEffect(() => {
     if (onShiftCountsChange && allBreaks.length > 0) {
       const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
-      const now = new Date();
+      const now = currentTime instanceof Date ? currentTime : new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const todayYmd = toLocalYmd(now);
       const stillRelevant = allBreaks.filter((b) => {
         if (getBreakLocation(b, userLocationMap) !== teamLocation) return false;
-        const start = breakStartOnTimeline(b, todayYmd);
+        const start = breakStartOnTimeline(b, now);
         if (start == null) return false;
         return nowMinutes < start + (b.break_duration_minutes || 0);
       });
@@ -170,9 +199,8 @@ export default function ShiftDashboard({
       return;
     }
 
-    const now = new Date();
+    const now = currentTime instanceof Date ? currentTime : new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const todayYmd = toLocalYmd(now);
     const userBreaks = allBreaks.filter(
       (b) => b.user_id === user.id && selectedShifts.includes(b.shift_type)
     );
@@ -184,7 +212,7 @@ export default function ShiftDashboard({
 
     const normalizedBreaks = userBreaks
       .map((b) => {
-        const start = breakStartOnTimeline(b, todayYmd);
+        const start = breakStartOnTimeline(b, now);
         if (start == null) return null;
         const duration = b.break_duration_minutes || 0;
         return { breakItem: b, start, end: start + duration };
@@ -775,10 +803,10 @@ export default function ShiftDashboard({
     // Compute next/active break info for current user
     const getNextBreakForUser = () => {
       if (!breakInfo || !breakInfo.myBreaks || breakInfo.myBreaks.length === 0) return null;
-      const nowM = getNowMinutes();
-      const todayYmd = toLocalYmd(new Date());
+      const now = currentTime instanceof Date ? currentTime : new Date();
+      const nowM = now.getHours() * 60 + now.getMinutes();
       const withNorm = breakInfo.myBreaks.map((b) => {
-        const start = breakStartOnTimeline(b, todayYmd);
+        const start = breakStartOnTimeline(b, now);
         return { ...b, start, end: start != null ? start + (b.break_duration_minutes || 0) : null };
       }).filter((b) => b.start != null);
       const sorted = withNorm.sort((a, b) => a.start - b.start);
@@ -1091,10 +1119,10 @@ export default function ShiftDashboard({
             ) : (
               <div className="space-y-4">
                 {(() => {
-                  const nowMinutes = getNowMinutes();
-                  const todayYmd = toLocalYmd(new Date());
+                  const now = currentTime instanceof Date ? currentTime : new Date();
+                  const nowMinutes = now.getHours() * 60 + now.getMinutes();
                   const getBreakWindow = (breakItem) => {
-                    const start = breakStartOnTimeline(breakItem, todayYmd);
+                    const start = breakStartOnTimeline(breakItem, now);
                     if (start == null) return null;
                     const duration = breakItem.break_duration_minutes || 0;
                     const end = start + duration;
