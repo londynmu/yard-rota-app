@@ -9,19 +9,22 @@ Persist and protect this behavior on the main page break list.
 
 ## Core Rules
 
-1. Treat an operational day as `06:00 -> 05:59` next calendar day.
-2. Break data must include both anchor day and next day records.
-3. From next day, include only breaks in `00:00-05:59`.
-4. Do not split list with extra section labels (no "Earlier" style markers).
-5. Keep one continuous list with normal flow.
-6. Active breaks must always be shown at the top.
+1. Day and afternoon share one window: `07:00 -> 17:00` on the same calendar day.
+2. Night window is `17:00 -> 07:00` the next calendar morning.
+3. Before `07:00`, the active night cycle is yesterday `17:00` -> today `07:00`.
+4. From `17:00`, the active night cycle is today `17:00` -> tomorrow `07:00`.
+5. Do not show the next night cycle while the current one is still open.
+6. Do not split the list with extra section labels (no "Earlier" style markers).
+7. Keep one continuous list with normal flow.
+8. Active breaks must always be shown at the top.
+9. Finished breaks must not appear on the main page list.
 
 ## Ordering Rules
 
 1. Keep shift flow priority as `day -> afternoon -> night`.
-2. Inside the same priority level, sort chronologically.
-3. Post-midnight night breaks (`00:00-05:59`) must remain visible after day and afternoon in the same operational cycle.
-4. During day/afternoon view, post-midnight night breaks are treated as upcoming in that cycle, not as past.
+2. Inside the same priority level, sort chronologically by wall-clock time.
+3. Night slots `00:00-06:59` stored on the night start date are treated as the following morning.
+4. During the day window, tonight's night breaks (from `17:00` and post-midnight) may appear as upcoming in that cycle.
 
 ## Language Rules
 

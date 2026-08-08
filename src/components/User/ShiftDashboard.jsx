@@ -22,22 +22,6 @@ const calculateEndTime = (startTime, durationMinutes) => {
   }
 };
 
-// Helper to sort breaks so that evening times (18:00+) appear before early morning times
-const getNightSortValue = (timeStr) => {
-  if (!timeStr) return Number.MAX_SAFE_INTEGER;
-  const normalized = timeStr.slice(0, 5); // HH:MM
-  const [hours, minutes] = normalized.split(':').map(Number);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.MAX_SAFE_INTEGER;
-
-  let totalMinutes = hours * 60 + minutes;
-  // Move times before 18:00 to the end of the ordering (add 24h)
-  if (totalMinutes < 18 * 60) {
-    totalMinutes += 24 * 60;
-  }
-
-  return totalMinutes;
-};
-
 // Local calendar date as YYYY-MM-DD (toISOString would give the UTC date, which is wrong around midnight in BST)
 const toLocalYmd = (d) => {
   const y = d.getFullYear();
@@ -54,57 +38,57 @@ const parseTimeToMinutes = (timeStr) => {
   return hours * 60 + minutes;
 };
 
-const normalizeTimelineMinutes = (minutes, nowMinutes) => {
-  if (minutes == null) return null;
-  // Before 06:00: treat evening times (18:00+) as "yesterday" (negative)
-  if (nowMinutes < 6 * 60 && minutes >= 18 * 60) {
-    return minutes - 24 * 60;
-  }
-  // After 18:00: treat early-morning times (00:00-06:00) as "upcoming" (next day)
-  if (nowMinutes >= 18 * 60 && minutes < 6 * 60) {
-    return minutes + 24 * 60;
-  }
-  return minutes;
-};
-
 const addDaysYmd = (ymd, days) => {
   const d = new Date(`${ymd}T12:00:00`);
   d.setDate(d.getDate() + days);
   return toLocalYmd(d);
 };
 
-/** Operational day anchor: previous calendar day before 06:00, otherwise today. */
-const getOperationalAnchorYmd = (now = new Date()) => {
-  if (now.getHours() < 6) {
-    return toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
-  }
-  return toLocalYmd(now);
+/** Day/afternoon window: 07:00-17:00. Night window: 17:00-07:00 next morning. */
+const DAY_WINDOW_START = 7 * 60;
+const NIGHT_WINDOW_START = 17 * 60;
+
+const getNowMinutesOf = (now = new Date()) => now.getHours() * 60 + now.getMinutes();
+
+const isInNightWindow = (now = new Date()) => {
+  const m = getNowMinutesOf(now);
+  return m >= NIGHT_WINDOW_START || m < DAY_WINDOW_START;
+};
+
+/** Calendar date on which the current (or upcoming tonight) night cycle starts. */
+const getNightStartYmd = (now = new Date()) => {
+  const today = toLocalYmd(now);
+  if (getNowMinutesOf(now) < DAY_WINDOW_START) return addDaysYmd(today, -1);
+  return today;
+};
+
+const isNightEarlyMorningTime = (timeStr) => {
+  const minutes = parseTimeToMinutes(timeStr);
+  return minutes != null && minutes < DAY_WINDOW_START;
 };
 
 /**
  * Wall-clock date for a break.
- * Admin stores 00:00-05:59 night slots on the night's start date (operational anchor);
- * those happen on the next calendar morning. Rows already dated on the next day keep
- * that date so we never double-shift.
+ * Admin stores night 00:00-06:59 on the night start date; those happen next morning.
  */
-const breakWallDateYmd = (breakItem, operationalAnchorYmd) => {
+const breakWallDateYmd = (breakItem, nightStartYmd) => {
   if (!breakItem.date) return null;
-  const minutes = parseTimeToMinutes(breakItem.break_start_time);
-  if (minutes != null && minutes < 6 * 60 && breakItem.date === operationalAnchorYmd) {
+  if (
+    breakItem.shift_type === 'night' &&
+    isNightEarlyMorningTime(breakItem.break_start_time) &&
+    breakItem.date === nightStartYmd
+  ) {
     return addDaysYmd(breakItem.date, 1);
   }
   return breakItem.date;
 };
 
-/**
- * Minutes from local midnight today to the break's real wall-clock start.
- * Finished breaks fall before "now"; same-cycle 00:00/01:00 land after evening slots.
- */
+/** Minutes from local midnight today to the break's real wall-clock start. */
 const breakStartOnTimeline = (breakItem, now = new Date()) => {
   const minutes = parseTimeToMinutes(breakItem.break_start_time);
   if (minutes == null) return null;
   const todayYmd = toLocalYmd(now);
-  const wallDate = breakWallDateYmd(breakItem, getOperationalAnchorYmd(now));
+  const wallDate = breakWallDateYmd(breakItem, getNightStartYmd(now));
   if (!wallDate) return minutes;
   const dayOffset = Math.round(
     (Date.parse(`${wallDate}T00:00:00`) - Date.parse(`${todayYmd}T00:00:00`)) / 86400000
@@ -116,10 +100,22 @@ const breakStartOnTimeline = (breakItem, now = new Date()) => {
 const getBreakLocation = (breakItem, userLocationMap) =>
   breakItem.location || userLocationMap.get(breakItem.user_id) || null;
 
-/** Post-midnight window on next calendar day (operational day rules) */
-const isPostMidnightBreakTime = (timeStr) => {
+/** Sort night slots so 17:00+ comes before 00:00-06:59. */
+const getNightSortValue = (timeStr) => {
   const minutes = parseTimeToMinutes(timeStr);
-  return minutes != null && minutes < 6 * 60;
+  if (minutes == null) return Number.MAX_SAFE_INTEGER;
+  return minutes < NIGHT_WINDOW_START ? minutes + 24 * 60 : minutes;
+};
+
+const normalizeTimelineMinutes = (minutes, nowMinutes) => {
+  if (minutes == null) return null;
+  if (nowMinutes < DAY_WINDOW_START && minutes >= NIGHT_WINDOW_START) {
+    return minutes - 24 * 60;
+  }
+  if (nowMinutes >= NIGHT_WINDOW_START && minutes < DAY_WINDOW_START) {
+    return minutes + 24 * 60;
+  }
+  return minutes;
 };
 
 export default function ShiftDashboard({ 
@@ -360,14 +356,14 @@ export default function ShiftDashboard({
       if (!user) return;
 
       try {
-        // Dates: keep shifts on calendar 'today', but for breaks, anchor to previous day until 06:00
+        // Day/afternoon: calendar today (07:00-17:00). Night: 17:00 -> 07:00 next morning.
         const now = new Date();
         const today = toLocalYmd(now);
-        const yesterday = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
-        const beforeSix = now.getHours() < 6;
-        const effectiveForBreaks = toLocalYmd(beforeSix ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now);
-        
-        // Fetch shifts for today and yesterday (to correctly handle night shift window before 06:00)
+        const yesterday = addDaysYmd(today, -1);
+        const nightStart = getNightStartYmd(now);
+        const nightMorning = addDaysYmd(nightStart, 1);
+        const inNightWindow = isInNightWindow(now);
+
         const { data: shiftsData, error: shiftsError } = await supabase
           .from('scheduled_rota')
           .select('id, user_id, date, start_time, end_time, location, shift_type')
@@ -380,28 +376,46 @@ export default function ShiftDashboard({
         if (shiftsData && shiftsData.length > 0) {
           selectedShiftsRaw = shiftsData.filter(s => {
             if (s.shift_type === 'night') {
-              return beforeSix ? s.date === yesterday : s.date === today;
+              return s.date === nightStart;
             }
-            return s.date === today;
+            // Day/afternoon belong to the calendar day; before 07:00 that day has not started yet
+            return !inNightWindow && s.date === today;
           });
         }
 
-        // Operational day: anchor date + next calendar day (only 00:00-05:59 from next day)
-        const nextDate = toLocalYmd(new Date(
-          new Date(`${effectiveForBreaks}T12:00:00`).getTime() + 86400000
-        ));
-
+        const breakDates = [...new Set([today, nightStart, nightMorning])];
         const { data: breaksRaw, error: breaksError } = await supabase
           .from('scheduled_breaks')
           .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date, location')
-          .in('date', [effectiveForBreaks, nextDate])
+          .in('date', breakDates)
           .order('break_start_time');
           
         if (breaksError) throw breaksError;
 
+        const anchorHasEarlyMorning = (breaksRaw || []).some(
+          (b) =>
+            b.shift_type === 'night' &&
+            b.date === nightStart &&
+            isNightEarlyMorningTime(b.break_start_time)
+        );
+
         const breaksData = (breaksRaw || []).filter((b) => {
-          if (b.date === effectiveForBreaks) return true;
-          if (b.date === nextDate) return isPostMidnightBreakTime(b.break_start_time);
+          if (b.shift_type === 'day' || b.shift_type === 'afternoon') {
+            // Day window only — do not surface tomorrow's day list during the night cycle
+            return b.date === today && !inNightWindow;
+          }
+          if (b.shift_type === 'night') {
+            if (b.date === nightStart) return true;
+            // Legacy rows dated on the morning calendar day (only if anchor has none)
+            if (
+              b.date === nightMorning &&
+              isNightEarlyMorningTime(b.break_start_time) &&
+              !anchorHasEarlyMorning
+            ) {
+              return true;
+            }
+            return false;
+          }
           return false;
         });
 
@@ -426,7 +440,7 @@ export default function ShiftDashboard({
 
         if (selectedShiftsRaw.length > 0) {
           const preferenceWeight = (s) => {
-            if (beforeSix) return s.shift_type === 'night' ? 0 : 1;
+            if (inNightWindow) return s.shift_type === 'night' ? 0 : 1;
             return s.shift_type === 'night' ? 1 : 0;
           };
           const shiftsWithProfiles = selectedShiftsRaw
@@ -459,7 +473,7 @@ export default function ShiftDashboard({
           const tugMap = {};
           try {
             const { data: tugAssignments } = await supabase
-              .rpc('get_tug_assignments_for_date', { target_date: effectiveForBreaks });
+              .rpc('get_tug_assignments_for_date', { target_date: nightStart });
             tugAssignments?.forEach(ta => {
               tugMap[ta.user_id] = ta.tug_name;
             });
@@ -477,7 +491,7 @@ export default function ShiftDashboard({
             }));
 
           // Exclude users marked absent (no show / sick / late) on effective date(s)
-          const absentUserIds = await getAbsentUserIdsForDates(supabase, [effectiveForBreaks, yesterday]);
+          const absentUserIds = await getAbsentUserIdsForDates(supabase, [nightStart, today, yesterday]);
           const breaksFilteredAbsent = breaksWithProfiles.filter(b => !absentUserIds.has(b.user_id));
           
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
@@ -529,10 +543,9 @@ export default function ShiftDashboard({
   const fetchBreakInfo = useCallback(async () => {
       if (!user || !userProfile) return;
 
-      // Use local-date logic with a 06:00 boundary for night shift continuity
+      // Night cycle anchors to night start date (17:00 -> 07:00); day uses calendar today
       const now = new Date();
-      const effectiveDateObj = now.getHours() < 6 ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1) : now;
-      const today = toLocalYmd(effectiveDateObj); // YYYY-MM-DD format anchored to shift start day
+      const today = isInNightWindow(now) ? getNightStartYmd(now) : toLocalYmd(now);
 
       try {
         // Determine which shifts to show based on user's shift preference
@@ -858,22 +871,9 @@ export default function ShiftDashboard({
     // Determine current shift type based on time
     const getCurrentShiftType = () => {
       const now = getNowMinutes();
-      const hour = Math.floor(now / 60);
-      
-      // Night shift: before 06:00 (from previous day 18:00) or after 18:00 (today's night)
-      if (now < 6 * 60 || now >= 18 * 60) {
-        return 'night';
-      }
-      // Day shift: 06:00-17:00
-      if (now >= 6 * 60 && now < 17 * 60) {
-        return 'day';
-      }
-      // Afternoon shift: 17:00-21:00
-      if (now >= 17 * 60 && now < 21 * 60) {
-        return 'afternoon';
-      }
-      // After 21:00, it's night shift
-      return 'night';
+      // Night: 17:00 -> 07:00. Day/afternoon share 07:00 -> 17:00.
+      if (now >= NIGHT_WINDOW_START || now < DAY_WINDOW_START) return 'night';
+      return 'day';
     };
 
     // Check if break belongs to current shift
@@ -900,13 +900,10 @@ export default function ShiftDashboard({
         if (aTime == null) return 1;
         if (bTime == null) return -1;
         
-        // For night shift, times after 18:00 (1080 minutes) should come before times before 06:00 (360 minutes)
+        // Night shift spans 17:00 -> 07:00; early morning sorts after evening
         if (shiftType === 'night') {
-          // Night shift spans from 18:00 to 06:00 next day
-          // Times 18:00-23:59 (1080-1439) are "early" in the shift
-          // Times 00:00-05:59 (0-359) are "late" in the shift
-          const aAdjusted = aTime >= 18 * 60 ? aTime : aTime + 24 * 60; // Add 24h to early morning times
-          const bAdjusted = bTime >= 18 * 60 ? bTime : bTime + 24 * 60;
+          const aAdjusted = aTime >= NIGHT_WINDOW_START ? aTime : aTime + 24 * 60;
+          const bAdjusted = bTime >= NIGHT_WINDOW_START ? bTime : bTime + 24 * 60;
           return aAdjusted - bAdjusted;
         }
         
