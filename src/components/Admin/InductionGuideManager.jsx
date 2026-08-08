@@ -249,7 +249,7 @@ export default function InductionGuideManager() {
               type="text"
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-charcoal focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-charcoal focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               placeholder="e.g. Site facilities"
             />
           </div>
