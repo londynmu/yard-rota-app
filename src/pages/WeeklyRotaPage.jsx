@@ -6,13 +6,99 @@ import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
-import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
   const day = date.getDay(); // 0 (Sun) - 6 (Sat)
   const diff = day === 6 ? 0 : (day + 1); // number of days since last Saturday
   return subDays(date, diff);
+};
+
+function formatTimeHm(value) {
+  return value ? String(value).slice(0, 5) : '';
+}
+
+function attendanceEnglishLabel(status) {
+  if (status === 'no_show') return 'No show';
+  if (status === 'sick') return 'Sick';
+  if (status === 'late') return 'Late';
+  return null;
+}
+
+function YourShiftsThisWeek({ days, onDayTap }) {
+  return (
+    <div className="card-modern overflow-hidden">
+      <div className="px-4 pb-2 pt-4">
+        <h2 className="text-base font-bold tracking-tight text-charcoal">
+          Your shifts this week
+        </h2>
+      </div>
+      {days.length === 0 ? (
+        <p className="px-4 pb-4 text-center text-sm text-slate-500">
+          No shifts for you this week
+        </p>
+      ) : (
+        <div className="divide-y divide-slate-100 pb-2">
+          {days.map((day) => {
+            const firstSlot = day.slots[0];
+            const location = (firstSlot.location || '').trim();
+            const timeText = `${formatTimeHm(firstSlot.start_time)} - ${formatTimeHm(firstSlot.end_time)}`;
+            const hasTask = day.slots.some((slot) => Boolean(slot.task && String(slot.task).trim()));
+            const attendanceLabel = day.slots
+              .map((slot) => attendanceEnglishLabel(slot.attendanceStatus))
+              .find(Boolean);
+
+            return (
+              <button
+                key={day.dateStr}
+                type="button"
+                onClick={() => onDayTap(day.dateStr)}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+              >
+                <span className="w-[5.5rem] shrink-0 text-sm font-semibold text-charcoal">
+                  {format(day.dateObj, 'EEEE')}
+                </span>
+                <span className="w-10 shrink-0 text-sm font-semibold text-charcoal">
+                  {format(day.dateObj, 'do')}
+                </span>
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  {location ? (
+                    <>
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                      <span className="truncate text-sm font-semibold text-charcoal">
+                        {location}
+                      </span>
+                    </>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-sm font-semibold text-charcoal">
+                  {timeText}
+                </span>
+                {hasTask ? (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-hidden />
+                ) : null}
+                {attendanceLabel ? (
+                  <span className="shrink-0 text-xs font-bold text-rose-700">
+                    {attendanceLabel}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+YourShiftsThisWeek.propTypes = {
+  days: PropTypes.arrayOf(PropTypes.shape({
+    dateStr: PropTypes.string.isRequired,
+    dateObj: PropTypes.instanceOf(Date).isRequired,
+    slots: PropTypes.arrayOf(PropTypes.object).isRequired,
+  })).isRequired,
+  onDayTap: PropTypes.func.isRequired,
 };
 
 const WeeklyRotaPage = () => {
@@ -284,6 +370,39 @@ const WeeklyRotaPage = () => {
 
   // Format time from HH:MM:SS to HH:MM - memoized
   const fmtTime = useCallback((t) => (t ? t.slice(0, 5) : ''), []);
+
+  const yourShiftDays = useMemo(() => {
+    if (!user?.id) return [];
+    const days = [];
+    for (let index = 0; index < 7; index += 1) {
+      const dateObj = addDays(weekStart, index);
+      const dateStr = format(dateObj, 'yyyy-MM-dd');
+      const slots = (dailyRotaData[dateStr] || [])
+        .filter((slot) => slot.user_id === user.id && slot.profiles)
+        .map((slot) => ({
+          ...slot,
+          attendanceStatus: attendanceBySlotId[slot.id]?.status ?? null,
+        }))
+        .sort((a, b) => {
+          const startCompare = (a.start_time || '').localeCompare(b.start_time || '');
+          if (startCompare !== 0) return startCompare;
+          return (a.end_time || '').localeCompare(b.end_time || '');
+        });
+      if (slots.length > 0) {
+        days.push({ dateStr, dateObj, slots });
+      }
+    }
+    return days;
+  }, [attendanceBySlotId, dailyRotaData, user?.id, weekStart]);
+
+  const handleYourShiftDayTap = useCallback((dateStr) => {
+    setExpandedDayMobile(dateStr);
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      requestAnimationFrame(() => {
+        dayRefs.current[dateStr]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
 
   // Memoized handlers for modals
   const handlePreviousWeek = useCallback(() => {
@@ -803,6 +922,10 @@ const WeeklyRotaPage = () => {
 
       <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
         <div className="w-full space-y-6 min-h-screen">
+        <YourShiftsThisWeek
+          days={yourShiftDays}
+          onDayTap={handleYourShiftDayTap}
+        />
         {/* Week Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3 md:gap-2 mt-2">
           {/* Generate 7 days starting from weekStart */}
