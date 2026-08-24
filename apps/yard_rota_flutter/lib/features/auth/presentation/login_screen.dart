@@ -5,6 +5,7 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
+import '../../../core/ui/app_toast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -12,11 +13,15 @@ class LoginScreen extends StatefulWidget {
     this.isLoading = false,
     this.errorMessage,
     required this.onLogin,
+    this.onRegister,
+    this.onForgotPassword,
   });
 
   final bool isLoading;
   final String? errorMessage;
   final Future<void> Function(String email, String password) onLogin;
+  final VoidCallback? onRegister;
+  final VoidCallback? onForgotPassword;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -25,8 +30,18 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String? _validationError;
   bool _isSubmitEnabled = false;
+
+  @override
+  void didUpdateWidget(LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final message = widget.errorMessage;
+    if (message != null && message != oldWidget.errorMessage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) AppToast.show(context, message);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -40,22 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _validationError = 'Email and password are required.';
-      });
+      AppToast.show(context, 'Email and password are required.');
       return;
     }
 
     if (!email.contains('@')) {
-      setState(() {
-        _validationError = 'Please enter a valid email address.';
-      });
+      AppToast.show(context, 'Please enter a valid email address.');
       return;
     }
-
-    setState(() {
-      _validationError = null;
-    });
 
     await widget.onLogin(email, password);
   }
@@ -107,6 +114,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       hint: 'name@yardrota.com',
                       onChanged: (_) => _refreshSubmitState(),
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: AppButton(
+                        label: 'Forgot password?',
+                        variant: AppButtonVariant.ghost,
+                        isExpanded: false,
+                        onPressed: widget.onForgotPassword,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     AppTextField(
                       label: 'Password',
@@ -120,30 +136,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                     ),
-                    if (_validationError != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        _validationError!,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: colors.warning),
-                      ),
-                    ],
-                    if (widget.errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        widget.errorMessage!,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: colors.danger),
-                      ),
-                    ],
                     const SizedBox(height: AppSpacing.xl),
                     AppButton(
                       label: widget.isLoading ? 'Signing in...' : 'Sign in',
                       onPressed: widget.isLoading || !_isSubmitEnabled
                           ? null
                           : _submit,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton(
+                      label: 'Create account',
+                      variant: AppButtonVariant.secondary,
+                      onPressed: widget.isLoading ? null : widget.onRegister,
                     ),
                     if (widget.errorMessage != null) ...[
                       const SizedBox(height: AppSpacing.sm),

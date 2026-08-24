@@ -12,9 +12,22 @@ import 'network_policy.dart';
 /// Replace `MockApiClient` with a production implementation that maps to the
 /// existing backend contracts once endpoint details are finalized.
 abstract class ApiClient {
+  Stream<AuthFlowEvent> get authEvents;
   Future<UserSession?> restoreSession();
   Future<UserSession> login({required String email, required String password});
+  Future<RegistrationResult> register({
+    required String email,
+    required String password,
+  });
+  Future<void> sendPasswordReset({required String email});
+  Future<void> updatePassword({required String password});
   Future<void> signOut();
+  Future<UserProfile> getProfile();
+  Future<UserProfile> updateProfile({required UpdateProfileRequest request});
+  Future<String> uploadAvatar({required AvatarUpload upload});
+  Future<List<AgencyOption>> getActiveAgencies();
+  Future<List<AttendanceHistoryItem>> getOwnAttendanceHistory();
+  Future<List<ViolationHistoryItem>> getOwnViolationHistory();
   Future<CalendarMonthData> getCalendarMonth({
     required int year,
     required int month,
@@ -51,6 +64,23 @@ abstract class ApiClient {
 }
 
 class MockApiClient implements ApiClient {
+  UserProfile _profile = const UserProfile(
+    userId: 'shunter-01',
+    email: 'shunter@example.com',
+    firstName: 'Shunter',
+    lastName: 'One',
+    shiftPreference: 'day',
+    customStartTime: '07:00',
+    preferredLocation: 'Rugby',
+    agencyId: 'mock-agency',
+    role: UserRole.admin,
+    accountStatus: AccountStatus.approved,
+    profileCompleted: true,
+  );
+
+  @override
+  Stream<AuthFlowEvent> get authEvents => const Stream<AuthFlowEvent>.empty();
+
   @override
   Future<UserSession?> restoreSession() async {
     await Future<void>.delayed(const Duration(milliseconds: 350));
@@ -72,14 +102,82 @@ class MockApiClient implements ApiClient {
     return const UserSession(
       userId: 'shunter-01',
       displayName: 'Shunter One',
-      userRole: 'admin',
+      email: 'shunter@example.com',
+      role: UserRole.admin,
     );
+  }
+
+  @override
+  Future<RegistrationResult> register({
+    required String email,
+    required String password,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!email.contains('@') || password.length < 8) {
+      throw const UnauthorizedException('Enter a valid email and password.');
+    }
+    return const RegistrationResult(requiresEmailConfirmation: true);
+  }
+
+  @override
+  Future<void> sendPasswordReset({required String email}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    if (password.length < 8) {
+      throw const UnauthorizedException('Password is too short.');
+    }
   }
 
   @override
   Future<void> signOut() async {
     await Future<void>.delayed(const Duration(milliseconds: 80));
   }
+
+  @override
+  Future<UserProfile> getProfile() async => _profile;
+
+  @override
+  Future<UserProfile> updateProfile({
+    required UpdateProfileRequest request,
+  }) async {
+    _profile = UserProfile(
+      userId: _profile.userId,
+      email: _profile.email,
+      firstName: request.firstName,
+      lastName: request.lastName,
+      shiftPreference: request.shiftPreference,
+      avatarUrl: request.avatarUrl ?? _profile.avatarUrl,
+      customStartTime: request.customStartTime,
+      preferredLocation: request.preferredLocation,
+      agencyId: request.agencyId,
+      role: _profile.role,
+      accountStatus: request.completeProfile
+          ? AccountStatus.pendingApproval
+          : _profile.accountStatus,
+      profileCompleted: request.completeProfile || _profile.profileCompleted,
+    );
+    return _profile;
+  }
+
+  @override
+  Future<String> uploadAvatar({required AvatarUpload upload}) async {
+    return 'https://example.com/avatar.${upload.fileExtension}';
+  }
+
+  @override
+  Future<List<AgencyOption>> getActiveAgencies() async => const [
+    AgencyOption(id: 'mock-agency', name: 'Direct'),
+  ];
+
+  @override
+  Future<List<AttendanceHistoryItem>> getOwnAttendanceHistory() async =>
+      const [];
+
+  @override
+  Future<List<ViolationHistoryItem>> getOwnViolationHistory() async => const [];
 
   @override
   Future<CalendarMonthData> getCalendarMonth({

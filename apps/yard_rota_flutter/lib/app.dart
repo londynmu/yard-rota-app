@@ -14,12 +14,17 @@ import 'core/theme/home_wallpaper.dart';
 import 'core/theme/home_wallpaper_storage.dart';
 import 'core/ui/app_toast.dart';
 import 'features/auth/presentation/login_screen.dart';
+import 'features/auth/presentation/auth_flow_screens.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
+import 'features/home/data/stage_one_repository.dart';
 import 'features/my_rota/data/my_rota_repository.dart';
 import 'features/pre_check/data/pre_check_repository.dart';
+import 'features/profile/presentation/profile_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'features/stats/data/stats_repository.dart';
+import 'features/stage_three/data/stage_three_repository.dart';
+import 'features/stage_two/data/stage_two_repository.dart';
 import 'core/theme/theme_mode_storage.dart';
 
 class YardRotaApp extends StatefulWidget {
@@ -28,16 +33,25 @@ class YardRotaApp extends StatefulWidget {
     ApiClient? apiClient,
     AppLocalDatabase? localDb,
     PreCheckRepository? preCheckRepository,
+    StageOneRepository? stageOneRepository,
+    StageTwoRepository? stageTwoRepository,
+    StageThreeRepository? stageThreeRepository,
     this.initialThemeMode = ThemeMode.system,
     this.initialLightHomeWallpaper = LightHomeWallpaper.classic,
     this.initialDarkHomeWallpaper = DarkHomeWallpaper.nightMesh,
   }) : _apiClient = apiClient,
        _localDb = localDb,
-       _preCheckRepository = preCheckRepository;
+       _preCheckRepository = preCheckRepository,
+       _stageOneRepository = stageOneRepository,
+       _stageTwoRepository = stageTwoRepository,
+       _stageThreeRepository = stageThreeRepository;
 
   final ApiClient? _apiClient;
   final AppLocalDatabase? _localDb;
   final PreCheckRepository? _preCheckRepository;
+  final StageOneRepository? _stageOneRepository;
+  final StageTwoRepository? _stageTwoRepository;
+  final StageThreeRepository? _stageThreeRepository;
   final ThemeMode initialThemeMode;
   final LightHomeWallpaper initialLightHomeWallpaper;
   final DarkHomeWallpaper initialDarkHomeWallpaper;
@@ -53,9 +67,14 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   late final AvailabilityRepository _availabilityRepository;
   late final MyRotaRepository _myRotaRepository;
   late final StatsRepository _statsRepository;
+  StageOneRepository? _stageOneRepository;
+  StageTwoRepository? _stageTwoRepository;
+  StageThreeRepository? _stageThreeRepository;
   late final Stopwatch _startupStopwatch;
 
   UserSession? _session;
+  StreamSubscription<AuthFlowEvent>? _authSubscription;
+  _AuthScreen _authScreen = _AuthScreen.login;
 
   bool _isBootstrapping = true;
   bool _isLoginLoading = false;
@@ -87,14 +106,43 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       apiClient: _apiClient,
       localDb: _localDb,
     );
+    _stageOneRepository =
+        widget._stageOneRepository ?? _resolveStageOneRepository();
+    _stageTwoRepository =
+        widget._stageTwoRepository ?? _resolveStageTwoRepository();
+    _stageThreeRepository =
+        widget._stageThreeRepository ?? _resolveStageThreeRepository();
     PerfMetrics.recorder = _recordMetric;
+    _authSubscription = _apiClient.authEvents.listen(_handleAuthEvent);
     _bootstrap();
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _handleAuthEvent(AuthFlowEvent event) async {
+    if (!mounted) return;
+    if (event == AuthFlowEvent.passwordRecovery) {
+      setState(() => _authScreen = _AuthScreen.resetPassword);
+      return;
+    }
+    if (event == AuthFlowEvent.signedOut) {
+      setState(() {
+        _session = null;
+        _authScreen = _AuthScreen.login;
+      });
+      return;
+    }
+    if (event == AuthFlowEvent.signedIn && _session == null) {
+      final restored = await _apiClient.restoreSession();
+      if (mounted && restored != null) {
+        setState(() => _session = restored);
+      }
+    }
   }
 
   @override
@@ -206,6 +254,42 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     await _localDb.clearAllUserData();
   }
 
+  Future<UserSession?> _refreshSession() async {
+    final refreshed = await _apiClient.restoreSession();
+    if (mounted) {
+      setState(() => _session = refreshed);
+    }
+    return refreshed;
+  }
+
+  void _handleProfileSaved(UserProfile profile) {
+    final current = _session;
+    if (current == null) return;
+    setState(() {
+      _session = current.copyWith(
+        displayName: profile.displayName,
+        email: profile.email,
+        role: profile.role,
+        accountStatus: profile.accountStatus,
+        profileCompleted: profile.profileCompleted,
+      );
+    });
+  }
+
+  Future<void> _completePasswordReset() async {
+    try {
+      await _apiClient.signOut();
+    } catch (_) {
+      // The password is already updated; still return to a clean login state.
+    }
+    if (mounted) {
+      setState(() {
+        _session = null;
+        _authScreen = _AuthScreen.login;
+      });
+    }
+  }
+
   Future<void> _handleThemeModeChanged(ThemeMode mode) async {
     await writeSavedThemeMode(mode);
     if (!mounted) {
@@ -272,22 +356,65 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    if (_authScreen == _AuthScreen.resetPassword) {
+      return ResetPasswordScreen(
+        apiClient: _apiClient,
+        onComplete: _completePasswordReset,
+      );
+    }
+
     if (_session == null) {
-      return LoginScreen(
-        isLoading: _isLoginLoading,
-        errorMessage: _loginError,
-        onLogin: _handleLogin,
+      return switch (_authScreen) {
+        _AuthScreen.register => RegisterScreen(
+          apiClient: _apiClient,
+          onBackToLogin: () => setState(() => _authScreen = _AuthScreen.login),
+        ),
+        _AuthScreen.forgotPassword => ForgotPasswordScreen(
+          apiClient: _apiClient,
+          onBackToLogin: () => setState(() => _authScreen = _AuthScreen.login),
+        ),
+        _ => LoginScreen(
+          isLoading: _isLoginLoading,
+          errorMessage: _loginError,
+          onLogin: _handleLogin,
+          onRegister: () => setState(() => _authScreen = _AuthScreen.register),
+          onForgotPassword: () =>
+              setState(() => _authScreen = _AuthScreen.forgotPassword),
+        ),
+      };
+    }
+
+    if (_session!.requiresProfileCompletion) {
+      return ProfileScreen(
+        apiClient: _apiClient,
+        session: _session!,
+        isRequired: true,
+        onProfileSaved: _handleProfileSaved,
+        onLogout: _handleLogout,
+      );
+    }
+
+    if (_session!.isAwaitingApproval || _session!.isRejected) {
+      return WaitingForApprovalScreen(
+        session: _session!,
+        onRefresh: _refreshSession,
+        onLogout: _handleLogout,
       );
     }
 
     return MainShell(
+      apiClient: _apiClient,
       session: _session!,
       calendarRepository: _calendarRepository,
       availabilityRepository: _availabilityRepository,
       myRotaRepository: _myRotaRepository,
       preCheckRepository: _resolvePreCheckRepository(),
       statsRepository: _statsRepository,
+      stageOneRepository: _stageOneRepository,
+      stageTwoRepository: _stageTwoRepository,
+      stageThreeRepository: _stageThreeRepository,
       onLogout: _handleLogout,
+      onProfileSaved: _handleProfileSaved,
       themeMode: _themeMode,
       onThemeModeChanged: _handleThemeModeChanged,
       lightHomeWallpaper: _lightHomeWallpaper,
@@ -310,4 +437,30 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       return null;
     }
   }
+
+  StageOneRepository? _resolveStageOneRepository() {
+    try {
+      return StageOneRepository(Supabase.instance.client);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  StageTwoRepository? _resolveStageTwoRepository() {
+    try {
+      return StageTwoRepository(Supabase.instance.client);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  StageThreeRepository? _resolveStageThreeRepository() {
+    try {
+      return StageThreeRepository(Supabase.instance.client);
+    } catch (_) {
+      return null;
+    }
+  }
 }
+
+enum _AuthScreen { login, register, forgotPassword, resetPassword }

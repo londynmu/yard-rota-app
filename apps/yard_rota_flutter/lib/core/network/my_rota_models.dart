@@ -68,6 +68,7 @@ class MyRotaSlot {
     required this.userId,
     this.firstName,
     this.lastName,
+    this.avatarUrl,
     this.task,
   });
 
@@ -80,6 +81,7 @@ class MyRotaSlot {
   final String userId;
   final String? firstName;
   final String? lastName;
+  final String? avatarUrl;
   final String? task;
 
   String? get displayNameOrNull {

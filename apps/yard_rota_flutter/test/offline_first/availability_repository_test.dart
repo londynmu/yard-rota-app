@@ -75,7 +75,7 @@ void main() {
   });
 }
 
-class _FakeApiClient implements ApiClient {
+class _FakeApiClient extends MockApiClient {
   _FakeApiClient({this.shouldFailSave = false});
 
   bool shouldFailSave;

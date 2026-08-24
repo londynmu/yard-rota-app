@@ -74,7 +74,7 @@ void main() {
   });
 }
 
-class _IntegrationApiClient implements ApiClient {
+class _IntegrationApiClient extends MockApiClient {
   final Map<String, AvailabilityEntry> _availability =
       <String, AvailabilityEntry>{};
 

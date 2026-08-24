@@ -180,6 +180,15 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     }
   };
 
+  const normalizeExportTimeRange = (value) => {
+    const cleaned = String(value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const parts = cleaned.split(/\s*-\s*/);
+    if (parts.length === 2) {
+      return `${formatShiftClock(parts[0])} - ${formatShiftClock(parts[1])}`;
+    }
+    return cleaned;
+  };
+
   // Funkcja do grupowania danych według lokalizacji
   const groupDataByLocation = () => {
     // Grupowanie danych według lokalizacji
@@ -226,11 +235,18 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       
       // Dodaj zmianę do odpowiedniego dnia dla danego pracownika
       const dayLower = row.day.toLowerCase();
-      if (locationMap[location].agencies[agency].staff[staffName].shifts[dayLower]) {
-        locationMap[location].agencies[agency].staff[staffName].shifts[dayLower].push({
-          date: row.date,
-          time: row.time
-        });
+      const dayShifts = locationMap[location].agencies[agency].staff[staffName].shifts[dayLower];
+      if (dayShifts) {
+        const time = normalizeExportTimeRange(row.time);
+        const alreadyListed = dayShifts.some(
+          (shift) => shift.date === row.date && normalizeExportTimeRange(shift.time) === time
+        );
+        if (!alreadyListed) {
+          dayShifts.push({
+            date: row.date,
+            time
+          });
+        }
       }
     });
     

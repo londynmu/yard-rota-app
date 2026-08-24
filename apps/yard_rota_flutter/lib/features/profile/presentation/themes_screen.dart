@@ -599,7 +599,10 @@ class _WallpaperM3CarouselItem extends StatelessWidget {
                               size: 26,
                               color: colors.primary,
                               shadows: const [
-                                Shadow(color: Color(0x66FFFFFF), blurRadius: 4),
+                                Shadow(
+                                  color: AppPrimitives.white40,
+                                  blurRadius: 4,
+                                ),
                               ],
                             ),
                           ),

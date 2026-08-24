@@ -12,6 +12,18 @@ class SupabaseApiClient implements ApiClient {
   final SupabaseClient _client;
 
   @override
+  Stream<AuthFlowEvent> get authEvents {
+    return _client.auth.onAuthStateChange.map((event) {
+      return switch (event.event) {
+        AuthChangeEvent.passwordRecovery => AuthFlowEvent.passwordRecovery,
+        AuthChangeEvent.signedIn => AuthFlowEvent.signedIn,
+        AuthChangeEvent.signedOut => AuthFlowEvent.signedOut,
+        _ => AuthFlowEvent.tokenRefreshed,
+      };
+    });
+  }
+
+  @override
   Future<UserSession?> restoreSession() async {
     final session = _client.auth.currentSession;
     final user = session?.user;
@@ -48,11 +60,219 @@ class SupabaseApiClient implements ApiClient {
   }
 
   @override
+  Future<RegistrationResult> register({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: 'yardrota://auth-confirmation',
+      );
+      return RegistrationResult(
+        requiresEmailConfirmation: response.session == null,
+      );
+    } on AuthException catch (error) {
+      throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<void> sendPasswordReset({required String email}) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'yardrota://reset-password',
+      );
+    } on AuthException catch (error) {
+      throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: password));
+    } on AuthException catch (error) {
+      throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     try {
       await _client.auth.signOut(scope: SignOutScope.global);
     } on AuthException catch (error) {
       throw UnauthorizedException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<UserProfile> getProfile() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const UnauthorizedException('User session not found.');
+    }
+    final row = await _fetchProfileRow(user.id);
+    return _profileFromRow(user, row);
+  }
+
+  @override
+  Future<UserProfile> updateProfile({
+    required UpdateProfileRequest request,
+  }) async {
+    final userId = _currentUserId();
+    final payload = <String, dynamic>{
+      'id': userId,
+      'first_name': request.firstName.trim(),
+      'last_name': request.lastName.trim(),
+      'shift_preference': request.shiftPreference,
+      'custom_start_time': request.customStartTime,
+      'preferred_location': request.preferredLocation,
+      'agency_id': request.agencyId,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (request.avatarUrl != null) {
+      payload['avatar_url'] = request.avatarUrl;
+    }
+    if (request.completeProfile) {
+      payload['profile_completed'] = true;
+      payload['account_status'] = AccountStatus.pendingApproval.dbValue;
+    }
+    try {
+      await _client.from('profiles').upsert(payload);
+      return getProfile();
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<String> uploadAvatar({required AvatarUpload upload}) async {
+    final userId = _currentUserId();
+    final path =
+        'avatars/$userId-${DateTime.now().millisecondsSinceEpoch}.${upload.fileExtension}';
+    try {
+      await _client.storage
+          .from('avatars')
+          .uploadBinary(
+            path,
+            upload.bytes,
+            fileOptions: FileOptions(contentType: upload.contentType),
+          );
+      return _client.storage.from('avatars').getPublicUrl(path);
+    } on StorageException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<List<AgencyOption>> getActiveAgencies() async {
+    try {
+      final rows = await _client
+          .from('agencies')
+          .select('id,name')
+          .eq('is_active', true)
+          .order('name');
+      return rows
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (row) => AgencyOption(
+              id: row['id'].toString(),
+              name: (row['name'] as String?) ?? '',
+            ),
+          )
+          .where((agency) => agency.name.isNotEmpty)
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<List<AttendanceHistoryItem>> getOwnAttendanceHistory() async {
+    final userId = _currentUserId();
+    try {
+      final rotaRows = await _client
+          .from('scheduled_rota')
+          .select('id,date')
+          .eq('user_id', userId);
+      final dates = <String, String>{};
+      for (final row in rotaRows) {
+        final id = row['id']?.toString();
+        final date = row['date'] as String?;
+        if (id != null && date != null) {
+          dates[id] = date;
+        }
+      }
+      if (dates.isEmpty) {
+        return const [];
+      }
+      final rows = await _client
+          .from('attendance')
+          .select('scheduled_rota_id,status,recorded_at')
+          .inFilter('scheduled_rota_id', dates.keys.toList())
+          .order('recorded_at', ascending: false);
+      return rows
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (row) => AttendanceHistoryItem(
+              dateYmd: dates[row['scheduled_rota_id']?.toString()] ?? '',
+              status: (row['status'] as String?) ?? '',
+              recordedAt: DateTime.tryParse(
+                (row['recorded_at'] as String?) ?? '',
+              ),
+            ),
+          )
+          .where((item) => item.dateYmd.isNotEmpty)
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<List<ViolationHistoryItem>> getOwnViolationHistory() async {
+    final userId = _currentUserId();
+    try {
+      final rows = await _client
+          .from('shunter_violations')
+          .select('id,body,category,created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      return rows
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (row) => ViolationHistoryItem(
+              id: row['id'].toString(),
+              body: (row['body'] as String?) ?? '',
+              category: row['category'] as String?,
+              createdAt:
+                  DateTime.tryParse((row['created_at'] as String?) ?? '') ??
+                  DateTime.fromMillisecondsSinceEpoch(0),
+            ),
+          )
+          .where((item) => item.body.isNotEmpty)
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
     } catch (error) {
       throw TransientNetworkException(error.toString());
     }
@@ -225,19 +445,6 @@ class SupabaseApiClient implements ApiClient {
     return '$y-$m-$d';
   }
 
-  String _displayNameFromUser(User user) {
-    final firstName = user.userMetadata?['first_name'] as String?;
-    final lastName = user.userMetadata?['last_name'] as String?;
-    final fullName = [firstName, lastName]
-        .where((value) => value != null && value.trim().isNotEmpty)
-        .join(' ')
-        .trim();
-    if (fullName.isNotEmpty) {
-      return fullName;
-    }
-    return user.email ?? 'Shunter';
-  }
-
   String _capitalize(String value) {
     if (value.isEmpty) {
       return value;
@@ -254,30 +461,70 @@ class SupabaseApiClient implements ApiClient {
   }
 
   Future<UserSession> _buildUserSession(User user) async {
-    final role = await _fetchProfileRole(user.id);
+    final profile = _profileFromRow(user, await _fetchProfileRow(user.id));
+    final isPrivileged = profile.role != UserRole.user;
     return UserSession(
       userId: user.id,
-      displayName: _displayNameFromUser(user),
-      userRole: role,
+      displayName: profile.displayName,
+      email: user.email ?? '',
+      role: profile.role,
+      accountStatus: isPrivileged
+          ? AccountStatus.approved
+          : profile.accountStatus,
+      profileCompleted: isPrivileged || profile.profileCompleted,
     );
   }
 
-  Future<String?> _fetchProfileRole(String userId) async {
+  Future<Map<String, dynamic>?> _fetchProfileRow(String userId) async {
     try {
       final data = await _client
           .from('profiles')
-          .select('role')
+          .select(
+            'first_name,last_name,avatar_url,shift_preference,custom_start_time,preferred_location,agency_id,role,account_status,profile_completed',
+          )
           .eq('id', userId)
           .maybeSingle();
       if (data is! Map<String, dynamic>) {
         return null;
       }
-      return data['role'] as String?;
-    } on PostgrestException {
-      return null;
-    } catch (_) {
+      return data;
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  UserProfile _profileFromRow(User user, Map<String, dynamic>? row) {
+    if (row == null) {
+      return UserProfile(userId: user.id, email: user.email ?? '');
+    }
+    final role = UserRole.fromDb(row['role'] as String?);
+    return UserProfile(
+      userId: user.id,
+      email: user.email ?? '',
+      firstName: (row['first_name'] as String?) ?? '',
+      lastName: (row['last_name'] as String?) ?? '',
+      avatarUrl: row['avatar_url'] as String?,
+      shiftPreference: (row['shift_preference'] as String?) ?? 'day',
+      customStartTime: _timeText(row['custom_start_time']),
+      preferredLocation: row['preferred_location'] as String?,
+      agencyId: row['agency_id']?.toString(),
+      role: role,
+      accountStatus: role == UserRole.user
+          ? AccountStatus.fromDb(row['account_status'] as String?)
+          : AccountStatus.approved,
+      profileCompleted:
+          role != UserRole.user || row['profile_completed'] == true,
+    );
+  }
+
+  String? _timeText(dynamic value) {
+    final raw = value?.toString();
+    if (raw == null || raw.isEmpty) {
       return null;
     }
+    return raw.length >= 5 ? raw.substring(0, 5) : raw;
   }
 
   @override
@@ -431,7 +678,7 @@ class SupabaseApiClient implements ApiClient {
       try {
         final profRows = await _client
             .from('profiles')
-            .select('id, first_name, last_name')
+            .select('id, first_name, last_name, avatar_url')
             .inFilter('id', userIds);
         for (final dynamic row in profRows) {
           if (row is! Map<String, dynamic>) {
@@ -444,6 +691,7 @@ class SupabaseApiClient implements ApiClient {
           profilesMap[id] = {
             'first_name': ((row['first_name'] as String?) ?? '').trim(),
             'last_name': ((row['last_name'] as String?) ?? '').trim(),
+            'avatar_url': ((row['avatar_url'] as String?) ?? '').trim(),
           };
         }
       } on PostgrestException catch (error) {
@@ -488,6 +736,9 @@ class SupabaseApiClient implements ApiClient {
           userId: userId,
           firstName: firstName,
           lastName: lastName,
+          avatarUrl: (prof['avatar_url'] ?? '').trim().isEmpty
+              ? null
+              : prof['avatar_url'],
           task: row['task'] as String?,
         ),
       );

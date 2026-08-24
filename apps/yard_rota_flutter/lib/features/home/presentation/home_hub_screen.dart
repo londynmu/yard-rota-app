@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/models.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -10,17 +11,28 @@ import '../../../core/ui/app_toast.dart';
 import '../../calendar/data/availability_repository.dart';
 import '../../calendar/data/calendar_repository.dart';
 import '../../calendar/presentation/calendar_screen.dart';
+import '../../breaks/presentation/breaks_screen.dart';
+import '../../induction/presentation/induction_guide_screen.dart';
 import '../../my_rota/data/my_rota_repository.dart';
 import '../../my_rota/presentation/my_rota_screen.dart';
 import '../../pre_check/data/pre_check_repository.dart';
 import '../../pre_check/presentation/pre_check_screen.dart';
+import '../../notifications/presentation/notifications_screen.dart';
 import '../../profile/presentation/themes_screen.dart';
+import '../../profile/presentation/profile_screen.dart';
 import '../../stats/data/stats_repository.dart';
 import '../../stats/presentation/stats_screen.dart';
+import '../../stage_three/data/stage_three_repository.dart';
+import '../../stage_two/data/stage_two_repository.dart';
+import '../../admin/presentation/admin_shell_screen.dart';
+import '../../transport/presentation/transport_dashboard_screen.dart';
+import '../../vmu/presentation/vmu_shell_screen.dart';
+import '../data/stage_one_repository.dart';
 
 class HomeHubScreen extends StatefulWidget {
   const HomeHubScreen({
     super.key,
+    required this.apiClient,
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.lightHomeWallpaper,
@@ -28,12 +40,16 @@ class HomeHubScreen extends StatefulWidget {
     required this.onLightHomeWallpaperChanged,
     required this.onDarkHomeWallpaperChanged,
     required this.onLogout,
+    required this.onProfileSaved,
     required this.session,
     required this.calendarRepository,
     required this.availabilityRepository,
     required this.myRotaRepository,
     this.preCheckRepository,
     required this.statsRepository,
+    this.stageOneRepository,
+    this.stageTwoRepository,
+    this.stageThreeRepository,
   });
 
   final ThemeMode themeMode;
@@ -45,12 +61,17 @@ class HomeHubScreen extends StatefulWidget {
   final Future<void> Function(DarkHomeWallpaper wallpaper)
   onDarkHomeWallpaperChanged;
   final Future<void> Function() onLogout;
+  final ApiClient apiClient;
+  final ValueChanged<UserProfile> onProfileSaved;
   final UserSession session;
   final CalendarRepository calendarRepository;
   final AvailabilityRepository availabilityRepository;
   final MyRotaRepository myRotaRepository;
   final PreCheckRepository? preCheckRepository;
   final StatsRepository statsRepository;
+  final StageOneRepository? stageOneRepository;
+  final StageTwoRepository? stageTwoRepository;
+  final StageThreeRepository? stageThreeRepository;
 
   static const List<_HubTileSpec> _primaryTiles = [
     _HubTileSpec(
@@ -79,6 +100,17 @@ class HomeHubScreen extends StatefulWidget {
     _HubTileSpec(
       title: 'Notifications',
       icon: Icons.notifications_none_outlined,
+      isNotifications: true,
+    ),
+    _HubTileSpec(
+      title: 'Breaks',
+      icon: Icons.free_breakfast_outlined,
+      isBreaks: true,
+    ),
+    _HubTileSpec(
+      title: 'Shunter Guide',
+      icon: Icons.menu_book_outlined,
+      isGuide: true,
     ),
   ];
 
@@ -87,11 +119,61 @@ class HomeHubScreen extends StatefulWidget {
     _HubTileSpec(title: 'Account', icon: Icons.person_outline, isAccount: true),
   ];
 
-  static const List<_HubTileSpec> _homeCards = [
-    ..._primaryTiles,
-    ..._workTiles,
-    ..._settingsTiles,
-  ];
+  List<_HubTileSpec> get _homeCards {
+    if (session.isTransportManager && !session.isAdmin) {
+      return const [
+        _HubTileSpec(
+          title: 'Transport Dashboard',
+          icon: Icons.local_shipping_outlined,
+          roleDestination: true,
+        ),
+        _HubTileSpec(
+          title: 'Notifications',
+          icon: Icons.notifications_none,
+          isNotifications: true,
+        ),
+        ..._settingsTiles,
+      ];
+    }
+    if (session.isVmu && !session.isAdmin) {
+      return const [
+        _HubTileSpec(
+          title: 'VMU',
+          icon: Icons.build_circle_outlined,
+          roleDestination: true,
+        ),
+        _HubTileSpec(
+          title: 'PreChecks',
+          icon: Icons.fact_check_outlined,
+          roleDestination: true,
+        ),
+        ..._settingsTiles,
+      ];
+    }
+    return [
+      ..._primaryTiles,
+      ..._workTiles,
+      if (session.isAdmin)
+        const _HubTileSpec(
+          title: 'Transport Dashboard',
+          icon: Icons.local_shipping_outlined,
+          roleDestination: true,
+        ),
+      if (session.isAdmin)
+        const _HubTileSpec(
+          title: 'VMU',
+          icon: Icons.build_circle_outlined,
+          roleDestination: true,
+        ),
+      if (session.isAdmin)
+        const _HubTileSpec(
+          title: 'Admin',
+          icon: Icons.admin_panel_settings_outlined,
+          roleDestination: true,
+        ),
+      ..._settingsTiles,
+    ];
+  }
 
   @override
   State<HomeHubScreen> createState() => _HomeHubScreenState();
@@ -100,6 +182,7 @@ class HomeHubScreen extends StatefulWidget {
 class _HomeHubScreenState extends State<HomeHubScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _titleEntranceController;
+  late final String _trackingSessionId;
 
   @override
   void initState() {
@@ -107,9 +190,10 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     _titleEntranceController = AnimationController(
       vsync: this,
       duration:
-          AppLuxuryHomeGradient.textEntrancePerCard *
-          HomeHubScreen._homeCards.length,
+          AppLuxuryHomeGradient.textEntrancePerCard * widget._homeCards.length,
     );
+    _trackingSessionId =
+        'flutter_${DateTime.now().millisecondsSinceEpoch}_${widget.session.userId}';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _titleEntranceController.forward();
@@ -129,6 +213,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
     final topContentInset = mq.padding.top + kToolbarHeight;
+    final homeCards = widget._homeCards;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -192,7 +277,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                   builder: (ctx) {
                     return GridView.builder(
                       padding: EdgeInsets.zero,
-                      itemCount: HomeHubScreen._homeCards.length,
+                      itemCount: homeCards.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
@@ -201,11 +286,11 @@ class _HomeHubScreenState extends State<HomeHubScreen>
                             childAspectRatio: 1,
                           ),
                       itemBuilder: (context, index) {
-                        final spec = HomeHubScreen._homeCards[index];
+                        final spec = homeCards[index];
                         return _HubSquareTile(
                           spec: spec,
                           index: index,
-                          cardCount: HomeHubScreen._homeCards.length,
+                          cardCount: homeCards.length,
                           titleEntranceAnimation: _titleEntranceController,
                           onTap: () => _onTileTap(ctx, spec),
                         );
@@ -223,6 +308,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
 
   Future<void> _onTileTap(BuildContext context, _HubTileSpec spec) async {
     if (spec.isCalendar) {
+      _track('/calendar', 'Calendar');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => CalendarScreen(
@@ -231,6 +317,9 @@ class _HomeHubScreenState extends State<HomeHubScreen>
             availabilityRepository: widget.availabilityRepository,
             lightHomeWallpaper: widget.lightHomeWallpaper,
             darkHomeWallpaper: widget.darkHomeWallpaper,
+            session: widget.session,
+            stageOneRepository: widget.stageOneRepository,
+            preCheckRepository: widget.preCheckRepository,
           ),
         ),
       );
@@ -252,6 +341,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       return;
     }
     if (spec.isMyRota) {
+      _track('/my-rota', 'My Rota');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => MyRotaScreen(
@@ -270,6 +360,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
         AppToast.show(context, 'PreCheck is coming soon.');
         return;
       }
+      _track('/precheck', 'PreCheck');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => PreCheckScreen(
@@ -283,6 +374,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       return;
     }
     if (spec.isStats) {
+      _track('/performance', 'Stats');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => StatsScreen(
@@ -296,13 +388,95 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       return;
     }
     if (spec.isAccount) {
+      _track('/profile', 'Profile');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (context) => _AccountScreen(
+          builder: (context) => ProfileScreen(
+            apiClient: widget.apiClient,
             session: widget.session,
-            lightHomeWallpaper: widget.lightHomeWallpaper,
-            darkHomeWallpaper: widget.darkHomeWallpaper,
+            onProfileSaved: widget.onProfileSaved,
             onLogout: widget.onLogout,
+          ),
+        ),
+      );
+      return;
+    }
+    final stageOneRepository = widget.stageOneRepository;
+    if (spec.isBreaks && stageOneRepository != null) {
+      _track('/brakes', 'Breaks');
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => BreaksScreen(
+            repository: stageOneRepository,
+            currentUserId: widget.session.userId,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.isGuide && stageOneRepository != null) {
+      _track('/yard-guide', 'Yard induction guide');
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) =>
+              InductionGuideScreen(repository: stageOneRepository),
+        ),
+      );
+      return;
+    }
+    if (spec.isNotifications && stageOneRepository != null) {
+      _track('/notifications', 'Notifications');
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => NotificationsScreen(
+            repository: stageOneRepository,
+            session: widget.session,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.roleDestination &&
+        spec.title == 'Transport Dashboard' &&
+        widget.stageTwoRepository != null) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => TransportDashboardScreen(
+            repository: widget.stageTwoRepository!,
+            session: widget.session,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.roleDestination &&
+        (spec.title == 'VMU' || spec.title == 'PreChecks') &&
+        widget.stageThreeRepository != null &&
+        (widget.session.isVmu || widget.session.isAdmin)) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => VmuShellScreen(
+            repository: widget.stageThreeRepository!,
+            session: widget.session,
+            initialSection: spec.title == 'PreChecks'
+                ? VmuSection.preChecks
+                : VmuSection.defects,
+          ),
+        ),
+      );
+      return;
+    }
+    if (spec.roleDestination &&
+        spec.title == 'Admin' &&
+        widget.stageTwoRepository != null &&
+        widget.stageThreeRepository != null &&
+        widget.session.isAdmin) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => AdminShellScreen(
+            repository: widget.stageTwoRepository!,
+            stageThreeRepository: widget.stageThreeRepository!,
+            session: widget.session,
           ),
         ),
       );
@@ -313,8 +487,23 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     }
     AppToast.show(context, '${spec.title} is coming soon.');
   }
+
+  void _track(String path, String title) {
+    final repository = widget.stageOneRepository;
+    if (repository == null) return;
+    repository
+        .trackPageVisit(
+          userId: widget.session.userId,
+          path: path,
+          title: title,
+          sessionId: _trackingSessionId,
+        )
+        .catchError((_) {});
+  }
 }
 
+// Kept as a visual reference while ProfileScreen replaces the old account page.
+// ignore: unused_element
 class _AccountScreen extends StatelessWidget {
   const _AccountScreen({
     required this.session,
@@ -421,7 +610,7 @@ class _AccountInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final role = session.userRole?.trim();
+    final role = session.userRole.trim();
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.bgElevated.withValues(alpha: 0.9),
@@ -463,7 +652,7 @@ class _AccountInfoCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (role != null && role.isNotEmpty) ...[
+                  if (role.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       role,
@@ -571,6 +760,10 @@ class _HubTileSpec {
     this.isPreCheck = false,
     this.isStats = false,
     this.isAccount = false,
+    this.isBreaks = false,
+    this.isGuide = false,
+    this.isNotifications = false,
+    this.roleDestination = false,
   });
 
   final String title;
@@ -581,6 +774,10 @@ class _HubTileSpec {
   final bool isPreCheck;
   final bool isStats;
   final bool isAccount;
+  final bool isBreaks;
+  final bool isGuide;
+  final bool isNotifications;
+  final bool roleDestination;
 }
 
 class _HubSquareTile extends StatelessWidget {

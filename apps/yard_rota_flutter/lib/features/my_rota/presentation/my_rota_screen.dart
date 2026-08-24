@@ -1821,6 +1821,22 @@ class _PersonRow extends StatelessWidget {
                 spacing: AppSpacing.xs,
                 runSpacing: AppSpacing.xxs,
                 children: [
+                  CircleAvatar(
+                    radius: AppMyRotaListSpacing.personAvatarSize / 2,
+                    backgroundColor: colors.bgTertiary,
+                    backgroundImage:
+                        slot.avatarUrl == null || slot.avatarUrl!.isEmpty
+                        ? null
+                        : NetworkImage(slot.avatarUrl!),
+                    child: slot.avatarUrl == null || slot.avatarUrl!.isEmpty
+                        ? Text(
+                            displayName.substring(0, 1).toUpperCase(),
+                            style: AppTypography.caption.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          )
+                        : null,
+                  ),
                   nameLabel,
                   if (attendance != null)
                     Container(

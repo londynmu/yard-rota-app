@@ -44,6 +44,53 @@ void main() {
     AppToast.dismissPending();
   });
 
+  testWidgets('requires an incomplete user to finish their profile', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      YardRotaApp(
+        apiClient: _RestoredSessionClient(
+          const UserSession(
+            userId: 'pending-user',
+            displayName: 'Pending User',
+            email: 'pending@example.com',
+            profileCompleted: false,
+            accountStatus: AccountStatus.pendingApproval,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Complete your profile'), findsOneWidget);
+    expect(find.text('First name'), findsOneWidget);
+    AppToast.dismissPending();
+  });
+
+  testWidgets('shows approval gate for a completed pending user', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      YardRotaApp(
+        apiClient: _RestoredSessionClient(
+          const UserSession(
+            userId: 'pending-user',
+            displayName: 'Pending User',
+            email: 'pending@example.com',
+            profileCompleted: true,
+            accountStatus: AccountStatus.pendingApproval,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Profile awaiting approval'), findsOneWidget);
+    expect(find.text('Check status'), findsOneWidget);
+    AppToast.dismissPending();
+  });
+
   testWidgets('tapping past day does not open availability sheet', (
     tester,
   ) async {
@@ -103,7 +150,7 @@ void main() {
   });
 }
 
-class _NoSessionClient implements ApiClient {
+class _NoSessionClient extends MockApiClient {
   final Map<String, AvailabilityEntry> _availability =
       <String, AvailabilityEntry>{};
 
@@ -211,4 +258,13 @@ class _NoSessionClient implements ApiClient {
   }) async {
     return StatsRemoteSnapshot(records: const [], fetchedAt: DateTime.now());
   }
+}
+
+class _RestoredSessionClient extends MockApiClient {
+  _RestoredSessionClient(this.session);
+
+  final UserSession session;
+
+  @override
+  Future<UserSession?> restoreSession() async => session;
 }

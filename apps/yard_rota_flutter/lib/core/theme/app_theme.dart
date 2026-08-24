@@ -48,6 +48,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
+      splashFactory: InkRipple.splashFactory,
       scaffoldBackgroundColor: colors.bgPrimary,
       textTheme: textTheme,
       extensions: [AppColorsExtension(colors)],

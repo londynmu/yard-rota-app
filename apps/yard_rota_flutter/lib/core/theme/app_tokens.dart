@@ -71,6 +71,7 @@ class AppPrimitives {
   static const cyan900 = Color(0xFF164E63);
 
   static const white = Color(0xFFFFFFFF);
+  static const white40 = Color(0x66FFFFFF);
   static const black = Color(0xFF000000);
 }
 
@@ -397,6 +398,7 @@ class AppMyRotaListSpacing {
   static const double chipWrapRunSpacing = AppSpacing.xxs;
   static const double emptyStateInset = AppSpacing.sm;
   static const double personTaskGap = AppSpacing.xxs;
+  static const double personAvatarSize = 22;
 }
 
 @immutable
