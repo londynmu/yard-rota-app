@@ -9,6 +9,7 @@ import ExportRotaButton from '../ExportRotaButton';
 import TemplateModal from './TemplateModal';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../ui/ToastContext';
+import { countPendingAdditionalPeople } from '../../../utils/rotaWeekBaseline';
 
 // Add date-fns for date manipulation
 import { format, addDays, subDays, parseISO, getWeek } from 'date-fns';
@@ -88,6 +89,8 @@ const RotaManager = ({ user }) => {
   const [activeTimeField, setActiveTimeField] = useState(null); // 'start' or 'end'
   const [timePickerCallback, setTimePickerCallback] = useState(null);
   const toast = useToast();
+  const [pendingAdditionalCount, setPendingAdditionalCount] = useState(0);
+  const [baselineEpoch, setBaselineEpoch] = useState(0);
 
   // Save current date to localStorage whenever it changes
   useEffect(() => {
@@ -98,6 +101,21 @@ const RotaManager = ({ user }) => {
   useEffect(() => {
     localStorage.setItem('rota_planner_view_mode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const weekStart = getWeekStart(currentDate);
+    countPendingAdditionalPeople(supabase, weekStart)
+      .then((count) => {
+        if (!cancelled) setPendingAdditionalCount(count);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingAdditionalCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentDate, slots, baselineEpoch]);
 
   // Save scroll position when user scrolls
   useEffect(() => {
@@ -1447,8 +1465,18 @@ const RotaManager = ({ user }) => {
               </svg>
             </button>
             
-            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all">
-              <ExportRotaButton iconOnly={true} />
+            <div className="relative h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all">
+              <ExportRotaButton
+                iconOnly={true}
+                weekStart={getWeekStart(currentDate)}
+                pendingCount={pendingAdditionalCount}
+                onBaselineChanged={() => setBaselineEpoch((n) => n + 1)}
+              />
+              {pendingAdditionalCount > 0 && (
+                <span className="pointer-events-none absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-charcoal px-1 text-center text-[10px] leading-4 text-white">
+                  {pendingAdditionalCount > 9 ? '9+' : pendingAdditionalCount}
+                </span>
+              )}
             </div>
           </div>
         </div>

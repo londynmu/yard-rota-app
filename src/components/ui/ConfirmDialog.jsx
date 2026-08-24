@@ -10,10 +10,11 @@ export default function ConfirmDialog({
   message, 
   confirmText = "OK", 
   cancelText = "Cancel",
-  isDestructive = false
+  isDestructive = false,
+  overlayClassName = "z-50",
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} overlayClassName={overlayClassName}>
       <div className="text-center sm:text-left">
         <h3 className="text-xl font-semibold mb-2 text-rota-text-primary">{title}</h3>
         <p className="text-rota-text-muted mb-6">{message}</p>
@@ -52,11 +53,13 @@ ConfirmDialog.propTypes = {
   message: PropTypes.string.isRequired,
   confirmText: PropTypes.string,
   cancelText: PropTypes.string,
-  isDestructive: PropTypes.bool
+  isDestructive: PropTypes.bool,
+  overlayClassName: PropTypes.string
 };
 
 ConfirmDialog.defaultProps = {
   confirmText: "OK",
   cancelText: "Cancel",
-  isDestructive: false
+  isDestructive: false,
+  overlayClassName: "z-50"
 }; 

@@ -191,6 +191,8 @@ const LoginStats = () => {
       breaks_custom_slot_deleted: 'Custom break slot deleted',
       break_assignment_added: 'Break assignment added',
       break_assignment_removed: 'Break assignment removed',
+      rota_baseline_created: 'Rota baseline created',
+      additional_bookings_sent: 'Additional bookings sent',
     };
     return labels[actionType] || actionType;
   };
@@ -220,6 +222,15 @@ const LoginStats = () => {
       if (actionType === 'breaks_custom_slot_deleted') return [p.date, toTimeHHMM(p.break_start_time), `${p.break_duration_minutes} min`].filter(Boolean).join(', ');
       if (actionType === 'break_assignment_added' || actionType === 'break_assignment_removed') {
         return [p.date, p.shift_type, p.location, toTimeHHMM(p.break_start_time)].filter(Boolean).join(', ');
+      }
+      if (actionType === 'rota_baseline_created' || actionType === 'additional_bookings_sent') {
+        return [
+          p.week_start,
+          p.source,
+          p.agency_name,
+          p.slots_count != null ? `${p.slots_count} slots` : null,
+          p.people_count != null ? `${p.people_count} people` : null,
+        ].filter(Boolean).join(', ');
       }
       return JSON.stringify(p).slice(0, 80);
     } catch {

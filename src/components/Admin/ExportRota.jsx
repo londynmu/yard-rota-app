@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import { logSystemActivity } from '../../lib/systemActivityLog';
 import { format, addDays, getDay, nextSaturday } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import AdditionalBookingsPanel from './AdditionalBookingsPanel';
+import { EMAIL_SIGN_OFF, formatShiftClock } from '../../utils/rotaAdditionalBookings';
+import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBaseline';
 
 // Funkcja pomocnicza do uzyskania następnej soboty lub bieżącej, jeśli dzisiaj jest sobota
 const getNextOrCurrentSaturday = (date) => {
@@ -16,11 +21,18 @@ const getNextOrCurrentSaturday = (date) => {
   return nextSaturday(date);
 };
 
-const ExportRota = () => {
+const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaselineChanged = null }) => {
+  const [mode, setMode] = useState(initialTab === 'additional' ? 'additional' : 'weekly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [startDate, setStartDate] = useState(getNextOrCurrentSaturday(new Date()));
+  const [startDate, setStartDate] = useState(() => {
+    if (initialStartDate) {
+      const raw = initialStartDate instanceof Date ? initialStartDate : new Date(initialStartDate);
+      return getNextOrCurrentSaturday(raw);
+    }
+    return getNextOrCurrentSaturday(new Date());
+  });
   const [agencies, setAgencies] = useState([]);
   const [selectedAgencies, setSelectedAgencies] = useState([]);
   const [rotaData, setRotaData] = useState([]);
@@ -141,7 +153,7 @@ const ExportRota = () => {
           day: format(new Date(slot.date), 'EEEE'),
           location: slot.location,
           shift: slot.shift_type,
-          time: `${slot.start_time} - ${slot.end_time}`,
+          time: `${formatShiftClock(slot.start_time)} - ${formatShiftClock(slot.end_time)}`,
           staff: profile.first_name && profile.last_name ? 
                  `${profile.first_name} ${profile.last_name}` : 'Unassigned',
           email: profile.email || '',
@@ -256,8 +268,34 @@ const ExportRota = () => {
     return day === 6; // 6 to sobota w date-fns (0 - niedziela)
   };
 
+  const persistWeekBaseline = async (source) => {
+    try {
+      const slots = await fetchAssignedSlotsForWeek(supabase, startDate);
+      const result = await ensureWeekBaseline(supabase, {
+        weekStartIso: weekStartIso(startDate),
+        source,
+        slots,
+        userId: currentUser?.id,
+      });
+      if (result.created) {
+        await logSystemActivity(supabase, currentUser, {
+          entity_type: 'rota',
+          action_type: 'rota_baseline_created',
+          payload: {
+            week_start: weekStartIso(startDate),
+            source,
+            slots_count: slots.length,
+          },
+        });
+        if (onBaselineChanged) onBaselineChanged();
+      }
+    } catch (err) {
+      console.error('Failed to save week baseline', err);
+    }
+  };
+
   // Generate and download CSV
-  const generateCSV = () => {
+  const generateCSV = ({ skipBaseline = false } = {}) => {
     if (rotaData.length === 0) {
       setError('No data available to export');
       return;
@@ -342,6 +380,10 @@ const ExportRota = () => {
         csvContent // Store content for fallback
       });
       setShowDownloadModal(true);
+
+      if (!skipBaseline) {
+        persistWeekBaseline('download');
+      }
       
       return csvContent; // Return for potential email attachment
     } catch (err) {
@@ -352,7 +394,7 @@ const ExportRota = () => {
   };
 
   // Generate and download PDF
-  const generatePDF = () => {
+  const generatePDF = ({ skipBaseline = false } = {}) => {
     if (rotaData.length === 0) {
       setError('No data available to export');
       return;
@@ -518,6 +560,10 @@ const ExportRota = () => {
         type: 'PDF'
       });
       setShowDownloadModal(true);
+
+      if (!skipBaseline) {
+        persistWeekBaseline('download');
+      }
       
       return doc; // Return for potential email attachment
     } catch (err) {
@@ -556,10 +602,12 @@ const ExportRota = () => {
 
     try {
       // Generate CSV file (will download automatically)
-      generateCSV();
+      generateCSV({ skipBaseline: true });
       
       // Generate PDF file (will download automatically)
-      generatePDF();
+      generatePDF({ skipBaseline: true });
+
+      await persistWeekBaseline('send');
       
       // Prepare email - we'll use mailto protocol to open the default email client
       const selectedEmails = selectedAgencies
@@ -585,7 +633,7 @@ const ExportRota = () => {
         `Please find attached the weekly shunters schedule for ${weekRange}.\n\n` +
         `Please confirm receipt of this schedule.\n\n` +
         `Best regards\n\n` +
-        `Keith Thomas`
+        EMAIL_SIGN_OFF
       );
       
       // Open default email client with prefilled information
@@ -611,9 +659,34 @@ const ExportRota = () => {
   return (
     <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 shadow-xl md:p-6 max-w-2xl mx-auto min-h-[520px]">
       {/* Heading */}
-      <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send Weekly Schedule</h2>
+      <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send</h2>
 
-      {/* Progress bar */}
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        <button
+          type="button"
+          onClick={() => setMode('weekly')}
+          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
+            mode === 'weekly'
+              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+          }`}
+        >
+          Weekly schedule
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('additional')}
+          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
+            mode === 'additional'
+              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+          }`}
+        >
+          Additional bookings
+        </button>
+      </div>
+
+      {mode === 'weekly' && (
       <div className="flex items-center space-x-3">
         <span className="text-sm text-gray-500">Step {step} / 4</span>
         <div className="flex-1 h-2 rounded bg-gray-200">
@@ -623,11 +696,9 @@ const ExportRota = () => {
           />
         </div>
       </div>
+      )}
 
-      {/* STEP 1 – Week selection & Fetch */}
-      {step === 1 && (
-        <>
-          <div className="mb-8 relative">
+      <div className="mb-2 relative">
             <label htmlFor="start-date" className="mb-1 block text-sm font-medium text-charcoal">
               Select Week (Starting Saturday)
             </label>
@@ -703,7 +774,10 @@ const ExportRota = () => {
             </style>
             <DatePicker
               selected={startDate}
-              onChange={(date) => setStartDate(date)}
+              onChange={(date) => {
+                setStartDate(date);
+                setRotaData([]);
+              }}
               dateFormat="dd/MM/yyyy"
               filterDate={isSaturday}
               className="w-full rounded-md border border-gray-300 bg-white p-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
@@ -721,6 +795,15 @@ const ExportRota = () => {
             )}
           </div>
 
+      {mode === 'additional' && (
+        <AdditionalBookingsPanel
+          startDate={startDate}
+          currentUser={currentUser}
+          onBaselineChanged={onBaselineChanged}
+        />
+      )}
+
+      {mode === 'weekly' && step === 1 && (
           <div>
             <button
               onClick={fetchRotaForWeek}
@@ -733,20 +816,19 @@ const ExportRota = () => {
               <p className="mt-2 text-sm text-gray-600">{rotaData.length} shifts loaded for selected week</p>
             )}
           </div>
-        </>
       )}
 
       {/* STEP 2 – Download files */}
-      {step === 2 && (
+      {mode === 'weekly' && step === 2 && (
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={generateCSV}
+            onClick={() => generateCSV()}
             className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
           >
             Download CSV
           </button>
           <button
-            onClick={generatePDF}
+            onClick={() => generatePDF()}
             className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
           >
             Download PDF
@@ -755,7 +837,7 @@ const ExportRota = () => {
       )}
 
       {/* STEP 3 – Agency selection */}
-      {step === 3 && agencies.length > 0 && (
+      {mode === 'weekly' && step === 3 && agencies.length > 0 && (
         <>
           <h3 className="text-lg font-medium text-charcoal mb-3">Send to Agency Managers</h3>
           <div className="mb-4 max-h-60 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-3">
@@ -794,7 +876,7 @@ const ExportRota = () => {
       )}
 
       {/* STEP 4 – Email message & send */}
-      {step === 4 && (
+      {mode === 'weekly' && step === 4 && (
         <>
           <div className="mb-4">
             <label htmlFor="email-message" className="block text-charcoal mb-1">Email Message</label>
@@ -817,7 +899,7 @@ const ExportRota = () => {
         </>
       )}
 
-      {/* Navigation buttons */}
+      {mode === 'weekly' && (
       <div className="flex justify-between pt-4">
         {step > 1 ? (
           <button
@@ -838,6 +920,7 @@ const ExportRota = () => {
           </button>
         )}
       </div>
+      )}
 
       {/* Error/Success Messages */}
       {error && (
@@ -964,6 +1047,18 @@ const ExportRota = () => {
         </div>, document.body)}
     </div>
   );
+};
+
+ExportRota.propTypes = {
+  initialTab: PropTypes.oneOf(['weekly', 'additional']),
+  initialStartDate: PropTypes.instanceOf(Date),
+  onBaselineChanged: PropTypes.func,
+};
+
+ExportRota.defaultProps = {
+  initialTab: 'weekly',
+  initialStartDate: null,
+  onBaselineChanged: null,
 };
 
 export default ExportRota; 
