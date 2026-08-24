@@ -1,45 +1,85 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Check, TreePalm, X } from 'lucide-react';
-import { addDays, eachDayOfInterval, format } from 'date-fns';
+import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, TreePalm } from 'lucide-react';
+import { addMonths, eachDayOfInterval, format, startOfDay } from 'date-fns';
 
 const AVAILABILITY_STATUSES = ['available', 'unavailable', 'holiday'];
 
-function getAppliedDayChipStyle(status) {
+const STATUS_OPTIONS = [
+  { value: 'available', label: 'Available', Icon: CircleCheck },
+  { value: 'unavailable', label: 'Unavailable', Icon: CircleMinus },
+  { value: 'holiday', label: 'Holiday', Icon: TreePalm },
+];
+
+function getOrdinalDay(day) {
+  if (day >= 11 && day <= 13) {
+    return `${day}th`;
+  }
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+function getStatusTone(status) {
   switch (status) {
     case 'available':
       return {
-        Icon: Check,
-        chipClass:
-          'border-emerald-300/70 bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-900 shadow-sm',
-        iconClass: 'text-emerald-700',
-        subtextClass: 'text-emerald-800/80',
+        pillSelected: 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm',
+        pillIconSelected: 'text-emerald-700',
+        cardSelected:
+          'border-emerald-400 bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-900 shadow-md',
+        cardSaved:
+          'border-emerald-300/70 bg-gradient-to-br from-emerald-50/70 to-teal-50/70 text-emerald-900',
+        dayText: 'text-emerald-800',
+        dayMuted: 'text-emerald-800/80',
       };
     case 'unavailable':
       return {
-        Icon: X,
-        chipClass:
-          'border-rose-300/70 bg-gradient-to-br from-rose-50 to-pink-50 text-rose-900 shadow-sm',
-        iconClass: 'text-rose-700',
-        subtextClass: 'text-rose-800/80',
+        pillSelected: 'border-rose-400 bg-rose-50 text-rose-800 shadow-sm',
+        pillIconSelected: 'text-rose-700',
+        cardSelected:
+          'border-rose-400 bg-gradient-to-br from-rose-50 to-pink-50 text-rose-900 shadow-md',
+        cardSaved:
+          'border-rose-300/70 bg-gradient-to-br from-rose-50/70 to-pink-50/70 text-rose-900',
+        dayText: 'text-rose-800',
+        dayMuted: 'text-rose-800/80',
       };
     case 'holiday':
       return {
-        Icon: TreePalm,
-        chipClass:
-          'border-blue-300/70 bg-gradient-to-br from-blue-50 to-cyan-50 text-blue-900 shadow-sm',
-        iconClass: 'text-blue-700',
-        subtextClass: 'text-blue-800/80',
+        pillSelected: 'border-blue-500 bg-sky-50 text-blue-900 shadow-sm',
+        pillIconSelected: 'text-blue-700',
+        cardSelected:
+          'border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50 text-blue-900 shadow-md',
+        cardSaved:
+          'border-blue-300/70 bg-gradient-to-br from-blue-50/70 to-cyan-50/70 text-blue-900',
+        dayText: 'text-blue-800',
+        dayMuted: 'text-blue-800/80',
       };
     default:
       return {
-        Icon: Check,
-        chipClass: 'border-slate-200 bg-white text-slate-700',
-        iconClass: 'text-slate-600',
-        subtextClass: 'text-slate-500',
+        pillSelected: 'border-slate-300 bg-slate-50 text-charcoal shadow-sm',
+        pillIconSelected: 'text-slate-600',
+        cardSelected: 'border-slate-300 bg-white text-charcoal shadow-md',
+        cardSaved: 'border-slate-200 bg-white text-slate-700',
+        dayText: 'text-charcoal',
+        dayMuted: 'text-slate-500',
       };
   }
+}
+
+function statusLabelForDisplay(status) {
+  if (!AVAILABILITY_STATUSES.includes(status)) {
+    return 'Not set';
+  }
+  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'Not set';
 }
 
 function AvailabilityDialog({
@@ -52,17 +92,18 @@ function AvailabilityDialog({
   isSaving,
 }) {
   const [activeStatus, setActiveStatus] = useState('available');
-  const [comment, setComment] = useState('');
   const [selectedDates, setSelectedDates] = useState([]);
   const [dayStatusByDate, setDayStatusByDate] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [carouselArrowsDismissed, setCarouselArrowsDismissed] = useState(false);
+  const [carouselScrollable, setCarouselScrollable] = useState(false);
+  const carouselRef = useRef(null);
 
-  const dateOptions = useMemo(
-    () => eachDayOfInterval({ start: date, end: addDays(date, 13) }),
-    [date]
-  );
+  const dateOptions = useMemo(() => {
+    const start = startOfDay(date);
+    return eachDayOfInterval({ start, end: addMonths(start, 1) });
+  }, [date]);
   const clickedDateYmd = useMemo(() => format(date, 'yyyy-MM-dd'), [date]);
-  const isSingleSelection = selectedDates.length === 1;
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -95,29 +136,29 @@ function AvailabilityDialog({
     }
     setDayStatusByDate(seededStatuses);
     setActiveStatus(seededStatuses[clickedDateYmd] || initialData?.status || 'available');
-    setComment(initialData?.comment || '');
+    setCarouselArrowsDismissed(false);
   }, [availabilityByDate, clickedDateYmd, dateOptions, initialData, initialSelectedDates]);
 
+  const updateCarouselScrollable = useCallback(() => {
+    const node = carouselRef.current;
+    if (!node) return;
+    setCarouselScrollable(node.scrollWidth > node.clientWidth + 0.5);
+  }, []);
+
   useEffect(() => {
-    if (selectedDates.length !== 1) {
-      setComment('');
-      return;
-    }
+    const node = carouselRef.current;
+    if (!node) return undefined;
 
-    const onlyDate = selectedDates[0];
-    const existingComment = availabilityByDate?.[onlyDate]?.comment;
-    if (typeof existingComment === 'string') {
-      setComment(existingComment);
-      return;
-    }
+    updateCarouselScrollable();
+    const observer = new ResizeObserver(updateCarouselScrollable);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [dateOptions, updateCarouselScrollable]);
 
-    if (onlyDate === clickedDateYmd && typeof initialData?.comment === 'string') {
-      setComment(initialData.comment);
-      return;
-    }
-
-    setComment('');
-  }, [availabilityByDate, clickedDateYmd, initialData, selectedDates]);
+  const handleCarouselScroll = () => {
+    if (carouselArrowsDismissed || !carouselScrollable) return;
+    setCarouselArrowsDismissed(true);
+  };
 
   const handleDateClick = (dateString) => {
     const isSelected = selectedDates.includes(dateString);
@@ -138,8 +179,8 @@ function AvailabilityDialog({
     setSelectedDates((prev) => prev.filter((item) => item !== dateString));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (isSubmitting || isSaving || selectedDates.length === 0) return;
 
     const entries = selectedDates.map((dateString) => ({
@@ -151,8 +192,8 @@ function AvailabilityDialog({
     const didSave = await onSave({
       date: clickedDateYmd,
       entries,
-      comment: isSingleSelection ? comment : '',
-      applyComment: isSingleSelection,
+      comment: '',
+      applyComment: false,
     });
     setIsSubmitting(false);
 
@@ -161,161 +202,136 @@ function AvailabilityDialog({
     }
   };
 
-  const dayOfWeek = format(date, 'EEEE');
-  const activeStatusStyle = getAppliedDayChipStyle(activeStatus);
+  const showCarouselArrows = carouselScrollable && !carouselArrowsDismissed;
+  const saveDisabled = isSaving || isSubmitting || selectedDates.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-rota-modal-overlay">
-      <div className="flex min-h-full items-start justify-center px-4 pt-4 pb-bottom-nav sm:pt-6">
+    <div
+      className="fixed inset-0 z-[60] overflow-y-auto bg-rota-modal-overlay"
+      onClick={onClose}
+    >
+      <div className="flex min-h-full items-center justify-center px-4 py-6 pb-bottom-nav">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="glass-card mx-auto my-2 w-full max-w-sm shadow-strong"
+          className="glass-card mx-auto w-full max-w-md shadow-strong"
+          onClick={(event) => event.stopPropagation()}
         >
-          <form onSubmit={handleSubmit} className="max-h-[calc(100dvh-8rem)] overflow-y-auto p-6">
-            <div className="mb-5 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold leading-tight text-charcoal">
-                  Set Availability for {dayOfWeek}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-rota-text-muted">{format(date, 'd MMM yyyy')}</p>
+          <form onSubmit={handleSubmit} className="flex flex-col p-4">
+            <div className="flex flex-col items-center">
+              <h2 className="text-center text-base font-semibold text-rota-text-muted">
+                Set availability as
+              </h2>
+              <div className="mt-2 flex max-w-full justify-center overflow-x-auto">
+                <div className="inline-flex items-center gap-1.5">
+                  {STATUS_OPTIONS.map((option) => {
+                    const selected = activeStatus === option.value;
+                    const tone = getStatusTone(option.value);
+                    const Icon = option.Icon;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setActiveStatus(option.value)}
+                        className={`inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm font-semibold shadow-sm transition-all ${
+                          selected
+                            ? tone.pillSelected
+                            : 'border-slate-200 bg-slate-50 text-charcoal hover:bg-white'
+                        }`}
+                      >
+                        <Icon
+                          className={`h-3.5 w-3.5 ${
+                            selected ? tone.pillIconSelected : 'text-rota-text-muted'
+                          }`}
+                          strokeWidth={2.25}
+                          aria-hidden
+                        />
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <button
-                type="button"
-                className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
-                onClick={onClose}
-                aria-label="Close"
-              >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
 
-            <div className="mb-6">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-charcoal">Apply to days</p>
-                <p className="text-xs text-rota-text-muted">{selectedDates.length} selected</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="relative mt-4 h-32 overflow-hidden">
+              <div
+                ref={carouselRef}
+                onScroll={handleCarouselScroll}
+                className="flex h-full gap-2 overflow-x-auto px-6"
+              >
                 {dateOptions.map((optionDate) => {
                   const optionDateString = format(optionDate, 'yyyy-MM-dd');
                   const isChecked = selectedDates.includes(optionDateString);
-                  const statusForDate = dayStatusByDate[optionDateString] || availabilityByDate?.[optionDateString]?.status;
+                  const statusForDate = dayStatusByDate[optionDateString]
+                    || availabilityByDate?.[optionDateString]?.status;
                   const hasExistingStatus = AVAILABILITY_STATUSES.includes(statusForDate);
-                  const chipStyle = getAppliedDayChipStyle(statusForDate);
-                  const ChipIcon = chipStyle.Icon;
+                  const tone = getStatusTone(statusForDate);
+                  const cardClass = isChecked
+                    ? tone.cardSelected
+                    : hasExistingStatus
+                      ? tone.cardSaved
+                      : 'border-slate-200 bg-white/80 text-charcoal hover:bg-slate-50';
+                  const weekdayClass = isChecked || hasExistingStatus
+                    ? tone.dayMuted
+                    : 'text-rota-text-muted';
+                  const dayClass = isChecked || hasExistingStatus
+                    ? tone.dayText
+                    : 'text-charcoal';
 
                   return (
                     <button
                       key={optionDateString}
                       type="button"
+                      aria-pressed={isChecked}
                       onClick={() => handleDateClick(optionDateString)}
-                      className={`relative rounded-lg border px-3 py-2 pr-9 text-left transition-all ${
-                        isChecked
-                          ? `${chipStyle.chipClass} ring-1 ring-black/5`
-                          : hasExistingStatus
-                            ? `${chipStyle.chipClass} opacity-75`
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
+                      className={`flex h-32 w-28 shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-2 text-center transition-all ${cardClass}`}
                     >
-                      {hasExistingStatus && (
-                        <ChipIcon
-                          className={`absolute right-2 top-2 h-4 w-4 shrink-0 ${chipStyle.iconClass} ${isChecked ? '' : 'opacity-70'}`}
-                          strokeWidth={2.25}
-                          aria-hidden
-                        />
-                      )}
-                      <p className="text-xs font-semibold">{format(optionDate, 'EEE')}</p>
-                      <p className={`text-xs ${hasExistingStatus ? chipStyle.subtextClass : 'text-slate-500'}`}>
-                        {format(optionDate, 'd MMM')}
-                      </p>
+                      <span className={`text-xs font-semibold tracking-wide ${weekdayClass}`}>
+                        {format(optionDate, 'EEE')}
+                      </span>
+                      <span className={`mt-1 text-xl font-bold leading-tight ${dayClass}`}>
+                        {getOrdinalDay(optionDate.getDate())}
+                      </span>
+                      <span className={`mt-0.5 text-xs font-semibold tracking-wide ${weekdayClass}`}>
+                        {format(optionDate, 'MMM')}
+                      </span>
+                      <span className="mt-2 text-xs font-medium text-rota-text-muted">
+                        {statusLabelForDisplay(statusForDate)}
+                      </span>
                     </button>
                   );
                 })}
               </div>
+              {showCarouselArrows && (
+                <>
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex w-6 items-center justify-center">
+                    <ChevronLeft className="h-7 w-7 text-blue-600/55" aria-hidden />
+                  </div>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex w-6 items-center justify-center">
+                    <ChevronRight className="h-7 w-7 text-blue-600/55" aria-hidden />
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="mb-6">
-              <p className="mb-2 text-sm font-semibold text-charcoal">Active status for next clicks</p>
-              <div className="grid grid-cols-1 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setActiveStatus('available')}
-                  className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
-                    activeStatus === 'available'
-                      ? 'border-emerald-600 bg-emerald-50/80 text-emerald-900 shadow-sm'
-                      : 'border-emerald-300/70 bg-white text-emerald-800 hover:bg-emerald-50/50'
-                  }`}
-                >
-                  Available
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveStatus('unavailable')}
-                  className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
-                    activeStatus === 'unavailable'
-                      ? 'border-rose-500 bg-rose-50/80 text-rose-900 shadow-sm'
-                      : 'border-rose-300/70 bg-white text-rose-800 hover:bg-rose-50/50'
-                  }`}
-                >
-                  Unavailable
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveStatus('holiday')}
-                  className={`rounded-xl border-2 px-4 py-3 font-medium transition-all ${
-                    activeStatus === 'holiday'
-                      ? 'border-blue-600 bg-sky-50/90 text-blue-900 shadow-sm'
-                      : 'border-blue-300/70 bg-white text-blue-800 hover:bg-sky-50/50'
-                  }`}
-                >
-                  Holiday
-                </button>
-              </div>
-              <p className={`mt-2 text-xs ${activeStatusStyle.subtextClass}`}>
-                Changing this does not recolor days already selected.
-              </p>
-            </div>
-
-            {isSingleSelection ? (
-              <div className="mb-6">
-                <label className="mb-2 block font-medium text-charcoal" htmlFor="comment">
-                  Comments (optional)
-                </label>
-                <textarea
-                  id="comment"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full rounded-lg border border-rota-input-border bg-white px-3 py-2 text-charcoal placeholder-gray-400 focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-[rgba(59,130,246,0.2)]"
-                  rows="3"
-                  placeholder="Add any notes about this day..."
-                />
-              </div>
-            ) : (
-              <p className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                Comments are available only when exactly one day is selected.
-              </p>
-            )}
-
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-4 flex gap-2 border-t border-slate-200/80 pt-3">
               <motion.button
                 type="button"
                 onClick={onClose}
                 whileTap={{ scale: 0.97 }}
-                className="btn-secondary order-2 sm:order-1"
+                className="btn-secondary flex-1"
               >
                 Cancel
               </motion.button>
               <motion.button
                 type="submit"
-                disabled={isSaving || isSubmitting || selectedDates.length === 0}
+                disabled={saveDisabled}
                 whileTap={{ scale: 0.97 }}
-                className={`btn-primary order-1 sm:order-2 ${
-                  isSaving || isSubmitting || selectedDates.length === 0
-                    ? 'cursor-not-allowed opacity-60'
-                    : ''
+                className={`btn-secondary flex-1 ${
+                  saveDisabled ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >
                 {isSaving || isSubmitting ? 'Saving...' : 'Save'}

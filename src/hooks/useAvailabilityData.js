@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   addDays,
+  addMonths,
   endOfMonth,
   format,
   max,
@@ -14,7 +15,7 @@ import { supabase } from '../lib/supabaseClient';
  * Fetch user availability for the calendar grid plus optional modal window.
  * @param {Date} currentDate - Month shown in the calendar grid
  * @param {Object} user - Authenticated user
- * @param {Date|null} [modalAnchorDate] - When set (modal open), extends the query to cover 14 days from this day for AvailabilityDialog prefill
+ * @param {Date|null} [modalAnchorDate] - When set (modal open), extends the query to cover one month from this day for AvailabilityDialog prefill
  * @returns {{ dayData: Object, loading: boolean, error: Error|null, refetchAvailability: Function }}
  */
 export function useAvailabilityData(currentDate, user, modalAnchorDate = null) {
@@ -43,7 +44,7 @@ export function useAvailabilityData(currentDate, user, modalAnchorDate = null) {
 
     if (modalAnchorDate) {
       const anchorStart = startOfDay(modalAnchorDate);
-      const anchorEnd = addDays(anchorStart, 13);
+      const anchorEnd = addMonths(anchorStart, 1);
       rangeStart = min([gridStart, anchorStart]);
       rangeEnd = max([gridEnd, anchorEnd]);
     }
