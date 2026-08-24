@@ -256,11 +256,11 @@ function AvailabilityDialog({
               </div>
             </div>
 
-            <div className="relative mt-4 h-32 overflow-hidden">
+            <div className="relative mt-4 h-44 overflow-hidden">
               <div
                 ref={carouselRef}
                 onScroll={handleCarouselScroll}
-                className="flex h-full gap-2 overflow-x-auto px-6"
+                className="flex gap-2 overflow-x-auto overflow-y-hidden px-6 pb-2"
               >
                 {dateOptions.map((optionDate) => {
                   const optionDateString = format(optionDate, 'yyyy-MM-dd');
@@ -287,7 +287,7 @@ function AvailabilityDialog({
                       type="button"
                       aria-pressed={isChecked}
                       onClick={() => handleDateClick(optionDateString)}
-                      className={`flex h-32 w-28 shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-2 text-center transition-all ${cardClass}`}
+                      className={`flex h-36 w-28 shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center transition-all ${cardClass}`}
                     >
                       <span className={`text-xs font-semibold tracking-wide ${weekdayClass}`}>
                         {format(optionDate, 'EEE')}
