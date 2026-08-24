@@ -21,6 +21,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [showUserNoteModal, setShowUserNoteModal] = useState(false);
   const [userNoteData, setUserNoteData] = useState(null);
   const [isTaskSectionExpanded, setIsTaskSectionExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const normalizedSlotLocation = slot?.location?.trim().toLowerCase() || '';
   const normalizedSlotShift = slot?.shift_type?.trim().toLowerCase() || '';
@@ -554,11 +555,13 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     setShowUserNoteModal(false);
   };
 
-  // Filter and sort by selected tab
+  // Filter and sort by selected tab, then by name search
   const getFilteredEmployees = () => {
     if (!slot) {
       return availableEmployees;
     }
+
+    const query = searchQuery.trim().toLowerCase();
 
     return availableEmployees.filter(employee => {
       const availabilityStatus = employee.availabilityStatus?.toLowerCase() || 'unknown';
@@ -567,45 +570,42 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
       const locationDifferent = hasDifferentLocationPreference(employee.preferred_location);
       const shiftMatches = matchesShiftPreference(employee.shift_preference);
 
+      let matchesTab = true;
       if (selectedTab === 'other_locations') {
-        return employee.preferred_location && locationDifferent;
-      }
-
-      if (selectedTab === 'assigned') {
-        return employee.isAssigned;
-      }
-
-      if (selectedTab === 'available') {
-        return !employee.isAssigned &&
+        matchesTab = employee.preferred_location && locationDifferent;
+      } else if (selectedTab === 'assigned') {
+        matchesTab = employee.isAssigned;
+      } else if (selectedTab === 'available') {
+        matchesTab = !employee.isAssigned &&
                !employee.hasOverlappingConflict &&
                !employee.hasBreakTimeConflict &&
                isAvailableToday &&
                shiftMatches &&
                locationMatches;
-      }
-
-      if (selectedTab === 'other_shifts') {
-        return !employee.isAssigned &&
+      } else if (selectedTab === 'other_shifts') {
+        matchesTab = !employee.isAssigned &&
                !employee.hasOverlappingConflict &&
                !employee.hasBreakTimeConflict &&
                isAvailableToday &&
                !shiftMatches &&
                !!employee.shift_preference &&
                locationMatches;
-      }
-
-      if (selectedTab === 'conflicts') {
-        return !employee.isAssigned &&
+      } else if (selectedTab === 'conflicts') {
+        matchesTab = !employee.isAssigned &&
                (employee.hasOverlappingConflict || employee.hasBreakTimeConflict);
+      } else if (selectedTab === 'unavailable') {
+        matchesTab = !employee.isAssigned && availabilityStatus !== 'available';
       }
 
-      if (selectedTab === 'unavailable') {
-        return !employee.isAssigned && availabilityStatus !== 'available';
-      }
-      
-      return true;
+      if (!matchesTab) return false;
+      if (!query) return true;
+
+      const name = `${employee.first_name || ''} ${employee.last_name || ''}`.toLowerCase();
+      return name.includes(query);
     });
   };
+
+  const filteredEmployees = getFilteredEmployees();
 
   const capacityPercentage = (localAssignedCount / slot.capacity) * 100;
   const capacityColorClass = 
@@ -789,6 +789,24 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                 </button>
               ))}
             </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -802,9 +820,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             <div className="flex justify-center py-6">
               <p className="text-sm text-rota-text-muted">No employees found. Please check database connection.</p>
             </div>
-          ) : getFilteredEmployees().length > 0 ? (
+          ) : filteredEmployees.length > 0 ? (
             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {getFilteredEmployees().map(employee => (
+              {filteredEmployees.map(employee => (
                 <li 
                   key={employee.id} 
                   className={`flex items-center justify-between rounded-full border-2 px-4 py-2.5 transition-all ${
@@ -881,7 +899,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             </ul>
           ) : (
             <div className="py-6 text-center text-sm text-rota-text-muted">
-              {selectedTab === 'available' ? (
+              {searchQuery.trim() ? (
+                <p>No people match this search.</p>
+              ) : selectedTab === 'available' ? (
                 <div className="space-y-1">
                   <p>No employees who prefer {slot.shift_type} shifts are available.</p>
                   <p className="text-xs text-rota-text-muted">Check the &quot;Other Shifts&quot; tab to see staff with different preferences.</p>
