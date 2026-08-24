@@ -6,6 +6,7 @@ import {
   formatShiftClock,
   groupAddedSlotsByAgency,
   normalizeShiftDate,
+  uniqueSlotsByAssignmentKey,
 } from './rotaAdditionalBookings';
 
 /**
@@ -55,7 +56,7 @@ export async function fetchAssignedSlotsForWeek(supabase, weekStart) {
     agenciesMap[agency.id] = agency;
   });
 
-  return scheduleData.map((slot) => {
+  return uniqueSlotsByAssignmentKey(scheduleData.map((slot) => {
     const profile = profilesMap[slot.user_id] || {};
     const agency = profile.agency_id ? agenciesMap[profile.agency_id] : null;
     return {
@@ -71,7 +72,7 @@ export async function fetchAssignedSlotsForWeek(supabase, weekStart) {
       agency_name: agency?.name || '',
       agency_email: agency?.email || '',
     };
-  });
+  }));
 }
 
 /**

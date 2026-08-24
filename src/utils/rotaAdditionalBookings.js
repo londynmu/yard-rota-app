@@ -45,6 +45,24 @@ export function assignmentSlotKey(slot) {
 }
 
 /**
+ * Keep the first row for each assignment identity (person, day, hours, location).
+ * @param {object[]} slots
+ * @returns {object[]}
+ */
+export function uniqueSlotsByAssignmentKey(slots) {
+  const seen = new Set();
+  const unique = [];
+  for (const slot of slots || []) {
+    if (!slot?.user_id) continue;
+    const key = assignmentSlotKey(slot);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(slot);
+  }
+  return unique;
+}
+
+/**
  * @param {{ first_name?: string, last_name?: string, name?: string }} person
  * @returns {string}
  */
@@ -74,8 +92,8 @@ export function formatShiftTypeLabel(shiftType) {
  */
 export function diffAddedSlots(currentSlots, baselineSlots) {
   const baseKeys = new Set((baselineSlots || []).map(assignmentSlotKey));
-  return (currentSlots || []).filter(
-    (slot) => slot?.user_id && !baseKeys.has(assignmentSlotKey(slot))
+  return uniqueSlotsByAssignmentKey(currentSlots).filter(
+    (slot) => !baseKeys.has(assignmentSlotKey(slot))
   );
 }
 
@@ -100,7 +118,7 @@ export function groupAddedSlotsByAgency(addedSlots, baselineSlots) {
   const baselineUserIds = new Set((baselineSlots || []).map((s) => s.user_id).filter(Boolean));
   const byAgency = new Map();
 
-  for (const slot of addedSlots || []) {
+  for (const slot of uniqueSlotsByAssignmentKey(addedSlots)) {
     if (!slot?.user_id) continue;
     const agencyId = slot.agency_id || null;
     const mapKey = agencyId || '__none__';

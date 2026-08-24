@@ -121,6 +121,32 @@ describe('groupAddedSlotsByAgency', () => {
     expect(groups[0].agencyName).toBe('No agency');
     expect(countAdditionalPeople(groups)).toBe(1);
   });
+
+  test('collapses identical Thursday slots to one shift line', () => {
+    const thursday = {
+      user_id: 'marc',
+      first_name: 'Marc',
+      last_name: 'Lygo',
+      date: '2026-08-27',
+      start_time: '17:45:00',
+      end_time: '06:00:00',
+      location: 'Rugby',
+      shift_type: 'night',
+      agency_id: 'ag-hg',
+      agency_name: 'H&G',
+      agency_email: 'ravi.dass@h-grecruitment.com',
+    };
+    const added = diffAddedSlots([thursday, { ...thursday }, thursday], []);
+    expect(added).toHaveLength(1);
+    const groups = groupAddedSlotsByAgency([thursday, { ...thursday }], []);
+    expect(groups[0].people[0].shifts).toHaveLength(1);
+    expect(groups[0].people[0].shifts[0]).toMatchObject({
+      date: '2026-08-27',
+      start_time: '17:45',
+      end_time: '06:00',
+      location: 'Rugby',
+    });
+  });
 });
 
 describe('additional booking email', () => {
