@@ -28,8 +28,6 @@ import {
 
 const outlineBtn =
   'px-4 py-2 rounded-lg border-2 border-rota-text-primary bg-white text-rota-text-primary hover:bg-rota-day-other-bg-from transition-colors text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50';
-const outlineBtnMuted =
-  'px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50';
 
 function flattenPeopleShifts(people) {
   return people.flatMap((person) =>
@@ -51,6 +49,7 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
   const [groups, setGroups] = useState([]);
   const [currentSlotCount, setCurrentSlotCount] = useState(0);
   const [confirm, setConfirm] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const weekIso = weekStartIso(startDate);
 
@@ -176,6 +175,13 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
   };
 
   const pendingPeople = countAdditionalPeople(groups);
+  const query = searchQuery.trim().toLowerCase();
+  const filteredGroups = groups
+    .map((group) => ({
+      ...group,
+      people: group.people.filter((person) => person.name.toLowerCase().includes(query)),
+    }))
+    .filter((group) => group.people.length > 0);
 
   return (
     <div className="space-y-4">
@@ -212,9 +218,28 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
         </div>
       ) : (
         <div className="space-y-4">
-          {groups.map((group) => {
-            const canEmail = parseAgencyEmails(group.agencyEmail).length > 0;
-            return (
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {filteredGroups.length === 0 ? (
+            <p className="text-sm text-charcoal">No people match this search.</p>
+          ) : (
+            filteredGroups.map((group) => (
               <div key={group.agencyId || 'none'} className="card-modern p-4 space-y-3">
                 <div>
                   <h3 className="text-lg font-medium text-charcoal">{group.agencyName}</h3>
@@ -241,91 +266,34 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
                           </li>
                         ))}
                       </ul>
-                      {canEmail && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className={outlineBtnMuted}
-                            onClick={() =>
-                              copyEmail(
-                                buildAdditionalBookingsEmail({
-                                  weekStartIso: weekIso,
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          className={outlineBtn}
+                          onClick={() =>
+                            setConfirm({
+                              title: 'Open email and mark as sent',
+                              message: `Create an email to ${group.agencyName} for ${person.name} and mark these shifts as sent?`,
+                              confirmText: 'Create email',
+                              onConfirm: () =>
+                                openAndMarkSent({
                                   people: [person],
-                                })
-                              )
-                            }
-                          >
-                            Copy email
-                          </button>
-                          <button
-                            type="button"
-                            className={outlineBtn}
-                            onClick={() =>
-                              setConfirm({
-                                title: 'Open email and mark as sent',
-                                message: `Prepare an email to ${group.agencyName} for ${person.name} and mark these shifts as sent?`,
-                                confirmText: 'Open email',
-                                onConfirm: () =>
-                                  openAndMarkSent({
-                                    people: [person],
-                                    agencyId: group.agencyId,
-                                    agencyEmail: group.agencyEmail,
-                                    agencyName: group.agencyName,
-                                  }),
-                              })
-                            }
-                          >
-                            Prepare email for this person
-                          </button>
-                        </div>
-                      )}
+                                  agencyId: group.agencyId,
+                                  agencyEmail: group.agencyEmail,
+                                  agencyName: group.agencyName,
+                                }),
+                            })
+                          }
+                        >
+                          Create email for this person
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
-
-                {canEmail ? (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      className={outlineBtnMuted}
-                      onClick={() =>
-                        copyEmail(
-                          buildAdditionalBookingsEmail({
-                            weekStartIso: weekIso,
-                            people: group.people,
-                          })
-                        )
-                      }
-                    >
-                      Copy agency email
-                    </button>
-                    <button
-                      type="button"
-                      className={outlineBtn}
-                      onClick={() =>
-                        setConfirm({
-                          title: 'Open email and mark as sent',
-                          message: `Prepare an email to ${group.agencyName} for all additional bookings and mark them as sent?`,
-                          confirmText: 'Open email',
-                          onConfirm: () =>
-                            openAndMarkSent({
-                              people: group.people,
-                              agencyId: group.agencyId,
-                              agencyEmail: group.agencyEmail,
-                              agencyName: group.agencyName,
-                            }),
-                        })
-                      }
-                    >
-                      Prepare email for agency
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500">Add an agency email in Settings to send this booking list.</p>
-                )}
               </div>
-            );
-          })}
+            ))
+          )}
         </div>
       )}
 
