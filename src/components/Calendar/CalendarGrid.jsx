@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Check, MessageSquare, TreePalm, X } from 'lucide-react';
 import {
@@ -17,6 +18,73 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { getUkBankHolidayName } from '../../utils/ukBankHolidays';
+
+function CalendarDayTooltip({ lines, children }) {
+  const wrapRef = useRef(null);
+  const tipRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current) return;
+
+    const place = () => {
+      const anchor = wrapRef.current.getBoundingClientRect();
+      const tip = tipRef.current;
+      const tipWidth = tip?.offsetWidth || 192;
+      const tipHeight = tip?.offsetHeight || 64;
+      const margin = 8;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const spaceRight = viewportWidth - anchor.right - margin;
+      const spaceLeft = anchor.left - margin;
+      const placeOnRight = spaceRight >= tipWidth || spaceRight >= spaceLeft;
+
+      let left = placeOnRight ? anchor.right + margin : anchor.left - tipWidth - margin;
+      left = Math.min(Math.max(margin, left), viewportWidth - tipWidth - margin);
+
+      let top = anchor.top;
+      if (top + tipHeight > viewportHeight - margin) {
+        top = viewportHeight - tipHeight - margin;
+      }
+      if (top < margin) top = margin;
+
+      setCoords({ top, left });
+    };
+
+    place();
+  }, [open, lines]);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="relative min-w-0 w-full"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {children}
+      {open && lines.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={tipRef}
+          className="pointer-events-none fixed z-[200] w-max max-w-[12rem] rounded-lg bg-black p-2 text-left text-xs text-white shadow-lg"
+          style={{ top: coords.top, left: coords.left }}
+        >
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+CalendarDayTooltip.propTypes = {
+  lines: PropTypes.arrayOf(PropTypes.string).isRequired,
+  children: PropTypes.node.isRequired,
+};
 
 function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = 'default' }) {
   const isCompact = density === 'compact';
@@ -153,7 +221,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = '
           ].filter(Boolean);
 
           return (
-            <div key={dateString} className="relative group min-w-0 w-full">
+            <CalendarDayTooltip key={dateString} lines={tooltipLines}>
             <motion.button
               type="button"
               onClick={() => !isPastDate && onDayClick(day, dayInfo)}
@@ -237,14 +305,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = '
                 />
               )}
             </motion.button>
-            {tooltipLines.length > 0 && (
-              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden w-max max-w-[12rem] -translate-x-1/2 rounded-lg bg-black p-2 text-left text-xs text-white shadow-lg group-hover:block group-focus-within:block">
-                {tooltipLines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-            )}
-            </div>
+            </CalendarDayTooltip>
           );
         })}
       </div>
