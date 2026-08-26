@@ -13,8 +13,55 @@ const timeToMinutes = (timeString) => {
   return (hours || 0) * 60 + (minutes || 0);
 };
 
+function collectSameDayConflictIds(currentSlot, sameDaySlots, minBreakMinutes = 0) {
+  const overlappingConflictIds = new Set();
+  const breakConflictIds = new Set();
+  const slotStart = timeToMinutes(currentSlot.start_time);
+  const slotEnd = timeToMinutes(currentSlot.end_time);
+  const normalizedSlotEnd = slotEnd < slotStart ? slotEnd + 1440 : slotEnd;
+
+  (sameDaySlots || []).forEach((other) => {
+    if (!other || other.id === currentSlot.id) return;
+    const userIds = normalizeAssignedEmployeeIds(other.assigned_employees);
+    if (userIds.length === 0) return;
+
+    const existingStart = timeToMinutes(other.start_time);
+    const existingEnd = timeToMinutes(other.end_time);
+    const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
+    const overlap = slotStart < normalizedExistingEnd && existingStart < normalizedSlotEnd;
+
+    userIds.forEach((userId) => {
+      if (overlap) {
+        overlappingConflictIds.add(userId);
+        return;
+      }
+      if (minBreakMinutes > 0) {
+        let breakMinutes = -1;
+        if (slotStart >= normalizedExistingEnd) breakMinutes = slotStart - normalizedExistingEnd;
+        else if (existingStart >= normalizedSlotEnd) breakMinutes = existingStart - normalizedSlotEnd;
+        if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) {
+          breakConflictIds.add(userId);
+        }
+      }
+    });
+  });
+
+  return { overlappingConflictIds, breakConflictIds };
+}
+
+function buildSameDayCacheKey(sameDaySlots) {
+  return (sameDaySlots || [])
+    .map((s) => {
+      const ids = normalizeAssignedEmployeeIds(s.assigned_employees || []).slice().sort().join(',');
+      return `${s.id}:${ids}:${s.start_time}-${s.end_time}`;
+    })
+    .sort()
+    .join('|');
+}
+
 const SlotCard = ({ 
-  slot, 
+  slot,
+  sameDaySlots = [],
   handleOpenAssignModal, 
   handleDeleteSlot, 
   handleOpenEditModal,
@@ -124,45 +171,11 @@ const SlotCard = ({
 
       if (availabilityError) throw availabilityError;
 
-      const { data: existingSlots, error: slotsError } = await supabase
-        .from('scheduled_rota')
-        .select('user_id, start_time, end_time')
-        .eq('date', slotDate);
-
-      if (slotsError) throw slotsError;
-
-      const userSlots = {};
-      (existingSlots || []).forEach((s) => {
-        if (!userSlots[s.user_id]) userSlots[s.user_id] = [];
-        userSlots[s.user_id].push({ start_time: s.start_time, end_time: s.end_time });
-      });
-
-      const slotStart = timeToMinutes(slot.start_time);
-      const slotEnd = timeToMinutes(slot.end_time);
-      const normalizedSlotEnd = slotEnd < slotStart ? slotEnd + 1440 : slotEnd;
-
-      const overlappingConflictIds = new Set();
-      const breakConflictIds = new Set();
-
-      Object.entries(userSlots).forEach(([userId, slots]) => {
-        for (const existingSlot of slots) {
-          const existingStart = timeToMinutes(existingSlot.start_time);
-          const existingEnd = timeToMinutes(existingSlot.end_time);
-          const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
-
-          const overlap = slotStart < normalizedExistingEnd && existingStart < normalizedSlotEnd;
-          if (overlap) {
-            overlappingConflictIds.add(userId);
-            continue;
-          }
-          if (minBreakMinutes > 0) {
-            let breakMinutes = -1;
-            if (slotStart >= normalizedExistingEnd) breakMinutes = slotStart - normalizedExistingEnd;
-            else if (existingStart >= normalizedSlotEnd) breakMinutes = existingStart - normalizedSlotEnd;
-            if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) breakConflictIds.add(userId);
-          }
-        }
-      });
+      const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(
+        slot,
+        sameDaySlots,
+        minBreakMinutes
+      );
 
       const availabilityMap = new Map();
       (availability || []).forEach((item) => availabilityMap.set(item.user_id, item.status));
@@ -189,21 +202,27 @@ const SlotCard = ({
     }
   };
 
-  const assignedCacheKey = `${slot.id}:${normalizeAssignedEmployeeIds(slot.assigned_employees || []).slice().sort().join(',')}`;
+  const sameDayCacheKey = buildSameDayCacheKey(sameDaySlots);
 
   useEffect(() => {
     const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
-    setAvailableForSlot((prev) => prev.filter((user) => !assignedSet.has(user.id)));
+    const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(slot, sameDaySlots, 60);
+    const blockedIds = new Set([
+      ...assignedSet,
+      ...overlappingConflictIds,
+      ...breakConflictIds,
+    ]);
+    setAvailableForSlot((prev) => prev.filter((user) => !blockedIds.has(user.id)));
     lastFetchedCacheKeyRef.current = null;
-  }, [slot.id, slot.assigned_employees]);
+  }, [slot.id, slot.assigned_employees, slot.start_time, slot.end_time, sameDayCacheKey]);
 
   const handleCardMouseEnter = (e) => {
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
-    if (lastFetchedCacheKeyRef.current === assignedCacheKey && !availableLoading) {
+    if (lastFetchedCacheKeyRef.current === sameDayCacheKey && !availableLoading) {
       return;
     }
-    lastFetchedCacheKeyRef.current = assignedCacheKey;
+    lastFetchedCacheKeyRef.current = sameDayCacheKey;
     setAvailableLoading(true);
     fetchAvailableForSlot();
   };
@@ -499,10 +518,20 @@ SlotCard.propTypes = {
     assigned_employees: PropTypes.array.isRequired,
     status: PropTypes.string
   }).isRequired,
+  sameDaySlots: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string,
+    start_time: PropTypes.string,
+    end_time: PropTypes.string,
+    assigned_employees: PropTypes.array,
+  })),
   handleOpenAssignModal: PropTypes.func.isRequired,
   handleDeleteSlot: PropTypes.func.isRequired,
   handleOpenEditModal: PropTypes.func.isRequired,
   isAdmin: PropTypes.bool.isRequired
+};
+
+SlotCard.defaultProps = {
+  sameDaySlots: [],
 };
 
 export default SlotCard; 

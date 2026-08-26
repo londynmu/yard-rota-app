@@ -1502,6 +1502,7 @@ const RotaManager = ({ user }) => {
                         <SlotCard
                           key={slot.id}
                           slot={slot}
+                          sameDaySlots={slots.filter((s) => s.date === slot.date)}
                           handleOpenAssignModal={handleOpenAssignModal}
                           handleDeleteSlot={handleDeleteSlot}
                           handleOpenEditModal={handleOpenEditModal}
@@ -1573,6 +1574,7 @@ const RotaManager = ({ user }) => {
                           <SlotCard
                             key={slot.id}
                             slot={slot}
+                            sameDaySlots={slots.filter((s) => s.date === slot.date)}
                             handleOpenAssignModal={handleOpenAssignModal}
                             handleDeleteSlot={handleDeleteSlot}
                             handleOpenEditModal={handleOpenEditModal}
