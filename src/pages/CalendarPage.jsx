@@ -524,7 +524,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     ));
 
   const renderShunterStats = () => (
-    <div className="card-modern p-2 flex-shrink-0 h-full min-h-0 overflow-y-auto">
+    <div className="card-modern p-2 flex-shrink-0 overflow-y-auto">
       <div className="grid grid-cols-1 gap-1">
         <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
           <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm shrink-0">
@@ -712,7 +712,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             />
           </div>
 
-          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-12 md:gap-6 md:items-start lg:items-stretch">
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-12 md:gap-6 md:items-start lg:items-stretch lg:min-h-[min(32rem,calc(100vh-9rem))]">
             <div className="min-w-0 min-h-0 flex flex-col max-h-[min(32rem,calc(100vh-9rem))] overflow-hidden lg:col-span-4 lg:row-span-2 lg:h-0 lg:max-h-none lg:min-h-full">
               <div
                 className={`card-modern p-4 md:p-5 flex flex-col h-full min-h-0 overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
@@ -765,8 +765,8 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               </div>
             </div>
 
-            <div className="min-w-0 min-h-0 lg:col-span-4 flex flex-col">
-              <div className="card-modern p-3 lg:h-full">
+            <div className="min-w-0 min-h-0 flex flex-col lg:col-span-4 lg:row-span-2 lg:h-0 lg:min-h-full">
+              <div className="card-modern p-3 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xl font-bold text-charcoal tracking-tight">
                     {format(currentDate, 'MMMM yyyy')}
@@ -810,11 +810,8 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               </div>
             </div>
 
-            <div className="hidden lg:block lg:col-span-4 min-h-0 h-0 min-h-full">
+            <div className="hidden lg:flex lg:col-span-4 lg:row-span-2 min-h-0 flex-col gap-3">
               {renderShunterStats()}
-            </div>
-
-            <div className="hidden lg:block lg:col-span-4 lg:col-start-5">
               {renderAdminQuickNav()}
             </div>
           </div>
