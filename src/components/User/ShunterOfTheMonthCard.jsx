@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import { getMonthlyAwards } from '../../utils/shunterAwardsApi';
@@ -14,7 +15,7 @@ const getMonthLabel = (monthKey) => {
   }
 };
 
-function ShunterOfTheMonthCard() {
+function ShunterOfTheMonthCard({ embedded = false }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
@@ -71,6 +72,15 @@ function ShunterOfTheMonthCard() {
   }, []);
 
   if (loading) {
+    if (embedded) {
+      return (
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border border-slate-200/60 rounded-lg">
+          <div className="h-7 w-7 rounded-lg bg-slate-100 animate-pulse shrink-0" />
+          <div className="h-3 w-28 bg-slate-100 rounded animate-pulse" />
+        </div>
+      );
+    }
+
     return (
       <div className="mb-3 px-4 mt-2 md:px-0 md:mt-0">
         <div className="max-w-4xl md:max-w-none mx-auto card-modern px-4 py-3 min-h-[48px] flex items-center">
@@ -98,6 +108,83 @@ function ShunterOfTheMonthCard() {
     'text-slate-700',
     'text-purple-700',
   ];
+
+  const winnersPanel = (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          key="shunter-panel"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          className="overflow-hidden"
+        >
+          <div className={embedded ? 'pt-1 space-y-1' : 'p-2 space-y-2'}>
+            {rows.map((row, index) => {
+              const hasWinners = row.day || row.night;
+              const bgGradient = bgGradients[index % bgGradients.length];
+              const textColor = textColors[index % textColors.length];
+
+              return (
+                <motion.div
+                  key={row.monthKey}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.08, duration: 0.25 }}
+                  className={`${embedded ? 'px-2 py-1.5 rounded-lg' : 'px-4 py-3 rounded-xl'} border flex flex-col gap-1 md:flex-row md:items-center md:justify-between shadow-sm hover:shadow-md transition-shadow duration-200 ${bgGradient}`}
+                >
+                  <p className={`${embedded ? 'text-[10px]' : 'text-xs'} font-bold uppercase tracking-wide ${textColor}`}>
+                    {getMonthLabel(row.monthKey)}
+                  </p>
+                  {hasWinners ? (
+                    <div className="flex flex-col gap-0.5 md:flex-row md:items-center md:gap-4">
+                      {row.day && (
+                        <span className={`${embedded ? 'text-[11px]' : 'text-sm'} font-semibold text-charcoal`}>{row.day}</span>
+                      )}
+                      {row.night && (
+                        <span className={`${embedded ? 'text-[11px]' : 'text-sm'} font-semibold text-charcoal`}>{row.night}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className={`${embedded ? 'text-[11px]' : 'text-sm'} text-gray-400`}>—</span>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="w-full flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left"
+        >
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm text-blue-600 shrink-0">
+            <Trophy className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+          </div>
+          <p className="flex-1 min-w-0 text-xs font-medium text-slate-800 truncate">Shunter of the Month</p>
+          <motion.svg
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="w-3.5 h-3.5 text-slate-600 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </motion.svg>
+        </button>
+        {winnersPanel}
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -180,5 +267,9 @@ function ShunterOfTheMonthCard() {
     </motion.div>
   );
 }
+
+ShunterOfTheMonthCard.propTypes = {
+  embedded: PropTypes.bool,
+};
 
 export default React.memo(ShunterOfTheMonthCard);

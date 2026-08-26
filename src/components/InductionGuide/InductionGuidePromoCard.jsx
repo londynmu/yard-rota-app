@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
@@ -6,7 +7,26 @@ import { BookOpen } from 'lucide-react';
 /**
  * Link card on the main calendar flow to the yard induction guide.
  */
-export default function InductionGuidePromoCard() {
+export default function InductionGuidePromoCard({ embedded = false }) {
+  if (embedded) {
+    return (
+      <Link
+        to="/yard-guide"
+        className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left group"
+      >
+        <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 group-hover:scale-105 transition-transform shrink-0">
+          <BookOpen className="w-3.5 h-3.5" strokeWidth={1.75} aria-hidden />
+        </div>
+        <p className="flex-1 min-w-0 text-xs font-medium text-charcoal truncate group-hover:text-teal-800 transition-colors">
+          Shunter Guide
+        </p>
+        <span className="text-[11px] font-semibold text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0">
+          Open
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -35,3 +55,7 @@ export default function InductionGuidePromoCard() {
     </motion.div>
   );
 }
+
+InductionGuidePromoCard.propTypes = {
+  embedded: PropTypes.bool,
+};

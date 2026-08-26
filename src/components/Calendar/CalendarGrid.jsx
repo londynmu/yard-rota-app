@@ -15,8 +15,30 @@ import {
   isToday,
 } from 'date-fns';
 
-function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
+function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = 'default' }) {
+  const isCompact = density === 'compact';
   const today = startOfDay(new Date());
+  const gridGapClass = isCompact ? 'gap-1' : 'gap-2';
+  const weekdayRowClass = isCompact ? 'mb-2' : 'mb-3';
+  const weekdayTextClass = isCompact
+    ? 'text-center text-[10px] font-semibold text-slate-600 uppercase tracking-wide'
+    : 'text-center text-xs font-semibold text-slate-600 uppercase tracking-wide';
+  const cellSizeClass = isCompact
+    ? 'h-9 min-h-9 rounded-lg'
+    : 'aspect-square rounded-xl';
+  const cellRingClass = isCompact
+    ? 'ring-1 ring-blue-500 ring-offset-1 shadow-md scale-105 z-10'
+    : 'ring-2 ring-blue-500 ring-offset-2 shadow-lg scale-105 z-10';
+  const dayNumberClass = isCompact
+    ? 'absolute right-0.5 top-0.5 text-[11px] leading-none'
+    : 'absolute right-1 top-1 text-sm';
+  const statusIconWrapClass = isCompact
+    ? 'pointer-events-none absolute bottom-0.5 left-0.5 flex aspect-square w-[30%] min-h-0 min-w-0 items-center justify-center'
+    : 'pointer-events-none absolute bottom-1 left-1 flex aspect-square w-[34%] min-h-0 min-w-0 items-center justify-center';
+  const commentIconClass = isCompact
+    ? 'w-2.5 h-2.5 text-amber-500 fill-amber-100'
+    : 'w-3 h-3 text-amber-500 fill-amber-100';
+  const pulseClass = isCompact ? 'absolute inset-0 bg-blue-400/20 rounded-lg -z-10' : 'absolute inset-0 bg-blue-400/20 rounded-xl -z-10';
 
   const generateDays = () => {
     const monthStart = startOfMonth(currentDate);
@@ -74,14 +96,14 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
   if (isLoading) {
     return (
       <div className="w-full animate-pulse">
-        <div className="grid grid-cols-7 gap-2 mb-3">
+        <div className={`grid grid-cols-7 ${gridGapClass} ${weekdayRowClass}`}>
           {weekdays.map((day) => (
-            <div key={day} className="h-4 bg-slate-200 rounded-lg" />
+            <div key={day} className={`${isCompact ? 'h-3' : 'h-4'} bg-slate-200 rounded-lg`} />
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-2">
+        <div className={`grid grid-cols-7 ${gridGapClass}`}>
           {Array.from({ length: days.length || 35 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-slate-100 rounded-xl" />
+            <div key={i} className={`${cellSizeClass} bg-slate-100`} />
           ))}
         </div>
       </div>
@@ -90,18 +112,18 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
 
   return (
     <div className="w-full">
-      <div className="grid grid-cols-7 gap-2 mb-3">
+      <div className={`grid grid-cols-7 ${gridGapClass} ${weekdayRowClass}`}>
         {weekdays.map((day) => (
           <div
             key={day}
-            className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wide"
+            className={weekdayTextClass}
           >
             {day}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
+      <div className={`grid grid-cols-7 ${gridGapClass}`}>
         {days.map((day, index) => {
           const dateString = format(day, 'yyyy-MM-dd');
           const isCurrentMonth = isSameMonth(day, currentDate);
@@ -134,12 +156,13 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
                 damping: 25,
                 delay: index * 0.01,
               }}
-              whileHover={!isPastDate ? { scale: 1.05, y: -2 } : {}}
+              whileHover={!isPastDate ? { scale: isCompact ? 1.03 : 1.05, y: isCompact ? 0 : -2 } : {}}
               whileTap={!isPastDate ? { scale: 0.95 } : {}}
               className={`
-                relative aspect-square transition-all duration-200 rounded-xl
+                relative transition-all duration-200
+                ${cellSizeClass}
                 ${isCurrentMonth ? 'text-slate-700 font-medium' : 'text-slate-400'}
-                ${isCurrentDay ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg scale-105 z-10' : ''}
+                ${isCurrentDay ? cellRingClass : ''}
                 ${isPastDate && !colorClass ? 'bg-slate-100/50 cursor-not-allowed text-slate-400' : ''}
                 ${isPastDate && colorClass ? `${colorClass} opacity-50 cursor-not-allowed` : ''}
                 ${!isPastDate && !colorClass ? 'hover:bg-slate-50 border border-slate-200/60 hover:shadow-sm' : ''}
@@ -158,12 +181,12 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
                     repeat: Infinity,
                     ease: 'easeInOut',
                   }}
-                  className="absolute inset-0 bg-blue-400/20 rounded-xl -z-10"
+                  className={pulseClass}
                 />
               )}
 
               <span
-                className={`absolute right-1 top-1 text-sm ${isCurrentDay ? 'font-bold text-blue-600' : 'font-medium'}`}
+                className={`${dayNumberClass} ${isCurrentDay ? 'font-bold text-blue-600' : 'font-medium'}`}
               >
                 {format(day, 'd')}
               </span>
@@ -173,7 +196,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
                   initial={{ scale: 0.85, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.16, ease: 'easeOut' }}
-                  className="pointer-events-none absolute bottom-1 left-1 flex aspect-square w-[34%] min-h-0 min-w-0 items-center justify-center"
+                  className={statusIconWrapClass}
                 >
                   <statusIcon.Icon
                     className={`h-full w-full ${statusIcon.className}`}
@@ -188,9 +211,9 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading }) {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500 }}
-                  className="absolute bottom-1 right-1"
+                  className={isCompact ? 'absolute bottom-0.5 right-0.5' : 'absolute bottom-1 right-1'}
                 >
-                  <MessageSquare className="w-3 h-3 text-amber-500 fill-amber-100" aria-hidden />
+                  <MessageSquare className={commentIconClass} aria-hidden />
                 </motion.div>
               )}
             </motion.button>
@@ -206,11 +229,13 @@ CalendarGrid.propTypes = {
   dayData: PropTypes.object,
   onDayClick: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
+  density: PropTypes.oneOf(['default', 'compact']),
 };
 
 CalendarGrid.defaultProps = {
   dayData: {},
   isLoading: false,
+  density: 'default',
 };
 
 export default React.memo(CalendarGrid);

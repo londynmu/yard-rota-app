@@ -30,7 +30,8 @@ const SlotCard = ({
   const [availableForSlot, setAvailableForSlot] = useState([]);
   const [availableLoading, setAvailableLoading] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const lastFetchedSlotIdRef = useRef(null);
+  const lastFetchedCacheKeyRef = useRef(null);
+  const assignedEmployeesRef = useRef(slot.assigned_employees);
   const cardRef = useRef(null);
   const availableTooltipRef = useRef(null);
 
@@ -75,9 +76,11 @@ const SlotCard = ({
 
   // Removed debug useEffect
 
+  assignedEmployeesRef.current = slot.assigned_employees;
+
   const fetchAvailableForSlot = async () => {
     const slotDate = slot.date;
-    const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
+    const assignedSet = new Set(normalizeAssignedEmployeeIds(assignedEmployeesRef.current || []));
     const normalizedSlotLocation = (slot?.location || '').trim().toLowerCase();
     const normalizedSlotShift = (slot?.shift_type || '').trim().toLowerCase();
 
@@ -164,8 +167,9 @@ const SlotCard = ({
       const availabilityMap = new Map();
       (availability || []).forEach((item) => availabilityMap.set(item.user_id, item.status));
 
+      const latestAssignedSet = new Set(normalizeAssignedEmployeeIds(assignedEmployeesRef.current || []));
       const availableList = profiles.filter((profile) => {
-        const isAssigned = assignedSet.has(profile.id);
+        const isAssigned = assignedSet.has(profile.id) || latestAssignedSet.has(profile.id);
         const status = (availabilityMap.get(profile.id) || 'unknown').toLowerCase();
         const isAvailableToday = status === 'available';
         if (isAssigned) return false;
@@ -185,16 +189,21 @@ const SlotCard = ({
     }
   };
 
+  const assignedCacheKey = `${slot.id}:${normalizeAssignedEmployeeIds(slot.assigned_employees || []).slice().sort().join(',')}`;
+
+  useEffect(() => {
+    const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
+    setAvailableForSlot((prev) => prev.filter((user) => !assignedSet.has(user.id)));
+    lastFetchedCacheKeyRef.current = null;
+  }, [slot.id, slot.assigned_employees]);
+
   const handleCardMouseEnter = (e) => {
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
-    if (lastFetchedSlotIdRef.current === slot.id && !availableLoading) {
+    if (lastFetchedCacheKeyRef.current === assignedCacheKey && !availableLoading) {
       return;
     }
-    if (lastFetchedSlotIdRef.current !== slot.id) {
-      setAvailableForSlot([]);
-    }
-    lastFetchedSlotIdRef.current = slot.id;
+    lastFetchedCacheKeyRef.current = assignedCacheKey;
     setAvailableLoading(true);
     fetchAvailableForSlot();
   };

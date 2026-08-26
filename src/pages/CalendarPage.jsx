@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
 import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
@@ -41,6 +41,7 @@ const getInitialSelectedShifts = () => {
 export default function CalendarPage({ desktopBelowCalendar = null }) {
   const { user } = useAuth();
   const { isAdmin } = useNotifications();
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedDates, setSelectedDates] = useState([]);
@@ -68,8 +69,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   // Ref to track popup timeout for cleanup
   const popupTimeoutRef = useRef(null);
   const scrollContainerRef = useRef(null);
-  const calendarDesktopCardRef = useRef(null);
-  const [desktopBreaksHeight, setDesktopBreaksHeight] = useState(null);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -79,25 +78,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     }
     const el = scrollContainerRef.current;
     if (el) el.scrollTop = 0;
-  }, []);
-
-  useEffect(() => {
-    const cardEl = calendarDesktopCardRef.current;
-    if (!cardEl || typeof ResizeObserver === 'undefined') return;
-
-    const updateHeight = () => {
-      setDesktopBreaksHeight(cardEl.offsetHeight || null);
-    };
-
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(cardEl);
-    window.addEventListener('resize', updateHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateHeight);
-    };
   }, []);
 
   useEffect(() => {
@@ -442,7 +422,145 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const desktopCards = React.Children.toArray(
     React.isValidElement(desktopBelowCalendar) ? desktopBelowCalendar.props?.children : desktopBelowCalendar
   );
-  
+
+  const renderBreakFilterBar = (fullWidth) => (
+    <div className={`filter-bar-segmented${fullWidth ? ' filter-bar-segmented-desktop-full' : ''}`}>
+      <button
+        type="button"
+        onClick={handleLocationToggle}
+        disabled={availableLocations.length === 0}
+        className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
+          availableLocations.length === 0
+            ? 'text-slate-300 cursor-not-allowed'
+            : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
+        }`}
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+        <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleShiftToggle('day')}
+        title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+        aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
+        className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+          selectedShifts.includes('day')
+            ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
+            : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+        }`}
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
+        <span>Day</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleShiftToggle('afternoon')}
+        title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+        aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
+        className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+          selectedShifts.includes('afternoon')
+            ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
+            : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+        }`}
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
+        <span>
+          <span className="sm:hidden">Aft</span>
+          <span className="hidden sm:inline">Afternoon</span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleShiftToggle('night')}
+        title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+        aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
+        className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+          selectedShifts.includes('night')
+            ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
+            : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+        }`}
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
+        <span>Night</span>
+      </button>
+    </div>
+  );
+
+  const renderAdminQuickNav = () => (
+    isAdmin ? (
+      <div className="card-modern p-2 flex-shrink-0">
+        <div className="grid grid-cols-1 gap-1">
+          {adminQuickLinks.map((item) => (
+            <Link
+              key={item.id}
+              to="/admin"
+              onClick={() => localStorage.setItem('adminActiveSection', item.id)}
+              className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left group"
+            >
+              <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105 shrink-0">
+                <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="small" animate={true} />
+              </div>
+              <h3 className="flex-1 min-w-0 font-medium text-xs text-charcoal truncate">
+                {item.label}
+              </h3>
+              <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          ))}
+        </div>
+      </div>
+    ) : null
+  );
+
+  const renderEmbeddedPromoCards = () =>
+    desktopCards.map((card, index) => (
+      <React.Fragment key={index}>
+        {React.isValidElement(card) ? React.cloneElement(card, { embedded: true }) : card}
+      </React.Fragment>
+    ));
+
+  const renderShunterStats = () => (
+    <div className="card-modern p-2 flex-shrink-0 h-full min-h-0 overflow-y-auto">
+      <div className="grid grid-cols-1 gap-1">
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm shrink-0">
+            <span className="text-xs font-bold text-charcoal tabular-nums">{todayShiftSummary.total}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-xs text-charcoal truncate">Total shunters</p>
+            <p className="text-[11px] leading-tight text-slate-500 truncate">{selectedLocation || 'Location'} today</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-amber-50 via-amber-50/70 to-slate-50 border border-amber-200 rounded-lg shadow-sm">
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-amber-200/70 shadow-sm shrink-0">
+            <span className="text-xs font-bold text-amber-800 tabular-nums">{todayShiftSummary.day}</span>
+          </div>
+          <p className="flex-1 min-w-0 text-[11px] leading-tight text-amber-700">Day shift</p>
+        </div>
+
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-orange-50 via-orange-50/70 to-slate-50 border border-orange-200 rounded-lg shadow-sm">
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-orange-200/70 shadow-sm shrink-0">
+            <span className="text-xs font-bold text-orange-800 tabular-nums">{todayShiftSummary.afternoon}</span>
+          </div>
+          <p className="flex-1 min-w-0 text-[11px] leading-tight text-orange-700">Afternoon shift</p>
+        </div>
+
+        <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-blue-50 via-blue-50/70 to-slate-50 border border-blue-200 rounded-lg shadow-sm">
+          <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-blue-200/70 shadow-sm shrink-0">
+            <span className="text-xs font-bold text-blue-800 tabular-nums">{todayShiftSummary.night}</span>
+          </div>
+          <p className="flex-1 min-w-0 text-[11px] leading-tight text-blue-700">Night shift</p>
+        </div>
+        {renderEmbeddedPromoCards()}
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Centered Popup Message */}
@@ -594,141 +712,27 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             />
           </div>
 
-          <div className="hidden md:grid md:grid-cols-4 md:gap-6 md:items-start">
-            <div className="min-w-0 md:col-span-2">
-              <div ref={calendarDesktopCardRef} className="card-modern p-4 md:p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-2xl font-bold text-charcoal tracking-tight">
-                    {format(currentDate, 'MMMM yyyy')}
-                  </h3>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePreviousMonth}
-                      className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
-                      aria-label="Previous month"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-
-                    <button
-                      onClick={handleNextMonth}
-                      className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
-                      aria-label="Next month"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <CalendarGrid
-                  currentDate={currentDate}
-                  dayData={dayData}
-                  onDayClick={handleDayClick}
-                  isLoading={loading}
-                />
-              </div>
-            </div>
-
-            <div className="min-w-0 md:col-span-1">
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-12 md:gap-6 md:items-start lg:items-stretch">
+            <div className="min-w-0 min-h-0 flex flex-col max-h-[min(32rem,calc(100vh-9rem))] overflow-hidden lg:col-span-4 lg:row-span-2 lg:h-0 lg:max-h-none lg:min-h-full">
               <div
-                className="card-modern p-3 md:p-4 h-full"
-                style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
-              >
-                <div className="h-full min-h-0 flex flex-col">
-                  {isAdmin && (
-                    <div className="flex-shrink-0">
-                      <div className="grid grid-cols-1 gap-2">
-                        {adminQuickLinks.map((item) => (
-                          <Link
-                            key={item.id}
-                            to="/admin"
-                            onClick={() => localStorage.setItem('adminActiveSection', item.id)}
-                            className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-left group"
-                          >
-                            <div className="flex items-center gap-3 w-full">
-                              <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105">
-                                <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="small" animate={true} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-sm text-charcoal truncate">
-                                  {item.label}
-                                </h3>
-                              </div>
-                              <svg className="w-4 h-4 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 md:col-span-1">
-              <div
-                className="card-modern p-3 md:p-4 h-full"
-                style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
-              >
-                <div className="h-full min-h-0 flex flex-col">
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-xl shadow-sm">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm">
-                        <span className="text-sm font-bold text-charcoal tabular-nums">{todayShiftSummary.total}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-charcoal truncate">Total shunters</p>
-                        <p className="text-xs text-slate-500 truncate">{selectedLocation || 'Location'} today</p>
-                      </div>
-                    </div>
-
-                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-amber-50 via-amber-50/70 to-slate-50 border border-amber-200 rounded-xl shadow-sm">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-amber-200/70 shadow-sm">
-                        <span className="text-sm font-bold text-amber-800 tabular-nums">{todayShiftSummary.day}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-amber-700">Shunters on day shift</p>
-                      </div>
-                    </div>
-
-                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-orange-50 via-orange-50/70 to-slate-50 border border-orange-200 rounded-xl shadow-sm">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-orange-200/70 shadow-sm">
-                        <span className="text-sm font-bold text-orange-800 tabular-nums">{todayShiftSummary.afternoon}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-orange-700">Shunters on afternoon shift</p>
-                      </div>
-                    </div>
-
-                    <div className="min-h-[74px] flex items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-blue-50 via-blue-50/70 to-slate-50 border border-blue-200 rounded-xl shadow-sm">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 border border-blue-200/70 shadow-sm">
-                        <span className="text-sm font-bold text-blue-800 tabular-nums">{todayShiftSummary.night}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-blue-700">Shunters on night shift</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden md:grid md:grid-cols-2 md:gap-6 mt-4">
-            <div className="min-w-0">
-              <div
-                className="card-modern p-4 md:p-5 flex flex-col"
-                style={desktopBreaksHeight ? { height: `${desktopBreaksHeight}px` } : undefined}
+                className={`card-modern p-4 md:p-5 flex flex-col h-full min-h-0 overflow-hidden ${isAdmin ? 'cursor-pointer' : ''}`}
+                onClick={isAdmin ? () => navigate('/brakes') : undefined}
+                onKeyDown={
+                  isAdmin
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate('/brakes');
+                        }
+                      }
+                    : undefined
+                }
+                role={isAdmin ? 'link' : undefined}
+                tabIndex={isAdmin ? 0 : undefined}
+                aria-label={isAdmin ? 'Open break planner' : undefined}
               >
                 {showManageBreaksButton && (
-                  <div className="w-full mb-4 flex-shrink-0">
+                  <div className="w-full mb-4 flex-shrink-0" onClick={(event) => event.stopPropagation()}>
                     <Link
                       to="/brakes"
                       className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 text-sm font-medium rounded-xl bg-white/90 backdrop-blur-sm border-2 border-rota-btn-outline-border text-charcoal hover:border-charcoal/40 hover:bg-white hover:shadow-md transition-all duration-200 active:scale-[0.99]"
@@ -741,7 +745,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                   </div>
                 )}
 
-                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
                   <ShiftDashboard
                     initialView="breaks"
                     hideTabSwitcher={true}
@@ -752,84 +756,66 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                     onShiftCountsChange={setShiftCounts}
                     onUserBreakLabelChange={setUserBreakLabel}
                     breakHeaderControls={(
-                      <div className="filter-bar-segmented filter-bar-segmented-desktop-full">
-                        <button
-                          type="button"
-                          onClick={handleLocationToggle}
-                          disabled={availableLocations.length === 0}
-                          className={`flex min-w-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:px-2 sm:py-2.5 sm:text-sm ${
-                            availableLocations.length === 0
-                              ? 'text-slate-300 cursor-not-allowed'
-                              : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
-                          }`}
-                        >
-                          <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${availableLocations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
-                          <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No locations'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleShiftToggle('day')}
-                          title={`Day${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
-                          aria-label={`Toggle day breaks${shiftCounts.day > 0 ? ` (${shiftCounts.day})` : ''}`}
-                          className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                            selectedShifts.includes('day')
-                              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-amber-300/60'
-                              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                          }`}
-                        >
-                          <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('day') ? 'bg-amber-500 shadow-sm' : 'bg-slate-300'}`} />
-                          <span>Day</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleShiftToggle('afternoon')}
-                          title={`Afternoon${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
-                          aria-label={`Toggle afternoon breaks${shiftCounts.afternoon > 0 ? ` (${shiftCounts.afternoon})` : ''}`}
-                          className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                            selectedShifts.includes('afternoon')
-                              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-orange-300/60'
-                              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                          }`}
-                        >
-                          <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('afternoon') ? 'bg-orange-500 shadow-sm' : 'bg-slate-300'}`} />
-                          <span>
-                            <span className="sm:hidden">Aft</span>
-                            <span className="hidden sm:inline">Afternoon</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleShiftToggle('night')}
-                          title={`Night${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
-                          aria-label={`Toggle night breaks${shiftCounts.night > 0 ? ` (${shiftCounts.night})` : ''}`}
-                          className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
-                            selectedShifts.includes('night')
-                              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm hover:border-blue-300/60'
-                              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-                          }`}
-                        >
-                          <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${selectedShifts.includes('night') ? 'bg-blue-500 shadow-sm' : 'bg-slate-300'}`} />
-                          <span>Night</span>
-                        </button>
+                      <div onClick={(event) => event.stopPropagation()}>
+                        {renderBreakFilterBar(true)}
                       </div>
                     )}
                   />
                 </div>
               </div>
             </div>
-            <div className="min-w-0">
-              <div className="card-modern p-3 md:p-4 h-full">
-                <div className="flex h-full min-h-0 gap-3">
-                  {desktopCards.map((card, index) => (
-                    <div key={index} className="min-w-0 h-full w-1/2 flex-shrink-0">
-                      {card}
-                    </div>
-                  ))}
+
+            <div className="min-w-0 min-h-0 lg:col-span-4 flex flex-col">
+              <div className="card-modern p-3 lg:h-full">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xl font-bold text-charcoal tracking-tight">
+                    {format(currentDate, 'MMMM yyyy')}
+                  </h3>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePreviousMonth}
+                      className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                      aria-label="Previous month"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={handleNextMonth}
+                      className="p-2 rounded-xl border border-transparent hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm transition-all text-charcoal"
+                      aria-label="Next month"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
+                <CalendarGrid
+                  currentDate={currentDate}
+                  dayData={dayData}
+                  onDayClick={handleDayClick}
+                  isLoading={loading}
+                  density="compact"
+                />
               </div>
+
+              <div className="lg:hidden mt-3 flex flex-col gap-2">
+                {renderShunterStats()}
+                {renderAdminQuickNav()}
+              </div>
+            </div>
+
+            <div className="hidden lg:block lg:col-span-4 min-h-0 h-0 min-h-full">
+              {renderShunterStats()}
+            </div>
+
+            <div className="hidden lg:block lg:col-span-4 lg:col-start-5">
+              {renderAdminQuickNav()}
             </div>
           </div>
         </div>
