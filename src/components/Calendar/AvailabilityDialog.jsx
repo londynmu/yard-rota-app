@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, CircleCheck, CircleMinus, TreePalm } from 'lucide-react';
-import { addMonths, eachDayOfInterval, format, startOfDay } from 'date-fns';
+import { addMonths, eachDayOfInterval, format, isSunday, startOfDay } from 'date-fns';
+import { getUkBankHolidayName } from '../../utils/ukBankHolidays';
 
 const AVAILABILITY_STATUSES = ['available', 'unavailable', 'holiday'];
 
@@ -280,15 +281,27 @@ function AvailabilityDialog({
                   const dayClass = isChecked || hasExistingStatus
                     ? tone.dayText
                     : 'text-charcoal';
+                  const bankHolidayName = getUkBankHolidayName(optionDate);
+                  const dayTitle = [
+                    isSunday(optionDate) ? 'Sunday' : '',
+                    bankHolidayName || '',
+                  ].filter(Boolean).join(' — ');
 
                   return (
                     <button
                       key={optionDateString}
                       type="button"
                       aria-pressed={isChecked}
+                      title={dayTitle || undefined}
                       onClick={() => handleDateClick(optionDateString)}
-                      className={`flex h-36 w-28 shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center transition-all ${cardClass}`}
+                      className={`relative flex h-36 w-28 shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center transition-all ${cardClass}`}
                     >
+                      {bankHolidayName && (
+                        <span
+                          className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500"
+                          aria-hidden
+                        />
+                      )}
                       <span className={`text-xs font-semibold tracking-wide ${weekdayClass}`}>
                         {format(optionDate, 'EEE')}
                       </span>
@@ -298,6 +311,11 @@ function AvailabilityDialog({
                       <span className={`mt-0.5 text-xs font-semibold tracking-wide ${weekdayClass}`}>
                         {format(optionDate, 'MMM')}
                       </span>
+                      {bankHolidayName && (
+                        <span className="mt-0.5 max-w-full truncate text-[10px] text-rota-text-muted">
+                          {bankHolidayName}
+                        </span>
+                      )}
                       <span className="mt-2 text-xs font-medium text-rota-text-muted">
                         {statusLabelForDisplay(statusForDate)}
                       </span>

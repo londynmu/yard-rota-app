@@ -13,7 +13,10 @@ import {
   isBefore,
   startOfDay,
   isToday,
+  isSunday,
+  differenceInCalendarDays,
 } from 'date-fns';
+import { getUkBankHolidayName } from '../../utils/ukBankHolidays';
 
 function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = 'default' }) {
   const isCompact = density === 'compact';
@@ -133,21 +136,29 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = '
           const dayInfo = dayData?.[dateString];
           const hasComment = !!dayInfo?.comment;
           const statusIcon = getStatusIcon(dayInfo?.status);
-          const dayTitle = [
+          const isSundayColumn = isSunday(day);
+          const bankHolidayName = getUkBankHolidayName(day);
+          const daysFromToday = differenceInCalendarDays(day, today);
+          const isInUpcomingWindow = daysFromToday >= 0 && daysFromToday <= 3;
+          const isPersonalHoliday = dayInfo?.status === 'holiday';
+          const showEventDot =
+            !!bankHolidayName ||
+            (isInUpcomingWindow && (isSundayColumn || isPersonalHoliday));
+          const tooltipLines = [
             isPastDate ? 'Cannot set availability for past dates' : '',
-            statusIcon?.label || '',
+            isSundayColumn ? 'Sunday' : '',
+            bankHolidayName || '',
+            isPersonalHoliday ? 'Your holiday' : (statusIcon?.label || ''),
             hasComment ? dayInfo.comment : '',
-          ]
-            .filter(Boolean)
-            .join(' - ');
+          ].filter(Boolean);
 
           return (
+            <div key={dateString} className="relative group min-w-0 w-full">
             <motion.button
-              key={dateString}
               type="button"
               onClick={() => !isPastDate && onDayClick(day, dayInfo)}
               disabled={isPastDate}
-              title={dayTitle}
+              aria-label={tooltipLines.join(', ') || format(day, 'd MMMM')}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{
@@ -159,7 +170,7 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = '
               whileHover={!isPastDate ? { scale: isCompact ? 1.03 : 1.05, y: isCompact ? 0 : -2 } : {}}
               whileTap={!isPastDate ? { scale: 0.95 } : {}}
               className={`
-                relative transition-all duration-200
+                relative w-full min-w-0 transition-all duration-200
                 ${cellSizeClass}
                 ${isCurrentMonth ? 'text-slate-700 font-medium' : 'text-slate-400'}
                 ${isCurrentDay ? cellRingClass : ''}
@@ -216,7 +227,24 @@ function CalendarGrid({ currentDate, dayData, onDayClick, isLoading, density = '
                   <MessageSquare className={commentIconClass} aria-hidden />
                 </motion.div>
               )}
+
+              {showEventDot && (
+                <span
+                  className={`absolute left-1/2 -translate-x-1/2 rounded-full bg-rose-500 shadow-sm ${
+                    isCompact ? 'bottom-0.5 h-1.5 w-1.5' : 'bottom-1 h-2 w-2'
+                  }`}
+                  aria-hidden
+                />
+              )}
             </motion.button>
+            {tooltipLines.length > 0 && (
+              <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden w-max max-w-[12rem] -translate-x-1/2 rounded-lg bg-black p-2 text-left text-xs text-white shadow-lg group-hover:block group-focus-within:block">
+                {tooltipLines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            )}
+            </div>
           );
         })}
       </div>
