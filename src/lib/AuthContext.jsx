@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from './supabaseClient';
+import { authStorageKey, siteUrl, supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
 import { resetCalendarStaticCache } from '../utils/calendarStaticCache';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
-
-// Site URL for redirects - load from environment variables
-const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
 
 const AuthContext = createContext();
 
@@ -176,7 +173,7 @@ export function AuthProvider({ children }) {
       
       // 3. Clear only auth-related storage (preserve user preferences)
       // Remove Supabase auth token
-      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      localStorage.removeItem(authStorageKey);
       localStorage.removeItem('recoveryHash');
       
       // Remove session tracking
@@ -205,7 +202,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       setSessionProfile(null);
       resetCalendarStaticCache();
-      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      localStorage.removeItem(authStorageKey);
       localStorage.removeItem('recoveryHash');
       sessionStorage.removeItem('page_tracking_session_id');
       

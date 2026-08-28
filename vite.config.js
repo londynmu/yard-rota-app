@@ -7,9 +7,25 @@ import { visualizer } from 'rollup-plugin-visualizer'
 
 const buildTimestamp = new Date().toISOString()
 
+const REQUIRED_VITE_ENV = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_SITE_URL']
+
+function assertRequiredViteEnv(env, { command, mode }) {
+  if (mode === 'test') return
+  if (command !== 'build' && mode !== 'production') return
+  const missing = REQUIRED_VITE_ENV.filter((key) => !String(env[key] || '').trim())
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}. Set them in Vercel (or .env.local) before building.`
+    )
+  }
+}
+
 /** Public site base URL (no trailing slash). Used for canonical, Open Graph, sitemap. */
 function siteUrlFromEnv(env) {
-  const raw = (env.VITE_SITE_URL || 'https://shunters.net').trim()
+  const raw = String(env.VITE_SITE_URL || '').trim()
+  if (!raw) {
+    throw new Error('VITE_SITE_URL is required (no trailing slash), e.g. https://dhl.shunters.net')
+  }
   const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
   return withProto.replace(/\/$/, '')
 }
@@ -107,10 +123,13 @@ function replaceOklabInCss() {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const analyze = mode === 'analyze'
   const env = loadEnv(mode, process.cwd(), '')
-  const siteUrl = siteUrlFromEnv(env)
+  assertRequiredViteEnv(env, { command, mode })
+  const siteUrl = command === 'build' || mode === 'production' ? siteUrlFromEnv(env) : siteUrlFromEnv({
+    VITE_SITE_URL: env.VITE_SITE_URL || 'http://localhost:5173',
+  })
   return {
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),

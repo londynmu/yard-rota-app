@@ -1,15 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Load configuration from environment variables with fallback to hardcoded values
-// This ensures the app works in production even if env vars are not set
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jkjvtvwedjiupxoibpld.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw';
-const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
+function requiredEnv(name) {
+  const value = String(import.meta.env[name] || '').trim();
+  if (!value) {
+    throw new Error(
+      `Missing ${name}. Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and VITE_SITE_URL before starting the app.`
+    );
+  }
+  return value;
+}
 
-// Singleton pattern to ensure only one client instance is created
+function normalizeSiteUrl(raw) {
+  const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withProto.replace(/\/$/, '');
+}
+
+function authStorageKeyFromSupabaseUrl(url) {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    throw new Error('VITE_SUPABASE_URL must be a valid URL, e.g. https://<project-ref>.supabase.co');
+  }
+  const ref = hostname.split('.')[0];
+  if (!ref) {
+    throw new Error('VITE_SUPABASE_URL must include a Supabase project ref');
+  }
+  return `sb-${ref}-auth-token`;
+}
+
+export const supabaseUrl = requiredEnv('VITE_SUPABASE_URL');
+export const supabaseAnonKey = requiredEnv('VITE_SUPABASE_ANON_KEY');
+export const siteUrl = normalizeSiteUrl(requiredEnv('VITE_SITE_URL'));
+export const authStorageKey = authStorageKeyFromSupabaseUrl(supabaseUrl);
+
 let supabaseInstance = null;
 
-// Create Supabase client with custom auth settings
 const createSupabaseClient = () => {
   if (supabaseInstance === null) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
@@ -17,26 +43,24 @@ const createSupabaseClient = () => {
         redirectTo: `${siteUrl}/login`,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true, // Enable session detection from URL hash
-        storageKey: 'sb-jkjvtvwedjiupxoibpld-auth-token' // Using the actual key format used by Supabase
+        detectSessionInUrl: true,
+        storageKey: authStorageKey,
       },
       global: {
         headers: {
-          'X-Client-Info': 'yard-rota-app'
-        }
-      }
+          'X-Client-Info': 'yard-rota-app',
+        },
+      },
     });
   }
   return supabaseInstance;
 };
 
-// Create a custom supabase client with debug logging
 const originalSupabaseClient = createSupabaseClient();
 
-// Create enhanced supabase client with better debugging
 export const supabase = {
   ...originalSupabaseClient,
   storage: originalSupabaseClient.storage,
   from: originalSupabaseClient.from.bind(originalSupabaseClient),
-  rpc: originalSupabaseClient.rpc.bind(originalSupabaseClient)
-}; 
+  rpc: originalSupabaseClient.rpc.bind(originalSupabaseClient),
+};
