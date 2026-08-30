@@ -311,40 +311,34 @@ export default function AdminPage() {
 
   const menuItems = getAdminMenuItems(pendingApprovals);
 
-  // Dashboard Component - pokazywany jako główny widok
+  // Dashboard Component - compact Quick Actions (same density as Calendar admin quick nav)
   const DashboardView = () => (
-    <div className="space-y-6">
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-lg font-semibold text-charcoal mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {menuItems.filter(item => item.id !== 'dashboard').map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-5 hover:shadow-xl hover:border-slate-300/80 transition-all duration-300 text-left group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl group-hover:from-blue-50 group-hover:to-indigo-50 transition-colors duration-300 flex items-center justify-center group-hover:scale-105">
-                  <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="large" animate={true} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-charcoal group-hover:text-charcoal">
-                    {item.label}
-                    {item.badge > 0 && (
-                      <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                <svg className="w-5 h-5 text-slate-400 group-hover:text-charcoal group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </button>
-          ))}
-        </div>
+    <div className="card-modern p-2">
+      <h2 className="text-sm font-semibold text-charcoal mb-2 px-1">Quick Actions</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+        {menuItems.filter((item) => item.id !== 'dashboard').map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveSection(item.id)}
+            className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left group"
+          >
+            <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105 shrink-0">
+              <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="small" animate={true} />
+            </div>
+            <h3 className="flex-1 min-w-0 font-medium text-xs text-charcoal truncate">
+              {item.label}
+              {item.badge > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white bg-orange-600 rounded-full align-middle">
+                  {item.badge}
+                </span>
+              )}
+            </h3>
+            <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -404,7 +398,7 @@ export default function AdminPage() {
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
         className={`
-          ${(sidebarHovered || mobileSidebarOpen) ? 'w-72' : 'w-20'}
+          ${(sidebarHovered || mobileSidebarOpen) ? 'w-60' : 'w-16'}
           bg-white border-r border-gray-200 flex flex-col shadow-lg
           fixed left-0 z-50
           ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -465,39 +459,47 @@ export default function AdminPage() {
         )}
       </aside>
 
-      {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
-      <main ref={mainContentRef} className="min-h-screen overflow-y-auto md:ml-20">
-        <div className="p-4 md:p-6 lg:p-8">
+      {/* Main Content Area - margin matches collapsed sidebar (w-16 = 4rem) */}
+      <main ref={mainContentRef} className="min-h-screen overflow-y-auto md:ml-16">
+        <div className="p-4 md:p-6">
           {showShunterReminder && (
-            <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-charcoal">
-                  Time to pick your Shunter of the Month
-                </p>
-                <p className="text-xs text-gray-600 mt-1">
-                  One Day and one Night shunter for the whole company. Open the &quot;Shunter of the Month&quot; section to choose winners.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('shunter-month')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-black text-white hover:bg-gray-900"
-                >
-                  Go to Shunter of the Month
-                </button>
-                <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="h-3 w-3 rounded border-gray-300 text-black focus:ring-black"
-                    onChange={handleDismissShunterReminder}
-                  />
-                  <span>Don&apos;t remind me again this month</span>
-                </label>
+            <div className="max-w-4xl mx-auto mb-4">
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-charcoal">
+                    Time to pick your Shunter of the Month
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    One Day and one Night shunter for the whole company. Open the &quot;Shunter of the Month&quot; section to choose winners.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('shunter-month')}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-black text-white hover:bg-gray-900"
+                  >
+                    Go to Shunter of the Month
+                  </button>
+                  <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-3 w-3 rounded border-gray-300 text-black focus:ring-black"
+                      onChange={handleDismissShunterReminder}
+                    />
+                    <span>Don&apos;t remind me again this month</span>
+                  </label>
+                </div>
               </div>
             </div>
           )}
-          {renderContent()}
+          {activeSection === 'dashboard' ? (
+            <div className="max-w-4xl mx-auto">
+              {renderContent()}
+            </div>
+          ) : (
+            renderContent()
+          )}
         </div>
       </main>
     </div>
