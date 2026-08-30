@@ -108,10 +108,13 @@ BEGIN
                    AND policyname = 'Allow authenticated users to upload avatar objects') THEN
         CREATE POLICY "Allow authenticated users to upload avatar objects" 
         ON storage.objects FOR INSERT
+        TO authenticated
         WITH CHECK (
-          auth.uid() = owner AND
           bucket_id = 'avatars' AND
-          (storage.foldername(name))[1] = 'avatars'
+          (
+            name LIKE ((auth.uid())::text || '-%')
+            OR name LIKE ('avatars/' || (auth.uid())::text || '-%')
+          )
         );
     END IF;
 END $$;

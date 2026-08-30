@@ -161,8 +161,9 @@ class SupabaseApiClient implements ApiClient {
   @override
   Future<String> uploadAvatar({required AvatarUpload upload}) async {
     final userId = _currentUserId();
+    // Flat key: DHL Storage RLS requires name LIKE '{uid}-%'
     final path =
-        'avatars/$userId-${DateTime.now().millisecondsSinceEpoch}.${upload.fileExtension}';
+        '$userId-${DateTime.now().millisecondsSinceEpoch}.${upload.fileExtension}';
     try {
       await _client.storage
           .from('avatars')
