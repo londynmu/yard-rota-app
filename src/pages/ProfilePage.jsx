@@ -314,35 +314,33 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       setLoading(true);
       setMessage({ text: '', type: '' });
       
-      // First handle avatar upload if there's a new file
+      // Optional avatar upload — must not block profile save on failure
       let avatar_url = avatarUrl;
+      let avatarUploadFailed = false;
       
       if (avatar) {
-        // Add a check for supabaseClient.storage
         if (!supabaseClient.storage) {
-          console.error("Supabase client storage is not available.");
-          setMessage({ text: 'Error: Storage service is not configured correctly.', type: 'error' });
-          toast.error('Error: Storage service is not configured correctly.');
-          setLoading(false); // Stop loading state
-          return; // Prevent further execution in this block
-        }
-        
-        const fileExt = avatar.name.split('.').pop();
-        const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = fileName;
+          console.error('Supabase client storage is not available.');
+          avatarUploadFailed = true;
+        } else {
+          const fileExt = avatar.name.split('.').pop();
+          // Prefer nested key (same as Flutter); Storage RLS now allows any key in avatars bucket
+          const filePath = `avatars/${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-        const { error: uploadError } = await supabaseClient.storage
-          .from('avatars')
-          .upload(filePath, avatar);
-          
-        if (uploadError) throw uploadError;
-        
-        // Get public URL for the avatar
-        const { data } = supabaseClient.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-          
-        avatar_url = data.publicUrl;
+          const { error: uploadError } = await supabaseClient.storage
+            .from('avatars')
+            .upload(filePath, avatar);
+
+          if (uploadError) {
+            console.error('Avatar upload failed:', uploadError);
+            avatarUploadFailed = true;
+          } else {
+            const { data } = supabaseClient.storage
+              .from('avatars')
+              .getPublicUrl(filePath);
+            avatar_url = normalizeAvatarStorageUrl(data.publicUrl) ?? data.publicUrl;
+          }
+        }
       }
       
       // Capitalize first letter of names before saving
@@ -413,6 +411,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       
       // Refresh gate profile then navigate to waiting (avoid hard reload race on Capacitor)
       if (simplifiedView || isRequired) {
+        if (avatarUploadFailed) {
+          toast.error('Profile saved, but photo upload failed. You can add a photo later.');
+        }
         await refreshSessionProfile();
         // Guarantee App gate leaves the required-profile screen even if refresh races
         setSessionProfile((prev) => ({
@@ -428,19 +429,29 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         return;
       }
       
-      setMessage({ 
-        text: 'Profile updated successfully!', 
-        type: 'success' 
-      });
-      toast.success('Profile updated successfully!');
+      if (avatarUploadFailed) {
+        setMessage({
+          text: 'Profile saved, but photo upload failed. You can try again later.',
+          type: 'error',
+        });
+        toast.error('Profile saved, but photo upload failed. You can try again later.');
+      } else {
+        setMessage({ 
+          text: 'Profile updated successfully!', 
+          type: 'success' 
+        });
+        toast.success('Profile updated successfully!');
+      }
       
       // Update state with capitalized values
       setFirstName(capitalizedFirstName);
       setLastName(capitalizedLastName);
       
-      // Update avatar URL if we uploaded a new one
+      // Clear pending file; keep prior URL if upload failed
       if (avatar) {
-        setAvatarUrl(avatar_url);
+        if (!avatarUploadFailed) {
+          setAvatarUrl(avatar_url);
+        }
         setAvatar(null);
       }
 
