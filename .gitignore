@@ -36,3 +36,4 @@ lighthouse-reports/nav-detail-*.json
 
 # Local Netlify folder
 .netlify
+.vercel
