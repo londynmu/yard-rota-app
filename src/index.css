@@ -8,6 +8,8 @@
     color-scheme: light;
     --app-bg: #f8fafc;
     --app-fg: #2d2d2d;
+    /* Sentinel read by the stylesheet watchdog in main.jsx – do not remove */
+    --app-css-loaded: 1;
   }
 
   @media (prefers-color-scheme: dark) {

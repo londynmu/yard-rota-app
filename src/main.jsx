@@ -9,6 +9,7 @@ import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { safeAutoReload } from './lib/reloadGuard'
+import { clearAppCachesAndSw } from './lib/appRecovery'
 
 const isSystemDarkMode = () =>
   typeof window !== 'undefined' &&
@@ -61,6 +62,44 @@ async function ensureLatestVersion() {
   }
 }
 
+const STYLE_RECOVERY_KEY = 'css_recovery_attempt_v1'
+
+const stylesLoaded = () =>
+  getComputedStyle(document.documentElement).getPropertyValue('--app-css-loaded').trim() === '1'
+
+/**
+ * A stylesheet that fails to load throws nothing, so a stale cache pointing at
+ * a CSS file that no longer exists leaves the user on a raw, unstyled page with
+ * no error to recover from. Drop the caches and reload once when that happens.
+ */
+async function verifyStylesLoaded() {
+  if (stylesLoaded()) {
+    try {
+      sessionStorage.removeItem(STYLE_RECOVERY_KEY)
+    } catch {
+      // Private mode – nothing to clean up
+    }
+    return
+  }
+
+  let alreadyTried = false
+  try {
+    alreadyTried = sessionStorage.getItem(STYLE_RECOVERY_KEY) === '1'
+    sessionStorage.setItem(STYLE_RECOVERY_KEY, '1')
+  } catch {
+    // Without sessionStorage we cannot detect a loop, so recover at most in-memory
+  }
+
+  if (alreadyTried) {
+    console.error('[main] Stylesheet still missing after recovery – app is running unstyled.')
+    return
+  }
+
+  console.warn('[main] Stylesheet missing – clearing caches and reloading.')
+  await clearAppCachesAndSw()
+  window.location.reload()
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
@@ -72,6 +111,12 @@ createRoot(document.getElementById('root')).render(
 )
 
 if (Capacitor.getPlatform() === 'web') {
+  if (document.readyState === 'complete') {
+    void verifyStylesLoaded()
+  } else {
+    window.addEventListener('load', () => void verifyStylesLoaded(), { once: true })
+  }
+
   const scheduleVersionCheck = () => void ensureLatestVersion()
   if (typeof requestIdleCallback !== 'undefined') {
     requestIdleCallback(scheduleVersionCheck, { timeout: 3000 })
