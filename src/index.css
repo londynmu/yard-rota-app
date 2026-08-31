@@ -4,7 +4,8 @@
 
 @layer base {
   :root {
-    color-scheme: light dark;
+    /* App chrome is light; force light so Android dark mode does not paint native controls black */
+    color-scheme: light;
     --app-bg: #f8fafc;
     --app-fg: #2d2d2d;
   }
@@ -14,6 +15,27 @@
       --app-bg: #0f172a;
       --app-fg: #e5e7eb;
     }
+  }
+
+  /* Text fields: white surface by default (Tailwind utilities still override) */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']):not([type='submit']):not([type='button']):not([type='image']):not([type='reset']),
+  textarea,
+  select {
+    color-scheme: light;
+    background-color: #fff;
+    color: #111827;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  .react-datepicker-wrapper input,
+  .react-datepicker__input-container input {
+    color-scheme: light;
+    background-color: #fff;
+    color: #111827;
   }
 
   /* Smooth theme transitions */
