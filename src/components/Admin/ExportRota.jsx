@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import AdditionalBookingsPanel from './AdditionalBookingsPanel';
+import IndividualBookingEmailPanel from './IndividualBookingEmailPanel';
 import { EMAIL_SIGN_OFF, formatShiftClock } from '../../utils/rotaAdditionalBookings';
 import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBaseline';
 
@@ -22,7 +23,11 @@ const getNextOrCurrentSaturday = (date) => {
 };
 
 const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaselineChanged = null }) => {
-  const [mode, setMode] = useState(initialTab === 'additional' ? 'additional' : 'weekly');
+  const [mode, setMode] = useState(() => {
+    if (initialTab === 'additional') return 'additional';
+    if (initialTab === 'individual') return 'individual';
+    return 'weekly';
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -677,7 +682,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       {/* Heading */}
       <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send</h2>
 
-      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => setMode('weekly')}
@@ -699,6 +704,17 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           }`}
         >
           Additional bookings
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('individual')}
+          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
+            mode === 'individual'
+              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
+          }`}
+        >
+          Individual booking
         </button>
       </div>
 
@@ -816,6 +832,13 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           startDate={startDate}
           currentUser={currentUser}
           onBaselineChanged={onBaselineChanged}
+        />
+      )}
+
+      {mode === 'individual' && (
+        <IndividualBookingEmailPanel
+          startDate={startDate}
+          currentUser={currentUser}
         />
       )}
 

@@ -241,6 +241,48 @@ export function buildAdditionalBookingsEmail({ weekStartIso, people }) {
 }
 
 /**
+ * Email for a single person's selected shift(s), without baseline tracking.
+ * @param {{ weekStartIso: string, personName: string, shifts: object[] }} args
+ * @returns {{ subject: string, body: string }}
+ */
+export function buildIndividualBookingEmail({ weekStartIso, personName, shifts }) {
+  const weekRange = formatWeekRangeLabel(weekStartIso);
+  const sortedShifts = [...(shifts || [])].sort((a, b) => {
+    const dateCmp = String(a.date || '').localeCompare(String(b.date || ''));
+    if (dateCmp !== 0) return dateCmp;
+    return formatShiftClock(a.start_time).localeCompare(formatShiftClock(b.start_time));
+  });
+  const uniqueDates = [...new Set(sortedShifts.map((shift) => normalizeShiftDate(shift.date)).filter(Boolean))];
+  const dateScope =
+    uniqueDates.length === 1 && sortedShifts.length > 0
+      ? formatShiftDayLabel(uniqueDates[0])
+      : weekRange;
+  const subject = `Shunter booking: ${personName} — ${dateScope}`;
+
+  const lines = sortedShifts.map((shift) => {
+    const day = formatShiftDayLabel(shift.date);
+    const hours = `${formatShiftClock(shift.start_time)}-${formatShiftClock(shift.end_time)}`;
+    const shiftLabel = formatShiftTypeLabel(shift.shift_type);
+    const location = shift.location ? `, ${shift.location}` : '';
+    return `- ${day}, ${shiftLabel}, ${hours}${location}`;
+  });
+
+  const body = [
+    `Please book the following shift(s) for ${personName}:`,
+    '',
+    lines.join('\n'),
+    '',
+    'Please confirm these bookings.',
+    '',
+    'Best regards',
+    '',
+    EMAIL_SIGN_OFF,
+  ].join('\n');
+
+  return { subject, body };
+}
+
+/**
  * @param {unknown} emailField
  * @returns {string[]}
  */

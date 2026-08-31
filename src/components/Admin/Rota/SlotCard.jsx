@@ -6,58 +6,11 @@ import {
   countUniqueAssigned,
   normalizeAssignedEmployeeIds,
 } from '../../../utils/rotaAssignedEmployees';
-
-// Same as AssignModal: time string (HH:MM or HH:MM:SS) to minutes since midnight
-const timeToMinutes = (timeString) => {
-  const [hours, minutes] = (timeString || '').split(':').map(Number);
-  return (hours || 0) * 60 + (minutes || 0);
-};
-
-function collectSameDayConflictIds(currentSlot, sameDaySlots, minBreakMinutes = 0) {
-  const overlappingConflictIds = new Set();
-  const breakConflictIds = new Set();
-  const slotStart = timeToMinutes(currentSlot.start_time);
-  const slotEnd = timeToMinutes(currentSlot.end_time);
-  const normalizedSlotEnd = slotEnd < slotStart ? slotEnd + 1440 : slotEnd;
-
-  (sameDaySlots || []).forEach((other) => {
-    if (!other || other.id === currentSlot.id) return;
-    const userIds = normalizeAssignedEmployeeIds(other.assigned_employees);
-    if (userIds.length === 0) return;
-
-    const existingStart = timeToMinutes(other.start_time);
-    const existingEnd = timeToMinutes(other.end_time);
-    const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
-    const overlap = slotStart < normalizedExistingEnd && existingStart < normalizedSlotEnd;
-
-    userIds.forEach((userId) => {
-      if (overlap) {
-        overlappingConflictIds.add(userId);
-        return;
-      }
-      if (minBreakMinutes > 0) {
-        let breakMinutes = -1;
-        if (slotStart >= normalizedExistingEnd) breakMinutes = slotStart - normalizedExistingEnd;
-        else if (existingStart >= normalizedSlotEnd) breakMinutes = existingStart - normalizedSlotEnd;
-        if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) {
-          breakConflictIds.add(userId);
-        }
-      }
-    });
-  });
-
-  return { overlappingConflictIds, breakConflictIds };
-}
-
-function buildSameDayCacheKey(sameDaySlots) {
-  return (sameDaySlots || [])
-    .map((s) => {
-      const ids = normalizeAssignedEmployeeIds(s.assigned_employees || []).slice().sort().join(',');
-      return `${s.id}:${ids}:${s.start_time}-${s.end_time}`;
-    })
-    .sort()
-    .join('|');
-}
+import {
+  buildDayConflictCacheKey,
+  collectSameDayConflictIds,
+  scheduledRotaToConflictSlots,
+} from '../../../utils/rotaSlotConflicts';
 
 const SlotCard = ({ 
   slot,
@@ -79,6 +32,9 @@ const SlotCard = ({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const lastFetchedCacheKeyRef = useRef(null);
   const assignedEmployeesRef = useRef(slot.assigned_employees);
+  const dayConflictSlotsRef = useRef([]);
+  const minBreakMinutesRef = useRef(60);
+  const dayConflictCacheKeyRef = useRef('');
   const cardRef = useRef(null);
   const availableTooltipRef = useRef(null);
 
@@ -124,6 +80,63 @@ const SlotCard = ({
   // Removed debug useEffect
 
   assignedEmployeesRef.current = slot.assigned_employees;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDayConflicts = async () => {
+      try {
+        let minBreakMinutes = 60;
+        const { data: settingsData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'min_break_between_slots')
+          .single();
+        if (settingsData?.value) minBreakMinutes = parseInt(settingsData.value, 10) || 60;
+
+        const { data: dayRows, error: dayRowsError } = await supabase
+          .from('scheduled_rota')
+          .select('id, user_id, location, start_time, end_time')
+          .eq('date', slot.date)
+          .not('user_id', 'is', null);
+
+        if (dayRowsError) throw dayRowsError;
+        if (cancelled) return;
+
+        const conflictSlots = scheduledRotaToConflictSlots(dayRows || [], slot);
+        dayConflictSlotsRef.current = conflictSlots;
+        minBreakMinutesRef.current = minBreakMinutes;
+        dayConflictCacheKeyRef.current = buildDayConflictCacheKey(slot.date, dayRows || []);
+        lastFetchedCacheKeyRef.current = null;
+
+        const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
+        const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(
+          slot,
+          conflictSlots,
+          minBreakMinutes
+        );
+        const blockedIds = new Set([
+          ...assignedSet,
+          ...overlappingConflictIds,
+          ...breakConflictIds,
+        ]);
+        setAvailableForSlot((prev) => prev.filter((user) => !blockedIds.has(user.id)));
+      } catch (err) {
+        console.error('Error loading day conflicts for tooltip:', err);
+      }
+    };
+
+    loadDayConflicts();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    slot.date,
+    slot.location,
+    slot.start_time,
+    slot.end_time,
+    slot.assigned_employees,
+  ]);
 
   const fetchAvailableForSlot = async () => {
     const slotDate = slot.date;
@@ -171,9 +184,24 @@ const SlotCard = ({
 
       if (availabilityError) throw availabilityError;
 
+      let conflictSlots = dayConflictSlotsRef.current;
+      if (!conflictSlots.length) {
+        const { data: dayRows, error: dayRowsError } = await supabase
+          .from('scheduled_rota')
+          .select('id, user_id, location, start_time, end_time')
+          .eq('date', slotDate)
+          .not('user_id', 'is', null);
+        if (dayRowsError) throw dayRowsError;
+        conflictSlots = scheduledRotaToConflictSlots(dayRows || [], slot);
+        dayConflictSlotsRef.current = conflictSlots;
+        dayConflictCacheKeyRef.current = buildDayConflictCacheKey(slotDate, dayRows || []);
+      }
+
+      minBreakMinutesRef.current = minBreakMinutes;
+
       const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(
         slot,
-        sameDaySlots,
+        conflictSlots,
         minBreakMinutes
       );
 
@@ -202,27 +230,14 @@ const SlotCard = ({
     }
   };
 
-  const sameDayCacheKey = buildSameDayCacheKey(sameDaySlots);
-
-  useEffect(() => {
-    const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
-    const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(slot, sameDaySlots, 60);
-    const blockedIds = new Set([
-      ...assignedSet,
-      ...overlappingConflictIds,
-      ...breakConflictIds,
-    ]);
-    setAvailableForSlot((prev) => prev.filter((user) => !blockedIds.has(user.id)));
-    lastFetchedCacheKeyRef.current = null;
-  }, [slot.id, slot.assigned_employees, slot.start_time, slot.end_time, sameDayCacheKey]);
-
   const handleCardMouseEnter = (e) => {
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
-    if (lastFetchedCacheKeyRef.current === sameDayCacheKey && !availableLoading) {
+    const cacheKey = dayConflictCacheKeyRef.current;
+    if (lastFetchedCacheKeyRef.current === cacheKey && !availableLoading) {
       return;
     }
-    lastFetchedCacheKeyRef.current = sameDayCacheKey;
+    lastFetchedCacheKeyRef.current = cacheKey;
     setAvailableLoading(true);
     fetchAvailableForSlot();
   };
