@@ -121,7 +121,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the damage or incident..."
               rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-200 focus:border-red-300"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-red-200 focus:border-red-300"
               autoFocus
             />
           </div>

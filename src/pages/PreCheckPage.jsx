@@ -412,8 +412,8 @@ export default function PreCheckPage() {
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
-        <div className="space-y-3">
+      <div className="max-w-lg mx-auto px-4 pb-24 min-h-[calc(100dvh-5.5rem)] flex flex-col justify-center">
+        <div className="w-full space-y-3">
         {/* All checks grouped in one card */}
         <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
           {shiftChecks.map((check, idx) => {
@@ -570,8 +570,8 @@ export default function PreCheckPage() {
     const now = new Date();
 
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
-        <div className={`${isDamage ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-5 space-y-4`}>
+      <div className="max-w-lg mx-auto px-4 pb-24 min-h-[calc(100dvh-5.5rem)] flex flex-col justify-center">
+        <div className={`w-full ${isDamage ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-5 space-y-4`}>
           <div>
             <h2 className={`text-base font-bold ${isDamage ? 'text-red-800' : 'text-green-800'}`}>
               {isDamage ? `Damage has been recorded for ${tugName}` : `Pre-Shift Check completed for ${tugName}`}

@@ -860,7 +860,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
               onChange={(e) => setRemarks(e.target.value)}
               placeholder="Any additional notes or observations..."
               rows={2}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
             />
             <ImageUpload
               images={remarksImages}
