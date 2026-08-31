@@ -163,6 +163,16 @@
 }
 
 @layer utilities {
+  /* Scroll without the grey scrollbar track painted by the global rules above */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Safe area utilities for mobile devices */
   .pt-safe {
     padding-top: constant(safe-area-inset-top);

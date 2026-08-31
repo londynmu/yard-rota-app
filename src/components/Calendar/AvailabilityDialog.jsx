@@ -208,7 +208,7 @@ function AvailabilityDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] overflow-y-auto bg-rota-modal-overlay"
+      className="fixed inset-0 z-[60] overflow-y-auto bg-rota-modal-overlay scrollbar-none"
       onClick={onClose}
     >
       <div className="flex min-h-full items-center justify-center px-4 py-6 pb-bottom-nav">
@@ -224,7 +224,7 @@ function AvailabilityDialog({
               <h2 className="text-center text-base font-semibold text-rota-text-muted">
                 Set availability as
               </h2>
-              <div className="mt-2 flex max-w-full justify-center overflow-x-auto">
+              <div className="mt-2 flex max-w-full justify-center overflow-x-auto scrollbar-none">
                 <div className="inline-flex items-center gap-1.5">
                   {STATUS_OPTIONS.map((option) => {
                     const selected = activeStatus === option.value;
@@ -261,7 +261,7 @@ function AvailabilityDialog({
               <div
                 ref={carouselRef}
                 onScroll={handleCarouselScroll}
-                className="flex gap-2 overflow-x-auto overflow-y-hidden px-6 pb-2"
+                className="flex h-full items-center gap-2 overflow-x-auto overflow-y-hidden px-6 scrollbar-none"
               >
                 {dateOptions.map((optionDate) => {
                   const optionDateString = format(optionDate, 'yyyy-MM-dd');

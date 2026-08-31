@@ -26,63 +26,86 @@ function attendanceEnglishLabel(status) {
   return null;
 }
 
+// Same palette as the shift headers inside the day columns below
+const SHIFT_STYLES = {
+  day: { Icon: Sun, wrap: 'bg-amber-50 border-amber-200/70', icon: 'text-amber-600' },
+  afternoon: { Icon: Cloud, wrap: 'bg-orange-50 border-orange-200/70', icon: 'text-orange-600' },
+  night: { Icon: Moon, wrap: 'bg-blue-50 border-blue-200/70', icon: 'text-blue-600' },
+};
+
 function YourShiftsThisWeek({ days, onDayTap }) {
+  const entries = days.flatMap((day) => day.slots.map((slot) => ({ day, slot })));
+
   return (
     <div className="card-modern overflow-hidden">
-      <div className="px-4 pb-2 pt-4">
+      <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
         <h2 className="text-base font-bold tracking-tight text-charcoal">
           Your shifts this week
         </h2>
+        {entries.length > 0 ? (
+          <span className="shrink-0 text-xs font-semibold text-slate-500">
+            {entries.length} {entries.length === 1 ? 'shift' : 'shifts'}
+          </span>
+        ) : null}
       </div>
-      {days.length === 0 ? (
+      {entries.length === 0 ? (
         <p className="px-4 pb-4 text-center text-sm text-slate-500">
           No shifts for you this week
         </p>
       ) : (
-        <div className="divide-y divide-slate-100 pb-2">
-          {days.map((day) => {
-            const firstSlot = day.slots[0];
-            const location = (firstSlot.location || '').trim();
-            const timeText = `${formatTimeHm(firstSlot.start_time)} - ${formatTimeHm(firstSlot.end_time)}`;
-            const hasTask = day.slots.some((slot) => Boolean(slot.task && String(slot.task).trim()));
-            const attendanceLabel = day.slots
-              .map((slot) => attendanceEnglishLabel(slot.attendanceStatus))
-              .find(Boolean);
+        <div className="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2 xl:grid-cols-3">
+          {entries.map(({ day, slot }) => {
+            const location = (slot.location || '').trim();
+            const timeText = `${formatTimeHm(slot.start_time)} - ${formatTimeHm(slot.end_time)}`;
+            const hasTask = Boolean(slot.task && String(slot.task).trim());
+            const attendanceLabel = attendanceEnglishLabel(slot.attendanceStatus);
+            const shiftStyle = SHIFT_STYLES[slot.shift_type] || SHIFT_STYLES.day;
+            const ShiftIcon = shiftStyle.Icon;
+            const isToday = isSameDay(day.dateObj, new Date());
 
             return (
               <button
-                key={day.dateStr}
+                key={slot.id ?? `${day.dateStr}-${slot.start_time}`}
                 type="button"
                 onClick={() => onDayTap(day.dateStr)}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                className={`flex items-center gap-2 rounded-xl border p-2 text-left transition-colors ${
+                  isToday
+                    ? 'border-blue-300 bg-blue-50/40 hover:bg-blue-50/70'
+                    : 'border-slate-200/70 bg-white hover:bg-slate-50'
+                }`}
               >
-                <span className="w-[5.5rem] shrink-0 text-sm font-semibold text-charcoal">
-                  {format(day.dateObj, 'EEEE')}
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${shiftStyle.wrap}`}
+                >
+                  <ShiftIcon className={`h-4 w-4 ${shiftStyle.icon}`} aria-hidden />
                 </span>
-                <span className="w-10 shrink-0 text-sm font-semibold text-charcoal">
-                  {format(day.dateObj, 'do')}
-                </span>
-                <span className="flex min-w-0 flex-1 items-center gap-1">
-                  {location ? (
-                    <>
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
-                      <span className="truncate text-sm font-semibold text-charcoal">
-                        {location}
-                      </span>
-                    </>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-sm font-semibold text-charcoal">
-                  {timeText}
-                </span>
-                {hasTask ? (
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-hidden />
-                ) : null}
-                {attendanceLabel ? (
-                  <span className="shrink-0 text-xs font-bold text-rose-700">
-                    {attendanceLabel}
+
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-charcoal">
+                      {format(day.dateObj, 'EEE do')}
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-charcoal">
+                      {timeText}
+                    </span>
                   </span>
-                ) : null}
+                  <span className="mt-0.5 flex items-center gap-1.5">
+                    {location ? (
+                      <>
+                        <MapPin className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+                        <span className="truncate text-xs text-slate-600">{location}</span>
+                      </>
+                    ) : null}
+                    {hasTask ? (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-hidden />
+                    ) : null}
+                    {attendanceLabel ? (
+                      <span className="shrink-0 text-xs font-bold text-rose-700">
+                        {attendanceLabel}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
               </button>
             );
           })}
