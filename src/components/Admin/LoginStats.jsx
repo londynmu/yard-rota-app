@@ -188,7 +188,10 @@ const LoginStats = () => {
       template_saved: 'Template saved',
       shift_claimed: 'Shift claimed',
       breaks_saved: 'Breaks saved',
-      breaks_custom_slot_deleted: 'Custom break slot deleted',
+      breaks_slots_added: 'Break slots added',
+      breaks_slots_copied: 'Break slots copied',
+      breaks_slot_updated: 'Break slot updated',
+      breaks_custom_slot_deleted: 'Break slot deleted',
       break_assignment_added: 'Break assignment added',
       break_assignment_removed: 'Break assignment removed',
       rota_baseline_created: 'Rota baseline created',
@@ -220,6 +223,15 @@ const LoginStats = () => {
       if (actionType === 'shift_claimed') return [p.date, p.location, p.shift_type, toTimeHHMM(p.start_time), toTimeHHMM(p.end_time)].filter(Boolean).join(', ');
       if (actionType === 'breaks_saved') return `${p.date} ${p.shift_type}, ${p.assignments_count} assignments`;
       if (actionType === 'breaks_custom_slot_deleted') return [p.date, toTimeHHMM(p.break_start_time), `${p.break_duration_minutes} min`].filter(Boolean).join(', ');
+      if (actionType === 'breaks_slots_added') {
+        return [p.date, p.shift_type, p.location, `${p.slots_count} slots`, p.source === 'default_template' ? 'default template' : null].filter(Boolean).join(', ');
+      }
+      if (actionType === 'breaks_slots_copied') {
+        return [p.date, p.shift_type, p.location, `${p.slots_count} slots`, p.source_date ? `from ${p.source_date}` : null].filter(Boolean).join(', ');
+      }
+      if (actionType === 'breaks_slot_updated') {
+        return [p.date, p.shift_type, p.location, toTimeHHMM(p.break_start_time), `${p.break_duration_minutes} min`].filter(Boolean).join(', ');
+      }
       if (actionType === 'break_assignment_added' || actionType === 'break_assignment_removed') {
         return [p.date, p.shift_type, p.location, toTimeHHMM(p.break_start_time)].filter(Boolean).join(', ');
       }

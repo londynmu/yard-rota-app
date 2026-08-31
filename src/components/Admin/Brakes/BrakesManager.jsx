@@ -10,13 +10,38 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
 import html2canvas from 'html2canvas';
 import { toLocalYmd } from '../../../utils/operationalDay';
-// Placeholder for helper components, will create later
-// import SlotCard from './SlotCard';
-// import StaffSelectionModal from './StaffSelectionModal';
-// import EditSlotModal from './EditSlotModal';
-// import AddCustomSlotForm from './AddCustomSlotForm';
+import SlotCard from './SlotCard';
+import SlotEditorModal from './SlotEditorModal';
 
 const ALL_LOCATIONS_VALUE = 'all';
+
+// Slots are created by hand per date / shift / hub. These templates are only
+// applied when an admin picks "Default template" for an empty day.
+const buildTemplate = (startTime, durationMinutes, count, stepMinutes) => {
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const startTotal = startHour * 60 + startMinute;
+  const step = stepMinutes ?? durationMinutes;
+  return Array.from({ length: count }, (_, index) => {
+    const total = (startTotal + index * step) % 1440;
+    const hours = String(Math.floor(total / 60)).padStart(2, '0');
+    const minutes = String(total % 60).padStart(2, '0');
+    return { start_time: `${hours}:${minutes}`, duration_minutes: durationMinutes };
+  });
+};
+
+const DEFAULT_SLOT_TEMPLATES = {
+  Day: [...buildTemplate('09:00', 15, 6), ...buildTemplate('12:00', 45, 6)],
+  Afternoon: buildTemplate('18:00', 60, 3),
+  Night: buildTemplate('21:00', 60, 6),
+};
+
+const SLOT_CAPACITY = 999; // Breaks have no per-slot people limit
+
+const addDaysToYmd = (ymd, delta) => {
+  const date = new Date(`${ymd}T00:00:00`);
+  date.setDate(date.getDate() + delta);
+  return formatDate(date, 'yyyy-MM-dd');
+};
 
 const BrakesManager = () => {
   const { user } = useAuth();
@@ -95,28 +120,7 @@ const BrakesManager = () => {
 
         if (error) throw error;
 
-        const fetchedLocations = (data || []).slice();
-        // Custom order: Rugby, NRC, Nuneaton, then others alphabetically
-        const preferredOrder = ['Rugby', 'NRC', 'Nuneaton'];
-        fetchedLocations.sort((a, b) => {
-          const ia = preferredOrder.indexOf(a.name);
-          const ib = preferredOrder.indexOf(b.name);
-          if (ia !== -1 && ib !== -1) return ia - ib;
-          if (ia !== -1) return -1;
-          if (ib !== -1) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        setLocations(fetchedLocations);
-
-        // Ensure selectedLocation is a valid active location; default to Rugby or first
-        const hasSelected = fetchedLocations.some(loc => loc.name === selectedLocation);
-        if (!hasSelected || selectedLocation === ALL_LOCATIONS_VALUE) {
-          const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
-          if (defaultLoc) {
-            setSelectedLocation(defaultLoc);
-            localStorage.setItem('brakes_selected_location', defaultLoc);
-          }
-        }
+        setLocations(data || []);
       } catch (error) {
         console.error('Error fetching locations:', error);
         toast.error('Failed to load locations');
@@ -124,7 +128,15 @@ const BrakesManager = () => {
     };
 
     loadLocations();
-  }, [selectedLocation, toast]);
+  }, [toast]);
+
+  // Keep the selected hub valid – the default is the first active location from the DB
+  useEffect(() => {
+    if (!locations.length) return;
+    if (locations.some(loc => loc.name === selectedLocation)) return;
+    const fallback = locations[0]?.name;
+    if (fallback) setSelectedLocation(fallback);
+  }, [locations, selectedLocation]);
 
   // Convert time to minutes for break preference sorting (00:00-05:59 treated as night continuation)
   const timeToMinutes = (timeStr) => {
@@ -196,21 +208,23 @@ const BrakesManager = () => {
     loadPreferredBreakTimes();
   }, [selectedShift]);
 
-  const [addSlotModalOpen, setAddSlotModalOpen] = useState(false);
+  const [slotEditor, setSlotEditor] = useState({ open: false, mode: 'create', slot: null });
   const [preferredBreakMinutesByUserId, setPreferredBreakMinutesByUserId] = useState({});
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
   const [scheduledBreaks, setScheduledBreaks] = useState([]); // Staff assignments { id, user_id, slot_id, break_date, user_name, preferred_shift }
   const [availableStaff, setAvailableStaff] = useState([]); // { id, first_name, last_name, preferred_shift, total_break_minutes, etc. }
   const [absentUserIdsForDate, setAbsentUserIdsForDate] = useState(new Set()); // user_ids with attendance (no show/sick/late) for selected date – hide from break slot display
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Ref to track locally added custom slots (not yet saved to DB)
-  const localCustomSlotsRef = useRef([]);
 
   // Export breaks - copy as picture to clipboard
   const breaksExportRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false); // unused: no dropdown anymore, kept so no ReferenceError
+
+  // Actions menu (add slot, copy, template, export)
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [actionsMenuPosition, setActionsMenuPosition] = useState({ x: 0, y: 0 });
+  const actionsButtonRef = useRef(null);
+  const actionsMenuRef = useRef(null);
 
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
@@ -399,71 +413,11 @@ const BrakesManager = () => {
     }
   }, [captureBreaksCanvas, downloadBlobFromCanvas, toast]);
 
-  // TODO: Define standard slots structure based on requirements
-  const standardSlotsConfig = {
-    Day: [
-      // Break 1 (15 min) - 6 slots starting 09:00
-      { start_time: '09:00', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      { start_time: '09:15', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      { start_time: '09:30', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      { start_time: '09:45', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      { start_time: '10:00', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      { start_time: '10:15', duration_minutes: 15, capacity: 2, break_type: 'Break 1 (15 min)' },
-      // Break 2 (45 min) - 6 slots starting 12:00
-      { start_time: '12:00', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-      { start_time: '12:45', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-      { start_time: '13:30', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-      { start_time: '14:15', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-      { start_time: '15:00', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-      { start_time: '15:45', duration_minutes: 45, capacity: 2, break_type: 'Break 2 (45 min)' },
-    ],
-    Night: [
-      // 6 slots starting 21:00, 60 min, 3 people
-      { start_time: '21:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-      { start_time: '22:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-      { start_time: '23:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-      { start_time: '00:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-      { start_time: '01:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-      { start_time: '02:00', duration_minutes: 60, capacity: 3, break_type: 'Night Break (60 min)' },
-    ],
-    Afternoon: [
-      // 3 slots starting 18:00, 60 min, 2 people
-      { start_time: '18:00', duration_minutes: 60, capacity: 2, break_type: 'Afternoon Break (60 min)' },
-      { start_time: '19:00', duration_minutes: 60, capacity: 2, break_type: 'Afternoon Break (60 min)' },
-      { start_time: '20:00', duration_minutes: 60, capacity: 2, break_type: 'Afternoon Break (60 min)' },
-    ],
-  };
-
-  // const [modifiedStandardSlots, setModifiedStandardSlots] = useState({}); // Track modified standard slots - Removed, UI only now
-
-  useEffect(() => {
-    // Fetch all staff first to check data (Optional: Can be removed later)
-    const fetchAllStaff = async () => {
-      try {
-        const { data: allProfiles, error } = await supabase
-          .from('profiles')
-          .select('*');
-          
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          return;
-        }
-      } catch (err) {
-        console.error('Error in fetchAllStaff:', err);
-      }
-    };
-    
-    fetchAllStaff();
-  }, []);
-
   // --- Data Fetching ---
   const fetchBreakData = useCallback(async () => {
     if (!selectedDate || !selectedShift) return;
     setIsLoading(true);
-    
-    // Preserve locally added custom slots (not yet saved to DB)
-    const localCustomSlots = localCustomSlotsRef.current;
-    
+
     // Clear previous data except scheduledBreaks if found in session
     setAvailableStaff([]);
 
@@ -477,107 +431,41 @@ const BrakesManager = () => {
     const locationFilter = selectedLocation === ALL_LOCATIONS_VALUE ? null : selectedLocation;
 
     try {
-      // First, generate standard slots based on shift type
-      const baseStandardSlots = standardSlotsConfig[selectedShift] || [];
-      // Clone to allow conditional injections (e.g., Saturday special slot)
-      let workingStandardSlots = [...baseStandardSlots];
-
-      // If selected date is Saturday, add an extra Night slot 20:00-21:00
+      // Slots are made by hand and stored as definition rows in scheduled_breaks
+      // (user_id NULL, std_slot_id NULL). Rows without a location are legacy
+      // slots from the time when they were shared across every hub.
+      let slotDefinitions = [];
       try {
-        const dateObj = new Date(`${selectedDate}T00:00:00`);
-        const isSaturday = dateObj.getDay() === 6; // 6 = Saturday
-        if (isSaturday && selectedShift.toLowerCase() === 'night') {
-          // Inject special Saturday slot at 20:00 (60 min)
-          workingStandardSlots.unshift({
-            start_time: '20:00',
-            duration_minutes: 60,
-            break_type: 'Night Break (60 min)'
-          });
-        }
-      } catch {
-        // Safe-guard: if date parsing fails, skip special injection
-      }
-  
-      // Fetch modified standard slot definitions for this date/shift (where user_id is null but std_slot_id is present)
-      let modifiedCapacities = {};
-      try {
-        const modifiedQuery = supabase
+        const slotsQuery = supabase
           .from('scheduled_breaks')
-          .select('std_slot_id, capacity')
+          .select('id, break_start_time, break_duration_minutes, break_type, capacity, location')
           .eq('date', selectedDate)
           .eq('shift_type', selectedShift.toLowerCase())
           .is('user_id', null)
-          .not('std_slot_id', 'is', null);
+          .is('std_slot_id', null);
 
         if (locationFilter) {
-          modifiedQuery.eq('location', locationFilter);
+          slotsQuery.or(`location.is.null,location.eq.${locationFilter}`);
         }
 
-        const { data: modifiedSlotsData, error: modifiedSlotsError } = await modifiedQuery;
-        
-        if (modifiedSlotsError) throw modifiedSlotsError;
-  
-        if (modifiedSlotsData && modifiedSlotsData.length > 0) {
-          modifiedSlotsData.forEach(mod => {
-            if (mod.std_slot_id && mod.capacity !== null) {
-              modifiedCapacities[mod.std_slot_id] = mod.capacity;
-            }
-          });
-        }
-      } catch (modSlotsErr) {
-        // Silent fail - will use default capacities
-      }
-  
-      // Apply modified capacities to standard slots
-      const standardSlotsWithIds = workingStandardSlots.map((slot, index) => {
-        const slotId = `std-${selectedShift}-${index}`;
-        const modifiedCapacity = modifiedCapacities[slotId];
-        return {
-          ...slot,
-          id: slotId,
-          is_custom: false,
-          // Use modified capacity if available, otherwise default from config
-          capacity: modifiedCapacity !== undefined ? modifiedCapacity : slot.capacity
-        };
-      });
-      
-      // Try to fetch custom slots definitions (where user_id is null and std_slot_id is null)
-      let customSlotsData = [];
-      try {
-        // Don't filter by location in DB query since location is not saved for custom slots
-        const { data, error } = await supabase
-          .from('scheduled_breaks')
-          .select('id, break_start_time, break_duration_minutes, break_type, capacity')
-          .eq('date', selectedDate)
-          .eq('shift_type', selectedShift.toLowerCase())
-          .is('user_id', null)
-          .is('std_slot_id', null); // Only pure custom slots
-          
+        const { data, error } = await slotsQuery;
         if (error) throw error;
-        if (data && data.length > 0) {
-          // Custom slots are shared across all locations for the same date/shift
-          customSlotsData = data.map(slot => ({
-            id: slot.id,
-            start_time: slot.break_start_time,
-            duration_minutes: slot.break_duration_minutes,
-            capacity: slot.capacity || 999, // Use fetched capacity or default unlimited
-            break_type: slot.break_type,
-            is_custom: true
-          }));
-        }
-      } catch (customSlotError) {
-        // Silent fail - will use only standard slots
+
+        slotDefinitions = (data || []).map(slot => ({
+          id: slot.id,
+          start_time: (slot.break_start_time || '').substring(0, 5),
+          duration_minutes: slot.break_duration_minutes,
+          capacity: slot.capacity || SLOT_CAPACITY,
+          break_type: slot.break_type || 'custom',
+          location: slot.location || null,
+        }));
+      } catch (slotError) {
+        console.error('[fetchBreakData] Error fetching break slots:', slotError);
+        toast.error('Failed to load break slots');
       }
-  
-      // Combine standard, custom, and locally added slots
-      const allSlots = sortBreakSlots([
-        ...standardSlotsWithIds,
-        ...customSlotsData,
-        ...localCustomSlots
-      ], selectedShift);
-      
-      setBreakSlots(allSlots);
-      
+
+      const allSlots = sortBreakSlots(slotDefinitions, selectedShift);
+
       // Fetch existing break assignments or use saved session data
       let processedScheduled = [];
       if (savedAssignments) {
@@ -624,17 +512,12 @@ const BrakesManager = () => {
             if (!record.profiles) {
                return null; // Skip assignments without profile data
             }
-            // Find the matching slot by comparing DB values and ignoring seconds in time
-            const matchingSlot = allSlots.find(slot => {
-              const slotDbBreakType = mapToDbBreakType(slot.break_type);
-              // Normalize times to HH:MM format for comparison
-              const slotTimeHHMM = slot.start_time?.substring(0, 5);
-              const recordTimeHHMM = record.break_start_time?.substring(0, 5);
-
-              return slotTimeHHMM === recordTimeHHMM && 
-                     slot.duration_minutes === record.break_duration_minutes &&
-                     slotDbBreakType === record.break_type; // Compare DB type to DB type
-            });
+            // Match on time + duration only: hand-made slots always store
+            // break_type 'custom', while older rows still use break1/break2/etc.
+            const matchingSlot = allSlots.find(slot => (
+              slot.start_time?.substring(0, 5) === record.break_start_time?.substring(0, 5) &&
+              slot.duration_minutes === record.break_duration_minutes
+            ));
             
             return {
               id: record.id,
@@ -659,7 +542,39 @@ const BrakesManager = () => {
            processedScheduled = [];
         }
       } // End fetch from DB block
-      
+
+      // Safety net for rows saved before slots were hand-made: an assignment
+      // without a matching slot still gets a card, so nobody silently vanishes.
+      const knownSlotIds = new Set(allSlots.map(slot => slot.id));
+      const virtualSlots = new Map();
+      processedScheduled = processedScheduled.map(assignment => {
+        if (assignment.slot_id && knownSlotIds.has(assignment.slot_id)) return assignment;
+
+        const startTime = (assignment.slot_data?.start_time || '').substring(0, 5);
+        const duration = assignment.slot_data?.duration_minutes;
+        if (!startTime || !duration) return assignment;
+
+        const virtualId = `virtual-${startTime}-${duration}`;
+        if (!virtualSlots.has(virtualId)) {
+          virtualSlots.set(virtualId, {
+            id: virtualId,
+            start_time: startTime,
+            duration_minutes: duration,
+            capacity: SLOT_CAPACITY,
+            break_type: assignment.slot_data?.break_type || 'custom',
+            location: assignment.location || locationFilter || null,
+            is_virtual: true,
+          });
+        }
+        return { ...assignment, slot_id: virtualId };
+      });
+
+      setBreakSlots(
+        virtualSlots.size
+          ? sortBreakSlots([...allSlots, ...virtualSlots.values()], selectedShift)
+          : allSlots
+      );
+
       // Fetch available staff for the selected date (needs to run regardless of where assignments came from)
       try {
         // Step 1: Get user IDs of staff who are scheduled to work on the selected date
@@ -861,33 +776,6 @@ const BrakesManager = () => {
           // No capacity or std_slot_id for user assignments
         };
       }).filter(Boolean); // Filter out nulls if a slot wasn't found or data missing
-      
-      // Prepare modified standard slot definitions (records with std_slot_id, null user_id)
-      // NOTE: Standard slot modifications are UI only now - this can be removed
-      // const standardSlotsToUpsert = []; // Object.values(modifiedStandardSlots).map(...) - removed persistence
-      
-      // Prepare custom slot definitions (records with null user_id, null std_slot_id, possibly existing id)
-      // Custom slot definitions stay shared across hubs (no location column) by product design.
-      const customSlotsToUpsert = breakSlots
-        .filter(slot => slot.is_custom)
-        .map(slot => {
-            const isNewCustomSlot = typeof slot.id === 'string' && slot.id.startsWith('new-');
-            const customRecord = {
-                user_id: null,
-                std_slot_id: null,
-                date: selectedDate,
-                break_start_time: slot.start_time,
-                break_duration_minutes: slot.duration_minutes,
-                break_type: mapToDbBreakType(slot.break_type),
-                shift_type: selectedShift.toLowerCase(),
-                capacity: slot.capacity // Include capacity for custom slots
-            };
-            // Only include ID if it's an existing custom slot for upsert
-            if (!isNewCustomSlot) {
-                customRecord.id = slot.id;
-            }
-            return customRecord;
-        });
 
       // --- Database Operations ---
       // The save is a diff, never a wipe-and-rewrite: rows are inserted before
@@ -943,44 +831,7 @@ const BrakesManager = () => {
         return acc;
       }, {});
 
-      // 3. Handle Custom Slot Definitions – admin only (regular user cannot add/edit custom slots)
-      if (isAdmin && customSlotsToUpsert.length > 0) {
-        // Split custom slots into new and existing
-        const newCustomSlots = customSlotsToUpsert.filter(slot => !slot.id);
-        const existingCustomSlots = customSlotsToUpsert.filter(slot => slot.id);
-        
-        // Insert new custom slots
-        if (newCustomSlots.length > 0) {
-          const { error: insertCustomError } = await supabase
-              .from('scheduled_breaks')
-              .insert(newCustomSlots);
-
-          if (insertCustomError) {
-            console.error("[handleSaveAllBreaks] Error inserting new custom slots:", insertCustomError);
-            console.error("Data attempted for new custom slots:", JSON.stringify(newCustomSlots, null, 2));
-            throw insertCustomError;
-          }
-        }
-        
-        // Update existing custom slots
-        if (existingCustomSlots.length > 0) {
-          const { error: updateCustomError } = await supabase
-              .from('scheduled_breaks')
-              .upsert(existingCustomSlots, { onConflict: 'id' });
-
-          if (updateCustomError) {
-            console.error("[handleSaveAllBreaks] Error updating existing custom slots:", updateCustomError);
-            console.error("Data attempted for existing custom slots:", JSON.stringify(existingCustomSlots, null, 2));
-            throw updateCustomError;
-          }
-        }
-      }
-
-      // 4. Insert NEW standard slot definitions (the ones with modified capacity)
-      //    (Not needed anymore as capacity changes are UI only)
-      // if (standardSlotsToUpsert.length > 0) { ... }
-
-      // 5. Add the assignments that are missing
+      // 3. Add the assignments that are missing
       if (rowsToInsert.length > 0) {
         const { error: insertAssignError } = await supabase
           .from('scheduled_breaks')
@@ -993,7 +844,7 @@ const BrakesManager = () => {
         }
       }
 
-      // 6. Only once the new rows are safely stored, drop the withdrawn ones
+      // 4. Only once the new rows are safely stored, drop the withdrawn ones
       if (idsToDelete.length > 0) {
         const { error: deleteAssignError } = await supabase
           .from('scheduled_breaks')
@@ -1051,7 +902,6 @@ const BrakesManager = () => {
         toast.success("Breaks schedule saved successfully!");
       }
       clearAssignmentCache(); // Clear temporary state on successful save
-      localCustomSlotsRef.current = []; // Clear locally added slots after successful save
       
       // For silent save, keep current state (optimistic UI update)
       // No need to refetch - data is already up to date locally
@@ -1071,114 +921,286 @@ const BrakesManager = () => {
     }
   };
 
-  const handleAddCustomSlot = (newSlotData) => {
-    if (selectedLocation === ALL_LOCATIONS_VALUE) {
-      toast.error('Select a specific location before adding custom slots.');
-      return false;
-    }
+  // A slot definition row: no user, no legacy std_slot_id, tied to one hub
+  const buildSlotRow = (slot) => ({
+    user_id: null,
+    std_slot_id: null,
+    date: selectedDate,
+    shift_type: selectedShift.toLowerCase(),
+    break_start_time: slot.start_time,
+    break_duration_minutes: slot.duration_minutes,
+    break_type: 'custom',
+    capacity: SLOT_CAPACITY,
+    location: selectedLocation,
+  });
 
-    // Check for duplicates - only check start_time
-    const duplicateSlot = breakSlots.find(slot => 
-      slot.start_time === newSlotData.start_time
-    );
-    
-    if (duplicateSlot) {
-      toast.error(`A slot starting at ${newSlotData.start_time} already exists.`);
+  const canManageSlots = () => {
+    if (!isAdmin) {
+      toast.error('Only admins can change break slots.');
       return false;
     }
-    
-    // Add new slot to local state
-    const newSlot = {
-      ...newSlotData,
-      id: `new-${Date.now()}`, // Temporary ID until saved
-      is_custom: true,
-      break_type: newSlotData.break_type || 'Custom Slot',
-      location: selectedLocation
-    };
-    
-    // Add to ref for persistence across fetchBreakData calls
-    localCustomSlotsRef.current = [...localCustomSlotsRef.current, newSlot];
-    
-    setBreakSlots(prevSlots => sortBreakSlots([...prevSlots, newSlot], selectedShift));
-    
-    toast.success("Custom break slot added successfully! Remember to Save Breaks.");
+    if (!selectedLocation || selectedLocation === ALL_LOCATIONS_VALUE) {
+      toast.error('Select a specific hub before changing break slots.');
+      return false;
+    }
     return true;
   };
 
-  const handleDeleteCustomSlot = (slotId) => {
-    // Find the slot to delete
-    const slotToDelete = breakSlots.find(slot => slot.id === slotId);
-    
-    if (!slotToDelete) {
-      toast.error(`Could not find slot with ID ${slotId} to delete.`);
+  // Insert one or many slots at once; duplicates on the same start time are skipped
+  const insertSlots = async (slots, { actionType, extraPayload = {}, successMessage }) => {
+    const existingTimes = new Set(breakSlots.map(slot => (slot.start_time || '').substring(0, 5)));
+    const slotsToAdd = [];
+    let skipped = 0;
+
+    slots.forEach(slot => {
+      const time = (slot.start_time || '').substring(0, 5);
+      if (!time || !slot.duration_minutes || existingTimes.has(time)) {
+        skipped += 1;
+        return;
+      }
+      existingTimes.add(time);
+      slotsToAdd.push({ start_time: time, duration_minutes: slot.duration_minutes });
+    });
+
+    if (slotsToAdd.length === 0) {
+      toast.error('Those slots already exist for this shift.');
       return false;
     }
-    
-    if (!slotToDelete.is_custom) {
-      toast.error('Only custom slots can be deleted.');
+
+    try {
+      const { error } = await supabase
+        .from('scheduled_breaks')
+        .insert(slotsToAdd.map(buildSlotRow));
+
+      if (error) throw error;
+
+      await logSystemActivity(supabase, user, {
+        entity_type: 'breaks',
+        action_type: actionType,
+        payload: {
+          date: selectedDate,
+          shift_type: selectedShift.toLowerCase(),
+          location: selectedLocation,
+          slots_count: slotsToAdd.length,
+          ...extraPayload,
+        },
+      });
+
+      toast.success(
+        successMessage
+          ? successMessage(slotsToAdd.length, skipped)
+          : `Added ${slotsToAdd.length} slot${slotsToAdd.length === 1 ? '' : 's'}${skipped ? ` (${skipped} skipped)` : ''}`
+      );
+      clearAssignmentCache();
+      await fetchBreakData();
+      return true;
+    } catch (err) {
+      console.error('[insertSlots] Failed to add break slots:', err);
+      toast.error('Failed to add break slots.');
       return false;
     }
-    
-    // Show confirmation modal
-    setDeleteConfirmSlot(slotToDelete);
-    return true;
+  };
+
+  const handleCreateSlots = async (slots) => {
+    if (!canManageSlots()) return false;
+    return insertSlots(slots, { actionType: 'breaks_slots_added' });
+  };
+
+  const handleUpdateSlot = async (payload) => {
+    if (!canManageSlots()) return false;
+
+    const slot = slotEditor.slot;
+    if (!slot) return false;
+
+    const newTime = (payload.start_time || '').substring(0, 5);
+    const clash = breakSlots.some(
+      other => other.id !== slot.id && (other.start_time || '').substring(0, 5) === newTime
+    );
+    if (clash) {
+      toast.error(`A slot starting at ${newTime} already exists.`);
+      return false;
+    }
+
+    try {
+      // Assignments already in the database must follow the slot, otherwise
+      // people would be left on a break time that no longer exists.
+      const assignmentIds = scheduledBreaks
+        .filter(assignment => assignment.slot_id === slot.id)
+        .map(assignment => assignment.id)
+        .filter(id => id && !String(id).startsWith('temp-'));
+
+      if (slot.is_virtual) {
+        const { error } = await supabase
+          .from('scheduled_breaks')
+          .insert([buildSlotRow({ start_time: newTime, duration_minutes: payload.duration_minutes })]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('scheduled_breaks')
+          .update({
+            break_start_time: newTime,
+            break_duration_minutes: payload.duration_minutes,
+            location: selectedLocation,
+          })
+          .eq('id', slot.id);
+        if (error) throw error;
+      }
+
+      if (assignmentIds.length > 0) {
+        const { error: assignError } = await supabase
+          .from('scheduled_breaks')
+          .update({
+            break_start_time: newTime,
+            break_duration_minutes: payload.duration_minutes,
+          })
+          .in('id', assignmentIds);
+        if (assignError) throw assignError;
+      }
+
+      await logSystemActivity(supabase, user, {
+        entity_type: 'breaks',
+        action_type: 'breaks_slot_updated',
+        entity_id: slot.is_virtual ? null : slot.id,
+        payload: {
+          date: selectedDate,
+          shift_type: selectedShift.toLowerCase(),
+          location: selectedLocation,
+          break_start_time: newTime,
+          break_duration_minutes: payload.duration_minutes,
+        },
+      });
+
+      toast.success('Break slot updated.');
+      clearAssignmentCache();
+      await fetchBreakData();
+      return true;
+    } catch (err) {
+      console.error('[handleUpdateSlot] Failed to update slot:', err);
+      toast.error('Failed to update break slot.');
+      return false;
+    }
+  };
+
+  const copySlotsFrom = async (sourceDate, label) => {
+    if (!canManageSlots()) return;
+
+    setIsLoading(true);
+    try {
+      const sourceQuery = supabase
+        .from('scheduled_breaks')
+        .select('break_start_time, break_duration_minutes, location')
+        .eq('date', sourceDate)
+        .eq('shift_type', selectedShift.toLowerCase())
+        .is('user_id', null)
+        .is('std_slot_id', null)
+        .or(`location.is.null,location.eq.${selectedLocation}`);
+
+      const { data, error } = await sourceQuery;
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error(`No break slots to copy from ${label}.`);
+        return;
+      }
+
+      await insertSlots(
+        data.map(row => ({
+          start_time: (row.break_start_time || '').substring(0, 5),
+          duration_minutes: row.break_duration_minutes,
+        })),
+        {
+          actionType: 'breaks_slots_copied',
+          extraPayload: { source_date: sourceDate },
+          successMessage: (added, skipped) =>
+            `Copied ${added} slot${added === 1 ? '' : 's'} from ${label}${skipped ? ` (${skipped} skipped)` : ''}`,
+        }
+      );
+    } catch (err) {
+      console.error('[copySlotsFrom] Failed to copy slots:', err);
+      toast.error('Failed to copy break slots.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const applyDefaultTemplate = async () => {
+    if (!canManageSlots()) return;
+
+    const template = DEFAULT_SLOT_TEMPLATES[selectedShift] || [];
+    if (template.length === 0) {
+      toast.error('No default template for this shift.');
+      return;
+    }
+
+    const slots = [...template];
+    // Saturday nights have always started an hour earlier
+    try {
+      const isSaturday = new Date(`${selectedDate}T00:00:00`).getDay() === 6;
+      if (isSaturday && selectedShift.toLowerCase() === 'night') {
+        slots.unshift({ start_time: '20:00', duration_minutes: 60 });
+      }
+    } catch {
+      // Ignore unparsable dates and use the plain template
+    }
+
+    await insertSlots(slots, {
+      actionType: 'breaks_slots_added',
+      extraPayload: { source: 'default_template' },
+      successMessage: (added, skipped) =>
+        `Applied default template – ${added} slot${added === 1 ? '' : 's'} added${skipped ? ` (${skipped} skipped)` : ''}`,
+    });
+  };
+
+  const handleDeleteSlot = (slot) => {
+    if (!canManageSlots()) return;
+    setDeleteConfirmSlot(slot);
   };
   
   const confirmDeleteSlot = async () => {
     if (!deleteConfirmSlot) return;
-    
-    const slotId = deleteConfirmSlot.id;
-    const isNewSlot = slotId.startsWith('new-'); // Check if it's a temporary local slot
-    
+
+    const slot = deleteConfirmSlot;
+
     try {
-      // If the slot was already saved to the database, delete it from there
-      if (!isNewSlot) {
+      // Drop the people on the slot first, then the slot definition itself
+      const assignmentIds = scheduledBreaks
+        .filter(assignment => assignment.slot_id === slot.id)
+        .map(assignment => assignment.id)
+        .filter(id => id && !String(id).startsWith('temp-'));
+
+      if (assignmentIds.length > 0) {
+        const { error: assignError } = await supabase
+          .from('scheduled_breaks')
+          .delete()
+          .in('id', assignmentIds);
+        if (assignError) throw assignError;
+      }
+
+      if (!slot.is_virtual) {
         const { error } = await supabase
           .from('scheduled_breaks')
           .delete()
-          .eq('id', slotId);
-        
-        if (error) {
-          console.error('[confirmDeleteSlot] Error deleting from database:', error);
-          toast.error('Failed to delete slot from database.');
-          setDeleteConfirmSlot(null);
-          return;
-        }
-        await logSystemActivity(supabase, user, {
-          entity_type: 'breaks',
-          action_type: 'breaks_custom_slot_deleted',
-          entity_id: slotId,
-          payload: {
-            date: selectedDate,
-            shift_type: selectedShift.toLowerCase(),
-            slot_id: slotId,
-            break_start_time: deleteConfirmSlot.start_time,
-            break_duration_minutes: deleteConfirmSlot.duration_minutes,
-          },
-        });
+          .eq('id', slot.id);
+        if (error) throw error;
       }
-      
-      // Remove the slot from state
-      setBreakSlots(prevSlots => 
-        prevSlots.filter(slot => slot.id !== slotId)
-      );
-      
-      // Remove from localCustomSlotsRef if it's a new slot
-      localCustomSlotsRef.current = localCustomSlotsRef.current.filter(slot => slot.id !== slotId);
-      
-      // Remove any scheduled breaks for this slot
-      const updatedAssignments = scheduledBreaks.filter(assignment => assignment.slot_id !== slotId);
-      setScheduledBreaks(updatedAssignments);
-      // Save updated assignments to session storage
-      persistAssignmentsToSession(updatedAssignments);
-      
-      toast.success(isNewSlot ? 'Custom slot removed.' : 'Custom slot deleted from database.');
+
+      await logSystemActivity(supabase, user, {
+        entity_type: 'breaks',
+        action_type: 'breaks_custom_slot_deleted',
+        entity_id: slot.is_virtual ? null : slot.id,
+        payload: {
+          date: selectedDate,
+          shift_type: selectedShift.toLowerCase(),
+          slot_id: slot.id,
+          break_start_time: slot.start_time,
+          break_duration_minutes: slot.duration_minutes,
+        },
+      });
+
+      toast.success('Break slot deleted.');
       setDeleteConfirmSlot(null);
-      
-      // Refresh data to ensure UI is in sync with database
-      if (!isNewSlot) {
-        await fetchBreakData();
-      }
+      clearAssignmentCache();
+      await fetchBreakData();
     } catch (err) {
       console.error('[confirmDeleteSlot] Unexpected error:', err);
       toast.error('An error occurred while deleting the slot.');
@@ -1308,9 +1330,9 @@ const BrakesManager = () => {
           updatedStaff.total_break_minutes = Math.max(0, updatedStaff.total_break_minutes - slot.duration_minutes);
           
           // Update break type flags for Day shift
-          if (slot.break_type?.includes('15 min')) {
+          if (slot.duration_minutes === 15) {
             updatedStaff.has_break_15 = false;
-          } else if (slot.break_type?.includes('45 min')) {
+          } else if (slot.duration_minutes === 45) {
             updatedStaff.has_break_45 = false;
           }
           
@@ -1323,16 +1345,6 @@ const BrakesManager = () => {
     // Auto-save to server after removal (silent save). Pass updated list so save uses it immediately – no stale state.
     handleSaveAllBreaks(true, updatedAssignments);
   };
-
-  // --- Grouping Logic ---
-  const groupedSlots = breakSlots.reduce((acc, slot) => {
-    const groupName = slot.is_custom ? 'Custom Slots' : slot.break_type || 'Standard Slots';
-    if (!acc[groupName]) {
-      acc[groupName] = [];
-    }
-    acc[groupName].push(slot);
-    return acc;
-  }, {});
 
   // Staff assignment handlers
   const handleSlotClick = (slot) => {
@@ -1354,15 +1366,57 @@ const BrakesManager = () => {
     });
   };
 
-  // Add this useEffect to refetch data when selectedDate or selectedShift changes
+  const openCreateSlots = () => setSlotEditor({ open: true, mode: 'create', slot: null });
+  const openEditSlot = (slot) => setSlotEditor({ open: true, mode: 'edit', slot });
+  const closeSlotEditor = () => setSlotEditor({ open: false, mode: 'create', slot: null });
+
+  const ACTIONS_MENU_WIDTH = 208; // w-52
+
+  const handleActionsButtonClick = () => {
+    if (showActionsMenu) {
+      setShowActionsMenu(false);
+      return;
+    }
+    const rect = actionsButtonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - ACTIONS_MENU_WIDTH - margin);
+    const left = Math.min(Math.max(margin, rect.right - ACTIONS_MENU_WIDTH), maxLeft);
+    setActionsMenuPosition({ x: left, y: rect.bottom + 6 });
+    setShowActionsMenu(true);
+  };
+
+  const runAction = (action) => {
+    setShowActionsMenu(false);
+    action();
+  };
+
   useEffect(() => {
-    // Clear modified standard slots when date or shift changes
-    // setModifiedStandardSlots({});
-    // We DO NOT clear sessionStorage here - fetchBreakData will handle loading session or DB data
-    
-    // Clear locally added custom slots when date, shift, or location changes
-    localCustomSlotsRef.current = [];
-  }, [selectedDate, selectedShift, selectedLocation]);
+    if (!showActionsMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (actionsMenuRef.current?.contains(event.target)) return;
+      if (actionsButtonRef.current?.contains(event.target)) return;
+      setShowActionsMenu(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setShowActionsMenu(false);
+    };
+    const closeMenu = () => setShowActionsMenu(false);
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu);
+    };
+  }, [showActionsMenu]);
 
   // Update localStorage when selections change
   useEffect(() => {
@@ -1687,113 +1741,180 @@ const BrakesManager = () => {
         document.body
       )}
 
-      {/* Messages */}
-      {/* Usunięto wyświetlanie komunikatu błędu, teraz używamy toast */}
-
-
-      {/* Break Slots Display - bez kontenera, floating cards */}
+      {/* Break slots */}
       <div ref={breaksExportRef} className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
-        {/* Floating Pills - filters */}
-        <div className="mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
-          {/* Row 1: 3 filter pills - on mobile equal width across screen, on md+ inline */}
-          <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-1">
-            {/* Date pill - pastelowy niebieski */}
-            <button
-              onClick={() => { 
-                setShowDateModal(true); 
-                setShowLocationModal(false); 
-                setShowShiftModal(false);
-              }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-blue-50 text-blue-700 text-sm md:text-base font-medium border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
-            >
-              📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
-            </button>
-            {/* Location pill - pastelowy zielony */}
-            <button
-              onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-green-50 text-green-700 text-sm md:text-base font-medium border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
-            >
-              📍 {selectedLocation || 'Hub'}
-            </button>
-            {/* Shift pill - pastelowy fioletowy */}
-            <button
-              onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-purple-50 text-purple-700 text-sm md:text-base font-medium border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
-            >
-              🌙 {selectedShift}
-            </button>
-          </div>
+        {/* Compact filter bar: date | hub | shift | actions */}
+        <div className="filter-bar-segmented filter-bar-segmented-desktop-full mb-3">
+          <button
+            type="button"
+            onClick={() => { setShowDateModal(true); setShowLocationModal(false); setShowShiftModal(false); }}
+            className="flex min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-200/60 bg-white/90 px-1.5 py-2 text-xs font-medium text-slate-700 transition-all hover:border-slate-300/70 hover:text-charcoal hover:shadow-sm sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm"
+          >
+            <span className="h-2 w-2 shrink-0 rounded-full bg-sky-500 shadow-sm sm:h-2.5 sm:w-2.5" />
+            <span className="min-w-0 truncate text-[10px] tabular-nums sm:text-xs">
+              {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM') : 'Date'}
+            </span>
+          </button>
 
-          {/* Copy as picture: on mobile full width below; on desktop same line, top right */}
-          <div className="w-full md:w-auto md:ml-auto" data-html2canvas-ignore>
+          <button
+            type="button"
+            onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
+            disabled={locations.length === 0}
+            className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${
+              locations.length === 0
+                ? 'cursor-not-allowed text-slate-300'
+                : 'border border-slate-200/60 bg-white/90 text-slate-700 hover:border-slate-300/70 hover:text-charcoal hover:shadow-sm'
+            }`}
+          >
+            <span className={`h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5 ${locations.length === 0 ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+            <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{selectedLocation || 'No hubs'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+            className="flex min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-200/60 bg-white/90 px-1.5 py-2 text-xs font-medium text-slate-700 transition-all hover:border-slate-300/70 hover:text-charcoal hover:shadow-sm sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm"
+          >
+            <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500 shadow-sm sm:h-2.5 sm:w-2.5" />
+            <span className="min-w-0 truncate text-[10px] sm:text-xs">{selectedShift}</span>
+          </button>
+
+          <div data-html2canvas-ignore className="min-w-0">
             <button
+              ref={actionsButtonRef}
               type="button"
-              onClick={handleCopyAsPicture}
-              disabled={isExporting || isLoading}
-              className="flex items-center justify-center w-full md:w-auto px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
+              onClick={handleActionsButtonClick}
+              disabled={isLoading || isExporting}
+              aria-haspopup="menu"
+              aria-expanded={showActionsMenu}
+              className="flex w-full min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-200/60 bg-white/90 px-1.5 py-2 text-xs font-medium text-slate-700 transition-all hover:border-slate-300/70 hover:text-charcoal hover:shadow-sm disabled:opacity-60 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm"
             >
-              {isExporting ? '…' : 'Copy as picture'}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM18 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="min-w-0 truncate text-[10px] sm:text-xs">{isExporting ? '…' : 'Actions'}</span>
             </button>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="space-y-4 animate-pulse">
-            {/* Filters skeleton */}
-            <div className="flex gap-3 mb-6">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
-              ))}
-            </div>
-            
-            {/* Slot cards skeleton */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl shadow-md p-4 border-2 border-slate-200">
-                  <div className="h-4 w-24 bg-slate-300 rounded mb-2" />
-                  <div className="h-6 w-32 bg-slate-300 rounded mb-3" />
-                  <div className="h-4 w-full bg-slate-200 rounded mb-2" />
-                  <div className="h-4 w-3/4 bg-slate-200 rounded" />
+          <div className="grid animate-pulse grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="mb-2 h-4 w-24 rounded bg-slate-200" />
+                <div className="h-6 w-full rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+        ) : breakSlots.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-center shadow-sm">
+            <p className="text-sm font-semibold text-charcoal">No break slots for this shift yet.</p>
+            {isAdmin ? (
+              <>
+                <p className="mt-1 text-xs text-slate-500">
+                  Add them by hand, or copy a day you have already planned.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2" data-html2canvas-ignore>
+                  <button type="button" onClick={openCreateSlots} className="btn-primary">Add slots</button>
+                  <button
+                    type="button"
+                    onClick={() => copySlotsFrom(addDaysToYmd(selectedDate, -1), 'the previous day')}
+                    className="btn-secondary"
+                  >
+                    Copy previous day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copySlotsFrom(addDaysToYmd(selectedDate, -7), 'last week')}
+                    className="btn-secondary"
+                  >
+                    Copy last week
+                  </button>
+                  <button type="button" onClick={applyDefaultTemplate} className="btn-secondary">
+                    Default template
+                  </button>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">Ask a manager to set up break slots for this shift.</p>
+            )}
           </div>
         ) : (
-          <div className="space-y-6 md:space-y-8">
-          {Object.entries(groupedSlots).map(([groupName, slotsInGroup]) => (
-            <div key={groupName}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                {slotsInGroup.map(slot => (
-                  <SlotCard 
-                    key={slot.id} 
-                    slot={slot} 
-                    assignedStaff={getAssignedStaffForSlot(slot.id)}
-                    onSlotClick={handleSlotClick}
-                    onDeleteClick={handleDeleteCustomSlot}
-                    onRemoveStaffClick={handleRemoveStaff}
-                    isAdmin={isAdmin}
-                    currentUserId={currentUser?.id ?? null}
-                  />
-                ))}
-                
-                {/* Add Slot Card - Only for admins and only in last group */}
-                {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
-                  <div 
-                    onClick={() => setAddSlotModalOpen(true)}
-                    className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100 hover:shadow-lg"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 md:h-10 md:w-10 text-orange-600 mb-2 md:mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span className="text-base md:text-sm font-bold text-gray-900">Add Custom Slot</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            {breakSlots.map(slot => (
+              <SlotCard
+                key={slot.id}
+                slot={slot}
+                assignedStaff={getAssignedStaffForSlot(slot.id)}
+                onSlotClick={handleSlotClick}
+                onEditClick={openEditSlot}
+                onDeleteClick={handleDeleteSlot}
+                onRemoveStaffClick={handleRemoveStaff}
+                isAdmin={isAdmin}
+              />
+            ))}
           </div>
         )}
       </div>
+
+      {/* Actions menu (portal) */}
+      {showActionsMenu && createPortal(
+        <div
+          ref={actionsMenuRef}
+          className="fixed z-[99998] w-52 overflow-hidden rounded-xl border border-gray-300 bg-white py-1 shadow-lg"
+          style={{ left: actionsMenuPosition.x, top: actionsMenuPosition.y }}
+          role="menu"
+          aria-label="Break actions"
+          tabIndex={-1}
+        >
+          {isAdmin && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(openCreateSlots)}
+                className="w-full px-3 py-2 text-left text-sm font-medium text-charcoal transition-colors hover:bg-gray-100"
+              >
+                Add slots
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => copySlotsFrom(addDaysToYmd(selectedDate, -1), 'the previous day'))}
+                className="w-full px-3 py-2 text-left text-sm font-medium text-charcoal transition-colors hover:bg-gray-100"
+              >
+                Copy previous day
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => copySlotsFrom(addDaysToYmd(selectedDate, -7), 'last week'))}
+                className="w-full px-3 py-2 text-left text-sm font-medium text-charcoal transition-colors hover:bg-gray-100"
+              >
+                Copy last week
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(applyDefaultTemplate)}
+                className="w-full px-3 py-2 text-left text-sm font-medium text-charcoal transition-colors hover:bg-gray-100"
+              >
+                Default template
+              </button>
+              <div className="my-1 border-t border-gray-200" />
+            </>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => runAction(handleCopyAsPicture)}
+            className="w-full px-3 py-2 text-left text-sm font-medium text-charcoal transition-colors hover:bg-gray-100"
+          >
+            Copy as picture
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* Modals */}
       {staffModalOpen && selectedSlot && (
@@ -1813,12 +1934,14 @@ const BrakesManager = () => {
         />
       )}
       
-      {addSlotModalOpen && (
-        <AddSlotModal 
-          isOpen={addSlotModalOpen}
-          onClose={() => setAddSlotModalOpen(false)}
-          onAddCustomSlot={handleAddCustomSlot}
+      {slotEditor.open && (
+        <SlotEditorModal
+          isOpen={slotEditor.open}
+          onClose={closeSlotEditor}
+          mode={slotEditor.mode}
+          initialSlot={slotEditor.slot}
           selectedShift={selectedShift}
+          onSubmit={slotEditor.mode === 'edit' ? handleUpdateSlot : handleCreateSlots}
         />
       )}
       
@@ -1827,11 +1950,16 @@ const BrakesManager = () => {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
           <div className="bg-white rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
             <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 z-10">
-              <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
+              <h3 className="text-lg font-bold text-white">Delete Break Slot?</h3>
             </div>
             <div className="p-5">
               <p className="text-base text-charcoal mb-5">
                 Are you sure you want to delete slot at <strong className="text-orange-600">{deleteConfirmSlot.start_time}</strong> ({deleteConfirmSlot.duration_minutes} min)?
+                {getAssignedStaffForSlot(deleteConfirmSlot.id).length > 0 && (
+                  <span className="mt-2 block text-sm text-red-600">
+                    Anyone assigned to this slot will lose their break.
+                  </span>
+                )}
               </p>
               <div className="flex gap-3">
                 <button
@@ -1885,12 +2013,10 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         return false; // Already assigned here
     }
     
-    // For Day shift, handle 15/45 min breaks differently
-    if (slot.break_type?.includes('15 min')) {
-      // For 15 min break, staff can be assigned if they don't already have a 15 min break
+    // Day shift keeps the one 15 min + one 45 min rule; the flags are only set for day
+    if (slot.duration_minutes === 15) {
       return staff.has_break_15 !== true; // Allow undefined or false
-    } else if (slot.break_type?.includes('45 min')) {
-      // For 45 min break, staff can be assigned if they don't already have a 45 min break
+    } else if (slot.duration_minutes === 45) {
       return staff.has_break_45 !== true; // Allow undefined or false
     } else {
       // For other breaks (Night, Afternoon), staff can have only 60 min total
@@ -2090,396 +2216,6 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   );
 };
 
-// Add Slot Modal Component
-const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
-  const modalRef = useRef(null);
-  
-  // Prevent body scrolling when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-  
-  // Close modal on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-  
-  if (!isOpen) return null;
-  
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-      <div 
-        ref={modalRef}
-        className="relative bg-white text-charcoal rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
-      >
-        {/* Header - Sticky */}
-        <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex-shrink-0 z-10">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white">Create Custom Slot</h3>
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-        
-        {/* Form Content - Scrollable */}
-        <div className="p-5 overflow-y-auto flex-1">
-          <AddCustomSlotForm 
-            onAddCustomSlot={(formData) => {
-              const success = onAddCustomSlot(formData);
-              if (success) {
-                onClose();
-              }
-              return success;
-            }}
-            selectedShift={selectedShift}
-          />
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
-
-// Add Custom Slot Form Component
-const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
-  const [formData, setFormData] = useState({
-    start_time: '',
-    duration_minutes: 60
-  });
-  
-  // Set a default start time based on shift when it changes
-  useEffect(() => {
-    let defaultTime = '09:00'; // Default for Day
-    
-    if (selectedShift === 'Afternoon') {
-      defaultTime = '14:00';
-    } else if (selectedShift === 'Night') {
-      defaultTime = '21:00';
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      start_time: defaultTime
-    }));
-  }, [selectedShift]);
-  
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'duration_minutes' ? parseInt(value, 10) : value
-    }));
-  };
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validate form data
-    if (!formData.start_time) {
-      alert('Please select a start time');
-      return;
-    }
-    
-    // Add required fields for backend
-    const slotData = {
-      ...formData,
-      capacity: 999, // Unlimited capacity
-      break_type: `Custom Slot (${formData.duration_minutes} min)`
-    };
-    
-    const success = onAddCustomSlot(slotData);
-    
-    if (success) {
-      // Reset form (except selected shift preference)
-      setFormData({
-        start_time: formData.start_time,
-        duration_minutes: 60
-      });
-    }
-  };
-  
-  // Generate time options (every 15 minutes)
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const formattedHour = hour.toString().padStart(2, '0');
-        const formattedMinute = minute.toString().padStart(2, '0');
-        options.push(`${formattedHour}:${formattedMinute}`);
-      }
-    }
-    return options;
-  };
-  
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Start Time */}
-        <div>
-          <label htmlFor="cs_start_time" className="block text-sm font-bold text-gray-900 mb-2">
-            Start Time
-          </label>
-          <select
-            id="cs_start_time"
-            name="start_time"
-            value={formData.start_time}
-            onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
-          >
-            <option value="" className="bg-white text-charcoal">Select time</option>
-            {generateTimeOptions().map(time => (
-              <option key={time} value={time} className="bg-white text-charcoal">
-                {time}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* Duration */}
-        <div>
-          <label htmlFor="cs_duration_minutes" className="block text-sm font-bold text-gray-900 mb-2">
-            Duration (minutes)
-          </label>
-          <select
-            id="cs_duration_minutes"
-            name="duration_minutes"
-            value={formData.duration_minutes}
-            onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
-          >
-            <option value={15} className="bg-white text-charcoal">15 minutes</option>
-            <option value={30} className="bg-white text-charcoal">30 minutes</option>
-            <option value={45} className="bg-white text-charcoal">45 minutes</option>
-            <option value={60} className="bg-white text-charcoal">60 minutes</option>
-          </select>
-        </div>
-        
-        <div className="pt-1">
-          <button
-            type="submit"
-            className="w-full px-4 py-3.5 bg-black text-white text-base font-bold rounded-lg hover:bg-gray-900 transition-colors shadow-lg"
-          >
-            Add Custom Slot
-          </button>
-        </div>
-      </form>
-  );
-};
-
-// Slot Card Component to display a break slot
-const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, isAdmin, currentUserId }) => {
-  // Format start time to remove seconds (HH:MM:SS -> HH:MM)
-  const formatStartTime = () => {
-    try {
-      return slot.start_time.substring(0, 5); // Get only HH:MM part
-    } catch {
-      return slot.start_time || '??:??';
-    }
-  };
-
-  // Calculate the end time for display
-  const calculateEndTime = () => {
-    try {
-      const [hours, minutes] = slot.start_time.split(':').map(Number);
-      const date = new Date();
-      date.setHours(hours, minutes, 0, 0);
-      date.setMinutes(date.getMinutes() + slot.duration_minutes);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    } catch { 
-      return '??:??';
-    }
-  };
-  
-  // WARIANTY POWIĘKSZENIA SLOTÓW - wybierz jeden z poniższych:
-  // 
-  // WARIANT 1: Umiarkowane powiększenie (+25%)
-  // - Karta: min-h-[150px] md:min-h-[180px], padding: p-3 md:p-5
-  // - Czas: text-base md:text-lg (16px/18px)
-  // - Assigned: text-sm md:text-base (14px/16px)
-  // - Nazwy: text-sm md:text-base (14px/16px)
-  // - "Click to assign": text-sm (14px)
-  // - Badge czas: text-sm, ikona h-4 w-4
-  // - Grid: grid-cols-1 (1 kolumna na mobile)
-  //
-  // WARIANT 2: Średnie powiększenie (+50%) ⭐ RECOMMENDED
-  // - Karta: min-h-[180px] md:min-h-[220px], padding: p-4 md:p-6
-  // - Czas: text-lg md:text-xl (18px/20px)
-  // - Assigned: text-base md:text-lg (16px/18px)
-  // - Nazwy: text-base md:text-lg (16px/18px)
-  // - "Click to assign": text-base (16px)
-  // - Badge czas: text-base, ikona h-5 w-5
-  // - Grid: grid-cols-1 (1 kolumna na mobile)
-  //
-  // WARIANT 3: Duże powiększenie (+75%)
-  // - Karta: min-h-[220px] md:min-h-[260px], padding: p-5 md:p-7
-  // - Czas: text-xl md:text-2xl (20px/24px)
-  // - Assigned: text-lg md:text-xl (18px/20px)
-  // - Nazwy: text-lg md:text-xl (18px/20px)
-  // - "Click to assign": text-lg (18px)
-  // - Badge czas: text-lg, ikona h-6 w-6
-  // - Grid: grid-cols-1 (1 kolumna na mobile)
-  //
-  // WARIANT 4: Bardzo duże powiększenie (+100%)
-  // - Karta: min-h-[260px] md:min-h-[300px], padding: p-6 md:p-8
-  // - Czas: text-2xl md:text-3xl (24px/30px)
-  // - Assigned: text-xl md:text-2xl (20px/24px)
-  // - Nazwy: text-xl md:text-2xl (20px/24px)
-  // - "Click to assign": text-xl (20px)
-  // - Badge czas: text-xl, ikona h-7 w-7
-  // - Grid: grid-cols-1 (1 kolumna na mobile)
-
-  // ===== WYBIERZ WARIANT (odkomentuj jeden z poniższych) =====
-  
-  // WARIANT 1 - Umiarkowane powiększenie
-  // const cardClasses = `bg-white p-3 md:p-5 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[150px] md:min-h-[180px] flex flex-col justify-between relative`;
-  // const timeClasses = "font-semibold text-base md:text-lg";
-  // const assignedClasses = "text-sm md:text-base text-gray-600";
-  // const staffNameClasses = "text-sm md:text-base bg-gray-100 border border-gray-200 px-2 py-1 md:px-3 md:py-1.5 rounded flex justify-between items-center";
-  // const clickToAssignClasses = "mt-3 md:mt-4 text-center text-gray-500 text-sm italic";
-  // const badgeClasses = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium";
-  // const badgeIconClasses = "h-4 w-4";
-  // const removeIconClasses = "h-4 w-4 md:h-5 md:w-5";
-  // const gridClasses = "grid grid-cols-1 gap-3 md:gap-4";
-
-  // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
-  // Dark Modern Premium - białe karty z szaro-czarnymi i pomarańczowymi akcentami
-  const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
-  const timeClasses = "font-bold text-lg md:text-base text-gray-900";
-  const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
-  const badgeClasses = "inline-flex items-center gap-1 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full border text-sm md:text-xs font-semibold";
-  const badgeIconClasses = "h-3.5 w-3.5 md:h-3 md:w-3";
-  const removeIconClasses = "h-5 w-5 md:h-5 md:w-5";
-
-  // WARIANT 3 - Duże powiększenie
-  // const cardClasses = `bg-white p-5 md:p-7 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[220px] md:min-h-[260px] flex flex-col justify-between relative`;
-  // const timeClasses = "font-semibold text-xl md:text-2xl";
-  // const assignedClasses = "text-lg md:text-xl text-gray-600";
-  // const staffNameClasses = "text-lg md:text-xl bg-gray-100 border border-gray-200 px-4 py-2 md:px-5 md:py-2.5 rounded flex justify-between items-center";
-  // const clickToAssignClasses = "mt-5 md:mt-6 text-center text-gray-500 text-lg italic";
-  // const badgeClasses = "inline-flex items-center gap-2 px-4 py-2 rounded-full border text-lg font-medium";
-  // const badgeIconClasses = "h-6 w-6";
-  // const removeIconClasses = "h-6 w-6 md:h-7 md:w-7";
-  // const gridClasses = "grid grid-cols-1 gap-5 md:gap-6";
-
-  // WARIANT 4 - Bardzo duże powiększenie
-  // const cardClasses = `bg-white p-6 md:p-8 rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 hover:border-gray-600 cursor-pointer min-h-[260px] md:min-h-[300px] flex flex-col justify-between relative`;
-  // const timeClasses = "font-semibold text-2xl md:text-3xl";
-  // const assignedClasses = "text-xl md:text-2xl text-gray-600";
-  // const staffNameClasses = "text-xl md:text-2xl bg-gray-100 border border-gray-200 px-5 py-2.5 md:px-6 md:py-3 rounded flex justify-between items-center";
-  // const clickToAssignClasses = "mt-6 md:mt-7 text-center text-gray-500 text-xl italic";
-  // const badgeClasses = "inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full border text-xl font-medium";
-  // const badgeIconClasses = "h-7 w-7";
-  // const removeIconClasses = "h-7 w-7 md:h-8 md:w-8";
-  // const gridClasses = "grid grid-cols-1 gap-6 md:gap-7";
-
-  const handleCardClick = (e) => {
-    // Prevent opening the modal if the click was on a remove button or delete button
-    if (e.target.closest('.remove-staff-button') || e.target.closest('.delete-slot-button')) {
-      return;
-    }
-    // Allow all users to open the modal (non-admin will only see/add themselves)
-    onSlotClick(slot);
-  };
-
-  return (
-    <div 
-      className={cardClasses}
-      onClick={handleCardClick}
-    >
-      <div>
-        <div className="flex justify-between items-center mb-2 md:mb-1.5">
-          <span className={timeClasses}>
-            {formatStartTime()} - {calculateEndTime()}
-          </span>
-          <span className={`${badgeClasses} bg-gray-200 text-charcoal border-gray-400`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className={badgeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {assignedStaff.length}
-          </span>
-        </div>
-        
-        {/* List assigned staff with remove buttons */}
-        {assignedStaff.length > 0 && (
-          <div className="mt-3 md:mt-2 space-y-2.5 md:space-y-1.5">
-            {assignedStaff.map((staff) => (
-              <div 
-                key={staff.id} 
-                className={`${staffNameClasses} group`}
-              >
-                <div className="flex items-center gap-2 md:gap-2 flex-1 min-w-0">
-                  {/* Avatar circle with initial */}
-                  <div className="flex-shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-xs text-white bg-orange-600 shadow-md">
-                    {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                  </div>
-                  <span className="block min-w-0 break-words font-semibold text-charcoal">{staff.user_name}</span>
-                </div>
-                {/* Show remove button only for admin (regular user cannot remove anyone, including themselves) */}
-                {isAdmin && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the card's onClick
-                      onRemoveStaffClick(staff);
-                    }} 
-                    className="remove-staff-button flex-shrink-0 text-red-600 hover:text-white hover:bg-red-600 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
-                    aria-label={`Remove ${staff.user_name}`}
-                    title={`Remove ${staff.user_name}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className={removeIconClasses} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      {/* Delete button only for admins and custom slots - bottom right */}
-      {isAdmin && slot.is_custom && (
-        <div className="flex justify-end mt-2 md:mt-1">
-          <button 
-            className="delete-slot-button text-red-500 hover:text-red-700 hover:bg-red-100 p-1.5 md:p-2 rounded-full transition-all duration-200 flex items-center gap-1"
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent triggering the card's onClick
-              onDeleteClick(slot.id);
-            }}
-            title="Delete custom slot"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            <span className="text-xs md:text-sm font-medium">Delete</span>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
 // PropTypes definitions
 StaffSelectionModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
@@ -2488,9 +2224,9 @@ StaffSelectionModal.propTypes = {
     id: PropTypes.string,
     start_time: PropTypes.string.isRequired,
     duration_minutes: PropTypes.number.isRequired,
-    capacity: PropTypes.number.isRequired,
+    capacity: PropTypes.number,
     break_type: PropTypes.string,
-    is_custom: PropTypes.bool
+    is_virtual: PropTypes.bool
   }).isRequired,
   availableStaff: PropTypes.arrayOf(
     PropTypes.shape({
@@ -2520,39 +2256,4 @@ StaffSelectionModal.propTypes = {
   timeToMinutes: PropTypes.func
 };
 
-AddSlotModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  onAddCustomSlot: PropTypes.func.isRequired,
-  selectedShift: PropTypes.string
-};
-
-AddCustomSlotForm.propTypes = {
-  onAddCustomSlot: PropTypes.func.isRequired,
-  selectedShift: PropTypes.string.isRequired
-};
-
-SlotCard.propTypes = {
-  slot: PropTypes.shape({
-    id: PropTypes.string,
-    start_time: PropTypes.string.isRequired,
-    duration_minutes: PropTypes.number.isRequired,
-    capacity: PropTypes.number.isRequired,
-    break_type: PropTypes.string,
-    is_custom: PropTypes.bool
-  }).isRequired,
-  assignedStaff: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      user_name: PropTypes.string.isRequired,
-      user_id: PropTypes.string.isRequired
-    })
-  ).isRequired,
-  onSlotClick: PropTypes.func.isRequired,
-  onDeleteClick: PropTypes.func.isRequired,
-  onRemoveStaffClick: PropTypes.func.isRequired,
-  isAdmin: PropTypes.bool.isRequired,
-  currentUserId: PropTypes.string
-};
-
-export default BrakesManager; 
+export default BrakesManager;

@@ -96,6 +96,7 @@ export default function MyBreakInfo() {
             )
           `)
           .eq('date', today)
+          .not('user_id', 'is', null)
           .or(shiftFilter)
           .order('break_start_time');
 

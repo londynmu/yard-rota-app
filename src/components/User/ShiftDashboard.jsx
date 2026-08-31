@@ -388,6 +388,7 @@ export default function ShiftDashboard({
           .from('scheduled_breaks')
           .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date, location')
           .in('date', breakDates)
+          .not('user_id', 'is', null) // Skip slot definition rows – they carry no person
           .order('break_start_time');
           
         if (breaksError) throw breaksError;
@@ -577,6 +578,7 @@ export default function ShiftDashboard({
             )
           `)
           .eq('date', today)
+          .not('user_id', 'is', null) // Skip slot definition rows – they carry no person
           .or(shiftFilter)
           .order('break_start_time');
 
