@@ -693,7 +693,11 @@ export default function HomePage() {
               path="/admin/approvals" 
               element={
                 <ProtectedAdminRoute>
-                  <UserApprovalPage />
+                  <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6">
+                    <div className="page-content-inner">
+                      <UserApprovalPage />
+                    </div>
+                  </div>
                 </ProtectedAdminRoute>
               } 
             />

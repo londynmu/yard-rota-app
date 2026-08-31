@@ -3,14 +3,18 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../lib/NotificationContext';
+import { useToast } from '../components/ui/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 const UserApprovalPage = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications() || {};
+  const { success, error: toastError } = useToast();
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [rejectUserId, setRejectUserId] = useState(null);
   const navigate = useNavigate();
 
   // Check if user is admin and fetch pending users
@@ -69,23 +73,23 @@ const UserApprovalPage = () => {
       // Update the local state
       setPendingUsers(pendingUsers.filter(u => u.id !== userId));
       
+      success('User approved');
       // Add notification if available
       if (typeof addNotification === 'function') {
         addNotification('User approved successfully', 'success');
       }
     } catch (err) {
       console.error('Error approving user:', err);
+      toastError('Failed to approve user');
       if (typeof addNotification === 'function') {
         addNotification('Failed to approve user', 'error');
       }
     }
   };
 
-  // Reject a user
+  // Reject a user (confirmed through ConfirmDialog)
   const handleReject = async (userId) => {
-    if (!window.confirm('Are you sure you want to reject this user?')) {
-      return;
-    }
+    if (!userId) return;
 
     try {
       // Update account_status to rejected
@@ -99,17 +103,42 @@ const UserApprovalPage = () => {
       // Update the local state
       setPendingUsers(pendingUsers.filter(u => u.id !== userId));
       
+      success('User rejected');
       // Add notification if available
       if (typeof addNotification === 'function') {
         addNotification('User rejected', 'success');
       }
     } catch (err) {
       console.error('Error rejecting user:', err);
+      toastError('Failed to reject user');
       if (typeof addNotification === 'function') {
         addNotification('Failed to reject user', 'error');
       }
     }
   };
+
+  const formatRegistered = (createdAt) =>
+    createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown';
+
+  const renderAvatar = (pending, sizeClass) => (
+    <div
+      className={`flex-shrink-0 ${sizeClass} rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300`}
+    >
+      {pending.avatar_url ? (
+        <img
+          className={`${sizeClass} rounded-full object-cover`}
+          src={normalizeAvatarStorageUrl(pending.avatar_url) || pending.avatar_url}
+          alt={`${pending.first_name || ''} ${pending.last_name || ''}`}
+          decoding="async"
+        />
+      ) : (
+        <span className="text-charcoal text-sm font-semibold">
+          {pending.first_name?.[0] || ''}
+          {pending.last_name?.[0] || ''}
+        </span>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -126,9 +155,9 @@ const UserApprovalPage = () => {
                 <div className="h-4 bg-slate-200 rounded w-64" />
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
-              <div className="h-10 w-24 bg-slate-200 rounded-lg" />
-              <div className="h-10 w-24 bg-slate-200 rounded-lg" />
+            <div className="grid grid-cols-2 gap-2 md:flex md:justify-end md:gap-3">
+              <div className="h-11 bg-slate-200 rounded-lg md:w-24 md:h-10" />
+              <div className="h-11 bg-slate-200 rounded-lg md:w-24 md:h-10" />
             </div>
           </div>
         ))}
@@ -180,82 +209,119 @@ const UserApprovalPage = () => {
           <p className="mt-4 text-gray-600">No pending approvals</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                  Registered
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {pendingUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
-                        {user.avatar_url ? (
-                          <img
-                            className="h-10 w-10 rounded-full object-cover"
-                            src={normalizeAvatarStorageUrl(user.avatar_url) || user.avatar_url}
-                            alt={`${user.first_name || ''} ${user.last_name || ''}`}
-                            width={40}
-                            height={40}
-                            decoding="async"
-                          />
-                        ) : (
-                          <span className="text-charcoal text-sm font-semibold">
-                            {user.first_name?.[0] || ''}
-                            {user.last_name?.[0] || ''}
-                          </span>
-                        )}
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-charcoal">
-                          {user.first_name || ''} {user.last_name || ''}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {user.phone || 'No phone'}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {user.email || 'No email'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => handleApprove(user.id)}
-                      className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded-lg text-white transition-colors"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(user.id)}
-                      className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-white transition-colors"
-                    >
-                      Reject
-                    </button>
-                  </td>
+        <>
+          {/* Mobile: one card per user so the actions are always on screen */}
+          <div className="divide-y divide-gray-200 md:hidden">
+            {pendingUsers.map((pending) => (
+              <div key={pending.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  {renderAvatar(pending, 'h-12 w-12')}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold text-charcoal break-words">
+                      {pending.first_name || ''} {pending.last_name || ''}
+                    </p>
+                    <p className="text-sm text-gray-600 break-words">
+                      {pending.email || 'No email'}
+                    </p>
+                    <p className="text-sm text-gray-600 break-words">
+                      {pending.phone || 'No phone'}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Registered {formatRegistered(pending.created_at)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleApprove(pending.id)}
+                    className="flex min-h-11 items-center justify-center rounded-lg border-2 border-green-600 bg-white px-3 text-sm font-semibold text-green-700 transition-colors hover:bg-green-50"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setRejectUserId(pending.id)}
+                    className="flex min-h-11 items-center justify-center rounded-lg border-2 border-red-500 bg-white px-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Registered
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {pendingUsers.map((pending) => (
+                  <tr key={pending.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {renderAvatar(pending, 'h-10 w-10')}
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-charcoal">
+                            {pending.first_name || ''} {pending.last_name || ''}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {pending.phone || 'No phone'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {pending.email || 'No email'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {formatRegistered(pending.created_at)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => handleApprove(pending.id)}
+                        className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded-lg text-white transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => setRejectUserId(pending.id)}
+                        className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-white transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
+
+      <ConfirmDialog
+        isOpen={rejectUserId !== null}
+        onClose={() => setRejectUserId(null)}
+        onConfirm={() => handleReject(rejectUserId)}
+        title="Reject user"
+        message="This user will not be able to sign in. You can change it later in user management."
+        confirmText="Reject"
+        isDestructive
+      />
     </div>
   );
 };
