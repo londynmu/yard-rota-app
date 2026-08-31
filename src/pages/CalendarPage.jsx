@@ -57,7 +57,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const [selectedShifts, setSelectedShifts] = useState(getInitialSelectedShifts);
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   const [, setUserBreakLabel] = useState('');
-  const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
+  const [showManageBreaksButton, setShowManageBreaksButton] = useState(null);
   const [todayShiftSummary, setTodayShiftSummary] = useState({ day: 0, afternoon: 0, night: 0, total: 0 });
   
   // Use custom hook for availability data fetching
@@ -633,7 +633,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               {renderUpcomingNotes()}
             </div>
 
-            {showManageBreaksButton && (
+            {showManageBreaksButton === true && (
               <div className="w-full pt-1 pb-3 md:pt-2 md:pb-3 md:flex md:justify-center">
                 <Link
                   to="/brakes"
@@ -743,7 +743,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 tabIndex={isAdmin ? 0 : undefined}
                 aria-label={isAdmin ? 'Open break planner' : undefined}
               >
-                {showManageBreaksButton && (
+                {showManageBreaksButton === true && (
                   <div className="w-full mb-4 flex-shrink-0" onClick={(event) => event.stopPropagation()}>
                     <Link
                       to="/brakes"
