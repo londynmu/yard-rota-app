@@ -43,7 +43,7 @@ export function fetchShowManageBreaksCached(supabase) {
   return showManageBreaksPromise;
 }
 
-/** @returns {Promise<{ showShunterOfTheMonthCard: boolean, showShunterGuideCard: boolean }>} */
+/** @returns {Promise<{ showShunterOfTheMonthCard: boolean, showShunterGuideCard: boolean, showStatsNav: boolean }>} */
 export function fetchHomePromoCardsCached(supabase) {
   if (!homePromoCardsPromise) {
     homePromoCardsPromise = (async () => {
@@ -51,17 +51,23 @@ export function fetchHomePromoCardsCached(supabase) {
         const { data, error } = await supabase
           .from('settings')
           .select('key, value')
-          .in('key', ['show_shunter_of_the_month_card', 'show_shunter_guide_card']);
+          .in('key', [
+            'show_shunter_of_the_month_card',
+            'show_shunter_guide_card',
+            'show_stats_nav',
+          ]);
         if (error) throw error;
         const map = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
         return {
           showShunterOfTheMonthCard: map.show_shunter_of_the_month_card !== 'false',
           showShunterGuideCard: map.show_shunter_guide_card !== 'false',
+          showStatsNav: map.show_stats_nav !== 'false',
         };
       } catch {
         return {
           showShunterOfTheMonthCard: true,
           showShunterGuideCard: true,
+          showStatsNav: true,
         };
       }
     })();

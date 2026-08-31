@@ -71,8 +71,9 @@ const InductionGuidePromoCard = lazyWithRetry(() => import('./InductionGuide/Ind
 const ShunterOfTheMonthCard = lazyWithRetry(() => import('./User/ShunterOfTheMonthCard'));
 
 function CalendarHomeRoute() {
-  const [showShunterGuideCard, setShowShunterGuideCard] = useState(true);
-  const [showShunterOfTheMonthCard, setShowShunterOfTheMonthCard] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [showShunterGuideCard, setShowShunterGuideCard] = useState(false);
+  const [showShunterOfTheMonthCard, setShowShunterOfTheMonthCard] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,22 +82,27 @@ function CalendarHomeRoute() {
         if (cancelled) return;
         setShowShunterGuideCard(flags.showShunterGuideCard);
         setShowShunterOfTheMonthCard(flags.showShunterOfTheMonthCard);
+        setSettingsReady(true);
       })
       .catch(() => {
         if (cancelled) return;
         setShowShunterGuideCard(true);
         setShowShunterOfTheMonthCard(true);
+        setSettingsReady(true);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const showGuide = settingsReady && showShunterGuideCard;
+  const showShunter = settingsReady && showShunterOfTheMonthCard;
+
   const desktopBelowCalendar =
-    showShunterGuideCard || showShunterOfTheMonthCard ? (
+    showGuide || showShunter ? (
       <>
-        {showShunterGuideCard ? <InductionGuidePromoCard /> : null}
-        {showShunterOfTheMonthCard ? <ShunterOfTheMonthCard /> : null}
+        {showGuide ? <InductionGuidePromoCard /> : null}
+        {showShunter ? <ShunterOfTheMonthCard /> : null}
       </>
     ) : null;
 
@@ -104,8 +110,8 @@ function CalendarHomeRoute() {
     <>
       <PreCheckReminder />
       <div className="md:hidden">
-        {showShunterGuideCard ? <InductionGuidePromoCard /> : null}
-        {showShunterOfTheMonthCard ? <ShunterOfTheMonthCard /> : null}
+        {showGuide ? <InductionGuidePromoCard /> : null}
+        {showShunter ? <ShunterOfTheMonthCard /> : null}
         <CalendarPage />
       </div>
       <div className="hidden md:block">
@@ -158,6 +164,7 @@ export default function HomePage() {
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const [currentAdminSectionLabel, setCurrentAdminSectionLabel] = useState('');
+  const [showStatsNav, setShowStatsNav] = useState(null);
 
   // Listen for admin section title (mobile header)
   useEffect(() => {
@@ -168,6 +175,22 @@ export default function HomePage() {
   useEffect(() => {
     if (location.pathname !== '/admin') setCurrentAdminSectionLabel('');
   }, [location.pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHomePromoCardsCached(supabase)
+      .then((flags) => {
+        if (cancelled) return;
+        setShowStatsNav(flags.showStatsNav);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setShowStatsNav(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Header avatar/name from sessionProfile (same row as App gate) — fallback fetch if missing
   useEffect(() => {
@@ -301,19 +324,28 @@ export default function HomePage() {
   }, [location.pathname]);
 
   const topNavLinks = useMemo(() => {
+    const statsOn = showStatsNav === true;
+    const allow = (paths) => {
+      const filtered = statsOn ? paths : paths.filter((p) => p !== '/performance');
+      return mainNavConfig.filter((n) => filtered.includes(n.path));
+    };
     if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
-    if (!isAdmin) return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
-    return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck', '/vmu', '/admin'].includes(n.path));
-  }, [isAdmin, isVmu, isTransportManager]);
+    if (!isAdmin) return allow(['/calendar', '/my-rota', '/performance', '/precheck']);
+    return allow(['/calendar', '/my-rota', '/performance', '/precheck', '/vmu', '/admin']);
+  }, [isAdmin, isVmu, isTransportManager, showStatsNav]);
 
   const bottomNavLinks = useMemo(() => {
     if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
-    const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
+    const statsOn = showStatsNav === true;
+    const paths = statsOn
+      ? ['/calendar', '/my-rota', '/performance', '/precheck']
+      : ['/calendar', '/my-rota', '/precheck'];
+    const base = mainNavConfig.filter((n) => paths.includes(n.path));
     if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin')];
     return [...base, mainNavConfig.find((n) => n.path === '/profile')];
-  }, [isAdmin, isVmu, isTransportManager]);
+  }, [isAdmin, isVmu, isTransportManager, showStatsNav]);
 
   if (location.pathname === '/' || location.pathname === '') {
     return <Navigate to={isTransportManager && !isAdmin ? '/transport-dashboard' : isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
@@ -683,7 +715,18 @@ export default function HomePage() {
                 </ProtectedTransportManagerRoute>
               }
             />
-            <Route path="/performance" element={<PerformanceLeaderboard />} />
+            <Route
+              path="/performance"
+              element={
+                showStatsNav === false ? (
+                  <Navigate to="/calendar" replace />
+                ) : showStatsNav === true ? (
+                  <PerformanceLeaderboard />
+                ) : (
+                  <div className="min-h-screen bg-transparent" />
+                )
+              }
+            />
             <Route path="/precheck" element={<PreCheckPage />} />
             <Route path="/precheck/tug/:token" element={<PreCheckPage />} />
             <Route 

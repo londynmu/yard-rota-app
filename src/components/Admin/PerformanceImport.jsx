@@ -12,6 +12,7 @@ import {
   matchUsersWithCSV,
   importPerformanceData
 } from '../../utils/csvImportHelper';
+import { resetCalendarStaticCache } from '../../utils/calendarStaticCache';
 
 const PerformanceImport = () => {
   const toast = useToast();
@@ -19,6 +20,9 @@ const PerformanceImport = () => {
   const [profiles, setProfiles] = useState([]);
   const [importHistory, setImportHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showStatsNav, setShowStatsNav] = useState(true);
+  const [navSettingLoading, setNavSettingLoading] = useState(true);
+  const [navSettingSaving, setNavSettingSaving] = useState(false);
   
   // File upload states
   const [selectedFile, setSelectedFile] = useState(null);
@@ -89,6 +93,53 @@ const PerformanceImport = () => {
     fetchProfiles();
     fetchImportHistory();
   }, [fetchProfiles, fetchImportHistory]);
+
+  useEffect(() => {
+    const loadNavSetting = async () => {
+      setNavSettingLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'show_stats_nav')
+          .maybeSingle();
+        if (error) throw error;
+        setShowStatsNav(data?.value !== 'false');
+      } catch (err) {
+        console.error('[PerformanceImport] Stats nav setting fetch error:', err);
+        setShowStatsNav(true);
+      } finally {
+        setNavSettingLoading(false);
+      }
+    };
+    loadNavSetting();
+  }, []);
+
+  const toggleShowStatsNav = async () => {
+    if (navSettingLoading || navSettingSaving) return;
+    const nextValue = !showStatsNav;
+    setShowStatsNav(nextValue);
+    setNavSettingSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'show_stats_nav',
+          value: nextValue ? 'true' : 'false',
+          description: 'Show the Stats (Performance) tab in top and bottom navigation',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+      resetCalendarStaticCache();
+      toast.success(nextValue ? 'Stats visible in navigation.' : 'Stats hidden from navigation.');
+    } catch (err) {
+      console.error('[PerformanceImport] Toggle stats nav error:', err);
+      setShowStatsNav(!nextValue);
+      toast.error('Could not save Stats navigation setting.');
+    } finally {
+      setNavSettingSaving(false);
+    }
+  };
   
   // Handle file selection
   const handleFileSelect = (e) => {
@@ -241,6 +292,35 @@ const PerformanceImport = () => {
   
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-charcoal">Show Stats in navigation</p>
+          <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
+            Shows or hides the Stats tab in the main app navigation.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-xs font-semibold hidden sm:inline ${showStatsNav ? 'text-green-600' : 'text-gray-400'}`}>
+            {showStatsNav ? 'ON' : 'OFF'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleShowStatsNav}
+            disabled={navSettingLoading || navSettingSaving}
+            className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+              showStatsNav ? 'bg-green-500' : 'bg-gray-300'
+            } ${(navSettingLoading || navSettingSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            title={showStatsNav ? 'Visible in nav – click to hide' : 'Hidden in nav – click to show'}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                showStatsNav ? 'left-4.5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-charcoal mb-2">Performance Data Import</h2>
