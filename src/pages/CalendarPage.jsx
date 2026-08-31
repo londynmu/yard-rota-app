@@ -16,7 +16,6 @@ import {
   fetchShowManageBreaksCached,
 } from '../utils/calendarStaticCache';
 import { getEffectiveTodayYmd } from '../utils/operationalDay';
-import { getUpcomingCalendarNotes } from '../utils/ukBankHolidays';
 
 const CALENDAR_BREAKS_LOCATION_KEY = 'calendar_breaks_selected_location';
 const CALENDAR_BREAKS_SHIFT_FILTERS_KEY = 'calendar_breaks_selected_shifts';
@@ -517,16 +516,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
     ) : null
   );
 
-  const upcomingNotes = getUpcomingCalendarNotes(new Date(), dayData);
-
-  const renderUpcomingNotes = () => (
-    <div className="mt-auto pt-3 space-y-0.5 text-xs text-slate-600">
-      {upcomingNotes.map((line) => (
-        <p key={line}>{line}</p>
-      ))}
-    </div>
-  );
-
   const renderEmbeddedPromoCards = () =>
     desktopCards.map((card, index) => (
       <React.Fragment key={index}>
@@ -630,7 +619,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 onDayClick={handleDayClick}
                 isLoading={loading}
               />
-              {renderUpcomingNotes()}
             </div>
 
             {showManageBreaksButton === true && (
@@ -814,7 +802,6 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                   isLoading={loading}
                   density="compact"
                 />
-                {renderUpcomingNotes()}
               </div>
 
               <div className="lg:hidden mt-3 flex flex-col gap-2">
