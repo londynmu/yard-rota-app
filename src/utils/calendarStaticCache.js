@@ -4,6 +4,7 @@
  */
 let locationsNamesPromise = null;
 let showManageBreaksPromise = null;
+let homePromoCardsPromise = null;
 
 export function fetchActiveLocationNamesCached(supabase) {
   if (!locationsNamesPromise) {
@@ -42,7 +43,34 @@ export function fetchShowManageBreaksCached(supabase) {
   return showManageBreaksPromise;
 }
 
+/** @returns {Promise<{ showShunterOfTheMonthCard: boolean, showShunterGuideCard: boolean }>} */
+export function fetchHomePromoCardsCached(supabase) {
+  if (!homePromoCardsPromise) {
+    homePromoCardsPromise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['show_shunter_of_the_month_card', 'show_shunter_guide_card']);
+        if (error) throw error;
+        const map = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
+        return {
+          showShunterOfTheMonthCard: map.show_shunter_of_the_month_card !== 'false',
+          showShunterGuideCard: map.show_shunter_guide_card !== 'false',
+        };
+      } catch {
+        return {
+          showShunterOfTheMonthCard: true,
+          showShunterGuideCard: true,
+        };
+      }
+    })();
+  }
+  return homePromoCardsPromise;
+}
+
 export function resetCalendarStaticCache() {
   locationsNamesPromise = null;
   showManageBreaksPromise = null;
+  homePromoCardsPromise = null;
 }

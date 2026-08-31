@@ -10,6 +10,7 @@ import { getInductionMarkdownComponents } from '../InductionGuide/inductionMarkd
 import InductionMarkdownEditor from '../InductionGuide/InductionMarkdownEditor';
 import { useToast } from '../ui/ToastContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { resetCalendarStaticCache } from '../../utils/calendarStaticCache';
 
 const mdComponents = getInductionMarkdownComponents();
 
@@ -30,6 +31,9 @@ export default function InductionGuideManager() {
   const [form, setForm] = useState(emptyForm);
   const [showPreview, setShowPreview] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showOnHome, setShowOnHome] = useState(true);
+  const [homeSettingLoading, setHomeSettingLoading] = useState(true);
+  const [homeSettingSaving, setHomeSettingSaving] = useState(false);
   const bodyRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -55,6 +59,53 @@ export default function InductionGuideManager() {
   useEffect(() => {
     loadSections();
   }, [loadSections]);
+
+  useEffect(() => {
+    const loadHomeSetting = async () => {
+      setHomeSettingLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'show_shunter_guide_card')
+          .maybeSingle();
+        if (error) throw error;
+        setShowOnHome(data?.value !== 'false');
+      } catch (err) {
+        console.error('[InductionGuideManager] Home visibility fetch error:', err);
+        setShowOnHome(true);
+      } finally {
+        setHomeSettingLoading(false);
+      }
+    };
+    loadHomeSetting();
+  }, []);
+
+  const toggleShowOnHome = async () => {
+    if (homeSettingLoading || homeSettingSaving) return;
+    const nextValue = !showOnHome;
+    setShowOnHome(nextValue);
+    setHomeSettingSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'show_shunter_guide_card',
+          value: nextValue ? 'true' : 'false',
+          description: 'Show the Shunter Guide (yard induction) promo card on the home (calendar) page',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+      resetCalendarStaticCache();
+      toast.success(nextValue ? 'Card visible on home page.' : 'Card hidden on home page.');
+    } catch (err) {
+      console.error('[InductionGuideManager] Toggle home visibility error:', err);
+      setShowOnHome(!nextValue);
+      toast.error('Could not save home page visibility.');
+    } finally {
+      setHomeSettingSaving(false);
+    }
+  };
 
   const openCreate = () => {
     setEditingId('new');
@@ -359,6 +410,35 @@ export default function InductionGuideManager() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-4">
+      <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-charcoal">Show Shunter Guide card on home page</p>
+          <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
+            Shows or hides the Shunter Guide promo card above the calendar.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-xs font-semibold hidden sm:inline ${showOnHome ? 'text-green-600' : 'text-gray-400'}`}>
+            {showOnHome ? 'ON' : 'OFF'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleShowOnHome}
+            disabled={homeSettingLoading || homeSettingSaving}
+            className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+              showOnHome ? 'bg-green-500' : 'bg-gray-300'
+            } ${(homeSettingLoading || homeSettingSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            title={showOnHome ? 'Visible on home – click to hide' : 'Hidden on home – click to show'}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                showOnHome ? 'left-4.5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-charcoal">Yard induction guide</h2>
         <button type="button" onClick={openCreate} className="btn-primary btn-modern text-sm">

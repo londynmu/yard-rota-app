@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 import { useToast } from '../ui/ToastContext';
+import { supabase } from '../../lib/supabaseClient';
+import { resetCalendarStaticCache } from '../../utils/calendarStaticCache';
 import {
   createOrUpdateMonthlyAward,
   getCurrentMonthAwards,
@@ -43,6 +45,30 @@ export default function ShunterOfTheMonthManager({ users }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activePeriod, setActivePeriod] = useState('day');
   const [userSearch, setUserSearch] = useState('');
+  const [showOnHome, setShowOnHome] = useState(true);
+  const [homeSettingLoading, setHomeSettingLoading] = useState(true);
+  const [homeSettingSaving, setHomeSettingSaving] = useState(false);
+
+  useEffect(() => {
+    const loadHomeSetting = async () => {
+      setHomeSettingLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'show_shunter_of_the_month_card')
+          .maybeSingle();
+        if (error) throw error;
+        setShowOnHome(data?.value !== 'false');
+      } catch (err) {
+        console.error('[ShunterOfTheMonthManager] Home visibility fetch error:', err);
+        setShowOnHome(true);
+      } finally {
+        setHomeSettingLoading(false);
+      }
+    };
+    loadHomeSetting();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -150,6 +176,32 @@ export default function ShunterOfTheMonthManager({ users }) {
       toast.error('Could not save award.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleShowOnHome = async () => {
+    if (homeSettingLoading || homeSettingSaving) return;
+    const nextValue = !showOnHome;
+    setShowOnHome(nextValue);
+    setHomeSettingSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'show_shunter_of_the_month_card',
+          value: nextValue ? 'true' : 'false',
+          description: 'Show the Shunter of the Month card on the home (calendar) page',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+      resetCalendarStaticCache();
+      toast.success(nextValue ? 'Card visible on home page.' : 'Card hidden on home page.');
+    } catch (err) {
+      console.error('[ShunterOfTheMonthManager] Toggle home visibility error:', err);
+      setShowOnHome(!nextValue);
+      toast.error('Could not save home page visibility.');
+    } finally {
+      setHomeSettingSaving(false);
     }
   };
 
@@ -270,6 +322,35 @@ export default function ShunterOfTheMonthManager({ users }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-charcoal">Show on home page</p>
+          <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">
+            Shows or hides the Shunter of the Month card above the calendar.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-xs font-semibold hidden sm:inline ${showOnHome ? 'text-green-600' : 'text-gray-400'}`}>
+            {showOnHome ? 'ON' : 'OFF'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleShowOnHome}
+            disabled={homeSettingLoading || homeSettingSaving}
+            className={`w-10 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+              showOnHome ? 'bg-green-500' : 'bg-gray-300'
+            } ${(homeSettingLoading || homeSettingSaving) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            title={showOnHome ? 'Visible on home – click to hide' : 'Hidden on home – click to show'}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                showOnHome ? 'left-4.5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* History – collapsible, red header, yellow container */}
       <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
         <button

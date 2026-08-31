@@ -13,6 +13,7 @@ import ProtectedRoute from './Auth/ProtectedRoute';
 import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { fetchHomePromoCardsCached } from '../utils/calendarStaticCache';
 
 /**
  * Wrapper for React.lazy that adds retry logic for failed chunk loads
@@ -68,6 +69,51 @@ const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePa
 const PreCheckReminder = lazyWithRetry(() => import('./PreCheck/PreCheckReminder'));
 const InductionGuidePromoCard = lazyWithRetry(() => import('./InductionGuide/InductionGuidePromoCard'));
 const ShunterOfTheMonthCard = lazyWithRetry(() => import('./User/ShunterOfTheMonthCard'));
+
+function CalendarHomeRoute() {
+  const [showShunterGuideCard, setShowShunterGuideCard] = useState(true);
+  const [showShunterOfTheMonthCard, setShowShunterOfTheMonthCard] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHomePromoCardsCached(supabase)
+      .then((flags) => {
+        if (cancelled) return;
+        setShowShunterGuideCard(flags.showShunterGuideCard);
+        setShowShunterOfTheMonthCard(flags.showShunterOfTheMonthCard);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setShowShunterGuideCard(true);
+        setShowShunterOfTheMonthCard(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const desktopBelowCalendar =
+    showShunterGuideCard || showShunterOfTheMonthCard ? (
+      <>
+        {showShunterGuideCard ? <InductionGuidePromoCard /> : null}
+        {showShunterOfTheMonthCard ? <ShunterOfTheMonthCard /> : null}
+      </>
+    ) : null;
+
+  return (
+    <>
+      <PreCheckReminder />
+      <div className="md:hidden">
+        {showShunterGuideCard ? <InductionGuidePromoCard /> : null}
+        {showShunterOfTheMonthCard ? <ShunterOfTheMonthCard /> : null}
+        <CalendarPage />
+      </div>
+      <div className="hidden md:block">
+        <CalendarPage desktopBelowCalendar={desktopBelowCalendar} />
+      </div>
+    </>
+  );
+}
 
 /** Desktop top nav links — glass / Figma-aligned */
 function topNavLinkClassName(isActive) {
@@ -591,22 +637,7 @@ export default function HomePage() {
               path="/calendar"
               element={
                 <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
-                  <PreCheckReminder />
-                  <div className="md:hidden">
-                    <InductionGuidePromoCard />
-                    <ShunterOfTheMonthCard />
-                    <CalendarPage />
-                  </div>
-                  <div className="hidden md:block">
-                    <CalendarPage
-                      desktopBelowCalendar={
-                        <>
-                          <InductionGuidePromoCard />
-                          <ShunterOfTheMonthCard />
-                        </>
-                      }
-                    />
-                  </div>
+                  <CalendarHomeRoute />
                 </React.Suspense>
               }
             />
