@@ -1,9 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import ReloadingOverlay from './ReloadingOverlay';
+import { clearAppCachesAndSw } from '../lib/appRecovery';
+import { safeAutoReload } from '../lib/reloadGuard';
 
-// Session storage key to track reload attempts and prevent infinite loops
-const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
-const RELOAD_COOLDOWN_MS = 10000; // 10 seconds cooldown between reloads
+// If recovery has not taken us away by then, offer a manual way out
+const MANUAL_RELOAD_HINT_MS = 4000;
 
 /**
  * Check if the error is a chunk loading error (dynamic import failed)
@@ -33,25 +35,6 @@ const isChunkLoadError = (error) => {
 };
 
 /**
- * Check if we can safely reload the page (not in a reload loop)
- */
-const canReloadSafely = () => {
-  const lastReloadTime = sessionStorage.getItem(CHUNK_ERROR_RELOAD_KEY);
-  
-  if (!lastReloadTime) return true;
-  
-  const timeSinceLastReload = Date.now() - parseInt(lastReloadTime, 10);
-  return timeSinceLastReload > RELOAD_COOLDOWN_MS;
-};
-
-/**
- * Mark that we're about to reload due to chunk error
- */
-const markReloadAttempt = () => {
-  sessionStorage.setItem(CHUNK_ERROR_RELOAD_KEY, Date.now().toString());
-};
-
-/**
  * Error Boundary Component
  * Catches JavaScript errors in child component tree and displays fallback UI
  * Automatically handles chunk loading errors by refreshing the page
@@ -63,8 +46,11 @@ class ErrorBoundary extends React.Component {
       hasError: false, 
       error: null,
       errorInfo: null,
-      isChunkError: false
+      isChunkError: false,
+      showManualReload: false,
+      isReloading: false
     };
+    this.manualReloadTimer = null;
   }
 
   static getDerivedStateFromError(error) {
@@ -88,16 +74,28 @@ class ErrorBoundary extends React.Component {
       isChunkError: chunkError
     });
     
-    // If it's a chunk loading error and we can safely reload, do it automatically
-    if (chunkError && canReloadSafely()) {
-      console.log('[ErrorBoundary] Chunk loading error detected, reloading page...');
-      markReloadAttempt();
-      // Small delay to ensure the log is visible
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+    if (chunkError) {
+      console.log('[ErrorBoundary] Chunk loading error detected, recovering...');
+      this.manualReloadTimer = setTimeout(
+        () => this.setState({ showManualReload: true }),
+        MANUAL_RELOAD_HINT_MS
+      );
+      this.recoverFromChunkError();
     }
   }
+
+  componentWillUnmount() {
+    if (this.manualReloadTimer) clearTimeout(this.manualReloadTimer);
+  }
+
+  // Stale precache is what breaks the lazy import, so drop it before reloading
+  recoverFromChunkError = async () => {
+    await clearAppCachesAndSw();
+    const didReload = safeAutoReload('ErrorBoundary.chunkError');
+    if (!didReload) {
+      this.setState({ showManualReload: true });
+    }
+  };
 
   handleReset = () => {
     this.setState({ hasError: false, error: null, errorInfo: null, isChunkError: false });
@@ -105,54 +103,26 @@ class ErrorBoundary extends React.Component {
   };
   
   handleReload = () => {
-    // Clear the reload tracking so user can manually trigger reload
-    sessionStorage.removeItem(CHUNK_ERROR_RELOAD_KEY);
     window.location.reload();
+  };
+
+  // User-triggered, so it deliberately bypasses the auto-reload guard
+  handleForceReload = async () => {
+    this.setState({ isReloading: true });
+    await clearAppCachesAndSw();
+    window.location.replace(window.location.pathname + window.location.search);
   };
 
   render() {
     if (this.state.hasError) {
-      // Special UI for chunk loading errors (typically after deployment)
+      // Chunk loading errors (typically after deployment) reuse the shared reload surface
       if (this.state.isChunkError) {
         return (
-          <div className="min-h-screen flex items-center justify-center bg-offwhite p-4">
-            <div className="max-w-md w-full bg-white rounded-lg shadow-xl border border-gray-200 p-6">
-              <div className="text-center">
-                <svg 
-                  className="mx-auto h-12 w-12 text-blue-500 mb-4 animate-spin" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                  />
-                </svg>
-                
-                <h2 className="text-2xl font-bold text-charcoal mb-2">
-                  App Update Available
-                </h2>
-                
-                <p className="text-gray-600 mb-6">
-                  A new version of the app is available. The page will refresh automatically to load the latest version.
-                </p>
-                
-                <p className="text-sm text-gray-500 mb-6">
-                  If the page doesn&apos;t refresh automatically, please click the button below.
-                </p>
-                
-                <button
-                  onClick={this.handleReload}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-                >
-                  Refresh Now
-                </button>
-              </div>
-            </div>
-          </div>
+          <ReloadingOverlay
+            showReloadButton={this.state.showManualReload}
+            onReloadNow={this.handleForceReload}
+            isReloading={this.state.isReloading}
+          />
         );
       }
       
