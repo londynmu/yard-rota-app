@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
 import { createPortal } from 'react-dom';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import {
   countUniqueAssigned,
   normalizeAssignedEmployeeIds,
@@ -223,7 +224,7 @@ const SlotCard = ({
   }, [slot.id, slot.assigned_employees, slot.start_time, slot.end_time, sameDayCacheKey]);
 
   const handleCardMouseEnter = (e) => {
-    if (isMenuOpen) return;
+    if (showDeleteConfirm || isMenuOpen) return;
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
     if (lastFetchedCacheKeyRef.current === sameDayCacheKey && !availableLoading) {
@@ -235,6 +236,7 @@ const SlotCard = ({
   };
 
   const handleCardMouseLeave = () => {
+    if (showDeleteConfirm || isMenuOpen) return;
     setShowAvailableTooltip(false);
   };
 
@@ -274,7 +276,7 @@ const SlotCard = ({
   ]);
 
   const handleCardMouseMove = (e) => {
-    if (isMenuOpen) return;
+    if (showDeleteConfirm || isMenuOpen) return;
     if (showAvailableTooltip) {
       setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     }
@@ -382,61 +384,10 @@ const SlotCard = ({
     ? { text: 'Empty' }
     : { text: 'Partial' };
 
-  // Delete confirmation dialog (outline buttons per confirm-dialog rule)
-  const DeleteConfirmationModal = () => {
-    if (!showDeleteConfirm) return null;
-    
-    const modalContent = (
-      <div
-        className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-        onClick={() => setShowDeleteConfirm(false)}
-        role="presentation"
-      >
-        <div
-          className="relative z-10 w-full max-w-md rounded-xl border border-rota-modal-border bg-rota-modal-bg p-5 shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-delete-title"
-        >
-          <h3 id="confirm-delete-title" className="mb-3 text-xl font-semibold text-rota-text-primary">Confirm Delete</h3>
-          <p className="mb-5 text-rota-text-muted">
-            Are you sure you want to delete this slot?
-            {assignedCount > 0 && (
-              <span className="mt-2 block text-sm font-semibold text-rota-alert-error-text">
-                This slot has {assignedCount} assigned employee{assignedCount !== 1 ? 's' : ''}.
-              </span>
-            )}
-          </p>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDeleteConfirm(false);
-              }}
-              className="order-2 sm:order-1 rounded-lg border-2 border-rota-btn-outline-border bg-white px-4 py-2 text-rota-btn-outline-text transition hover:bg-rota-day-other-bg-from"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteSlot(slot.id);
-                setShowDeleteConfirm(false);
-              }}
-              className="order-1 sm:order-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white px-4 py-2 text-rota-btn-destructive-text transition hover:bg-rota-btn-destructive-hover-bg"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-    return createPortal(modalContent, document.body);
-  };
+  const deleteConfirmMessage =
+    assignedCount > 0
+      ? `Are you sure you want to delete this slot? This slot has ${assignedCount} assigned employee${assignedCount !== 1 ? 's' : ''}.`
+      : 'Are you sure you want to delete this slot?';
 
   return (
     <div
@@ -447,8 +398,17 @@ const SlotCard = ({
       onClick={() => handleOpenAssignModal(slot)}
       className={`relative overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md cursor-pointer flex flex-col flex-shrink-0 ${stateStyles.borderClass} ${stateStyles.bgClass}`}
     >
-      {/* Delete confirmation modal */}
-      <DeleteConfirmationModal />
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => handleDeleteSlot(slot.id)}
+        title="Confirm Delete"
+        message={deleteConfirmMessage}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive
+        overlayClassName="z-[99999]"
+      />
 
       {/* Available-for-slot tooltip (portal) - never show when delete confirm or actions menu is open */}
       {showAvailableTooltip && !showDeleteConfirm && !isMenuOpen &&
