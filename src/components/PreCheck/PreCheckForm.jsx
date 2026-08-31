@@ -125,7 +125,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // ─── Schema version guard ───
   const [schemaStatus, setSchemaStatus] = useState('checking'); // checking | ok | mismatch | error
-  const [schemaErrorMessage, setSchemaErrorMessage] = useState(null);
 
   useEffect(() => {
     const fetchCheckItems = async () => {
@@ -183,13 +182,12 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
             setSchemaStatus('ok');
           }
         } else {
-          setSchemaStatus('error');
-          setSchemaErrorMessage('Schema version not found in config');
+          // Missing config: continue with current form, no user-facing banner
+          setSchemaStatus('ok');
         }
       } catch (err) {
         console.error('[PreCheckForm] Schema version fetch error:', err);
-        setSchemaStatus('error');
-        setSchemaErrorMessage(err?.message || 'Unknown error');
+        setSchemaStatus('ok');
       }
     };
 
@@ -799,7 +797,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Schema version guard messages */}
+      {/* Schema version guard – only when server version is newer than this client */}
       {isSchemaMismatch && (
         <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800 flex flex-col gap-2">
           <div className="font-semibold">Your app is outdated</div>
@@ -815,13 +813,6 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
               Refresh now
             </button>
           </div>
-        </div>
-      )}
-
-      {schemaStatus === 'error' && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-          Could not verify latest form version (offline or network issue). Your current form will be used.
-          {schemaErrorMessage && <span className="block mt-1 opacity-90">{schemaErrorMessage}</span>}
         </div>
       )}
 
