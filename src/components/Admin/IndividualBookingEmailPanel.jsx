@@ -83,10 +83,8 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
       const slots = await fetchAssignedSlotsForWeek(supabase, startDate);
       const grouped = groupSlotsByPerson(slots);
       setPeople(grouped);
-      setSelectedUserId((prev) => {
-        if (prev && grouped.some((person) => person.userId === prev)) return prev;
-        return grouped[0]?.userId || '';
-      });
+      setSelectedUserId('');
+      setSearchQuery('');
     } catch (err) {
       console.error('Failed to load assigned slots for individual email', err);
       toast.error('Could not load assigned shifts for this week');
@@ -115,7 +113,22 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
   }, [selectedUserId, selectedPerson]);
 
   const query = searchQuery.trim().toLowerCase();
-  const filteredPeople = people.filter((person) => person.name.toLowerCase().includes(query));
+  const filteredPeople = useMemo(
+    () => people.filter((person) => person.name.toLowerCase().includes(query)),
+    [people, query]
+  );
+
+  useEffect(() => {
+    if (filteredPeople.length === 1) {
+      setSelectedUserId(filteredPeople[0].userId);
+      return;
+    }
+    if (!selectedUserId) return;
+    const stillVisible = filteredPeople.some((person) => person.userId === selectedUserId);
+    if (!stillVisible && query) {
+      setSelectedUserId('');
+    }
+  }, [filteredPeople, query, selectedUserId]);
 
   const selectedShiftKeySet = useMemo(() => new Set(selectedShiftKeys), [selectedShiftKeys]);
 
@@ -239,26 +252,45 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
             </svg>
           </div>
 
-          <div>
-            <label htmlFor="individual-person" className="mb-1 block text-sm font-medium text-charcoal">
-              Person
-            </label>
-            <select
-              id="individual-person"
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
-            >
-              {filteredPeople.map((person) => (
-                <option key={person.userId} value={person.userId}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-            {searchQuery && filteredPeople.length === 0 && (
-              <p className="mt-1 text-xs text-gray-500">No people match this search.</p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-charcoal">Results</p>
+            {filteredPeople.length === 0 ? (
+              <p className="text-sm text-charcoal">
+                {query ? 'No people match this search.' : 'No assigned people for this week.'}
+              </p>
+            ) : (
+              <div className="max-h-48 space-y-2 overflow-y-auto">
+                {filteredPeople.map((person) => {
+                  const isSelected = person.userId === selectedUserId;
+                  const shiftLabel = person.shifts.length === 1 ? 'shift' : 'shifts';
+                  return (
+                    <button
+                      key={person.userId}
+                      type="button"
+                      onClick={() => setSelectedUserId(person.userId)}
+                      className={`card-modern w-full p-3 text-left transition-colors ${
+                        isSelected
+                          ? 'border-charcoal bg-rota-day-other-bg-from/40 ring-1 ring-charcoal/20'
+                          : 'hover:bg-rota-day-other-bg-from/30'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-charcoal">{person.name}</span>
+                        <span className="rounded-full border border-slate-200/60 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                          {person.shifts.length} {shiftLabel}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">{person.agencyName}</p>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
+
+          {!selectedPerson && filteredPeople.length > 0 && (
+            <p className="text-sm text-gray-600">Select a person to build the email.</p>
+          )}
 
           {selectedPerson && (
             <>
