@@ -1089,7 +1089,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
 };
 
 ExportRota.propTypes = {
-  initialTab: PropTypes.oneOf(['weekly', 'additional']),
+  initialTab: PropTypes.oneOf(['weekly', 'additional', 'individual']),
   initialStartDate: PropTypes.instanceOf(Date),
   onBaselineChanged: PropTypes.func,
 };

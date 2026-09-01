@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { logSystemActivity } from '../../lib/systemActivityLog';
 import { useToast } from '../ui/ToastContext';
 import {
+  assignmentSlotKey,
   buildIndividualBookingEmail,
   buildMailtoHref,
   formatEmailForClipboard,
@@ -19,6 +20,16 @@ import { fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBas
 const outlineBtn =
   'px-4 py-2 rounded-lg border-2 border-rota-text-primary bg-white text-rota-text-primary hover:bg-rota-day-other-bg-from transition-colors text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50';
 
+function buildShiftKey(userId, shift) {
+  return assignmentSlotKey({
+    user_id: userId,
+    date: shift.date,
+    start_time: shift.start_time,
+    end_time: shift.end_time,
+    location: shift.location,
+  });
+}
+
 function groupSlotsByPerson(slots) {
   const byPerson = new Map();
   for (const slot of slots || []) {
@@ -33,13 +44,15 @@ function groupSlotsByPerson(slots) {
         shifts: [],
       });
     }
-    byPerson.get(slot.user_id).shifts.push({
+    const shift = {
       date: slot.date,
       shift_type: slot.shift_type || '',
       start_time: formatShiftClock(slot.start_time),
       end_time: formatShiftClock(slot.end_time),
       location: slot.location || '',
-    });
+    };
+    shift.key = buildShiftKey(slot.user_id, shift);
+    byPerson.get(slot.user_id).shifts.push(shift);
   }
 
   return Array.from(byPerson.values())
@@ -59,7 +72,7 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
   const [loading, setLoading] = useState(false);
   const [people, setPeople] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedDates, setSelectedDates] = useState([]);
+  const [selectedShiftKeys, setSelectedShiftKeys] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const weekIso = weekStartIso(startDate);
@@ -95,28 +108,44 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
 
   useEffect(() => {
     if (!selectedPerson) {
-      setSelectedDates([]);
+      setSelectedShiftKeys([]);
       return;
     }
-    setSelectedDates(selectedPerson.shifts.map((shift) => shift.date));
+    setSelectedShiftKeys(selectedPerson.shifts.map((shift) => shift.key));
   }, [selectedUserId, selectedPerson]);
 
   const query = searchQuery.trim().toLowerCase();
   const filteredPeople = people.filter((person) => person.name.toLowerCase().includes(query));
 
+  const selectedShiftKeySet = useMemo(() => new Set(selectedShiftKeys), [selectedShiftKeys]);
+
   const selectedShifts = useMemo(() => {
     if (!selectedPerson) return [];
-    const dateSet = new Set(selectedDates);
-    return selectedPerson.shifts.filter((shift) => dateSet.has(shift.date));
-  }, [selectedPerson, selectedDates]);
+    return selectedPerson.shifts.filter((shift) => selectedShiftKeySet.has(shift.key));
+  }, [selectedPerson, selectedShiftKeySet]);
 
-  const toggleDate = (date) => {
-    setSelectedDates((prev) =>
-      prev.includes(date) ? prev.filter((item) => item !== date) : [...prev, date].sort()
+  const emailDraft = useMemo(() => {
+    if (!selectedPerson || selectedShifts.length === 0) return null;
+    return buildIndividualBookingEmail({
+      weekStartIso: weekIso,
+      personName: selectedPerson.name,
+      shifts: selectedShifts,
+    });
+  }, [selectedPerson, selectedShifts, weekIso]);
+
+  const agencyEmails = useMemo(
+    () => parseAgencyEmails(selectedPerson?.agencyEmail),
+    [selectedPerson?.agencyEmail]
+  );
+
+  const toggleShift = (shiftKey) => {
+    setSelectedShiftKeys((prev) =>
+      prev.includes(shiftKey) ? prev.filter((key) => key !== shiftKey) : [...prev, shiftKey]
     );
   };
 
   const copyEmail = async (email) => {
+    if (!email) return;
     try {
       await navigator.clipboard.writeText(formatEmailForClipboard(email));
       toast.success('Email copied to clipboard');
@@ -132,23 +161,21 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
       return;
     }
     if (selectedShifts.length === 0) {
-      toast.warning('Select at least one day');
+      toast.warning('Select at least one shift');
       return;
     }
-
-    const emails = parseAgencyEmails(selectedPerson.agencyEmail);
-    if (!emails.length) {
+    if (!agencyEmails.length) {
       toast.error('This agency has no email address');
       return;
     }
+    if (!emailDraft) return;
 
-    const email = buildIndividualBookingEmail({
-      weekStartIso: weekIso,
-      personName: selectedPerson.name,
-      shifts: selectedShifts,
+    const href = buildMailtoHref({
+      emails: agencyEmails,
+      subject: emailDraft.subject,
+      body: emailDraft.body,
     });
-    const href = buildMailtoHref({ emails, subject: email.subject, body: email.body });
-    const tooLong = isMailtoTooLong(href, email.body);
+    const tooLong = isMailtoTooLong(href, emailDraft.body);
 
     try {
       await logSystemActivity(supabase, currentUser, {
@@ -169,7 +196,7 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
     }
 
     if (tooLong) {
-      await copyEmail(email);
+      await copyEmail(emailDraft);
       toast.warning('Email is too long for the mail app. It was copied instead.');
       return;
     }
@@ -178,10 +205,12 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
     toast.success('Email draft prepared');
   };
 
+  const canSend = selectedShifts.length > 0 && agencyEmails.length > 0;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Create an agency email for a specific person and day at any time. This does not change the sent baseline.
+        Shifts loaded from rota for this week. Select which shifts to include in the email. This does not change the sent baseline.
       </p>
 
       {loading ? (
@@ -234,19 +263,19 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
           {selectedPerson && (
             <>
               <div>
-                <p className="mb-2 text-sm font-medium text-charcoal">Days</p>
+                <p className="mb-2 text-sm font-medium text-charcoal">Shifts from rota</p>
                 <div className="space-y-2">
                   {selectedPerson.shifts.map((shift) => {
-                    const checked = selectedDates.includes(shift.date);
+                    const checked = selectedShiftKeySet.has(shift.key);
                     return (
                       <label
-                        key={`${shift.date}|${shift.start_time}|${shift.location}`}
+                        key={shift.key}
                         className="flex items-start gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-charcoal"
                       >
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggleDate(shift.date)}
+                          onChange={() => toggleShift(shift.key)}
                           className="mt-0.5"
                         />
                         <span>
@@ -260,35 +289,57 @@ export default function IndividualBookingEmailPanel({ startDate, currentUser }) 
                 </div>
               </div>
 
-              <div className="card-modern p-4 space-y-2">
-                <p className="text-sm font-medium text-charcoal">Preview</p>
-                <p className="text-xs text-gray-500">
-                  {selectedPerson.agencyName}
-                  {selectedPerson.agencyEmail ? ` · ${selectedPerson.agencyEmail}` : ' · No email on file'}
-                </p>
+              <div className="card-modern p-4 space-y-3">
+                <p className="text-sm font-medium text-charcoal">Email draft</p>
                 {selectedShifts.length === 0 ? (
-                  <p className="text-sm text-gray-600">Select at least one day to include in the email.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm text-gray-600">
-                    {selectedShifts.map((shift) => (
-                      <li key={`preview-${shift.date}|${shift.start_time}|${shift.location}`}>
-                        {formatShiftDayLabel(shift.date)}, {formatShiftTypeLabel(shift.shift_type)},{' '}
-                        {shift.start_time}-{shift.end_time}
-                        {shift.location ? `, ${shift.location}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                  <p className="text-sm text-gray-600">Select at least one shift to build the email.</p>
+                ) : emailDraft ? (
+                  <>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">To</p>
+                      <p className="text-charcoal">
+                        {selectedPerson.agencyName}
+                        {agencyEmails.length > 0 ? ` · ${agencyEmails.join(', ')}` : ' · No email on file'}
+                      </p>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Subject</p>
+                      <p className="text-charcoal">{emailDraft.subject}</p>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <label htmlFor="individual-email-body" className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Body
+                      </label>
+                      <textarea
+                        id="individual-email-body"
+                        readOnly
+                        value={emailDraft.body}
+                        rows={10}
+                        className="w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-charcoal focus:outline-none"
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
 
-              <button
-                type="button"
-                className={outlineBtn}
-                disabled={selectedShifts.length === 0}
-                onClick={createEmail}
-              >
-                Create email
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={outlineBtn}
+                  disabled={!emailDraft}
+                  onClick={() => copyEmail(emailDraft)}
+                >
+                  Copy email
+                </button>
+                <button
+                  type="button"
+                  className={outlineBtn}
+                  disabled={!canSend}
+                  onClick={createEmail}
+                >
+                  Create email
+                </button>
+              </div>
             </>
           )}
         </div>

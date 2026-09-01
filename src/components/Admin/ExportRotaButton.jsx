@@ -102,7 +102,7 @@ ExportRotaButton.propTypes = {
   iconOnly: PropTypes.bool,
   weekStart: PropTypes.instanceOf(Date),
   pendingCount: PropTypes.number,
-  initialTab: PropTypes.oneOf(['weekly', 'additional']),
+  initialTab: PropTypes.oneOf(['weekly', 'additional', 'individual']),
   onBaselineChanged: PropTypes.func,
 };
 
