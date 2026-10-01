@@ -7,6 +7,7 @@ import {
   countUniqueAssigned,
   normalizeAssignedEmployeeIds,
 } from '../../../utils/rotaAssignedEmployees';
+import { matchesSlotLocation } from '../../../utils/rotaLocationMatch';
 import {
   buildDayConflictCacheKey,
   collectSameDayConflictIds,
@@ -148,15 +149,9 @@ const SlotCard = ({
   const fetchAvailableForSlot = async () => {
     const slotDate = slot.date;
     const assignedSet = new Set(normalizeAssignedEmployeeIds(assignedEmployeesRef.current || []));
-    const normalizedSlotLocation = (slot?.location || '').trim().toLowerCase();
     const normalizedSlotShift = (slot?.shift_type || '').trim().toLowerCase();
 
     const normalizePref = (v) => (v || '').trim().toLowerCase() || '';
-    const matchesLocation = (preferredLocation) => {
-      const p = normalizePref(preferredLocation);
-      if (!p || ['both', 'all', 'any'].includes(p)) return true;
-      return p === normalizedSlotLocation;
-    };
     const matchesShift = (shiftPreference) => {
       if (!shiftPreference) return true;
       return normalizePref(shiftPreference) === normalizedSlotShift;
@@ -173,7 +168,7 @@ const SlotCard = ({
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, preferred_location, shift_preference')
+        .select('id, first_name, last_name, preferred_location, additional_locations, shift_preference')
         .eq('is_active', true)
         .order('first_name');
 
@@ -224,7 +219,7 @@ const SlotCard = ({
         if (overlappingConflictIds.has(profile.id) || breakConflictIds.has(profile.id)) return false;
         if (!isAvailableToday) return false;
         if (!matchesShift(profile.shift_preference)) return false;
-        if (!matchesLocation(profile.preferred_location)) return false;
+        if (!matchesSlotLocation(profile.preferred_location, profile.additional_locations, slot?.location)) return false;
         return true;
       });
 

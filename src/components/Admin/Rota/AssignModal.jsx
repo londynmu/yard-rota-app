@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { format, parseISO } from 'date-fns';
 import { countUniqueAssigned } from '../../../utils/rotaAssignedEmployees';
+import { hasDifferentSlotLocation, matchesSlotLocation } from '../../../utils/rotaLocationMatch';
 import UserNoteModal from './UserNoteModal';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
@@ -23,24 +24,15 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [isTaskSectionExpanded, setIsTaskSectionExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const normalizedSlotLocation = slot?.location?.trim().toLowerCase() || '';
   const normalizedSlotShift = slot?.shift_type?.trim().toLowerCase() || '';
 
   const normalizePreferenceValue = (value) => value?.trim().toLowerCase() || '';
 
-  const matchesLocationPreference = (preferredLocation) => {
-    const normalizedPref = normalizePreferenceValue(preferredLocation);
-    if (!normalizedPref) return true;
-    if (['both', 'all', 'any'].includes(normalizedPref)) return true;
-    return normalizedPref === normalizedSlotLocation;
-  };
+  const matchesLocationPreference = (preferredLocation, additionalLocations) =>
+    matchesSlotLocation(preferredLocation, additionalLocations, slot?.location);
 
-  const hasDifferentLocationPreference = (preferredLocation) => {
-    const normalizedPref = normalizePreferenceValue(preferredLocation);
-    if (!normalizedPref) return false;
-    if (['both', 'all', 'any'].includes(normalizedPref)) return false;
-    return normalizedPref !== normalizedSlotLocation;
-  };
+  const hasDifferentLocationPreference = (preferredLocation, additionalLocations) =>
+    hasDifferentSlotLocation(preferredLocation, additionalLocations, slot?.location);
 
   const matchesShiftPreference = (shiftPreference) => {
     if (!shiftPreference) return true;
@@ -182,6 +174,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             last_name, 
             avatar_url, 
             preferred_location,
+            additional_locations,
             shift_preference,
             custom_start_time,
             custom_end_time,
@@ -350,7 +343,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           }
           
           // Location preference match
-          if (profile.preferred_location && matchesLocationPreference(profile.preferred_location)) {
+          if (profile.preferred_location && matchesLocationPreference(profile.preferred_location, profile.additional_locations)) {
             matchScore += 3; // Increased weight
           }
           
@@ -566,8 +559,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     return availableEmployees.filter(employee => {
       const availabilityStatus = employee.availabilityStatus?.toLowerCase() || 'unknown';
       const isAvailableToday = availabilityStatus === 'available';
-      const locationMatches = matchesLocationPreference(employee.preferred_location);
-      const locationDifferent = hasDifferentLocationPreference(employee.preferred_location);
+      const locationMatches = matchesLocationPreference(employee.preferred_location, employee.additional_locations);
+      const locationDifferent = hasDifferentLocationPreference(employee.preferred_location, employee.additional_locations);
       const shiftMatches = matchesShiftPreference(employee.shift_preference);
 
       let matchesTab = true;

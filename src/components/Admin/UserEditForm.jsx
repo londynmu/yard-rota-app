@@ -27,6 +27,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   // Rota Planner fields
   const [customStartTime, setCustomStartTime] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
+  const [additionalLocations, setAdditionalLocations] = useState([]);
   const [locations, setLocations] = useState([]);
   
   // Agency field
@@ -97,6 +98,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       setAvatarUrl(normalizeAvatarStorageUrl(user.avatar_url) || null);
       setCustomStartTime(user.custom_start_time || '');
       setPreferredLocation(user.preferred_location || '');
+      setAdditionalLocations(
+        Array.isArray(user.additional_locations) ? user.additional_locations : []
+      );
       setAgencyId(user.agency_id || null);
     }
   }, [user]);
@@ -201,6 +205,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         // Rota Planner fields
         custom_start_time: customStartTime || null,
         preferred_location: preferredLocation || null,
+        additional_locations: additionalLocations.filter(
+          (name) => name && name !== preferredLocation
+        ),
         // Agency field
         agency_id: agencyId
       };
@@ -539,7 +546,11 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                   <select
                     id="admin-edit-location"
                     value={preferredLocation || ''}
-                    onChange={(e) => setPreferredLocation(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setPreferredLocation(next);
+                      setAdditionalLocations((current) => current.filter((name) => name !== next));
+                    }}
                     className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                     disabled={loading}
                   >
@@ -548,6 +559,37 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                       <option key={location.id} value={location.name}>{location.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="md:col-span-3">
+                  <p className="block text-charcoal font-medium mb-1.5 text-sm">Also works at</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {locations
+                      .filter((location) => location.name !== preferredLocation)
+                      .map((location) => {
+                        const checked = additionalLocations.includes(location.name);
+                        return (
+                          <label key={location.id} className="inline-flex items-center gap-2 text-sm text-charcoal">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={loading}
+                              onChange={() => {
+                                setAdditionalLocations((current) => (
+                                  checked
+                                    ? current.filter((name) => name !== location.name)
+                                    : [...current, location.name]
+                                ));
+                              }}
+                            />
+                            {location.name}
+                          </label>
+                        );
+                      })}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Shows this person as available when planning those yards too.
+                  </p>
                 </div>
               </div>
               
