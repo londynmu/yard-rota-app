@@ -1876,41 +1876,53 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   
   // Removed debug useEffect
   
-  // Filter staff that are eligible for this slot - restore proper filtering
-  const eligibleStaffRaw = availableStaff.filter(staff => {
-    if (!staff) return false;
-    
-    // Check if staff is already assigned to THIS slot
-    if (assignedStaff.some(assigned => assigned.user_id === staff.id)) {
-        return false; // Already assigned here
-    }
-    
-    // For Day shift, handle 15/45 min breaks differently
+  const assignmentByUserId = new Map(
+    assignedStaff.map(assignment => [assignment.user_id, assignment])
+  );
+
+  const canTakeThisSlot = (staff) => {
     if (slot.break_type?.includes('15 min')) {
-      // For 15 min break, staff can be assigned if they don't already have a 15 min break
-      return staff.has_break_15 !== true; // Allow undefined or false
-    } else if (slot.break_type?.includes('45 min')) {
-      // For 45 min break, staff can be assigned if they don't already have a 45 min break
-      return staff.has_break_45 !== true; // Allow undefined or false
-    } else {
-      // For other breaks (Night, Afternoon), staff can have only 60 min total
-      // Calculate remaining break time they can take
-      const totalBreakMinutes = staff.total_break_minutes || 0; // Handle undefined
-      const remainingMinutes = 60 - totalBreakMinutes;
-      return remainingMinutes >= slot.duration_minutes;
+      return staff.has_break_15 !== true;
     }
+    if (slot.break_type?.includes('45 min')) {
+      return staff.has_break_45 !== true;
+    }
+    const totalBreakMinutes = staff.total_break_minutes || 0;
+    return 60 - totalBreakMinutes >= slot.duration_minutes;
+  };
+
+  // People on this slot stay in the list. Others are hidden once this break type is used.
+  const listedFromAvailable = availableStaff.filter(staff => {
+    if (!staff) return false;
+    if (assignmentByUserId.has(staff.id)) return true;
+    return canTakeThisSlot(staff);
   });
 
-  // Sort by preferred break time (avg from last 30 days) - closer to slot time first
-  const eligibleStaff = (() => {
-    if (!timeToMinutes || typeof preferredBreakMinutesByUserId !== 'object') return eligibleStaffRaw;
+  const listedIds = new Set(listedFromAvailable.map(staff => staff.id));
+  const orphanStaff = assignedStaff
+    .filter(assignment => assignment.user_id && !listedIds.has(assignment.user_id))
+    .map(assignment => {
+      const parts = (assignment.user_name || '').trim().split(/\s+/);
+      return {
+        id: assignment.user_id,
+        first_name: parts[0] || '',
+        last_name: parts.slice(1).join(' '),
+        preferred_shift: assignment.preferred_shift || '',
+        total_break_minutes: 0,
+      };
+    });
+
+  const sortByPreferredTime = (rows) => {
+    if (!timeToMinutes || typeof preferredBreakMinutesByUserId !== 'object') return rows;
     const slotMin = timeToMinutes(slot.start_time);
-    return [...eligibleStaffRaw].sort((a, b) => {
+    return [...rows].sort((a, b) => {
       const prefA = preferredBreakMinutesByUserId[a.id] ?? 9999;
       const prefB = preferredBreakMinutesByUserId[b.id] ?? 9999;
       return Math.abs(prefA - slotMin) - Math.abs(prefB - slotMin);
     });
-  })();
+  };
+
+  const displayStaff = [...sortByPreferredTime(listedFromAvailable), ...orphanStaff];
   
   // Check if we have no staff after filtering
   // Removed debug useEffect
@@ -1981,92 +1993,58 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
           </div>
         )}
         
-        {/* Currently Assigned Staff */}
-        <div className="px-2 py-2 md:px-4 md:py-3 border-b border-gray-200">
-          <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 md:mb-3">Currently Assigned</h4>
-          {assignedStaff.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-              {assignedStaff.map(staff => (
-                <div 
-                  key={staff.id} 
-                  className="flex justify-between items-center bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-4 md:py-2.5 rounded-lg shadow-md group"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {/* Avatar circle with initial */}
-                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-base text-white bg-orange-600 shadow-md">
-                      {staff.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-base md:text-lg font-bold text-charcoal">{staff.user_name}</div>
-                      <div className="text-sm md:text-base text-gray-600">{staff.preferred_shift}</div>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => onRemoveStaff(staff)}
-                    className="flex-shrink-0 text-red-600 hover:text-red-800 hover:bg-red-100 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
-                    aria-label="Remove staff member"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-2 md:py-3 text-gray-500 italic text-base md:text-lg">
-              No staff assigned to this slot yet
-            </div>
-          )}
-        </div>
-        
-        {/* Available Staff List */}
         <div className="p-2 md:p-4">
-          <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 md:mb-3">Available Staff</h4>
-          
-          {availableStaff.length === 0 ? (
-            <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
-              No available staff
-            </div>
-          ) : eligibleStaff.length === 0 ? (
+          {displayStaff.length === 0 ? (
             <div className="text-center py-4 md:py-6 text-gray-500 text-base md:text-lg">
               No available staff
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-              {eligibleStaff.map(staff => (
-                <button 
+              {displayStaff.map(staff => {
+                const assignment = assignmentByUserId.get(staff.id);
+                const isAssigned = Boolean(assignment);
+                const locked = isProcessing || isAllLocation;
+                const initials = `${staff.first_name?.[0] || ''}${staff.last_name?.[0] || ''}`.toUpperCase() || '?';
+                return (
+                <button
                   key={staff.id}
-                   disabled={isProcessing || isAllLocation}
+                  disabled={locked}
                   onClick={async () => {
-                    if (isAllLocation) return;
+                    if (locked) return;
                     setIsProcessing(true);
-                    await onAssignStaff(staff, slot);
+                    if (isAssigned) {
+                      await onRemoveStaff(assignment);
+                    } else {
+                      await onAssignStaff(staff, slot);
+                    }
                     setIsProcessing(false);
                   }}
                   className={`w-full text-left flex items-center justify-between px-3 py-2 md:px-4 md:py-2.5 rounded-lg transition-all duration-200 ${
-                     isProcessing || isAllLocation
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
-                      : 'bg-gray-100 border-2 border-gray-300 hover:bg-gray-200 hover:border-gray-500 hover:shadow-md focus:bg-gray-200 shadow-sm'
+                    locked
+                      ? isAssigned
+                        ? 'cursor-not-allowed border-2 border-orange-300 bg-gray-200 text-gray-500'
+                        : 'cursor-not-allowed border-2 border-gray-200 bg-gray-100 text-gray-400'
+                      : isAssigned
+                        ? 'border-2 border-orange-500 bg-gray-200 shadow-md'
+                        : 'border-2 border-gray-300 bg-gray-100 shadow-sm hover:border-gray-500 hover:bg-gray-200 hover:shadow-md focus:bg-gray-200'
                   }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {/* Avatar circle with initial */}
-                    <div className="flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-base text-orange-700 bg-orange-50 shadow-md">
-                      {`${staff.first_name[0]}${staff.last_name[0]}`.toUpperCase()}
+                    <div className={`flex-shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-orange-400 flex items-center justify-center font-bold text-sm md:text-base shadow-md ${
+                      isAssigned ? 'text-white bg-orange-600' : 'text-orange-700 bg-orange-50'
+                    }`}>
+                      {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-base md:text-lg font-bold text-charcoal">{staff.first_name} {staff.last_name}</div>
                       <div className="text-sm md:text-base text-gray-600">
-                        {staff.preferred_shift} 
-                        {/* For Day shift, show which breaks are already assigned */}
+                        {staff.preferred_shift}
                         {staff.preferred_shift?.toLowerCase() === 'day' && (
                           <span className="ml-2">
                             {staff.has_break_15 && <span className="inline-block px-2 py-0.5 bg-orange-200 text-orange-900 border border-orange-400 rounded text-xs md:text-sm mr-1 font-medium">15m</span>}
                             {staff.has_break_45 && <span className="inline-block px-2 py-0.5 bg-green-200 text-green-900 border border-green-400 rounded text-xs md:text-sm font-medium">45m</span>}
                           </span>
                         )}
-                        {/* For others, show remaining break time */}
                         {staff.preferred_shift?.toLowerCase() !== 'day' && (
                           <span className="ml-2">
                             {staff.total_break_minutes || 0}/60 min used
@@ -2075,11 +2053,18 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                       </div>
                     </div>
                   </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-orange-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  {isAssigned ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-red-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-label="Remove staff member">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-7 md:w-7 text-orange-600 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-label="Assign to break">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  )}
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
