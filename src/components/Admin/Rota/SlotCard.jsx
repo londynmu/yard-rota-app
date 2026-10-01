@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../lib/supabaseClient';
 import { createPortal } from 'react-dom';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import {
   countUniqueAssigned,
   normalizeAssignedEmployeeIds,
@@ -24,6 +25,8 @@ const SlotCard = ({
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
   // Available-for-slot tooltip
   const [showAvailableTooltip, setShowAvailableTooltip] = useState(false);
@@ -37,8 +40,12 @@ const SlotCard = ({
   const dayConflictCacheKeyRef = useRef('');
   const cardRef = useRef(null);
   const availableTooltipRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const menuRef = useRef(null);
 
   const TOOLTIP_OFFSET = 14;
+  const MENU_WIDTH = 176; // w-44
+  const MENU_ESTIMATED_HEIGHT = 92;
   
   // Check if slot has assigned employees array
   const assignedCount = countUniqueAssigned(slot.assigned_employees);
@@ -231,6 +238,7 @@ const SlotCard = ({
   };
 
   const handleCardMouseEnter = (e) => {
+    if (showDeleteConfirm || isMenuOpen) return;
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
     const cacheKey = dayConflictCacheKeyRef.current;
@@ -243,12 +251,13 @@ const SlotCard = ({
   };
 
   const handleCardMouseLeave = () => {
+    if (showDeleteConfirm || isMenuOpen) return;
     setShowAvailableTooltip(false);
   };
 
   // Keep cursor-following tooltip fully inside the viewport (fixed + portal)
   useLayoutEffect(() => {
-    if (!showAvailableTooltip || showDeleteConfirm) return;
+    if (!showAvailableTooltip || showDeleteConfirm || isMenuOpen) return;
     const el = availableTooltipRef.current;
     if (!el || typeof window === 'undefined') return;
 
@@ -274,6 +283,7 @@ const SlotCard = ({
   }, [
     showAvailableTooltip,
     showDeleteConfirm,
+    isMenuOpen,
     tooltipPosition.x,
     tooltipPosition.y,
     availableLoading,
@@ -281,10 +291,59 @@ const SlotCard = ({
   ]);
 
   const handleCardMouseMove = (e) => {
+    if (showDeleteConfirm || isMenuOpen) return;
     if (showAvailableTooltip) {
       setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     }
   };
+
+  const handleMenuButtonClick = (e) => {
+    e.stopPropagation();
+    if (isMenuOpen) {
+      setIsMenuOpen(false);
+      return;
+    }
+    const rect = menuButtonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - MENU_WIDTH - margin);
+    const left = Math.min(Math.max(margin, rect.right - MENU_WIDTH), maxLeft);
+    let top = rect.bottom + 6;
+    if (top + MENU_ESTIMATED_HEIGHT > window.innerHeight - margin) {
+      top = Math.max(margin, rect.top - MENU_ESTIMATED_HEIGHT - 6);
+    }
+
+    setShowAvailableTooltip(false);
+    setMenuPosition({ x: left, y: top });
+    setIsMenuOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current?.contains(event.target)) return;
+      if (menuButtonRef.current?.contains(event.target)) return;
+      setIsMenuOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+    const closeMenu = () => setIsMenuOpen(false);
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu);
+    };
+  }, [isMenuOpen]);
 
   const formatTime = (timeString) => {
     return timeString.substring(0, 5); // HH:MM format
@@ -339,61 +398,10 @@ const SlotCard = ({
     ? { text: 'Empty' }
     : { text: 'Partial' };
 
-  // Delete confirmation dialog (outline buttons per confirm-dialog rule)
-  const DeleteConfirmationModal = () => {
-    if (!showDeleteConfirm) return null;
-    
-    const modalContent = (
-      <div
-        className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-        onClick={() => setShowDeleteConfirm(false)}
-        role="presentation"
-      >
-        <div
-          className="relative z-10 w-full max-w-md rounded-xl border border-rota-modal-border bg-rota-modal-bg p-5 shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-delete-title"
-        >
-          <h3 id="confirm-delete-title" className="mb-3 text-xl font-semibold text-rota-text-primary">Confirm Delete</h3>
-          <p className="mb-5 text-rota-text-muted">
-            Are you sure you want to delete this slot?
-            {assignedCount > 0 && (
-              <span className="mt-2 block text-sm font-semibold text-rota-alert-error-text">
-                This slot has {assignedCount} assigned employee{assignedCount !== 1 ? 's' : ''}.
-              </span>
-            )}
-          </p>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDeleteConfirm(false);
-              }}
-              className="order-2 sm:order-1 rounded-lg border-2 border-rota-btn-outline-border bg-white px-4 py-2 text-rota-btn-outline-text transition hover:bg-rota-day-other-bg-from"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteSlot(slot.id);
-                setShowDeleteConfirm(false);
-              }}
-              className="order-1 sm:order-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white px-4 py-2 text-rota-btn-destructive-text transition hover:bg-rota-btn-destructive-hover-bg"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-    return createPortal(modalContent, document.body);
-  };
+  const deleteConfirmMessage =
+    assignedCount > 0
+      ? `Are you sure you want to delete this slot? This slot has ${assignedCount} assigned employee${assignedCount !== 1 ? 's' : ''}.`
+      : 'Are you sure you want to delete this slot?';
 
   return (
     <div
@@ -404,11 +412,22 @@ const SlotCard = ({
       onClick={() => handleOpenAssignModal(slot)}
       className={`relative overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md cursor-pointer flex flex-col flex-shrink-0 ${stateStyles.borderClass} ${stateStyles.bgClass}`}
     >
-      {/* Delete confirmation modal */}
-      <DeleteConfirmationModal />
+      <div onClick={(e) => e.stopPropagation()}>
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => handleDeleteSlot(slot.id)}
+          title="Confirm Delete"
+          message={deleteConfirmMessage}
+          confirmText="Delete"
+          cancelText="Cancel"
+          isDestructive
+          overlayClassName="z-[99999]"
+        />
+      </div>
 
-      {/* Available-for-slot tooltip (portal) - never show when delete confirm is open */}
-      {showAvailableTooltip && !showDeleteConfirm &&
+      {/* Available-for-slot tooltip (portal) - never show when delete confirm or actions menu is open */}
+      {showAvailableTooltip && !showDeleteConfirm && !isMenuOpen &&
         createPortal(
           (() => {
             return (
@@ -448,14 +467,35 @@ const SlotCard = ({
           document.body
         )}
       
-      {/* HEADER: Czas + Capacity */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-rota-toolbar-border">
-        <span className="text-lg font-semibold text-rota-text-primary">
+      {/* HEADER: Czas + liczba osob + menu akcji */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-rota-toolbar-border">
+        <span className="truncate text-lg font-semibold text-rota-text-primary">
           {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
         </span>
-        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-sm font-semibold shrink-0 ${stateStyles.badgeClass}`}>
-          {assignedCount}/{slot.capacity}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm font-semibold ${stateStyles.badgeClass}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+            </svg>
+            {assignedCount}
+          </span>
+          {isAdmin && (
+            <button
+              ref={menuButtonRef}
+              type="button"
+              onClick={handleMenuButtonClick}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              aria-label="Slot actions"
+              title="Slot actions"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-rota-text-muted transition-colors hover:bg-rota-day-other-bg-from hover:text-rota-text-primary"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       
       {/* BODY: Employees list - flex-grow wypycha footer na dół */}
@@ -483,40 +523,54 @@ const SlotCard = ({
         )}
       </div>
       
-      {/* FOOTER: Action buttons - przedzielone na pół, Edit left / Delete right */}
-      {isAdmin && (
-        <div className="grid grid-cols-2 border-t border-rota-toolbar-border mt-auto">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (typeof handleOpenEditModal === 'function') {
-                handleOpenEditModal(slot);
-              }
-            }}
-            className="flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-rota-text-primary bg-transparent hover:bg-rota-day-other-bg-from/60 transition-colors"
-            title="Edit shift"
+      {/* Actions menu (portal) - card has overflow-hidden, so it must escape the card */}
+      {isAdmin && isMenuOpen &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[99998] w-44 overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg py-1 shadow-lg"
+            style={{ left: menuPosition.x, top: menuPosition.y }}
+            onClick={(e) => e.stopPropagation()}
+            role="menu"
+            aria-label="Slot actions"
+            tabIndex={-1}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            Edit
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAvailableTooltip(false);
-              setShowDeleteConfirm(true);
-            }}
-            className="flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-rota-text-primary bg-transparent hover:bg-rota-btn-destructive-hover-bg transition-colors"
-            title="Delete shift"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(false);
+                if (typeof handleOpenEditModal === 'function') {
+                  handleOpenEditModal(slot);
+                }
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Edit slot
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(false);
+                setShowAvailableTooltip(false);
+                setShowDeleteConfirm(true);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-btn-destructive-text transition-colors hover:bg-rota-btn-destructive-hover-bg"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete slot
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

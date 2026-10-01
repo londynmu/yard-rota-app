@@ -1329,16 +1329,16 @@ const RotaManager = ({ user }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Responsive Toolbar - 3 sekcje */}
-      <div className="sticky top-0 z-40 bg-rota-toolbar-bg border-b border-rota-toolbar-border shadow-sm py-3">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-center">
-          {/* LEWA - Location dropdown (mobile: center, desktop: left) */}
-          <div className="flex items-center justify-center lg:justify-start">
+    <div className="space-y-3 sm:space-y-6">
+      {/* Responsive Toolbar – mobile: 2 rows, desktop: 3 columns */}
+      <div className="sticky top-0 z-40 bg-rota-toolbar-bg border-b border-rota-toolbar-border shadow-sm py-2 sm:py-3">
+        <div className="flex flex-wrap items-center gap-2 lg:grid lg:grid-cols-3 lg:gap-3">
+          {/* Location + view toggle */}
+          <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:justify-start">
             <select
               value={selectedLocation || (locations[0]?.name ?? '')}
               onChange={(e) => handleLocationTabClick(e.target.value)}
-              className="h-10 min-w-[120px] px-4 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer"
+              className="h-9 flex-1 min-w-0 truncate px-2.5 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer sm:h-10 sm:px-4 lg:flex-none lg:min-w-[120px]"
               aria-label="Select location"
             >
               {locations.map((location) => (
@@ -1347,25 +1347,37 @@ const RotaManager = ({ user }) => {
                 </option>
               ))}
             </select>
-          </div>
-          
-          {/* ŚRODEK - View dropdown + Date / Week navigation */}
-          <div className="flex flex-col sm:flex-row items-center gap-2">
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value)}
-              className="h-10 min-w-[100px] px-4 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer"
+
+            <div
+              className="flex h-9 shrink-0 items-center rounded-lg border-2 border-rota-input-border bg-rota-toolbar-bg p-0.5 sm:h-10"
+              role="group"
               aria-label="Select view"
             >
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-            </select>
+              {['day', 'week'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  aria-pressed={viewMode === mode}
+                  className={`h-full rounded-md px-3 text-sm font-semibold capitalize transition-colors ${
+                    viewMode === mode
+                      ? 'bg-rota-modal-bg text-rota-text-primary shadow-sm'
+                      : 'text-rota-text-muted hover:text-rota-text-primary'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {/* Date / week navigation */}
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:justify-center">
             {viewMode === 'day' ? (
-              <div className="flex items-center h-10 bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm">
+              <div className="flex h-9 min-w-0 flex-1 items-center bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm sm:h-10 lg:flex-none">
                 <button 
                   onClick={goToPreviousDay}
-                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg"
+                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg sm:px-3"
                   aria-label="Previous day"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1373,8 +1385,8 @@ const RotaManager = ({ user }) => {
                   </svg>
                 </button>
                 
-                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border">
-                  <span>{formatDisplayDate(currentDate)}</span>
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border sm:gap-2 sm:px-3 lg:flex-none">
+                  <span className="truncate">{formatDisplayDate(currentDate)}</span>
                   <span>{getDayShort(currentDate)}</span>
                   <button 
                     onClick={() => document.getElementById('date-select').showPicker()}
@@ -1396,7 +1408,7 @@ const RotaManager = ({ user }) => {
                 
                 <button 
                   onClick={goToNextDay}
-                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg"
+                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg sm:px-3"
                   aria-label="Next day"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1405,22 +1417,22 @@ const RotaManager = ({ user }) => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center h-10 bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm">
+              <div className="flex h-9 min-w-0 flex-1 items-center bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm sm:h-10 lg:flex-none">
                 <button 
                   onClick={goToPreviousWeek}
-                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg"
+                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg sm:px-3"
                   aria-label="Previous week"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </button>
-                <div className="flex items-center gap-2 px-3 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border min-w-[140px] justify-center">
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border sm:px-3 lg:flex-none lg:min-w-[140px]">
                   <span>Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}</span>
                 </div>
                 <button 
                   onClick={goToNextWeek}
-                  className="h-full px-3 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg"
+                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg sm:px-3"
                   aria-label="Next week"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1433,30 +1445,30 @@ const RotaManager = ({ user }) => {
               <button
                 type="button"
                 onClick={goToCurrentWeek}
-                className="h-10 px-3 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg whitespace-nowrap"
+                className="h-9 shrink-0 px-2 text-xs font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg whitespace-nowrap sm:h-10 sm:px-3 sm:text-sm"
               >
                 Current week
               </button>
             )}
           </div>
           
-          {/* PRAWA - Akcje (mobile: center, desktop: right) */}
-          <div className="flex items-center gap-2 justify-center lg:justify-end">
+          {/* Actions (icons on mobile, labelled from sm) */}
+          <div className="flex shrink-0 items-center gap-1.5 lg:justify-end lg:gap-2">
             <button
               onClick={handleCopyFromPreviousWeek}
-              className="h-10 px-3 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all text-sm font-semibold"
-              title="Copy slots from previous week"
+              className="h-9 w-9 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all text-sm font-semibold sm:h-10 sm:w-auto sm:px-3"
+              title="Copy last week"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                 <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
               </svg>
-              Copy last week
+              <span className="hidden sm:inline">Copy last week</span>
             </button>
             
             <button
               onClick={openTemplateModal}
-              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all"
+              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all sm:h-10 sm:w-10"
               title="Templates"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1465,7 +1477,7 @@ const RotaManager = ({ user }) => {
               </svg>
             </button>
             
-            <div className="relative h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all">
+            <div className="relative h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all sm:h-10 sm:w-10">
               <ExportRotaButton
                 iconOnly={true}
                 weekStart={getWeekStart(currentDate)}
@@ -1482,22 +1494,22 @@ const RotaManager = ({ user }) => {
         </div>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-4 md:space-y-8">
         {viewMode === 'day' ? (
           /* Day view: three columns side by side */
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
             {['day', 'afternoon', 'night'].map((shiftType) => {
               const shiftSlots = slotsByShift[shiftType];
               const title = shiftType.charAt(0).toUpperCase() + shiftType.slice(1) + ' Shift';
               return (
-                <div key={shiftType} className="space-y-4 flex flex-col">
-                  <h3 className="border-b-2 border-rota-toolbar-border pb-2 text-xl font-semibold capitalize text-rota-text-primary">
+                <div key={shiftType} className="space-y-2.5 sm:space-y-4 flex flex-col">
+                  <h3 className="border-b-2 border-rota-toolbar-border pb-1.5 text-base font-semibold capitalize text-rota-text-primary sm:pb-2 sm:text-xl">
                     {title}
                   </h3>
                   {shiftSlots.length === 0 ? (
                     <p className="italic text-rota-text-muted-light">No slots scheduled for this shift</p>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 items-stretch">
+                    <div className="grid grid-cols-1 gap-2.5 items-stretch sm:gap-4">
                       {shiftSlots.map(slot => (
                         <SlotCard
                           key={slot.id}
