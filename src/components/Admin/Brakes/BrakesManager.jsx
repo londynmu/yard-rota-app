@@ -1922,7 +1922,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
+        className="relative bg-white text-charcoal rounded-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl h-[90vh] md:h-[85vh] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
       >
         {/* Header - Sticky */}
         <div className="sticky top-0 bg-black px-3 py-3 md:px-5 md:py-4 border-b border-gray-900 flex-shrink-0 z-10">
@@ -1973,7 +1973,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
         </div>
         
         {/* Content - Scrollable */}
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 min-h-0">
         
         {isAllLocation && (
           <div className="mx-2 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 md:mx-4">
