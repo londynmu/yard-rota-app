@@ -557,8 +557,9 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     }
 
     const query = searchQuery.trim().toLowerCase();
+    const slotStartLabel = formatPreferredStartTime(slot.start_time);
 
-    return availableEmployees.filter(employee => {
+    const filtered = availableEmployees.filter(employee => {
       const availabilityStatus = employee.availabilityStatus?.toLowerCase() || 'unknown';
       const isAvailableToday = availabilityStatus === 'available';
       const locationMatches = matchesLocationPreference(employee.preferred_location, employee.additional_locations);
@@ -598,6 +599,23 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
       const name = `${employee.first_name || ''} ${employee.last_name || ''}`.toLowerCase();
       return name.includes(query);
     });
+
+    filtered.sort((a, b) => {
+      const aPreferred = formatPreferredStartTime(a.preferred_start_time);
+      const bPreferred = formatPreferredStartTime(b.preferred_start_time);
+      const aMatch = Boolean(aPreferred) && aPreferred === slotStartLabel;
+      const bMatch = Boolean(bPreferred) && bPreferred === slotStartLabel;
+      if (aMatch === bMatch) return 0;
+      return aMatch ? -1 : 1;
+    });
+
+    return filtered;
+  };
+
+  const slotStartLabel = formatPreferredStartTime(slot?.start_time);
+  const preferredStartMatchesSlot = (employee) => {
+    const preferred = formatPreferredStartTime(employee.preferred_start_time);
+    return Boolean(preferred && slotStartLabel && preferred === slotStartLabel);
   };
 
   const filteredEmployees = getFilteredEmployees();
@@ -831,7 +849,11 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       {employee.first_name} {employee.last_name}
                     </div>
                     {formatPreferredStartTime(employee.preferred_start_time) && (
-                      <span className="shrink-0 text-xs font-semibold text-rota-text-muted">
+                      <span className={`shrink-0 text-xs font-semibold ${
+                        preferredStartMatchesSlot(employee)
+                          ? 'rounded-full bg-green-100 px-1.5 py-0.5 text-green-800'
+                          : 'text-rota-text-muted'
+                      }`}>
                         {formatPreferredStartTime(employee.preferred_start_time)}
                       </span>
                     )}
