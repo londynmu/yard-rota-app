@@ -11,7 +11,7 @@ const AuthContext = createContext();
 
 /** Shared profile row for header, notifications, ShiftDashboard — set from App.jsx after gate check */
 export const PROFILE_SELECT_FIELDS =
-  'profile_completed, account_status, role, first_name, last_name, avatar_url, shift_preference';
+  'profile_completed, account_status, role, first_name, last_name, avatar_url, shift_preference, preferred_start_time';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

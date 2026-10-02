@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
+import { formatPreferredStartTime, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -26,6 +27,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   
   // Rota Planner fields
   const [customStartTime, setCustomStartTime] = useState('');
+  const [preferredStartTime, setPreferredStartTime] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
   const [additionalLocations, setAdditionalLocations] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -97,6 +99,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       setPerformanceScore(user.performance_score || 50);
       setAvatarUrl(normalizeAvatarStorageUrl(user.avatar_url) || null);
       setCustomStartTime(user.custom_start_time || '');
+      setPreferredStartTime(formatPreferredStartTime(user.preferred_start_time));
       setPreferredLocation(user.preferred_location || '');
       setAdditionalLocations(
         Array.isArray(user.additional_locations) ? user.additional_locations : []
@@ -204,6 +207,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         updated_at: new Date().toISOString(),
         // Rota Planner fields
         custom_start_time: customStartTime || null,
+        preferred_start_time: preferredStartTime || null,
         preferred_location: preferredLocation || null,
         additional_locations: additionalLocations.filter(
           (name) => name && name !== preferredLocation
@@ -529,11 +533,25 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                     disabled={loading}
                   >
                     <option value="">No preference</option>
-                    {Array.from({ length: 96 }, (_, i) => {
-                      const hours = Math.floor(i / 4).toString().padStart(2, '0');
-                      const minutes = ((i % 4) * 15).toString().padStart(2, '0');
-                      return `${hours}:${minutes}`;
-                    }).map(time => (
+                    {QUARTER_HOUR_TIMES.map(time => (
+                      <option key={time} value={time}>{time}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="admin-edit-preferredStart" className="block text-charcoal font-medium mb-1.5 text-sm">
+                    Preferred start
+                  </label>
+                  <select
+                    id="admin-edit-preferredStart"
+                    value={preferredStartTime}
+                    onChange={(e) => setPreferredStartTime(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                    disabled={loading}
+                  >
+                    <option value="">Not answered</option>
+                    {QUARTER_HOUR_TIMES.map(time => (
                       <option key={time} value={time}>{time}</option>
                     ))}
                   </select>

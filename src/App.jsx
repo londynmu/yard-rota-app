@@ -12,6 +12,7 @@ import WaitingForApprovalPage from './pages/WaitingForApprovalPage';
 import { NotificationProvider } from './lib/NotificationContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import PreferredStartTimePrompt from './components/User/PreferredStartTimePrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
 
@@ -236,8 +237,26 @@ function AppContent() {
     }
   }
 
+  const needsPreferredStart =
+    user &&
+    profileCheckCompleted &&
+    isApproved &&
+    sessionProfile &&
+    !PRIVILEGED_ROLES.has(sessionProfile.role) &&
+    !sessionProfile.preferred_start_time;
+
   // Main routing
   return (
+    <>
+    {needsPreferredStart && (
+      <PreferredStartTimePrompt
+        userId={user.id}
+        shiftPreference={sessionProfile.shift_preference}
+        onSaved={(time) => {
+          setSessionProfile((prev) => (prev ? { ...prev, preferred_start_time: time } : prev));
+        }}
+      />
+    )}
     <Routes>
       <Route path="/login" element={!user ? <Auth /> : <Navigate to="/" replace />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -251,6 +270,7 @@ function AppContent() {
         )
       } />
     </Routes>
+    </>
   );
 }
 

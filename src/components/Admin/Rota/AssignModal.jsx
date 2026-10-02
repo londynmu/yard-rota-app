@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { format, parseISO } from 'date-fns';
 import { countUniqueAssigned } from '../../../utils/rotaAssignedEmployees';
 import { hasDifferentSlotLocation, matchesSlotLocation } from '../../../utils/rotaLocationMatch';
+import { formatPreferredStartTime } from '../../../utils/preferredStartTime';
 import UserNoteModal from './UserNoteModal';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
@@ -178,6 +179,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
             shift_preference,
             custom_start_time,
             custom_end_time,
+            preferred_start_time,
             performance_score
           `)
           .eq('is_active', true)
@@ -824,10 +826,15 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                       : 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:border-blue-400 hover:shadow-lg'
                   }`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-rota-text-primary truncate">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div className="truncate text-sm font-bold text-rota-text-primary">
                       {employee.first_name} {employee.last_name}
                     </div>
+                    {formatPreferredStartTime(employee.preferred_start_time) && (
+                      <span className="shrink-0 text-xs font-semibold text-rota-text-muted">
+                        {formatPreferredStartTime(employee.preferred_start_time)}
+                      </span>
+                    )}
                   </div>
                   
                   <div className="flex items-center gap-1.5">
