@@ -546,7 +546,11 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                   <select
                     id="admin-edit-preferredStart"
                     value={preferredStartTime}
-                    onChange={(e) => setPreferredStartTime(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setPreferredStartTime(next);
+                      setCustomStartTime(next);
+                    }}
                     className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
                     disabled={loading}
                   >
