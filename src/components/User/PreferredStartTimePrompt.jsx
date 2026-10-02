@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import Modal from '../ui/Modal';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../ui/ToastContext';
-import { defaultPreferredStartTime, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
+import { defaultPreferredStartTime, PREFERRED_START_SAVED_EVENT, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
 
 export default function PreferredStartTimePrompt({ userId, shiftPreference, onSaved }) {
   const toast = useToast();
@@ -17,6 +17,7 @@ export default function PreferredStartTimePrompt({ userId, shiftPreference, onSa
       .from('profiles')
       .update({
         preferred_start_time: time,
+        custom_start_time: time,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId);
@@ -27,6 +28,7 @@ export default function PreferredStartTimePrompt({ userId, shiftPreference, onSa
       return;
     }
 
+    window.dispatchEvent(new CustomEvent(PREFERRED_START_SAVED_EVENT, { detail: time }));
     onSaved(time);
   };
 

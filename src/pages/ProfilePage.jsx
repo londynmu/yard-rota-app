@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
 import { format } from 'date-fns';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { formatPreferredStartTime, PREFERRED_START_SAVED_EVENT } from '../utils/preferredStartTime';
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -42,6 +43,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Attendance & disciplinary (own records only)
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [violations, setViolations] = useState([]);
+
+  useEffect(() => {
+    const handlePreferredStartSaved = (event) => {
+      if (event.detail) setCustomStartTime(event.detail);
+    };
+    window.addEventListener(PREFERRED_START_SAVED_EVENT, handlePreferredStartSaved);
+    return () => window.removeEventListener(PREFERRED_START_SAVED_EVENT, handlePreferredStartSaved);
+  }, []);
 
   // Check for network connectivity
   useEffect(() => {
@@ -93,7 +102,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setShiftPreference(data.shift_preference || 'day');
         setAvatarUrl(normalizeAvatarStorageUrl(data.avatar_url) || '');
         // Load Rota Planner fields
-        setCustomStartTime(data.custom_start_time || '');
+        setCustomStartTime(
+          formatPreferredStartTime(data.preferred_start_time) || data.custom_start_time || ''
+        );
         setPreferredLocation(data.preferred_location || '');
         setAgencyId(data.agency_id || null);
       }
@@ -357,6 +368,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         updated_at: new Date().toISOString(),
         // Add Rota Planner fields
         custom_start_time: customStartTime || null,
+        preferred_start_time: customStartTime || null,
         preferred_location: preferredLocation || null,
         agency_id: agencyId,
       };
