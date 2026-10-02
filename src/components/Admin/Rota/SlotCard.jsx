@@ -9,7 +9,6 @@ import {
 } from '../../../utils/rotaAssignedEmployees';
 import { matchesSlotLocation } from '../../../utils/rotaLocationMatch';
 import {
-  buildDayConflictCacheKey,
   collectSameDayConflictIds,
   scheduledRotaToConflictSlots,
 } from '../../../utils/rotaSlotConflicts';
@@ -34,11 +33,8 @@ const SlotCard = ({
   const [availableForSlot, setAvailableForSlot] = useState([]);
   const [availableLoading, setAvailableLoading] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const lastFetchedCacheKeyRef = useRef(null);
   const assignedEmployeesRef = useRef(slot.assigned_employees);
-  const dayConflictSlotsRef = useRef([]);
-  const minBreakMinutesRef = useRef(60);
-  const dayConflictCacheKeyRef = useRef('');
+  const availableFetchInFlightRef = useRef(false);
   const cardRef = useRef(null);
   const availableTooltipRef = useRef(null);
   const menuButtonRef = useRef(null);
@@ -112,10 +108,6 @@ const SlotCard = ({
         if (cancelled) return;
 
         const conflictSlots = scheduledRotaToConflictSlots(dayRows || [], slot);
-        dayConflictSlotsRef.current = conflictSlots;
-        minBreakMinutesRef.current = minBreakMinutes;
-        dayConflictCacheKeyRef.current = buildDayConflictCacheKey(slot.date, dayRows || []);
-        lastFetchedCacheKeyRef.current = null;
 
         const assignedSet = new Set(normalizeAssignedEmployeeIds(slot.assigned_employees || []));
         const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(
@@ -186,26 +178,24 @@ const SlotCard = ({
 
       if (availabilityError) throw availabilityError;
 
-      let conflictSlots = dayConflictSlotsRef.current;
-      if (!conflictSlots.length) {
-        const { data: dayRows, error: dayRowsError } = await supabase
-          .from('scheduled_rota')
-          .select('id, user_id, location, start_time, end_time')
-          .eq('date', slotDate)
-          .not('user_id', 'is', null);
-        if (dayRowsError) throw dayRowsError;
-        conflictSlots = scheduledRotaToConflictSlots(dayRows || [], slot);
-        dayConflictSlotsRef.current = conflictSlots;
-        dayConflictCacheKeyRef.current = buildDayConflictCacheKey(slotDate, dayRows || []);
-      }
+      const { data: dayRows, error: dayRowsError } = await supabase
+        .from('scheduled_rota')
+        .select('id, user_id, location, start_time, end_time')
+        .eq('date', slotDate)
+        .not('user_id', 'is', null);
+      if (dayRowsError) throw dayRowsError;
 
-      minBreakMinutesRef.current = minBreakMinutes;
-
-      const { overlappingConflictIds, breakConflictIds } = collectSameDayConflictIds(
-        slot,
-        conflictSlots,
-        minBreakMinutes
-      );
+      const conflictSlots = scheduledRotaToConflictSlots(dayRows || [], slot);
+      const fromDatabase = collectSameDayConflictIds(slot, conflictSlots, minBreakMinutes);
+      const fromScreen = collectSameDayConflictIds(slot, sameDaySlots, minBreakMinutes);
+      const overlappingConflictIds = new Set([
+        ...fromDatabase.overlappingConflictIds,
+        ...fromScreen.overlappingConflictIds,
+      ]);
+      const breakConflictIds = new Set([
+        ...fromDatabase.breakConflictIds,
+        ...fromScreen.breakConflictIds,
+      ]);
 
       const availabilityMap = new Map();
       (availability || []).forEach((item) => availabilityMap.set(item.user_id, item.status));
@@ -236,13 +226,12 @@ const SlotCard = ({
     if (showDeleteConfirm || isMenuOpen) return;
     setTooltipPosition({ x: e.clientX + TOOLTIP_OFFSET, y: e.clientY + TOOLTIP_OFFSET });
     setShowAvailableTooltip(true);
-    const cacheKey = dayConflictCacheKeyRef.current;
-    if (lastFetchedCacheKeyRef.current === cacheKey && !availableLoading) {
-      return;
-    }
-    lastFetchedCacheKeyRef.current = cacheKey;
+    if (availableFetchInFlightRef.current) return;
+    availableFetchInFlightRef.current = true;
     setAvailableLoading(true);
-    fetchAvailableForSlot();
+    fetchAvailableForSlot().finally(() => {
+      availableFetchInFlightRef.current = false;
+    });
   };
 
   const handleCardMouseLeave = () => {
