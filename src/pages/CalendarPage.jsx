@@ -5,6 +5,7 @@ import { format, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
 import AvailabilityDialog from '../components/Calendar/AvailabilityDialog';
 import ShiftDashboard from '../components/User/ShiftDashboard';
+import MissingPrecheckReminder from '../components/User/MissingPrecheckReminder';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNotifications } from '../lib/NotificationContext';
@@ -58,6 +59,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
   const [, setUserBreakLabel] = useState('');
   const [showManageBreaksButton, setShowManageBreaksButton] = useState(true);
+  const [missingPrechecks, setMissingPrechecks] = useState([]);
   const [todayShiftSummary, setTodayShiftSummary] = useState({ day: 0, afternoon: 0, night: 0, total: 0 });
   
   // Use custom hook for availability data fetching
@@ -70,6 +72,39 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   // Ref to track popup timeout for cleanup
   const popupTimeoutRef = useRef(null);
   const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (!isAdmin || !user) {
+      setMissingPrechecks([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadMissingPrechecks = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_missing_precheck_reminders');
+        if (cancelled || error) {
+          if (error) console.warn('Could not load missing pre-shift checks:', error);
+          return;
+        }
+        if (!cancelled) setMissingPrechecks(data || []);
+      } catch (error) {
+        if (!cancelled) console.warn('Could not load missing pre-shift checks:', error);
+      }
+    };
+
+    loadMissingPrechecks();
+    const intervalId = setInterval(loadMissingPrechecks, 60 * 1000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadMissingPrechecks();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [isAdmin, user]);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -647,6 +682,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               </div>
             )}
 
+            {isAdmin && <MissingPrecheckReminder people={missingPrechecks} />}
             <ShiftDashboard
               initialView="breaks"
               hideTabSwitcher={true}
@@ -758,6 +794,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 )}
 
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  {isAdmin && <MissingPrecheckReminder people={missingPrechecks} />}
                   <ShiftDashboard
                     initialView="breaks"
                     hideTabSwitcher={true}
