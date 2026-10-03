@@ -139,6 +139,7 @@ export default function ShiftDashboard({
   const [activeView, setActiveView] = useState(initialView === 'shifts' ? 'team' : initialView === 'breaks' ? 'team' : initialView); // 'shift', 'breaks', or 'team'
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
+  const [tugByUser, setTugByUser] = useState({});
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState(selectedLocation || ''); // location tab
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -466,28 +467,14 @@ export default function ShiftDashboard({
           setAllShifts([]);
         }
 
-        // Attach profiles to breaks
+        // Attach profiles to breaks. Tug badges come from a separate fetch
+        // so a failed assignment lookup cannot wipe the last good map.
         if (breaksData && breaksData.length > 0) {
-
-          // Fetch tug assignments from today's prechecks
-          const tugMap = {};
-          try {
-            const { data: tugAssignments } = await supabase
-              .rpc('get_tug_assignments_for_date', { target_date: nightStart });
-            tugAssignments?.forEach(ta => {
-              tugMap[ta.user_id] = ta.tug_name;
-            });
-          } catch (e) {
-            console.warn('Could not fetch tug assignments:', e);
-          }
-          
-          // Only include breaks where we found a profile
           const breaksWithProfiles = breaksData
             .filter(b => b.user_id && profilesMap[b.user_id])
             .map(b => ({
               ...b,
-              profiles: profilesMap[b.user_id],
-              tug_name: tugMap[b.user_id] || null
+              profiles: profilesMap[b.user_id]
             }));
 
           // Exclude users marked absent (no show / sick / late) on effective date(s)
@@ -527,6 +514,25 @@ export default function ShiftDashboard({
       }
   }, [user]);
 
+  const fetchTugAssignments = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error: tugError } = await supabase.rpc('get_active_tug_assignments');
+      if (tugError) {
+        console.warn('Could not fetch tug assignments:', tugError);
+        return;
+      }
+      const next = {};
+      (data || []).forEach((row) => {
+        const name = typeof row.tug_name === 'string' ? row.tug_name.trim() : '';
+        if (row.user_id && name) next[row.user_id] = name;
+      });
+      setTugByUser(next);
+    } catch (e) {
+      console.warn('Could not fetch tug assignments:', e);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchTeamSchedule();
     
@@ -538,6 +544,19 @@ export default function ShiftDashboard({
       clearTimeout(retryState.timeoutId);
     };
   }, [fetchTeamSchedule]);
+
+  useEffect(() => {
+    fetchTugAssignments();
+    const tugInterval = setInterval(fetchTugAssignments, 60 * 1000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') fetchTugAssignments();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      clearInterval(tugInterval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [fetchTugAssignments]);
 
   // Fetch team break info
   const fetchBreakInfo = useCallback(async () => {
@@ -854,9 +873,6 @@ export default function ShiftDashboard({
 
     // Map user -> location for breaks filtering fallback
     const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
-
-    // Map user -> shift times for tug badge visibility (only show during active shift)
-    const userShiftMap = new Map(allShifts.map(s => [s.user_id, { start_time: s.start_time, end_time: s.end_time }]));
 
     // Helper function to check if break is currently active (handles overnight breaks)
     const isBreakActive = (breakStartTime, breakDurationMinutes) => {
@@ -1198,12 +1214,9 @@ export default function ShiftDashboard({
                             {isMe && <span className="text-slate-500 font-medium"> (You)</span>}
                           </p>
                           <div className="flex items-center gap-2 shrink-0">
-                            {breakItem.tug_name && (() => {
-                              const shift = userShiftMap.get(breakItem.user_id);
-                              return shift && isNowWithinShift(shift.start_time, shift.end_time);
-                            })() && (
+                            {tugByUser[breakItem.user_id] && (
                               <span className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-gradient-to-br from-blue-50 to-cyan-50/80 text-blue-800 border border-blue-200/60 shadow-sm">
-                                {breakItem.tug_name}
+                                {tugByUser[breakItem.user_id]}
                               </span>
                             )}
                             <span className="text-sm text-slate-600 whitespace-nowrap">
