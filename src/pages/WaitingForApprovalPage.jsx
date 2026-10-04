@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import DeleteAccountButton from '../components/Profile/DeleteAccountButton';
 
 export default function WaitingForApprovalPage() {
   const { user, signOut, refreshSessionProfile, sessionProfile } = useAuth();
@@ -119,6 +120,7 @@ export default function WaitingForApprovalPage() {
           >
             Sign Out
           </button>
+          <DeleteAccountButton className="w-full mt-3" />
         </div>
       </div>
     );
@@ -161,6 +163,7 @@ export default function WaitingForApprovalPage() {
           >
             Sign Out
           </button>
+          <DeleteAccountButton className="w-full mt-3" />
         </div>
       )}
     </div>

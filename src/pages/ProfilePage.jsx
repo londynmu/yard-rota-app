@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import Tooltip from '../components/ui/Tooltip';
+import DeleteAccountButton from '../components/Profile/DeleteAccountButton';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
 import { format } from 'date-fns';
@@ -1060,6 +1061,19 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
             </div>
           </div>
         </form>
+
+        {/* Kept outside the profile form: React events bubble through the modal portal */}
+        <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
+          <div className="px-3 py-2 min-h-[44px] bg-red-50 border-b border-red-200 flex items-center">
+            <h3 className="text-sm font-semibold text-red-800">Account</h3>
+          </div>
+          <div className="p-3 bg-yellow-50/50 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-gray-600">
+              Permanently delete your account and personal data.
+            </p>
+            <DeleteAccountButton className="text-sm" />
+          </div>
+        </div>
       </div>
     </div>
   );

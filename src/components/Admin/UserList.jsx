@@ -485,7 +485,7 @@ export default function UserList({ users, onRefresh }) {
 
       if (deleteError) {
         if (deleteError.message?.includes('USE_SELF_DELETE')) {
-          throw new Error('Use Delete account in your profile to delete your own account.');
+          throw new Error('Use Delete account on your Profile page to delete your own account.');
         }
         throw deleteError;
       }
