@@ -61,3 +61,14 @@ dart run tool/quality_gate.dart
 ```bash
 flutter run --dart-define=SUPABASE_URL=YOUR_URL --dart-define=SUPABASE_ANON_KEY=YOUR_KEY
 ```
+
+Or keep them in a git-ignored file:
+
+```bash
+cp config/env.example.json config/env.json
+flutter run --dart-define-from-file=config/env.json
+```
+
+## Store Release
+
+App Store, Google Play, macOS and Windows builds, signing, privacy answers and review notes: see `docs/STORE_RELEASE.md`.

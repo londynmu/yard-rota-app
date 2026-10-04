@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yard_rota_flutter/app.dart';
-import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/ui/app_toast.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
@@ -10,6 +9,8 @@ import 'package:yard_rota_flutter/features/calendar/presentation/availability_sh
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
 import 'package:yard_rota_flutter/features/home/presentation/home_hub_screen.dart';
 import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
+
+import 'support/mock_api_client.dart';
 
 void main() {
   testWidgets('shows login screen when no session is restored', (tester) async {

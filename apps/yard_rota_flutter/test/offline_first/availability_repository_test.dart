@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yard_rota_flutter/core/local_db/app_local_database.dart';
-import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/features/calendar/data/availability_repository.dart';
 import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
+
+import '../support/mock_api_client.dart';
 
 void main() {
   group('AvailabilityRepository offline-first', () {

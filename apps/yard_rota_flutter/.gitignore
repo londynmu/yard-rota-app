@@ -39,6 +39,14 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Release signing secrets
+/android/key.properties
+*.jks
+*.keystore
+
+# Build-time config (see config/env.example.json)
+/config/env.json
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

@@ -478,7 +478,19 @@ export default function UserList({ users, onRefresh }) {
         throw userError;
       }
 
-      // If user has an avatar, delete it from storage
+      // Anonymises the account server-side; PreCheck and safety records are kept.
+      const { error: deleteError } = await supabase.rpc('delete_user', {
+        user_id: userToDelete.id,
+      });
+
+      if (deleteError) {
+        if (deleteError.message?.includes('USE_SELF_DELETE')) {
+          throw new Error('Use Delete account in your profile to delete your own account.');
+        }
+        throw deleteError;
+      }
+
+      // Remove the old avatar only once the account is anonymised
       if (userData?.avatar_url) {
         const ref = parseAvatarStorageRef(userData.avatar_url);
         if (ref) {
@@ -488,43 +500,8 @@ export default function UserList({ users, onRefresh }) {
 
           if (storageError) {
             console.error('Error deleting avatar:', storageError);
-            // Continue with user deletion even if avatar deletion fails
           }
         }
-      }
-      
-      // Delete user's notifications first (to avoid foreign key constraint)
-      const { error: notificationsError } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('recipient_id', userToDelete.id);
-        
-      if (notificationsError) {
-        console.error('Error deleting notifications:', notificationsError);
-        // Continue with user deletion even if notification deletion fails
-      }
-      
-      // Delete from profiles table - this will cascade to other tables due to foreign key constraints
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userToDelete.id);
-        
-      if (profileError) {
-        throw profileError;
-      }
-
-      // Deactivate the user in auth.users (we can't delete directly, but we can deactivate)
-      const { error: deactivateError } = await supabase.auth.updateUser({
-        data: { 
-          is_active: false,
-          deactivated_at: new Date().toISOString(),
-          deactivated_by: 'admin'
-        }
-      });
-
-      if (deactivateError) {
-        throw deactivateError;
       }
       
       // Refresh the user list
@@ -678,7 +655,10 @@ export default function UserList({ users, onRefresh }) {
                   </p>
                   <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg">
                     <p className="font-medium text-sm">⚠️ Warning</p>
-                    <p className="text-xs mt-1">This action cannot be undone. All user data will be permanently removed.</p>
+                    <p className="text-xs mt-1">
+                      Their name, email, photo, availability and sign-in are removed. PreCheck and safety records stay as
+                      &quot;Deleted user&quot;. This cannot be undone.
+                    </p>
                   </div>
                 </div>
               ) : (

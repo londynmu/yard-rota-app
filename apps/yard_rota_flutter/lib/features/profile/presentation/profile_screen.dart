@@ -10,6 +10,8 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../about/presentation/about_screen.dart';
+import 'delete_account_flow.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -168,6 +170,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _deleteAccount() async {
+    final onLogout = widget.onLogout;
+    if (onLogout == null) return;
+    setState(() => _saving = true);
+    final deleted = await confirmAndDeleteAccount(
+      context,
+      apiClient: widget.apiClient,
+      onDeleted: onLogout,
+    );
+    if (!deleted && mounted) setState(() => _saving = false);
+  }
+
   String _capitalize(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return trimmed;
@@ -214,12 +228,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : 'Save profile',
                     onPressed: _saving ? null : _save,
                   ),
+                  if (!widget.isRequired) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton(
+                      label: 'About & privacy',
+                      variant: AppButtonVariant.secondary,
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const AboutScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
                   if (widget.onLogout != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     AppButton(
                       label: 'Sign out',
                       variant: AppButtonVariant.ghost,
                       onPressed: _saving ? null : widget.onLogout,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppButton(
+                      label: 'Delete account',
+                      variant: AppButtonVariant.ghost,
+                      onPressed: _saving ? null : _deleteAccount,
                     ),
                   ],
                 ],

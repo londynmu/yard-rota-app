@@ -117,6 +117,68 @@ class SupabaseApiClient implements ApiClient {
   }
 
   @override
+  Future<void> deleteAccount({required String password}) async {
+    final user = _client.auth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.isEmpty) {
+      throw const UnauthorizedException('User session not found.');
+    }
+
+    try {
+      await _client.auth.signInWithPassword(email: email, password: password);
+    } on AuthRetryableFetchException catch (error) {
+      throw TransientNetworkException(error.message);
+    } on AuthException {
+      throw const AccountDeletionException(
+        AccountDeletionFailure.incorrectPassword,
+      );
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+
+    try {
+      await _client.rpc<void>('delete_own_account');
+    } on PostgrestException catch (error) {
+      if (error.message.contains('REAUTH_REQUIRED')) {
+        throw const AccountDeletionException(
+          AccountDeletionFailure.reauthRequired,
+        );
+      }
+      if (error.message.contains('LAST_ADMIN')) {
+        throw const AccountDeletionException(AccountDeletionFailure.lastAdmin);
+      }
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+    await _removeOwnAvatars(user.id);
+    try {
+      await _client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      // The auth user no longer exists; the local session is cleared either way.
+    }
+  }
+
+  /// Best effort: the account is already anonymised, so a storage failure
+  /// must not surface as a failed deletion.
+  Future<void> _removeOwnAvatars(String userId) async {
+    try {
+      final bucket = _client.storage.from('avatars');
+      final files = await bucket.list(
+        path: 'avatars',
+        searchOptions: SearchOptions(search: userId),
+      );
+      final paths = [
+        for (final file in files)
+          if (file.name.startsWith('$userId-')) 'avatars/${file.name}',
+      ];
+      if (paths.isNotEmpty) {
+        await bucket.remove(paths);
+      }
+    } catch (_) {}
+  }
+
+  @override
   Future<UserProfile> getProfile() async {
     final user = _client.auth.currentUser;
     if (user == null) {

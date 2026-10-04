@@ -523,6 +523,10 @@ class AppTypography {
 class AppComponentTokens {
   const AppComponentTokens._();
 
+  /// Widest app column on tablets and desktop windows; wider space is filled
+  /// with the scaffold background.
+  static const maxContentWidth = 960.0;
+
   static const minTouchTarget = 44.0;
 
   static const buttonHeightSm = 40.0;

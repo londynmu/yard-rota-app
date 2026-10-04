@@ -71,6 +71,8 @@ function seoPlugins(siteUrl) {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${siteUrl}/</loc><changefreq>weekly</changefreq><priority>1</priority></url>
   <url><loc>${siteUrl}/privacy-policy.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>${siteUrl}/terms.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>${siteUrl}/delete-account.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>
 `,
           'utf8'

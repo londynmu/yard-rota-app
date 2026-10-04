@@ -1,11 +1,11 @@
 {
-    "name": "yard_rota_flutter",
-    "short_name": "yard_rota_flutter",
+    "name": "Yard Rota",
+    "short_name": "Yard Rota",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#000055",
+    "theme_color": "#000055",
+    "description": "Shift rota, breaks and PreCheck for yard shunters.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -268,7 +268,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Future<void> _delete(StaffProfile user) async {
     if (!await _confirm(
       'Delete user',
-      'Permanently delete ${user.displayName}? This cannot be undone.',
+      'Delete ${user.displayName}? Their name, email, photo, availability '
+          'and sign-in are removed. PreCheck and safety records stay as '
+          '"Deleted user". This cannot be undone.',
     )) {
       return;
     }
@@ -276,6 +278,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       await widget.repository.deleteUser(widget.session, user.id);
       if (mounted) AppToast.show(context, 'User deleted.');
       await _load();
+    } on StageTwoSelfDeletionException {
+      if (mounted) {
+        AppToast.show(
+          context,
+          'Use Delete account in your profile to delete your own account.',
+        );
+      }
     } catch (_) {
       if (mounted) AppToast.show(context, 'Could not delete user.');
     }

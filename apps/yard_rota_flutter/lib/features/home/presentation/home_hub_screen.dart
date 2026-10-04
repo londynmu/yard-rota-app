@@ -119,7 +119,26 @@ class HomeHubScreen extends StatefulWidget {
     _HubTileSpec(title: 'Account', icon: Icons.person_outline, isAccount: true),
   ];
 
-  List<_HubTileSpec> get _homeCards {
+  List<_HubTileSpec> get _homeCards =>
+      _roleCards.where(_hasDestination).toList(growable: false);
+
+  bool _hasDestination(_HubTileSpec spec) {
+    if (spec.isPreCheck) return preCheckRepository != null;
+    if (spec.isBreaks || spec.isGuide || spec.isNotifications) {
+      return stageOneRepository != null;
+    }
+    if (spec.roleDestination) {
+      return switch (spec.title) {
+        'Transport Dashboard' => stageTwoRepository != null,
+        'VMU' || 'PreChecks' => stageThreeRepository != null,
+        'Admin' => stageTwoRepository != null && stageThreeRepository != null,
+        _ => false,
+      };
+    }
+    return true;
+  }
+
+  List<_HubTileSpec> get _roleCards {
     if (session.isTransportManager && !session.isAdmin) {
       return const [
         _HubTileSpec(
@@ -357,7 +376,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     if (spec.isPreCheck) {
       final repository = widget.preCheckRepository;
       if (repository == null) {
-        AppToast.show(context, 'PreCheck is coming soon.');
+        AppToast.show(context, 'PreCheck is unavailable. Try again later.');
         return;
       }
       _track('/precheck', 'PreCheck');
@@ -485,7 +504,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     if (!context.mounted) {
       return;
     }
-    AppToast.show(context, '${spec.title} is coming soon.');
+    AppToast.show(context, '${spec.title} is unavailable. Try again later.');
   }
 
   void _track(String path, String title) {

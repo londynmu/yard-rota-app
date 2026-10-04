@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:yard_rota_flutter/app.dart';
-import 'package:yard_rota_flutter/core/network/api_client.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/network/my_rota_models.dart';
 import 'package:yard_rota_flutter/core/network/network_policy.dart';
@@ -10,6 +9,8 @@ import 'package:yard_rota_flutter/features/calendar/presentation/availability_sh
 import 'package:yard_rota_flutter/features/calendar/presentation/calendar_screen.dart';
 import 'package:yard_rota_flutter/features/home/presentation/home_hub_screen.dart';
 import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
+
+import '../test/support/mock_api_client.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

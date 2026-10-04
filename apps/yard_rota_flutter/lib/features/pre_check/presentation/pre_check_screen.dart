@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/network/models.dart';
+import '../../../core/platform/device_capabilities.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -400,8 +401,10 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       children: [
         _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
         const SizedBox(height: AppSpacing.md),
-        _PreCheckSolidButton(label: 'Scan QR Code', onPressed: _scanQr),
-        const SizedBox(height: AppSpacing.md),
+        if (DeviceCapabilities.supportsQrScanner) ...[
+          _PreCheckSolidButton(label: 'Scan QR Code', onPressed: _scanQr),
+          const SizedBox(height: AppSpacing.md),
+        ],
         Text('Select Tug', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: AppSpacing.md),
         if (tugs.isEmpty)
@@ -799,17 +802,14 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       return;
     }
     try {
-      final picked = source == ImageSource.camera
-          ? await _imagePicker.pickImage(
-              source: ImageSource.camera,
-              imageQuality: 70,
-              maxWidth: 1200,
-            )
-          : await _imagePicker.pickImage(
-              source: ImageSource.gallery,
-              imageQuality: 70,
-              maxWidth: 1200,
-            );
+      final useCamera =
+          source == ImageSource.camera &&
+          DeviceCapabilities.supportsCameraCapture;
+      final picked = await _imagePicker.pickImage(
+        source: useCamera ? ImageSource.camera : ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 1200,
+      );
       if (picked == null) {
         return;
       }
@@ -1257,23 +1257,26 @@ class _PhotoActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _PreCheckSolidButton(
-                label: 'Take Photo',
-                onPressed: onTakePhoto,
+        if (DeviceCapabilities.supportsCameraCapture)
+          Row(
+            children: [
+              Expanded(
+                child: _PreCheckSolidButton(
+                  label: 'Take Photo',
+                  onPressed: onTakePhoto,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _PreCheckSolidButton(
-                label: 'Gallery',
-                onPressed: onAddGallery,
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _PreCheckSolidButton(
+                  label: 'Gallery',
+                  onPressed: onAddGallery,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          _PreCheckSolidButton(label: 'Choose Photo', onPressed: onAddGallery),
         if (photos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           Wrap(

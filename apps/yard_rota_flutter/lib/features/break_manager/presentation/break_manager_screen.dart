@@ -12,6 +12,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/share_origin.dart';
 import '../../stage_two/data/stage_two_repository.dart';
 import '../../stage_two/domain/stage_two_models.dart';
 
@@ -124,10 +125,12 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
       appBar: AppBar(
         title: const Text('Break Manager'),
         actions: [
-          IconButton(
-            tooltip: 'Share image',
-            onPressed: _shareImage,
-            icon: const Icon(Icons.ios_share_outlined),
+          Builder(
+            builder: (buttonContext) => IconButton(
+              tooltip: 'Share image',
+              onPressed: () => _shareImage(shareOriginFor(buttonContext)),
+              icon: const Icon(Icons.ios_share_outlined),
+            ),
           ),
         ],
       ),
@@ -385,7 +388,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
     await _load();
   }
 
-  Future<void> _shareImage() async {
+  Future<void> _shareImage(Rect shareOrigin) async {
     try {
       final boundary =
           _captureKey.currentContext?.findRenderObject()
@@ -400,6 +403,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
       await file.writeAsBytes(data.buffer.asUint8List());
       await SharePlus.instance.share(
         ShareParams(
+          sharePositionOrigin: shareOrigin,
           files: [XFile(file.path, mimeType: 'image/png')],
           subject: 'Break schedule ${stageTwoYmd(_date)}',
         ),

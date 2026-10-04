@@ -13,6 +13,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/share_origin.dart';
 import '../../stage_two/data/stage_two_repository.dart';
 import '../../stage_two/domain/stage_two_models.dart';
 
@@ -110,21 +111,24 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
       appBar: AppBar(
         title: const Text('Rota Planner'),
         actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Export and templates',
-            onSelected: _action,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'csv', child: Text('Share CSV')),
-              PopupMenuItem(value: 'pdf', child: Text('Share PDF / Email')),
-              PopupMenuItem(
-                value: 'saveTemplate',
-                child: Text('Save template'),
-              ),
-              PopupMenuItem(
-                value: 'applyTemplate',
-                child: Text('Apply template'),
-              ),
-            ],
+          Builder(
+            builder: (menuContext) => PopupMenuButton<String>(
+              tooltip: 'Export and templates',
+              onSelected: (action) =>
+                  _action(action, shareOriginFor(menuContext)),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'csv', child: Text('Share CSV')),
+                PopupMenuItem(value: 'pdf', child: Text('Share PDF / Email')),
+                PopupMenuItem(
+                  value: 'saveTemplate',
+                  child: Text('Save template'),
+                ),
+                PopupMenuItem(
+                  value: 'applyTemplate',
+                  child: Text('Apply template'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -356,9 +360,9 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
     }
   }
 
-  Future<void> _action(String action) async {
-    if (action == 'csv') return _shareCsv();
-    if (action == 'pdf') return _sharePdf();
+  Future<void> _action(String action, Rect shareOrigin) async {
+    if (action == 'csv') return _shareCsv(shareOrigin);
+    if (action == 'pdf') return _sharePdf(shareOrigin);
     if (action == 'saveTemplate') return _saveTemplate();
     if (action == 'applyTemplate') return _applyTemplate();
   }
@@ -383,19 +387,20 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
     return buffer.toString();
   }
 
-  Future<void> _shareCsv() async {
+  Future<void> _shareCsv(Rect shareOrigin) async {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/rota-${stageTwoYmd(_rangeStart)}.csv');
     await file.writeAsString(_csv());
     await SharePlus.instance.share(
       ShareParams(
+        sharePositionOrigin: shareOrigin,
         files: [XFile(file.path, mimeType: 'text/csv')],
         subject: 'Yard rota ${stageTwoYmd(_rangeStart)}',
       ),
     );
   }
 
-  Future<void> _sharePdf() async {
+  Future<void> _sharePdf(Rect shareOrigin) async {
     final document = pw.Document();
     document.addPage(
       pw.MultiPage(
@@ -431,6 +436,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
     await Printing.sharePdf(
       bytes: await document.save(),
       filename: 'rota-${stageTwoYmd(_rangeStart)}.pdf',
+      bounds: shareOrigin,
     );
   }
 

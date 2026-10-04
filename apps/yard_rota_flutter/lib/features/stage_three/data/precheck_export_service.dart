@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -36,10 +37,14 @@ class PreCheckExportService {
     await Printing.layoutPdf(onLayout: (_) async => bytes);
   }
 
-  static Future<void> shareSingle(PreCheckSubmissionRecord submission) async {
+  static Future<void> shareSingle(
+    PreCheckSubmissionRecord submission, {
+    Rect? origin,
+  }) async {
     final bytes = await buildSingle(submission);
     await SharePlus.instance.share(
       ShareParams(
+        sharePositionOrigin: origin,
         text: 'PreCheck report for ${submission.tugLabel}',
         files: [
           XFile.fromData(

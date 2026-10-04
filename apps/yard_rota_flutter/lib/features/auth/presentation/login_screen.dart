@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_links.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
@@ -157,6 +158,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: widget.isLoading ? null : _submit,
                       ),
                     ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      children: [
+                        AppButton(
+                          label: 'Privacy Policy',
+                          variant: AppButtonVariant.ghost,
+                          isExpanded: false,
+                          onPressed: () =>
+                              openAppLink(context, AppLinks.privacyPolicy),
+                        ),
+                        AppButton(
+                          label: 'Terms of Use',
+                          variant: AppButtonVariant.ghost,
+                          isExpanded: false,
+                          onPressed: () =>
+                              openAppLink(context, AppLinks.termsOfUse),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

@@ -194,7 +194,8 @@ export default function AdminPage() {
       // Fallback: direct profiles query
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('*, agencies(id, name)');
+        .select('*, agencies(id, name)')
+        .is('deleted_at', null);
 
       if (profilesError) throw profilesError;
 

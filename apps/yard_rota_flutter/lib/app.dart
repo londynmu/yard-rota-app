@@ -10,9 +10,9 @@ import 'core/network/network_policy.dart';
 import 'core/network/perf_metrics.dart';
 import 'core/network/retry_executor.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_tokens.dart';
 import 'core/theme/home_wallpaper.dart';
 import 'core/theme/home_wallpaper_storage.dart';
-import 'core/ui/app_toast.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/auth_flow_screens.dart';
 import 'features/calendar/data/availability_repository.dart';
@@ -30,7 +30,7 @@ import 'core/theme/theme_mode_storage.dart';
 class YardRotaApp extends StatefulWidget {
   const YardRotaApp({
     super.key,
-    ApiClient? apiClient,
+    required ApiClient apiClient,
     AppLocalDatabase? localDb,
     PreCheckRepository? preCheckRepository,
     StageOneRepository? stageOneRepository,
@@ -46,7 +46,7 @@ class YardRotaApp extends StatefulWidget {
        _stageTwoRepository = stageTwoRepository,
        _stageThreeRepository = stageThreeRepository;
 
-  final ApiClient? _apiClient;
+  final ApiClient _apiClient;
   final AppLocalDatabase? _localDb;
   final PreCheckRepository? _preCheckRepository;
   final StageOneRepository? _stageOneRepository;
@@ -91,7 +91,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     _darkHomeWallpaper = widget.initialDarkHomeWallpaper;
     WidgetsBinding.instance.addObserver(this);
     _startupStopwatch = Stopwatch()..start();
-    _apiClient = widget._apiClient ?? MockApiClient();
+    _apiClient = widget._apiClient;
     _localDb = widget._localDb ?? AppLocalDatabase.inMemory();
     _calendarRepository = CalendarRepository(
       apiClient: _apiClient,
@@ -183,7 +183,6 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     });
 
     final loginStopwatch = Stopwatch()..start();
-
     try {
       final session = await PerfMetrics.track(
         'auth.login',
@@ -201,9 +200,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       });
       await _availabilityRepository.flushOutbox();
       loginStopwatch.stop();
-      if (loginStopwatch.elapsed > NetworkPolicy.loginToHomeSlo) {
-        _showMessage('Login to home exceeded SLO target.');
-      }
+      _recordMetric('auth.login_to_home', loginStopwatch.elapsed);
     } catch (error) {
       if (!mounted) {
         return;
@@ -326,17 +323,11 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
 
   void _recordStartupSlo() {
     _startupStopwatch.stop();
-    if (_startupStopwatch.elapsed > NetworkPolicy.startupInteractiveSlo) {
-      _showMessage('Startup exceeded SLO target.');
-    }
+    _recordMetric('app.startup', _startupStopwatch.elapsed);
   }
 
   void _recordMetric(String name, Duration duration) {
-    // Perf hook reserved for analytics; avoid surfacing internal SLO thresholds as toasts.
-  }
-
-  void _showMessage(String message) {
-    AppToast.show(context, message, duration: const Duration(seconds: 4));
+    // Perf hook reserved for analytics; internal SLO thresholds are never shown to users.
   }
 
   @override
@@ -347,6 +338,17 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _themeMode,
+      builder: (context, child) => ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppComponentTokens.maxContentWidth,
+            ),
+            child: child,
+          ),
+        ),
+      ),
       home: _resolveHome(),
     );
   }
@@ -396,6 +398,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
 
     if (_session!.isAwaitingApproval || _session!.isRejected) {
       return WaitingForApprovalScreen(
+        apiClient: _apiClient,
         session: _session!,
         onRefresh: _refreshSession,
         onLogout: _handleLogout,

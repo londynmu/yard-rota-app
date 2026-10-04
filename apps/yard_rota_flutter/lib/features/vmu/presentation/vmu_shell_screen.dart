@@ -8,6 +8,7 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/share_origin.dart';
 import '../../stage_three/data/precheck_export_service.dart';
 import '../../stage_three/data/stage_three_repository.dart';
 import '../../stage_three/domain/stage_three_models.dart';
@@ -961,7 +962,10 @@ class PreCheckDetailScreen extends StatelessWidget {
   Future<void> _export(BuildContext context, {required bool share}) async {
     try {
       if (share) {
-        await PreCheckExportService.shareSingle(submission);
+        await PreCheckExportService.shareSingle(
+          submission,
+          origin: shareOriginFor(context),
+        );
       } else {
         await PreCheckExportService.printSingle(submission);
       }

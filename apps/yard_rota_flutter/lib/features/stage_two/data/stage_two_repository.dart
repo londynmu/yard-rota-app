@@ -11,6 +11,10 @@ class StageTwoAuthorizationException implements Exception {
   String toString() => message;
 }
 
+class StageTwoSelfDeletionException implements Exception {
+  const StageTwoSelfDeletionException();
+}
+
 class StageTwoRepository {
   StageTwoRepository(this._client);
 
@@ -130,7 +134,8 @@ class StageTwoRepository {
           .from('profiles')
           .select(
             'id,first_name,last_name,email,yard_system_id,agency_id,shift_preference,is_active,preferred_location,custom_start_time,role,account_status,created_at,agencies(name)',
-          );
+          )
+          .isFilter('deleted_at', null);
     }
     return rows
         .whereType<Map<String, dynamic>>()
@@ -227,9 +232,47 @@ class StageTwoRepository {
         .eq('id', userId);
   }
 
+  /// Anonymises [userId]: personal data and sign-in are removed, safety
+  /// records stay as "Deleted user".
   Future<void> deleteUser(UserSession session, String userId) async {
     requireAdmin(session);
-    await _client.rpc('delete_user', params: {'user_id': userId});
+    if (userId == session.userId) {
+      throw const StageTwoSelfDeletionException();
+    }
+    final avatarPath = await _avatarStoragePath(userId);
+    try {
+      await _client.rpc('delete_user', params: {'user_id': userId});
+    } on PostgrestException catch (error) {
+      if (error.message.contains('USE_SELF_DELETE')) {
+        throw const StageTwoSelfDeletionException();
+      }
+      rethrow;
+    }
+    if (avatarPath != null) {
+      try {
+        await _client.storage.from('avatars').remove([avatarPath]);
+      } catch (_) {}
+    }
+  }
+
+  Future<String?> _avatarStoragePath(String userId) async {
+    try {
+      final row = await _client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userId)
+          .maybeSingle();
+      final url = row?['avatar_url']?.toString() ?? '';
+      const marker = '/object/public/avatars/';
+      final index = url.indexOf(marker);
+      if (index < 0) return null;
+      final path = Uri.decodeComponent(
+        url.substring(index + marker.length).split('?').first,
+      );
+      return path.isEmpty ? null : path;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> addViolation({

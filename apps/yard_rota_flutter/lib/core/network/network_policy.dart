@@ -23,6 +23,17 @@ class UnauthorizedException implements Exception {
   String toString() => 'UnauthorizedException(message: $message)';
 }
 
+enum AccountDeletionFailure { incorrectPassword, reauthRequired, lastAdmin }
+
+class AccountDeletionException implements Exception {
+  const AccountDeletionException(this.reason);
+
+  final AccountDeletionFailure reason;
+
+  @override
+  String toString() => 'AccountDeletionException(reason: ${reason.name})';
+}
+
 class TransientNetworkException implements Exception {
   const TransientNetworkException(this.message);
 

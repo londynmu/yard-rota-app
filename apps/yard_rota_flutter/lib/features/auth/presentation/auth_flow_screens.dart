@@ -10,6 +10,7 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../profile/presentation/delete_account_flow.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({
@@ -293,11 +294,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 class WaitingForApprovalScreen extends StatefulWidget {
   const WaitingForApprovalScreen({
     super.key,
+    required this.apiClient,
     required this.session,
     required this.onRefresh,
     required this.onLogout,
   });
 
+  final ApiClient apiClient;
   final UserSession session;
   final Future<UserSession?> Function() onRefresh;
   final Future<void> Function() onLogout;
@@ -368,6 +371,16 @@ class _WaitingForApprovalScreenState extends State<WaitingForApprovalScreen> {
           label: 'Sign out',
           variant: AppButtonVariant.ghost,
           onPressed: widget.onLogout,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        AppButton(
+          label: 'Delete account',
+          variant: AppButtonVariant.ghost,
+          onPressed: () => confirmAndDeleteAccount(
+            context,
+            apiClient: widget.apiClient,
+            onDeleted: widget.onLogout,
+          ),
         ),
       ],
     );

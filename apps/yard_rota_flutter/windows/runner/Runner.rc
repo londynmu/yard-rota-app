@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.yardrota" "\0"
-            VALUE "FileDescription", "yard_rota_flutter" "\0"
+            VALUE "CompanyName", "Yard Rota" "\0"
+            VALUE "FileDescription", "Yard Rota" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "yard_rota_flutter" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.yardrota. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Yard Rota. All rights reserved." "\0"
             VALUE "OriginalFilename", "yard_rota_flutter.exe" "\0"
-            VALUE "ProductName", "yard_rota_flutter" "\0"
+            VALUE "ProductName", "Yard Rota" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
