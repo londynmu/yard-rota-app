@@ -2,10 +2,11 @@ import React, { useRef } from 'react';
 import CalendarGrid from '../../components/Calendar/CalendarGrid';
 import CalendarMonthHeader from '../../components/Home/CalendarMonthHeader';
 import AvailabilityOverlays from '../../components/Home/AvailabilityOverlays';
+import MyDayWeekCard from '../../components/Home/MyDayWeekCard';
 import { useAvailabilityEditor } from '../../hooks/useAvailabilityEditor';
 import { useFitScreenScrollLock } from '../../hooks/useFitScreenScrollLock';
 
-/** Mobile Home → Calendar: month view for setting availability, nothing else. */
+/** Mobile Home → Calendar: month view for setting availability, plus today's break and this week's shifts. */
 export default function CalendarTab() {
   const editor = useAvailabilityEditor();
   const contentRef = useRef(null);
@@ -36,6 +37,10 @@ export default function CalendarTab() {
               onDayClick={editor.handleDayClick}
               isLoading={editor.loading}
             />
+          </div>
+
+          <div className="mt-3">
+            <MyDayWeekCard />
           </div>
         </div>
       </div>

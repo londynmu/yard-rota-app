@@ -2,36 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
-
-const SHIFT_ROWS = [
-  {
-    id: 'day',
-    label: 'Day shift',
-    short: 'Day',
-    row: 'bg-gradient-to-r from-amber-50 via-amber-50/70 to-slate-50 border-amber-200',
-    tile: 'border-amber-200/70',
-    value: 'text-amber-800',
-    text: 'text-amber-700',
-  },
-  {
-    id: 'afternoon',
-    label: 'Afternoon shift',
-    short: 'Aft',
-    row: 'bg-gradient-to-r from-orange-50 via-orange-50/70 to-slate-50 border-orange-200',
-    tile: 'border-orange-200/70',
-    value: 'text-orange-800',
-    text: 'text-orange-700',
-  },
-  {
-    id: 'night',
-    label: 'Night shift',
-    short: 'Night',
-    row: 'bg-gradient-to-r from-blue-50 via-blue-50/70 to-slate-50 border-blue-200',
-    tile: 'border-blue-200/70',
-    value: 'text-blue-800',
-    text: 'text-blue-700',
-  },
-];
+import { SHIFT_TONES } from './shiftTones';
 
 const TOTAL_ROW = 'bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-slate-200/60';
 
@@ -61,7 +32,7 @@ export default function TodayShiftSummaryCard({
             </div>
           </div>
 
-          {SHIFT_ROWS.map((row) => (
+          {SHIFT_TONES.map((row) => (
             <div key={row.id} className={`flex items-center gap-2 px-2 py-1.5 border rounded-lg shadow-sm ${row.row}`}>
               <div className={`w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border shadow-sm shrink-0 ${row.tile}`}>
                 <span className={`text-xs font-bold tabular-nums ${row.value}`}>{summary[row.id]}</span>
@@ -77,7 +48,7 @@ export default function TodayShiftSummaryCard({
 
   const tiles = [
     { id: 'total', short: 'Total', label: 'Total shunters', row: TOTAL_ROW, value: 'text-charcoal', text: 'text-slate-500' },
-    ...SHIFT_ROWS,
+    ...SHIFT_TONES,
   ];
 
   return (
