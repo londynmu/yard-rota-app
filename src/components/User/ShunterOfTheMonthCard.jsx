@@ -15,7 +15,11 @@ const getMonthLabel = (monthKey) => {
   }
 };
 
-function ShunterOfTheMonthCard({ embedded = false }) {
+const ROW_ICON_CLASS = 'w-8 h-8 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm text-blue-600 shrink-0';
+
+/** `variant="row"` = list row for the mobile Info tab (sits inside a shared card-modern with dividers). */
+function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
+  const isRow = variant === 'row';
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
@@ -72,6 +76,18 @@ function ShunterOfTheMonthCard({ embedded = false }) {
   }, []);
 
   if (loading) {
+    if (isRow) {
+      return (
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="h-8 w-8 rounded-lg bg-slate-100 animate-pulse shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3.5 w-36 bg-slate-100 rounded animate-pulse" />
+            <div className="h-3 w-48 bg-slate-100 rounded animate-pulse" />
+          </div>
+        </div>
+      );
+    }
+
     if (embedded) {
       return (
         <div className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border border-slate-200/60 rounded-lg">
@@ -157,6 +173,77 @@ function ShunterOfTheMonthCard({ embedded = false }) {
       )}
     </AnimatePresence>
   );
+
+  if (isRow) {
+    const latest = rows.find((row) => row.day || row.night);
+    const subtitle = latest
+      ? [getMonthLabel(latest.monthKey), latest.day, latest.night].filter(Boolean).join(' · ')
+      : 'No winners yet';
+
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50/70 transition-colors"
+        >
+          <div className={ROW_ICON_CLASS}>
+            <Trophy className="w-4 h-4" strokeWidth={1.75} aria-hidden />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-charcoal truncate">Shunter of the Month</p>
+            <p className="text-xs text-slate-500 truncate">{subtitle}</p>
+          </div>
+          <motion.svg
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="w-4 h-4 text-slate-500 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </motion.svg>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              key="shunter-history"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <ul className="mx-3 mb-2.5 divide-y divide-slate-100 rounded-xl border border-slate-200/60 bg-slate-50/60">
+                {rows.map((row, index) => {
+                  const names = [row.day, row.night].filter(Boolean);
+                  return (
+                    <li key={row.monthKey} className="flex items-center gap-3 px-3 py-2">
+                      <span className={`w-20 shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-wide ${textColors[index % textColors.length]}`}>
+                        {getMonthLabel(row.monthKey)}
+                      </span>
+                      {names.length ? (
+                        <span className="flex flex-1 min-w-0 flex-col items-end gap-0.5 text-xs font-semibold text-charcoal">
+                          {names.map((name) => (
+                            <span key={name} className="max-w-full truncate">{name}</span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="flex-1 text-right text-xs text-gray-400">—</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   if (embedded) {
     return (
@@ -270,6 +357,7 @@ function ShunterOfTheMonthCard({ embedded = false }) {
 
 ShunterOfTheMonthCard.propTypes = {
   embedded: PropTypes.bool,
+  variant: PropTypes.oneOf(['card', 'row']),
 };
 
 export default React.memo(ShunterOfTheMonthCard);

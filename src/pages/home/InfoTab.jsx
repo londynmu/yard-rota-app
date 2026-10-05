@@ -13,17 +13,21 @@ export default function InfoTab() {
   const summary = useTodayShiftSummary(selectedLocation);
 
   return (
-    <div className="py-4">
-      <TodayShiftSummaryCard
-        summary={summary}
-        location={selectedLocation}
-        onLocationToggle={handleLocationToggle}
-        locationToggleDisabled={availableLocations.length === 0}
-      />
-      <Suspense fallback={null}>
-        <ShunterOfTheMonthCard />
-        <InductionGuidePromoCard />
-      </Suspense>
+    <div className="px-4 py-4">
+      <div className="max-w-4xl mx-auto space-y-3">
+        <TodayShiftSummaryCard
+          summary={summary}
+          location={selectedLocation}
+          onLocationToggle={handleLocationToggle}
+          locationToggleDisabled={availableLocations.length === 0}
+        />
+        <div className="card-modern divide-y divide-slate-200/60">
+          <Suspense fallback={null}>
+            <ShunterOfTheMonthCard variant="row" />
+            <InductionGuidePromoCard variant="row" />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }

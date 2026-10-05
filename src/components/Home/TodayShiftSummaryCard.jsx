@@ -7,6 +7,7 @@ const SHIFT_ROWS = [
   {
     id: 'day',
     label: 'Day shift',
+    short: 'Day',
     row: 'bg-gradient-to-r from-amber-50 via-amber-50/70 to-slate-50 border-amber-200',
     tile: 'border-amber-200/70',
     value: 'text-amber-800',
@@ -15,6 +16,7 @@ const SHIFT_ROWS = [
   {
     id: 'afternoon',
     label: 'Afternoon shift',
+    short: 'Aft',
     row: 'bg-gradient-to-r from-orange-50 via-orange-50/70 to-slate-50 border-orange-200',
     tile: 'border-orange-200/70',
     value: 'text-orange-800',
@@ -23,6 +25,7 @@ const SHIFT_ROWS = [
   {
     id: 'night',
     label: 'Night shift',
+    short: 'Night',
     row: 'bg-gradient-to-r from-blue-50 via-blue-50/70 to-slate-50 border-blue-200',
     tile: 'border-blue-200/70',
     value: 'text-blue-800',
@@ -34,7 +37,7 @@ const TOTAL_ROW = 'bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 bor
 
 /**
  * Today's rostered shunters at the selected location.
- * `embedded` = compact rows for the desktop side column; default = full card for the mobile Info tab.
+ * `embedded` = compact rows for the desktop side column; default = header + four tiles for the mobile Info tab.
  */
 export default function TodayShiftSummaryCard({
   summary,
@@ -72,63 +75,50 @@ export default function TodayShiftSummaryCard({
     );
   }
 
+  const tiles = [
+    { id: 'total', short: 'Total', label: 'Total shunters', row: TOTAL_ROW, value: 'text-charcoal', text: 'text-slate-500' },
+    ...SHIFT_ROWS,
+  ];
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="mb-3 px-4 mt-2 md:px-0 md:mt-0"
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="card-modern"
     >
-      <div className="max-w-4xl md:max-w-none mx-auto card-modern overflow-hidden">
-        <div className="min-h-[74px] flex items-center gap-4 px-4 py-3.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-b border-slate-200/60">
-          <div className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 shrink-0">
-            <Users className="w-6 h-6" strokeWidth={1.75} aria-hidden />
+      <div className="flex items-center gap-2.5 px-3 py-2.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border-b border-slate-200/60">
+        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 shrink-0">
+          <Users className="w-4 h-4" strokeWidth={1.75} aria-hidden />
+        </div>
+        <p className="flex-1 min-w-0 text-left text-sm font-semibold text-charcoal">Today on yard</p>
+        <button
+          type="button"
+          onClick={onLocationToggle}
+          disabled={locationToggleDisabled}
+          aria-label="Change location"
+          className={`flex min-w-0 max-w-[45%] items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium transition-all ${
+            locationToggleDisabled
+              ? 'text-slate-300 cursor-not-allowed'
+              : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
+          }`}
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${locationToggleDisabled ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
+          <span className="min-w-0 truncate">{location || 'No locations'}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-1.5 p-2">
+        {tiles.map((tile) => (
+          <div
+            key={tile.id}
+            aria-label={`${tile.label}: ${summary[tile.id]}`}
+            className={`flex flex-col items-center rounded-xl border px-1 py-2 text-center ${tile.row}`}
+          >
+            <span className={`text-lg font-bold leading-tight tabular-nums ${tile.value}`}>{summary[tile.id]}</span>
+            <span className={`text-[10px] font-semibold uppercase tracking-wide ${tile.text}`}>{tile.short}</span>
           </div>
-          <p className="flex-1 min-w-0 text-left text-sm font-semibold text-charcoal">Today on yard</p>
-          <button
-            type="button"
-            onClick={onLocationToggle}
-            disabled={locationToggleDisabled}
-            aria-label="Change location"
-            className={`flex min-w-0 max-w-[45%] items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-all ${
-              locationToggleDisabled
-                ? 'text-slate-300 cursor-not-allowed'
-                : 'text-slate-700 hover:text-charcoal bg-white/90 border border-slate-200/60 hover:border-slate-300/70 hover:shadow-sm'
-            }`}
-          >
-            <span className={`h-2 w-2 shrink-0 rounded-full ${locationToggleDisabled ? 'bg-slate-300' : 'bg-emerald-500 shadow-sm'}`} />
-            <span className="min-w-0 truncate">{location || 'No locations'}</span>
-          </button>
-        </div>
-
-        <div className="p-2 space-y-2">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-            className={`px-4 py-3 rounded-xl border flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200 ${TOTAL_ROW}`}
-          >
-            <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm shrink-0">
-              <span className="text-sm font-bold text-charcoal tabular-nums">{summary.total}</span>
-            </div>
-            <p className="flex-1 min-w-0 text-sm font-semibold text-charcoal">Total shunters</p>
-          </motion.div>
-
-          {SHIFT_ROWS.map((row, index) => (
-            <motion.div
-              key={row.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (index + 1) * 0.08, duration: 0.25 }}
-              className={`px-4 py-3 rounded-xl border flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200 ${row.row}`}
-            >
-              <div className={`w-9 h-9 flex items-center justify-center rounded-lg bg-white/90 border shadow-sm shrink-0 ${row.tile}`}>
-                <span className={`text-sm font-bold tabular-nums ${row.value}`}>{summary[row.id]}</span>
-              </div>
-              <p className={`flex-1 min-w-0 text-sm font-medium ${row.text}`}>{row.label}</p>
-            </motion.div>
-          ))}
-        </div>
+        ))}
       </div>
     </motion.div>
   );

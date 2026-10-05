@@ -2,12 +2,37 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, ChevronRight } from 'lucide-react';
 
 /**
  * Link card on the main calendar flow to the yard induction guide.
+ * `variant="row"` = list row for the mobile Info tab (sits inside a shared card-modern with dividers).
  */
-export default function InductionGuidePromoCard({ embedded = false }) {
+export default function InductionGuidePromoCard({ embedded = false, variant = 'card' }) {
+  if (variant === 'row') {
+    return (
+      <Link
+        to="/yard-guide"
+        className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50/70 transition-colors group"
+      >
+        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm text-teal-600 shrink-0">
+          <BookOpen className="w-4 h-4" strokeWidth={1.75} aria-hidden />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-charcoal truncate group-hover:text-teal-800 transition-colors">
+            Shunter Guide
+          </p>
+          <p className="text-xs text-slate-500 truncate">Yard induction guide</p>
+        </div>
+        <ChevronRight
+          className="w-4 h-4 text-slate-400 shrink-0 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all"
+          strokeWidth={2}
+          aria-hidden
+        />
+      </Link>
+    );
+  }
+
   if (embedded) {
     return (
       <Link
@@ -58,4 +83,5 @@ export default function InductionGuidePromoCard({ embedded = false }) {
 
 InductionGuidePromoCard.propTypes = {
   embedded: PropTypes.bool,
+  variant: PropTypes.oneOf(['card', 'row']),
 };
