@@ -130,6 +130,7 @@ class PreCheckKnownDefect {
     required this.reporterName,
     required this.dateLabel,
     this.imageUrls = const <String>[],
+    this.isAcknowledged = false,
   });
 
   final String id;
@@ -138,6 +139,9 @@ class PreCheckKnownDefect {
   final String reporterName;
   final String dateLabel;
   final List<String> imageUrls;
+
+  /// VMU knows about it and it will not be repaired; shown as info only.
+  final bool isAcknowledged;
 }
 
 class PreCheckPhoto {
@@ -377,6 +381,25 @@ PreCheckShiftWindow? getPreCheckFallbackWindow(
     start: earliest,
     end: earliest.add(const Duration(hours: 12)),
   );
+}
+
+/// Splits known defects into ones that need shunter action and ones VMU
+/// has acknowledged (info only, never block the item).
+({
+  Map<String, List<PreCheckKnownDefect>> active,
+  Map<String, List<PreCheckKnownDefect>> acknowledged,
+})
+splitAcknowledgedDefects(Map<String, List<PreCheckKnownDefect>> defectsByItem) {
+  final active = <String, List<PreCheckKnownDefect>>{};
+  final acknowledged = <String, List<PreCheckKnownDefect>>{};
+  defectsByItem.forEach((itemKey, defects) {
+    for (final defect in defects) {
+      (defect.isAcknowledged ? acknowledged : active)
+          .putIfAbsent(itemKey, () => <PreCheckKnownDefect>[])
+          .add(defect);
+    }
+  });
+  return (active: active, acknowledged: acknowledged);
 }
 
 List<String> stateKeysForItem(

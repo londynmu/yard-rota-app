@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { STATUS_CONFIG } from '../components/Admin/PreCheck/PreCheckList';
+import { STATUS_CONFIG, isDefectAwaitingRepair } from '../components/Admin/PreCheck/PreCheckList';
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
   value,
@@ -369,7 +369,7 @@ export default function VmuPage() {
         };
       }
       map[tugId].damages.push(d);
-      if (d.repair_status !== 'resolved') map[tugId].openCount++;
+      if (isDefectAwaitingRepair(d.repair_status)) map[tugId].openCount++;
     });
 
     return Object.values(map).sort((a, b) => b.openCount - a.openCount || a.name.localeCompare(b.name));
@@ -784,7 +784,10 @@ export default function VmuPage() {
         <div className="space-y-4">
           {tugGroups.map(group => {
             const isGroupExpanded = expandedTugs.has(group.id);
-            const openDamages = group.damages.filter(d => d.repair_status !== 'resolved');
+            const openDamages = [
+              ...group.damages.filter(d => isDefectAwaitingRepair(d.repair_status)),
+              ...group.damages.filter(d => d.repair_status === 'acknowledged'),
+            ];
             const resolvedDamages = group.damages.filter(d => d.repair_status === 'resolved');
             const hasAwaiting = group.openCount > 0;
             const cardStyle = hasAwaiting

@@ -256,7 +256,8 @@ export const submitPrecheckPayload = async (payload, supabase) => {
       const tugMatch = sub?.tug_id === payload.tugId;
       const itemMatch = pi?.item_name === item.key;
 
-      if (!dErr && damage && damage.repair_status !== 'resolved' && tugMatch && itemMatch) {
+      const isClosed = damage?.repair_status === 'resolved' || damage?.repair_status === 'acknowledged';
+      if (!dErr && damage && !isClosed && tugMatch && itemMatch) {
         const { error: confError } = await supabase
           .from('precheck_damage_confirmations')
           .insert({

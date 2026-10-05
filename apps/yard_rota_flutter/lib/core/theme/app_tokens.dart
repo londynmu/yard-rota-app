@@ -432,6 +432,7 @@ class AppPreCheckCard {
   static const double tugAvatarSize = 38;
   static const double stickyHeaderExtent = 82;
   static const double qrFrameSize = 236;
+  static const double knownDefectImageHeight = 120;
 }
 
 @immutable

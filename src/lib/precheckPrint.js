@@ -14,6 +14,7 @@ const REPAIR_STATUS_LABELS = {
   reported: 'Reported',
   awaiting_parts: 'Awaiting Parts',
   in_progress: 'In Progress',
+  acknowledged: 'Acknowledged',
   resolved: 'Resolved',
 };
 

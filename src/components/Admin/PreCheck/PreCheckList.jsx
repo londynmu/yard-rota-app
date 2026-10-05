@@ -12,8 +12,13 @@ export const STATUS_CONFIG = {
   reported:       { label: 'Reported',       dot: 'bg-orange-400', border: 'border-orange-200', bg: 'bg-orange-50' },
   awaiting_parts: { label: 'Awaiting Parts', dot: 'bg-amber-400',  border: 'border-amber-200',  bg: 'bg-amber-50' },
   in_progress:    { label: 'In Progress',    dot: 'bg-yellow-400', border: 'border-yellow-200', bg: 'bg-yellow-50' },
+  acknowledged:   { label: 'Acknowledged',   dot: 'bg-slate-400',  border: 'border-slate-200',  bg: 'bg-slate-50' },
   resolved:       { label: 'Resolved',       dot: 'bg-green-400',  border: 'border-green-200',  bg: 'bg-green-50' },
 };
+
+/** Statuses that still need repair work (acknowledged = known, will not be repaired). */
+export const isDefectAwaitingRepair = (repairStatus) =>
+  repairStatus !== 'resolved' && repairStatus !== 'acknowledged';
 
 const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
   value,
@@ -285,7 +290,7 @@ export default function PreCheckList() {
   const displaySubmissions = useMemo(() => {
     if (faultsFilter !== 'faults_only') return submissions;
     return submissions.filter(s =>
-      s.precheck_damages?.some(d => d.repair_status !== 'resolved')
+      s.precheck_damages?.some(d => isDefectAwaitingRepair(d.repair_status))
     );
   }, [submissions, faultsFilter]);
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
+import AcknowledgedDefectsPanel from './AcknowledgedDefectsPanel';
 
 export default function CheckItemRow({
   itemKey,
@@ -16,6 +17,7 @@ export default function CheckItemRow({
   images,
   onImagesChange,
   knownDefects = [],
+  acknowledgedDefects = [],
   linkedDamageId,
   onLinkDefect,
   onMarkResolved,
@@ -135,6 +137,8 @@ export default function CheckItemRow({
         {tooltip && value !== 'na' && (
           <p className="text-sm text-gray-600 leading-snug mt-1">{tooltip}</p>
         )}
+
+        <AcknowledgedDefectsPanel defects={acknowledgedDefects} />
 
         {/* Known defect info – no per-defect Fixed? badge (action is in footer) */}
         {hasKnownDefects && value !== 'repair_needed' && (
@@ -427,6 +431,13 @@ CheckItemRow.propTypes = {
   images: PropTypes.array,
   onImagesChange: PropTypes.func,
   knownDefects: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    reporterName: PropTypes.string,
+    date: PropTypes.string,
+    imageUrls: PropTypes.arrayOf(PropTypes.string),
+  })),
+  acknowledgedDefects: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,
     description: PropTypes.string,
     reporterName: PropTypes.string,

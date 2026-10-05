@@ -58,7 +58,15 @@ void main() {
     expect(RepairStatus.fromDb('reported'), RepairStatus.reported);
     expect(RepairStatus.fromDb('awaiting_parts'), RepairStatus.awaitingParts);
     expect(RepairStatus.fromDb('in_progress'), RepairStatus.inProgress);
+    expect(RepairStatus.fromDb('acknowledged'), RepairStatus.acknowledged);
     expect(RepairStatus.fromDb('resolved'), RepairStatus.resolved);
+  });
+
+  test('acknowledged defects do not count as open faults', () {
+    expect(RepairStatus.open.countsAsOpen, isTrue);
+    expect(RepairStatus.awaitingParts.countsAsOpen, isTrue);
+    expect(RepairStatus.acknowledged.countsAsOpen, isFalse);
+    expect(RepairStatus.resolved.countsAsOpen, isFalse);
   });
 
   test('defect filters search operational fields', () {

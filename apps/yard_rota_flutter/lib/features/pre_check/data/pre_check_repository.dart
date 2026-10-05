@@ -150,6 +150,7 @@ class PreCheckRepository {
           description,
           image_urls,
           created_at,
+          repair_status,
           precheck_submissions!inner(
             tug_id,
             check_date,
@@ -201,6 +202,7 @@ class PreCheckRepository {
                   ? ''
                   : '${parsedDate.day.toString().padLeft(2, '0')} ${_monthLabel(parsedDate.month)} ${parsedDate.year}',
               imageUrls: imageUrls,
+              isAcknowledged: row['repair_status'] == 'acknowledged',
             ),
           );
     }
@@ -744,6 +746,7 @@ class PreCheckRepository {
     final itemMap = item is Map<String, dynamic> ? item : null;
     if (damage == null ||
         damage['repair_status'] == 'resolved' ||
+        damage['repair_status'] == 'acknowledged' ||
         subMap?['tug_id']?.toString() != tugId ||
         itemMap?['item_name']?.toString() != itemKey) {
       return;

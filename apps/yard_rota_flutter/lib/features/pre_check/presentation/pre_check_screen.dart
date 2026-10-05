@@ -44,6 +44,8 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   List<PreCheckItemDefinition> _items = const <PreCheckItemDefinition>[];
   Map<String, List<PreCheckKnownDefect>> _defectsByItem =
       const <String, List<PreCheckKnownDefect>>{};
+  Map<String, List<PreCheckKnownDefect>> _acknowledgedByItem =
+      const <String, List<PreCheckKnownDefect>>{};
   PreCheckDraft _draft = PreCheckDraft(formSessionId: _newId());
   PreCheckTug? _selectedTug;
   PreCheckSubmissionSummary? _lastSubmission;
@@ -112,11 +114,15 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       _loading = true;
       _selectedTug = tug;
       _defectsByItem = const <String, List<PreCheckKnownDefect>>{};
+      _acknowledgedByItem = const <String, List<PreCheckKnownDefect>>{};
     });
     try {
-      final defects = await widget.repository.fetchKnownDefects(tug.id);
+      final defects = splitAcknowledgedDefects(
+        await widget.repository.fetchKnownDefects(tug.id),
+      );
       setState(() {
-        _defectsByItem = defects;
+        _defectsByItem = defects.active;
+        _acknowledgedByItem = defects.acknowledged;
         _step = PreCheckStep.form;
         _showValidationWarning = false;
       });
@@ -611,6 +617,9 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
               draft: _draft,
               defects:
                   _defectsByItem[item.key] ?? const <PreCheckKnownDefect>[],
+              acknowledgedDefects:
+                  _acknowledgedByItem[item.key] ??
+                  const <PreCheckKnownDefect>[],
               onDraftChanged: _persistDraft,
               onAddPhoto: (stateKey, source) =>
                   _addItemPhoto(item, stateKey, source),
@@ -838,11 +847,13 @@ class _CheckItemCard extends StatefulWidget {
     required this.defects,
     required this.onDraftChanged,
     required this.onAddPhoto,
+    this.acknowledgedDefects = const <PreCheckKnownDefect>[],
   });
 
   final PreCheckItemDefinition item;
   final PreCheckDraft draft;
   final List<PreCheckKnownDefect> defects;
+  final List<PreCheckKnownDefect> acknowledgedDefects;
   final ValueChanged<PreCheckDraft> onDraftChanged;
   final void Function(String stateKey, ImageSource source) onAddPhoto;
 
@@ -903,6 +914,10 @@ class _CheckItemCardState extends State<_CheckItemCard> {
                 ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
             ],
+            if (widget.acknowledgedDefects.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.md),
+              ...widget.acknowledgedDefects.map(_acknowledgedDefectPanel),
+            ],
             if (hasDefects) ...[
               const SizedBox(height: AppSpacing.md),
               ...widget.defects.map(_knownDefectPanel),
@@ -959,7 +974,24 @@ class _CheckItemCardState extends State<_CheckItemCard> {
     );
   }
 
-  Widget _knownDefectPanel(PreCheckKnownDefect defect) {
+  Widget _knownDefectPanel(PreCheckKnownDefect defect) => _defectInfoPanel(
+    defect,
+    title: 'Known defect',
+    accent: context.appColors.warning,
+  );
+
+  Widget _acknowledgedDefectPanel(PreCheckKnownDefect defect) =>
+      _defectInfoPanel(
+        defect,
+        title: 'Known to VMU – no action needed',
+        accent: context.appColors.textSecondary,
+      );
+
+  Widget _defectInfoPanel(
+    PreCheckKnownDefect defect, {
+    required String title,
+    required Color accent,
+  }) {
     final colors = context.appColors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -967,16 +999,16 @@ class _CheckItemCardState extends State<_CheckItemCard> {
       decoration: BoxDecoration(
         color: colors.bgSecondary.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Known defect',
+            title,
             style: Theme.of(
               context,
-            ).textTheme.labelLarge?.copyWith(color: colors.warning),
+            ).textTheme.labelLarge?.copyWith(color: accent),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
@@ -990,7 +1022,7 @@ class _CheckItemCardState extends State<_CheckItemCard> {
               child: Image.network(
                 defect.imageUrls.first,
                 fit: BoxFit.cover,
-                height: 120,
+                height: AppPreCheckCard.knownDefectImageHeight,
                 width: double.infinity,
                 errorBuilder: (context, error, stackTrace) =>
                     const SizedBox.shrink(),

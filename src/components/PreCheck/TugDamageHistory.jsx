@@ -86,6 +86,7 @@ export default function TugDamageHistory({ tugId }) {
             reported: 'border-l-orange-400 bg-orange-50',
             awaiting_parts: 'border-l-amber-400 bg-amber-50',
             in_progress: 'border-l-yellow-400 bg-yellow-50',
+            acknowledged: 'border-l-slate-400 bg-slate-50',
             resolved: 'border-l-green-400 bg-green-50',
           };
           const statusColor = BORDER_LEFT_MAP[damage.repair_status] || BORDER_LEFT_MAP.open;

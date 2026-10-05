@@ -149,5 +149,49 @@ void main() {
       expect(progress.checked, 1);
       expect(progress.issueCount, 1);
     });
+
+    test('acknowledged defects are info only and do not block the item', () {
+      const active = PreCheckKnownDefect(
+        id: 'damage-1',
+        itemKey: 'tyres',
+        description: 'Slow puncture',
+        reporterName: 'Alex',
+        dateLabel: '18 May 2026',
+      );
+      const acknowledged = PreCheckKnownDefect(
+        id: 'damage-2',
+        itemKey: 'mirrors',
+        description: 'Scratch on mirror housing',
+        reporterName: 'Sam',
+        dateLabel: '18 May 2026',
+        isAcknowledged: true,
+      );
+
+      final split = splitAcknowledgedDefects({
+        'tyres': [active],
+        'mirrors': [acknowledged],
+      });
+
+      expect(split.active.keys, ['tyres']);
+      expect(split.acknowledged['mirrors'], [acknowledged]);
+
+      final result = validatePreCheckDraft(
+        items: const [tyres, mirrors],
+        draft: const PreCheckDraft(
+          formSessionId: 'form-1',
+          itemStates: {
+            'tyres': PreCheckItemState(
+              status: PreCheckItemStatus.repairNeeded,
+              linkedDamageId: 'damage-1',
+            ),
+            'mirrors': PreCheckItemState(status: PreCheckItemStatus.ok),
+          },
+        ),
+        defectsByItem: split.active,
+      );
+
+      expect(result.isValid, isTrue);
+      expect(stateKeysForItem(mirrors, split.active), ['mirrors']);
+    });
   });
 }

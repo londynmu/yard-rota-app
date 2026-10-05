@@ -3,7 +3,7 @@
  * Used in PreCheckForm to show shunters existing known defects before they report.
  * @param {string} tugId
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
- * @returns {Promise<Record<string, Array<{ id: string; description: string; reporterName: string; date: string; imageUrls: string[] }>>>}
+ * @returns {Promise<Record<string, Array<{ id: string; description: string; reporterName: string; date: string; imageUrls: string[]; repairStatus: string }>>>}
  */
 export async function getOpenDefectsForTug(tugId, supabase) {
   if (!tugId || !supabase) return {};
@@ -15,6 +15,7 @@ export async function getOpenDefectsForTug(tugId, supabase) {
       description,
       image_urls,
       created_at,
+      repair_status,
       precheck_submissions!inner(
         tug_id,
         check_date,
@@ -55,6 +56,7 @@ export async function getOpenDefectsForTug(tugId, supabase) {
       reporterName,
       date,
       imageUrls: Array.isArray(d.image_urls) ? d.image_urls : [],
+      repairStatus: d.repair_status || 'open',
     };
 
     if (!byItem[itemName]) byItem[itemName] = [];
@@ -62,4 +64,23 @@ export async function getOpenDefectsForTug(tugId, supabase) {
   }
 
   return byItem;
+}
+
+/**
+ * Split defects by item into ones that still need shunter action and ones
+ * VMU has acknowledged (known, will not be repaired – shown as info only).
+ * @param {Record<string, Array<{ repairStatus?: string }>>} byItem
+ * @returns {{ active: Record<string, Array<object>>, acknowledged: Record<string, Array<object>> }}
+ */
+export function splitAcknowledged(byItem) {
+  const active = {};
+  const acknowledged = {};
+  for (const [itemKey, defects] of Object.entries(byItem || {})) {
+    for (const def of defects) {
+      const target = def.repairStatus === 'acknowledged' ? acknowledged : active;
+      if (!target[itemKey]) target[itemKey] = [];
+      target[itemKey].push(def);
+    }
+  }
+  return { active, acknowledged };
 }

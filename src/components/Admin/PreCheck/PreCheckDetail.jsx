@@ -213,6 +213,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
                 <div key={damage.id} className={`p-4 rounded-lg border-2 ${
                   damage.repair_status === 'resolved' ? 'border-green-200 bg-green-50'
                     : damage.repair_status === 'in_progress' ? 'border-yellow-200 bg-yellow-50'
+                    : damage.repair_status === 'acknowledged' ? 'border-slate-200 bg-slate-50'
                     : 'border-red-200 bg-red-50'
                 }`}>
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -257,11 +258,13 @@ export default function PreCheckDetail({ submissionId, onBack }) {
                       className={`text-xs font-medium rounded-lg px-3 py-1.5 border ${
                         damage.repair_status === 'resolved' ? 'border-green-300 bg-green-100'
                           : damage.repair_status === 'in_progress' ? 'border-yellow-300 bg-yellow-100'
+                          : damage.repair_status === 'acknowledged' ? 'border-slate-300 bg-slate-100'
                           : 'border-red-300 bg-red-100'
                       }`}
                     >
                       <option value="open">Open</option>
                       <option value="in_progress">In Progress</option>
+                      <option value="acknowledged">Acknowledged</option>
                       <option value="resolved">Resolved</option>
                     </select>
                   </div>

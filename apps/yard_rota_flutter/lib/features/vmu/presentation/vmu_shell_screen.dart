@@ -179,12 +179,8 @@ class _DefectBoardScreenState extends State<DefectBoardScreen> {
     }
     final groups = grouped.entries.toList()
       ..sort((a, b) {
-        final aOpen = a.value
-            .where((d) => d.status != RepairStatus.resolved)
-            .length;
-        final bOpen = b.value
-            .where((d) => d.status != RepairStatus.resolved)
-            .length;
+        final aOpen = a.value.where((d) => d.status.countsAsOpen).length;
+        final bOpen = b.value.where((d) => d.status.countsAsOpen).length;
         return bOpen.compareTo(aOpen);
       });
     return RefreshIndicator(
@@ -276,17 +272,16 @@ class _TugDefectGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final open = defects.where((d) => d.status != RepairStatus.resolved).length;
+    final open = defects.where((d) => d.status.countsAsOpen).length;
+    int rank(RepairStatus status) => status == RepairStatus.resolved
+        ? 2
+        : status == RepairStatus.acknowledged
+        ? 1
+        : 0;
     final sorted = [...defects]
       ..sort((a, b) {
-        if (a.status == RepairStatus.resolved &&
-            b.status != RepairStatus.resolved) {
-          return 1;
-        }
-        if (a.status != RepairStatus.resolved &&
-            b.status == RepairStatus.resolved) {
-          return -1;
-        }
+        final byRank = rank(a.status).compareTo(rank(b.status));
+        if (byRank != 0) return byRank;
         return b.createdAt.compareTo(a.createdAt);
       });
     return Padding(
@@ -334,6 +329,7 @@ class _DefectTile extends StatelessWidget {
     final colors = context.appColors;
     final statusColor = switch (defect.status) {
       RepairStatus.resolved => colors.success,
+      RepairStatus.acknowledged => colors.textSecondary,
       RepairStatus.awaitingParts => colors.warning,
       RepairStatus.inProgress => colors.warning,
       RepairStatus.reported => colors.info,

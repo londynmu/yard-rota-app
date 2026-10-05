@@ -5,11 +5,16 @@ enum RepairStatus {
   reported('reported', 'Reported'),
   awaitingParts('awaiting_parts', 'Awaiting Parts'),
   inProgress('in_progress', 'In Progress'),
+  acknowledged('acknowledged', 'Acknowledged'),
   resolved('resolved', 'Resolved');
 
   const RepairStatus(this.dbValue, this.label);
   final String dbValue;
   final String label;
+
+  /// Still needs repair work. Acknowledged = known to VMU, will not be repaired.
+  bool get countsAsOpen =>
+      this != RepairStatus.resolved && this != RepairStatus.acknowledged;
 
   static RepairStatus fromDb(Object? value) => values.firstWhere(
     (status) => status.dbValue == value,
@@ -166,8 +171,7 @@ class PreCheckSubmissionRecord {
   final String? remarks;
   final List<PreCheckItemRecord> items;
   final List<DefectRecord> defects;
-  bool get hasOpenFaults =>
-      defects.any((item) => item.status != RepairStatus.resolved);
+  bool get hasOpenFaults => defects.any((item) => item.status.countsAsOpen);
 }
 
 class CheckItemDefinition {

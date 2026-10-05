@@ -12,7 +12,7 @@ import {
   queuePrecheckSubmission,
   submitPrecheckPayload,
 } from '../../lib/precheckQueue';
-import { getOpenDefectsForTug } from '../../lib/precheckDefects';
+import { getOpenDefectsForTug, splitAcknowledged } from '../../lib/precheckDefects';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
@@ -201,6 +201,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // ─── Known defects per item (fetched when tug selected) ───
   const [knownDefectsByItem, setKnownDefectsByItem] = useState({});
+  const [acknowledgedDefectsByItem, setAcknowledgedDefectsByItem] = useState({});
 
   // ─── Form state (initialized after items load) ───
   const [checkItems, setCheckItems] = useState({});
@@ -214,23 +215,27 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   const [markedResolvedDamageIds, setMarkedResolvedDamageIds] = useState([]);
   const [reloadKey, setReloadKey] = useState({});
 
+  const applyDefects = useCallback((byItem) => {
+    const { active, acknowledged } = splitAcknowledged(byItem);
+    setKnownDefectsByItem(active);
+    setAcknowledgedDefectsByItem(acknowledged);
+  }, []);
+
   useEffect(() => {
     if (!selectedTug?.id) {
-      setKnownDefectsByItem({});
+      applyDefects({});
       return;
     }
     const load = async () => {
-      const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
-      setKnownDefectsByItem(byItem);
+      applyDefects(await getOpenDefectsForTug(selectedTug.id, supabase));
     };
     load();
-  }, [selectedTug?.id]);
+  }, [selectedTug?.id, applyDefects]);
 
   const refetchKnownDefects = useCallback(async () => {
     if (!selectedTug?.id) return;
-    const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
-    setKnownDefectsByItem(byItem);
-  }, [selectedTug?.id]);
+    applyDefects(await getOpenDefectsForTug(selectedTug.id, supabase));
+  }, [selectedTug?.id, applyDefects]);
 
   const handleReloadCheckItem = useCallback((itemKey, defectId) => {
     if (defectId != null) {
@@ -576,8 +581,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         if (error) throw error;
       }
       setMarkedResolvedDamageIds([]);
-      const byItem = await getOpenDefectsForTug(selectedTug.id, supabase);
-      setKnownDefectsByItem(byItem);
+      applyDefects(await getOpenDefectsForTug(selectedTug.id, supabase));
       try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
@@ -721,6 +725,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                   itemKey={itemKey}
                   item={item}
                   defects={knownDefects}
+                  acknowledgedDefects={acknowledgedDefectsByItem[itemKey] || []}
                   checkItems={checkItems}
                   onCheckChange={handleCheckChange}
                   onNotesChange={(sk, notes) => setCheckItems(prev => ({ ...prev, [sk]: { ...prev[sk], notes } }))}
@@ -752,6 +757,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                 images={checkItems[stateKey]?.images || []}
                 onImagesChange={(images) => handleItemImagesChange(stateKey, images)}
                 knownDefects={knownDefects}
+                acknowledgedDefects={acknowledgedDefectsByItem[itemKey] || []}
                 linkedDamageId={checkItems[stateKey]?.linkedDamageId}
                 onLinkDefect={(damageId) => setCheckItems(prev => ({
                   ...prev,

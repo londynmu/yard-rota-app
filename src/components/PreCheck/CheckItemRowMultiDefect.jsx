@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
+import AcknowledgedDefectsPanel from './AcknowledgedDefectsPanel';
 
 const NEW_DEFECT_KEY = '::new';
 
@@ -8,6 +9,7 @@ export default function CheckItemRowMultiDefect({
   itemKey,
   item,
   defects,
+  acknowledgedDefects = [],
   checkItems,
   onCheckChange,
   onLinkDefect,
@@ -95,6 +97,8 @@ export default function CheckItemRowMultiDefect({
             </button>
           )}
         </div>
+
+        <AcknowledgedDefectsPanel defects={acknowledgedDefects} />
 
         <div
           className={`transition-all duration-300 ease-out overflow-hidden ${showCollapsedState ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}
@@ -227,6 +231,13 @@ CheckItemRowMultiDefect.propTypes = {
     date: PropTypes.string,
     imageUrls: PropTypes.arrayOf(PropTypes.string),
   })).isRequired,
+  acknowledgedDefects: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    reporterName: PropTypes.string,
+    date: PropTypes.string,
+    imageUrls: PropTypes.arrayOf(PropTypes.string),
+  })),
   checkItems: PropTypes.object.isRequired,
   onCheckChange: PropTypes.func.isRequired,
   onLinkDefect: PropTypes.func.isRequired,
