@@ -53,17 +53,17 @@ export default function UpdateBanner() {
             />
           </svg>
         </div>
-        <p className="text-base font-medium text-slate-700 dark:text-slate-300">
+        <p className="text-base font-medium text-slate-700">
           Reloading app…
         </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-slate-500">
           A new version is loading. This will only take a moment.
         </p>
         <button
           type="button"
           onClick={handleReloadNow}
           disabled={isUpdating}
-          className="mt-2 text-sm font-medium text-slate-600 underline hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-60"
+          className="mt-2 text-sm font-medium text-slate-600 underline hover:text-slate-800 disabled:opacity-60"
         >
           {isUpdating ? 'Reloading…' : 'Reload now'}
         </button>

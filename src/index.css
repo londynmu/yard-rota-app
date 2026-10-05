@@ -4,16 +4,10 @@
 
 @layer base {
   :root {
-    color-scheme: light dark;
+    /* Light-only UI: dark scheme makes native fields black and inherited text light grey */
+    color-scheme: light;
     --app-bg: #f8fafc;
     --app-fg: #2d2d2d;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --app-bg: #0f172a;
-      --app-fg: #e5e7eb;
-    }
   }
 
   /* Smooth theme transitions */

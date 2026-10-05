@@ -586,7 +586,7 @@ export default function VmuPage() {
                             if (full !== (d.defect_number || '')) saveField(d.id, 'defect_number', full);
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                          className="flex-1 text-sm py-2 pr-3 bg-transparent font-mono placeholder:text-gray-300 outline-none"
+                          className="flex-1 text-sm py-2 pr-3 bg-transparent font-mono placeholder:text-gray-400 outline-none"
                         />
                       </div>
                   </div>
@@ -615,7 +615,7 @@ export default function VmuPage() {
                           const val = e.target.value.trim();
                           if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
                         }}
-                        className="w-full text-sm rounded px-2.5 py-2 border border-gray-200 bg-white placeholder:text-gray-300 resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                        className="w-full text-sm rounded px-2.5 py-2 border border-gray-200 bg-white placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                       />
                     </div>
                 </div>

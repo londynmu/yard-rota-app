@@ -10,20 +10,13 @@ import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { safeAutoReload } from './lib/reloadGuard'
 
-const isSystemDarkMode = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia &&
-  window.matchMedia('(prefers-color-scheme: dark)').matches
-
-const getStatusBarStyleForSystemTheme = () =>
-  isSystemDarkMode() ? Style.Dark : Style.Light
-
 // Configure native Status Bar on mobile (Android/iOS)
 if (Capacitor.getPlatform() !== 'web') {
   const setupStatusBar = async () => {
     try {
       await StatusBar.setOverlaysWebView({ overlay: false })
-      await StatusBar.setStyle({ style: getStatusBarStyleForSystemTheme() })
+      // Light-only UI: dark icons on the white bar, regardless of system theme
+      await StatusBar.setStyle({ style: Style.Light })
       await StatusBar.setBackgroundColor({ color: '#FFFFFF' })
     } catch (err) {
       console.error('StatusBar setup error:', err)
@@ -32,16 +25,6 @@ if (Capacitor.getPlatform() !== 'web') {
   
   // Setup on app start
   setupStatusBar()
-
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handleThemeChange = () => {
-      StatusBar.setStyle({ style: getStatusBarStyleForSystemTheme() }).catch((err) => {
-        console.error('StatusBar theme update error:', err)
-      })
-    }
-    mediaQuery.addEventListener('change', handleThemeChange)
-  }
 }
 
 /** Check for newer deploy (web/PWA only). If newer, reload. Deferred so it does not block first paint / LCP. */
