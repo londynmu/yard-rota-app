@@ -25,6 +25,7 @@ import {
   Shield,
   UserCircle2,
   BookOpen,
+  Info,
 } from 'lucide-react';
 
 const sizeClass = 'w-6 h-6 flex-shrink-0';
@@ -80,6 +81,13 @@ export const mainNavConfig = [
   { path: '/admin', label: 'Admin Panel', shortLabel: 'Admin', Icon: Shield, colorClass: colors.slateStrong },
   { path: '/transport-dashboard', label: 'Dashboard', shortLabel: 'Dashboard', Icon: Gauge, colorClass: colors.slateStrong },
   { path: '/profile', label: 'Profile', shortLabel: 'Profile', Icon: UserCircle2, colorClass: colors.secondary },
+];
+
+/** Mobile Home section tabs (top bar under /calendar) */
+export const homeTabsConfig = [
+  { path: '/calendar', label: 'Calendar', Icon: CalendarClock, colorClass: colors.primary },
+  { path: '/calendar/breaks', label: 'Breaks', Icon: Timer, colorClass: colors.warning },
+  { path: '/calendar/info', label: 'Info', Icon: Info, colorClass: colors.sky },
 ];
 
 export { sizeClass };

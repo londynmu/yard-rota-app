@@ -18,6 +18,8 @@ const getPageTitle = (pathname) => {
   const titleMap = {
     '/': 'Main Page',
     '/calendar': 'Calendar',
+    '/calendar/breaks': 'Breaks list',
+    '/calendar/info': 'Info',
     '/my-rota': 'My Rota',
     '/admin': 'Admin Dashboard',
     '/profile': 'Profile',

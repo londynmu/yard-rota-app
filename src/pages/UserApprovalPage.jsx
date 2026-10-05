@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../lib/NotificationContext';
+import { useToast } from '../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 const UserApprovalPage = () => {
   const { user } = useAuth();
-  const { addNotification } = useNotifications() || {};
+  const { refreshPendingApprovals } = useNotifications() || {};
+  const toast = useToast();
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,16 +70,11 @@ const UserApprovalPage = () => {
 
       // Update the local state
       setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-      
-      // Add notification if available
-      if (typeof addNotification === 'function') {
-        addNotification('User approved successfully', 'success');
-      }
+      refreshPendingApprovals?.();
+      toast.success('User approved.');
     } catch (err) {
       console.error('Error approving user:', err);
-      if (typeof addNotification === 'function') {
-        addNotification('Failed to approve user', 'error');
-      }
+      toast.error('Could not approve the user. Please try again.');
     }
   };
 
@@ -98,16 +95,11 @@ const UserApprovalPage = () => {
 
       // Update the local state
       setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-      
-      // Add notification if available
-      if (typeof addNotification === 'function') {
-        addNotification('User rejected', 'success');
-      }
+      refreshPendingApprovals?.();
+      toast.success('User rejected.');
     } catch (err) {
       console.error('Error rejecting user:', err);
-      if (typeof addNotification === 'function') {
-        addNotification('Failed to reject user', 'error');
-      }
+      toast.error('Could not reject the user. Please try again.');
     }
   };
 

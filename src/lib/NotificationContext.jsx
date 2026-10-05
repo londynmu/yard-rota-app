@@ -5,6 +5,9 @@ import { supabase } from './supabaseClient';
 
 const NotificationContext = createContext();
 
+const PENDING_APPROVALS_POLL_MS = 30 * 1000;
+const MISSING_PRECHECKS_POLL_MS = 60 * 1000;
+
 export function useNotifications() {
   return useContext(NotificationContext);
 }
@@ -14,24 +17,9 @@ export const NotificationProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVmu, setIsVmu] = useState(false);
   const [isTransportManager, setIsTransportManager] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [missingPrechecks, setMissingPrechecks] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Add a new notification - memoized to prevent re-creation
-  const addNotification = useCallback((message, type = 'info') => {
-    const newNotification = {
-      id: Date.now(),
-      message,
-      type,
-      isRead: false,
-      createdAt: new Date()
-    };
-    
-    setNotifications(prev => [newNotification, ...prev]);
-    setUnreadCount(prev => prev + 1);
-  }, []);
 
   // Roles come from sessionProfile (filled by App.jsx profile gate) — avoids duplicate profiles fetch
   const userId = user?.id;
@@ -56,61 +44,75 @@ export const NotificationProvider = ({ children }) => {
     setLoading(false);
   }, [userId, sessionProfile]);
 
-  // Fetch pending approvals count
-  useEffect(() => {
+  const refreshPendingApprovals = useCallback(async () => {
     if (!isAdmin) return;
+    try {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('account_status', 'pending_approval');
 
-    async function fetchPendingApprovals() {
-      try {
-        // Use account_status instead of approved column
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('account_status', 'pending_approval');
-
-        if (error) throw error;
-        setPendingApprovals(data?.length || 0);
-      } catch (error) {
-        console.error('Error fetching pending approvals:', error);
-        // Set to 0 on error to avoid showing incorrect badge
-        setPendingApprovals(0);
-      }
+      if (error) throw error;
+      setPendingApprovals(count || 0);
+    } catch (error) {
+      console.error('Error fetching pending approvals:', error);
+      setPendingApprovals(0);
     }
-
-    fetchPendingApprovals();
-    
-    // Set up interval to periodically check for new pending approvals
-    const interval = setInterval(fetchPendingApprovals, 30000);
-    return () => clearInterval(interval);
   }, [isAdmin]);
 
-  // Mark notifications as read - memoized to prevent re-creation
-  const markAllAsRead = useCallback(async () => {
+  const refreshMissingPrechecks = useCallback(async () => {
+    if (!isAdmin) return;
     try {
-      // Update notifications to mark them as read
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, isRead: true }))
-      );
-      setUnreadCount(0);
+      const { data, error } = await supabase.rpc('get_missing_precheck_reminders');
+      if (error) throw error;
+      setMissingPrechecks(data || []);
     } catch (error) {
-      console.error('Error marking notifications as read:', error);
+      console.warn('Could not load missing pre-shift checks:', error);
     }
-  }, []);
+  }, [isAdmin]);
 
-  // No real-time subscriptions since this version of Supabase doesn't support it
+  // Admin alerts: poll on an interval and refresh as soon as the app is visible again (PWA resume)
+  useEffect(() => {
+    if (!isAdmin) {
+      setPendingApprovals(0);
+      setMissingPrechecks([]);
+      return undefined;
+    }
+
+    refreshPendingApprovals();
+    refreshMissingPrechecks();
+    const approvalsInterval = setInterval(refreshPendingApprovals, PENDING_APPROVALS_POLL_MS);
+    const prechecksInterval = setInterval(refreshMissingPrechecks, MISSING_PRECHECKS_POLL_MS);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshPendingApprovals();
+        refreshMissingPrechecks();
+      }
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      clearInterval(approvalsInterval);
+      clearInterval(prechecksInterval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [isAdmin, refreshPendingApprovals, refreshMissingPrechecks]);
+
+  const alertCount = isAdmin ? pendingApprovals + missingPrechecks.length : 0;
 
   // Memoize value object to prevent unnecessary re-renders of consumers
   const value = useMemo(() => ({
-    notifications,
-    unreadCount,
     pendingApprovals,
+    missingPrechecks,
+    alertCount,
+    refreshPendingApprovals,
+    refreshMissingPrechecks,
     isAdmin,
     isVmu,
     isTransportManager,
-    addNotification,
-    markAllAsRead,
     loading
-  }), [notifications, unreadCount, pendingApprovals, isAdmin, isVmu, isTransportManager, addNotification, markAllAsRead, loading]);
+  }), [pendingApprovals, missingPrechecks, alertCount, refreshPendingApprovals, refreshMissingPrechecks, isAdmin, isVmu, isTransportManager, loading]);
 
   return (
     <NotificationContext.Provider value={value}>
@@ -121,4 +123,4 @@ export const NotificationProvider = ({ children }) => {
 
 NotificationProvider.propTypes = {
   children: PropTypes.node.isRequired
-}; 
+};

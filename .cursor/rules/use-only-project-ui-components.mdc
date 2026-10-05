@@ -19,6 +19,7 @@ For **new pages** and shared surfaces (scroll shell, `card-modern`, `glass-card`
 | Confirm / delete dialogs | ConfirmDialog | `src/components/ui/ConfirmDialog.jsx` |
 | Toasts | Toast + ToastContext | `src/components/ui/Toast.jsx`, `ToastContext.jsx` |
 | Tooltips | Tooltip | `src/components/ui/Tooltip.jsx` |
+| Red count bubble (bell, nav icons) | CountBadge | `src/components/ui/CountBadge.jsx` |
 | Cards / sections (visual style) | — | Follow `.cursor/rules/shunter-card-visual-reference.mdc` |
 | Buttons (outline only) | — | Follow `.cursor/rules/confirm-dialog-visual-reference.mdc` §3 and shunter-card §8 |
 

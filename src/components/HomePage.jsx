@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { mainNavConfig } from '../config/navIcons';
 import NavIcon from './NavIcon';
 import CalendarPage from '../pages/CalendarPage';
+import CalendarTab from '../pages/home/CalendarTab';
+import HomeMobileLayout from './Home/HomeMobileLayout';
 import ProfilePage from '../pages/ProfilePage';
 import NotificationBell from './NotificationBell';
+import CountBadge from './ui/CountBadge';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
@@ -13,43 +16,8 @@ import ProtectedRoute from './Auth/ProtectedRoute';
 import ProtectedVmuRoute from './Auth/ProtectedVmuRoute';
 import ProtectedTransportManagerRoute from './Auth/ProtectedTransportManagerRoute';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
-
-/**
- * Wrapper for React.lazy that adds retry logic for failed chunk loads
- * This helps handle the case where users have stale JS after a deployment
- * @param {Function} componentImport - The dynamic import function
- * @param {number} retries - Number of retry attempts (default: 2)
- * @param {number} delay - Delay between retries in ms (default: 1000)
- */
-const lazyWithRetry = (componentImport, retries = 2, delay = 1000) => {
-  return lazy(() => {
-    const retryImport = (attemptsLeft) => {
-      return componentImport().catch((error) => {
-        // Check if this is a chunk loading error
-        const errorString = error.toString().toLowerCase();
-        const isChunkError = 
-          errorString.includes('loading chunk') ||
-          errorString.includes('dynamically imported module') ||
-          errorString.includes('failed to fetch');
-        
-        if (attemptsLeft > 0 && isChunkError) {
-          console.log(`[lazyWithRetry] Chunk load failed, retrying... (${attemptsLeft} attempts left)`);
-          return new Promise((resolve) => {
-            setTimeout(() => {
-              // Add cache-busting query param to force fresh fetch
-              resolve(retryImport(attemptsLeft - 1));
-            }, delay);
-          });
-        }
-        
-        // If no retries left or not a chunk error, throw
-        throw error;
-      });
-    };
-    
-    return retryImport(retries);
-  });
-};
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // Lazy load admin and non-essential pages for better initial load performance
 // Using lazyWithRetry to handle chunk loading failures after deployments
@@ -68,6 +36,10 @@ const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePa
 const PreCheckReminder = lazyWithRetry(() => import('./PreCheck/PreCheckReminder'));
 const InductionGuidePromoCard = lazyWithRetry(() => import('./InductionGuide/InductionGuidePromoCard'));
 const ShunterOfTheMonthCard = lazyWithRetry(() => import('./User/ShunterOfTheMonthCard'));
+const BreaksTab = lazyWithRetry(() => import('../pages/home/BreaksTab'));
+const InfoTab = lazyWithRetry(() => import('../pages/home/InfoTab'));
+
+const TAB_FALLBACK = <div className="min-h-screen bg-transparent" />;
 
 /** Desktop top nav links — glass / Figma-aligned */
 function topNavLinkClassName(isActive) {
@@ -101,8 +73,9 @@ function DesktopNavAppIcon() {
 
 export default function HomePage() {
   const { user, signOut, sessionProfile } = useAuth();
-  const { isAdmin, isVmu, isTransportManager } = useNotifications();
+  const { isAdmin, isVmu, isTransportManager, alertCount = 0 } = useNotifications();
   const location = useLocation();
+  const isDesktop = useIsDesktop();
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileName, setProfileName] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -237,7 +210,7 @@ export default function HomePage() {
   const pageTitle = useMemo(() => {
     const path = location.pathname;
     
-    if (path === '/' || path === '/calendar') return 'Main Page';
+    if (path === '/' || path.startsWith('/calendar')) return 'Main Page';
     if (path === '/my-rota') return 'My Rota';
     if (path === '/admin') return 'Admin Dashboard';
     if (path === '/profile') return 'Your Profile';
@@ -322,7 +295,7 @@ export default function HomePage() {
 
   const path = location.pathname;
   const hideHeaderOnMobile =
-    path === '/my-rota' || path === '/brakes' || path === '/calendar' ||
+    path === '/my-rota' || path === '/brakes' || path.startsWith('/calendar') ||
     path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard' ||
     path === '/yard-guide';
 
@@ -330,16 +303,6 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
       {/* Top bar - always visible */}
       {(() => {
-        const path = location.pathname;
-        const hideHeaderOnMobile = 
-          path === '/my-rota' || 
-          path === '/brakes' || 
-          path === '/calendar' ||
-          path === '/performance' ||
-          path.startsWith('/precheck') ||
-          path.startsWith('/vmu') ||
-          path === '/transport-dashboard' ||
-          path === '/yard-guide';
         const isAdminPage = path === '/admin';
         const isProfilePage = path === '/profile';
         const isTransportDashboardPage = path === '/transport-dashboard';
@@ -588,26 +551,52 @@ export default function HomePage() {
         <Suspense fallback={<div className="min-h-screen bg-transparent" />}>
           <Routes>
             <Route
-              path="/calendar"
+              path="/calendar/*"
               element={
-                <React.Suspense fallback={<div className="min-h-screen bg-transparent" />}>
-                  <PreCheckReminder />
-                  <div className="md:hidden">
-                    <InductionGuidePromoCard />
-                    <ShunterOfTheMonthCard />
-                    <CalendarPage />
-                  </div>
-                  <div className="hidden md:block">
-                    <CalendarPage
-                      desktopBelowCalendar={
-                        <>
-                          <InductionGuidePromoCard />
-                          <ShunterOfTheMonthCard />
-                        </>
+                isDesktop ? (
+                  <Routes>
+                    <Route
+                      index
+                      element={
+                        <React.Suspense fallback={TAB_FALLBACK}>
+                          <PreCheckReminder />
+                          <CalendarPage
+                            desktopBelowCalendar={
+                              <>
+                                <InductionGuidePromoCard />
+                                <ShunterOfTheMonthCard />
+                              </>
+                            }
+                          />
+                        </React.Suspense>
                       }
                     />
-                  </div>
-                </React.Suspense>
+                    <Route path="*" element={<Navigate to="/calendar" replace />} />
+                  </Routes>
+                ) : (
+                  <Routes>
+                    <Route element={<HomeMobileLayout />}>
+                      <Route index element={<CalendarTab />} />
+                      <Route
+                        path="breaks"
+                        element={
+                          <React.Suspense fallback={TAB_FALLBACK}>
+                            <BreaksTab />
+                          </React.Suspense>
+                        }
+                      />
+                      <Route
+                        path="info"
+                        element={
+                          <React.Suspense fallback={TAB_FALLBACK}>
+                            <InfoTab />
+                          </React.Suspense>
+                        }
+                      />
+                      <Route path="*" element={<Navigate to="/calendar" replace />} />
+                    </Route>
+                  </Routes>
+                )
               }
             />
             <Route
@@ -725,16 +714,23 @@ export default function HomePage() {
           ) : (
             <>
               {bottomNavLinks.map((nav) => {
-                const isActive = nav.path === '/precheck' ? location.pathname.startsWith('/precheck') : location.pathname === nav.path;
+                const isActive = nav.path === '/precheck' || nav.path === '/calendar'
+                  ? location.pathname.startsWith(nav.path)
+                  : location.pathname === nav.path;
+                const badgeCount = nav.path === '/admin' && isAdmin ? alertCount : 0;
                 return (
                   <Link
                     key={nav.path}
                     to={nav.path}
+                    aria-label={badgeCount > 0 ? `${nav.shortLabel} (${badgeCount} notifications)` : undefined}
                     className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
                       isActive ? 'active' : ''
                     }`}
                   >
-                    <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
+                    <span className="relative inline-flex">
+                      <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
+                      <CountBadge count={badgeCount} className="-top-1.5 -right-2.5" />
+                    </span>
                     <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
                   </Link>
                 );

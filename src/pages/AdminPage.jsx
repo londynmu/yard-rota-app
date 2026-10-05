@@ -3,6 +3,7 @@ import { getAdminMenuItems } from '../config/navIcons';
 import NavIcon from '../components/NavIcon';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
 import UserList from '../components/Admin/UserList';
 import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
@@ -67,7 +68,7 @@ export default function AdminPage() {
     window.dispatchEvent(new CustomEvent('adminSectionChange', { detail: { label } }));
   }, [activeSection]);
   
-  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const { pendingApprovals = 0 } = useNotifications() || {};
 
   // Listener dla custom event z top bara - tylko mobile
   useEffect(() => {
@@ -151,21 +152,6 @@ export default function AdminPage() {
     setShowShunterReminder(false);
   };
 
-  // Pobieranie liczby oczekujących zatwierdzeń
-  const fetchPendingApprovals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('account_status', 'pending_approval');
-      
-      if (error) throw error;
-      setPendingApprovals(data?.length || 0);
-    } catch (err) {
-      console.error('Error fetching pending approvals:', err);
-    }
-  };
-
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
     setPageLoading(true);
@@ -227,7 +213,6 @@ export default function AdminPage() {
     const loadData = async () => {
       if (!cancelled) {
         await fetchUsers();
-        await fetchPendingApprovals();
       }
     };
     
