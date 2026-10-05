@@ -7,7 +7,7 @@ export default function AcknowledgedDefectsPanel({ defects }) {
   return (
     <div className="mt-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Known to VMU – no action needed
+        Already reported – VMU knows about this
       </p>
       {defects.map((def) => (
         <div key={def.id} className="mt-1">
@@ -25,6 +25,11 @@ export default function AcknowledgedDefectsPanel({ defects }) {
           )}
         </div>
       ))}
+      <p className="mt-2 text-sm font-semibold text-slate-800">
+        {defects.length > 1
+          ? "If it's one of these problems, you don't need to do anything."
+          : "If this is the problem you see, you don't need to do anything."}
+      </p>
     </div>
   );
 }

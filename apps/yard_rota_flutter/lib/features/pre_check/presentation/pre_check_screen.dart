@@ -916,7 +916,11 @@ class _CheckItemCardState extends State<_CheckItemCard> {
             ],
             if (widget.acknowledgedDefects.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
-              ...widget.acknowledgedDefects.map(_acknowledgedDefectPanel),
+              for (final (index, defect) in widget.acknowledgedDefects.indexed)
+                _acknowledgedDefectPanel(
+                  defect,
+                  isLast: index == widget.acknowledgedDefects.length - 1,
+                ),
             ],
             if (hasDefects) ...[
               const SizedBox(height: AppSpacing.md),
@@ -946,8 +950,25 @@ class _CheckItemCardState extends State<_CheckItemCard> {
               )
             else if (hasDefects)
               _knownDefectActions()
-            else
+            else ...[
+              if (widget.acknowledgedDefects.isNotEmpty) ...[
+                Text(
+                  'Any other issue apart from this?',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'If not, tap OK. Tap Issue only for a new problem.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               _standardActions(state),
+            ],
             if (effective == PreCheckItemStatus.repairNeeded &&
                 state.linkedDamageId == null)
               _IssueDetails(
@@ -980,17 +1001,25 @@ class _CheckItemCardState extends State<_CheckItemCard> {
     accent: context.appColors.warning,
   );
 
-  Widget _acknowledgedDefectPanel(PreCheckKnownDefect defect) =>
-      _defectInfoPanel(
-        defect,
-        title: 'Known to VMU – no action needed',
-        accent: context.appColors.textSecondary,
-      );
+  Widget _acknowledgedDefectPanel(
+    PreCheckKnownDefect defect, {
+    required bool isLast,
+  }) => _defectInfoPanel(
+    defect,
+    title: 'Already reported – VMU knows about this',
+    accent: context.appColors.textSecondary,
+    footnote: !isLast
+        ? null
+        : widget.acknowledgedDefects.length > 1
+        ? "If it's one of these problems, you don't need to do anything."
+        : "If this is the problem you see, you don't need to do anything.",
+  );
 
   Widget _defectInfoPanel(
     PreCheckKnownDefect defect, {
     required String title,
     required Color accent,
+    String? footnote,
   }) {
     final colors = context.appColors;
     return Container(
@@ -1027,6 +1056,15 @@ class _CheckItemCardState extends State<_CheckItemCard> {
                 errorBuilder: (context, error, stackTrace) =>
                     const SizedBox.shrink(),
               ),
+            ),
+          ],
+          if (footnote != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              footnote,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ],

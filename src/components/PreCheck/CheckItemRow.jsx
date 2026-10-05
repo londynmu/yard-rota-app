@@ -362,7 +362,14 @@ export default function CheckItemRow({
           <p className="text-center text-base font-semibold text-amber-800">You confirmed the same defect</p>
         </div>
       ) : showSimplifiedRepairView ? null : (
-        <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
+        <div className="border-t border-gray-100">
+        {acknowledgedDefects.length > 0 && !hasKnownDefects && (
+          <div className="px-4 pt-2 text-center">
+            <p className="text-sm font-semibold text-charcoal">Any other issue apart from this?</p>
+            <p className="text-xs text-gray-600">If not, tap OK. Tap Issue only for a new problem.</p>
+          </div>
+        )}
+        <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={handleMarkIssue}
@@ -411,6 +418,7 @@ export default function CheckItemRow({
             </svg>
             <span className="truncate">OK</span>
           </button>
+        </div>
         </div>
       )}
     </div>
