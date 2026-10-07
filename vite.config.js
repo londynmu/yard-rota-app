@@ -204,20 +204,14 @@ export default defineConfig(({ mode }) => {
   base: '/',
   build: {
     sourcemap: uploadSourceMaps ? 'hidden' : false,
-    // Do not preload vendor-charts on first paint — charts load only on /performance etc.
-    modulePreload: {
-      resolveDependencies: (filename, deps) =>
-        deps.filter((dep) => !dep.includes('vendor-charts')),
-    },
     rollupOptions: {
       output: {
+        // Leave lazily imported libraries (echarts, jspdf, html2canvas) out of manualChunks:
+        // a manual chunk can absorb Vite's preload helper and end up loaded on first paint.
         manualChunks: {
-          // Vendor chunks - biblioteki zewnętrzne
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-charts': ['recharts', 'echarts', 'echarts-for-react'],
           'vendor-calendar': ['react-big-calendar', 'react-datepicker'],
-          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
           'vendor-utils': ['date-fns', 'framer-motion'],
         }
       }

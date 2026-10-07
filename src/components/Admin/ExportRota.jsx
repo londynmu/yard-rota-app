@@ -3,8 +3,6 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { logSystemActivity } from '../../lib/systemActivityLog';
 import { format, addDays, getDay, nextSaturday } from 'date-fns';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -415,13 +413,18 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   };
 
   // Generate and download PDF
-  const generatePDF = ({ skipBaseline = false } = {}) => {
+  const generatePDF = async ({ skipBaseline = false } = {}) => {
     if (rotaData.length === 0) {
       setError('No data available to export');
       return;
     }
 
     try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+
       // Grupowanie danych według lokalizacji
       const locationData = groupDataByLocation();
       
@@ -626,7 +629,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       generateCSV({ skipBaseline: true });
       
       // Generate PDF file (will download automatically)
-      generatePDF({ skipBaseline: true });
+      await generatePDF({ skipBaseline: true });
 
       await persistWeekBaseline('send');
       

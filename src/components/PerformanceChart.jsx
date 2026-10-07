@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import * as echarts from 'echarts/core';
+import { BarChart, LineChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
 import { format as formatDate, parseISO } from 'date-fns';
 import PropTypes from 'prop-types';
+
+echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
 /** Matches tailwind theme: blue-500 / blue-700 / slate (base.*) */
 const CHART_PRIMARY = '#3b82f6';
@@ -271,7 +277,12 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
       </div>
 
       <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        <ReactECharts option={option} style={{ height: '300px', width: '100%' }} opts={{ renderer: 'canvas' }} />
+        <ReactEChartsCore
+          echarts={echarts}
+          option={option}
+          style={{ height: '300px', width: '100%' }}
+          opts={{ renderer: 'canvas' }}
+        />
       </div>
 
       <p className="text-xs text-slate-500 text-center mt-2">Tap chart to see daily details</p>

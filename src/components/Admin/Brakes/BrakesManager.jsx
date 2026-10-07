@@ -8,7 +8,6 @@ import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
-import html2canvas from 'html2canvas';
 import { toLocalYmd } from '../../../utils/operationalDay';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
@@ -261,6 +260,7 @@ const BrakesManager = () => {
   // Export breaks: capture and copy as picture to clipboard (max quality, no loss)
   const captureBreaksCanvas = useCallback(async () => {
     if (!breaksExportRef.current) return null;
+    const { default: html2canvas } = await import('html2canvas');
     const el = breaksExportRef.current;
     const safeCss = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}';
     const tryIframeCapture = () => {

@@ -63,7 +63,7 @@ export default defineConfig([
     languageOptions: { globals: globals.vitest },
   },
   {
-    files: ["scripts/**", "*.config.{js,mjs,cjs}", "src/service-worker.js"],
+    files: ["scripts/**", ".cursor/hooks/**", "*.config.{js,mjs,cjs}", "src/service-worker.js"],
     languageOptions: { globals: { ...globals.node, ...globals.serviceworker } },
   },
 ]);
