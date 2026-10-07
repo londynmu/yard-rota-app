@@ -15,6 +15,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PreferredStartTimePrompt from './components/User/PreferredStartTimePrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
+import { setMonitoringUser } from './lib/monitoring';
 
 const AUTH_HASH_WAIT_MS = 10000;
 const PRIVILEGED_ROLES = new Set(['admin', 'vmu', 'transport_manager']);
@@ -46,6 +47,11 @@ function AppContent() {
   
   // Track page visits for analytics
   usePageTracking();
+
+  useEffect(() => {
+    setMonitoringUser(user?.id ?? null);
+  }, [user?.id]);
+
   const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [profileCheckCompleted, setProfileCheckCompleted] = useState(false); // true only after first check has run (prevents profile page flash)
   const [error, setError] = useState(null);

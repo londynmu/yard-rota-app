@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 const buildTimestamp = new Date().toISOString()
 
@@ -113,6 +114,10 @@ export default defineConfig(({ mode }) => {
   const analyze = mode === 'analyze'
   const env = loadEnv(mode, process.cwd(), '')
   const siteUrl = siteUrlFromEnv(env)
+  // Source maps are uploaded to Sentry and then deleted, so they are never served publicly.
+  const uploadSourceMaps = Boolean(
+    env.SENTRY_AUTH_TOKEN && env.SENTRY_ORG && env.SENTRY_PROJECT && env.VITE_SENTRY_DSN
+  )
   return {
   define: {
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
@@ -182,10 +187,23 @@ export default defineConfig(({ mode }) => {
       devOptions: {
         enabled: false
       }
-    })
+    }),
+    ...(uploadSourceMaps
+      ? [
+          sentryVitePlugin({
+            org: env.SENTRY_ORG,
+            project: env.SENTRY_PROJECT,
+            authToken: env.SENTRY_AUTH_TOKEN,
+            release: { name: buildTimestamp },
+            sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+            telemetry: false,
+          }),
+        ]
+      : []),
   ],
   base: '/',
   build: {
+    sourcemap: uploadSourceMaps ? 'hidden' : false,
     // Do not preload vendor-charts on first paint — charts load only on /performance etc.
     modulePreload: {
       resolveDependencies: (filename, deps) =>

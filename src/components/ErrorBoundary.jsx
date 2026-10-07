@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { reportError } from '../lib/monitoring';
 
 // Session storage key to track reload attempts and prevent infinite loops
 const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
@@ -81,6 +82,9 @@ class ErrorBoundary extends React.Component {
     console.error('Error Boundary caught an error:', error, errorInfo);
     
     const chunkError = isChunkLoadError(error);
+    if (!chunkError) {
+      reportError(error, { componentStack: errorInfo?.componentStack });
+    }
     
     this.setState({
       error,

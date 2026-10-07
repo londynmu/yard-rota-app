@@ -9,6 +9,9 @@ import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { safeAutoReload } from './lib/reloadGuard'
+import { initMonitoring } from './lib/monitoring'
+
+void initMonitoring()
 
 // Configure native Status Bar on mobile (Android/iOS)
 if (Capacitor.getPlatform() !== 'web') {

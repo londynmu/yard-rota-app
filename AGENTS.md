@@ -76,9 +76,9 @@ flutter test
 ## Infrastructure
 
 - **Hosting**: Netlify, deploys the web app from the `flutter` branch (`netlify.toml`). Every pull request gets a Netlify deploy preview link.
-- **Database / auth / storage**: Supabase. The connected project is **production** – real users and real data.
+- **Database / auth / storage**: Supabase project `jkjvtvwedjiupxoibpld` (**production** – real users and real data). Use the `supabase-yard-rota` MCP server from `.cursor/mcp.json` (read-only). The user-level `supabase` MCP server points at a **different** project – do not use it for Yard Rota.
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`) runs lint, tests and build on every pull request.
-- **Error monitoring**: Sentry (when `VITE_SENTRY_DSN` is set).
+- **Error monitoring**: Sentry. Web loads it only when `VITE_SENTRY_DSN` is set (`src/lib/monitoring.js`); Flutter only when built with `--dart-define=SENTRY_DSN=...`. Use the `sentry` MCP server to read reported errors.
 
 ## Safety rules
 

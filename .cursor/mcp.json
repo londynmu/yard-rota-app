@@ -2,6 +2,9 @@
   "mcpServers": {
     "supabase-yard-rota": {
       "url": "https://mcp.supabase.com/mcp?project_ref=jkjvtvwedjiupxoibpld&read_only=true"
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
     }
   }
 }
