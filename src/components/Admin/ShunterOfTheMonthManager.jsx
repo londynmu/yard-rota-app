@@ -153,27 +153,6 @@ export default function ShunterOfTheMonthManager({ users }) {
     }
   };
 
-  const renderUserOptionLabel = (user) => {
-    const last = lastAwardsMap.get(user.id) || { day: null, night: null };
-    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
-
-    // Take the latest month when user got any award (day or night)
-    let latestKey = null;
-    if (last.day && (!latestKey || last.day > latestKey)) {
-      latestKey = last.day;
-    }
-    if (last.night && (!latestKey || last.night > latestKey)) {
-      latestKey = last.night;
-    }
-
-    if (!latestKey) {
-      return fullName;
-    }
-
-    const latestLabel = getMonthLabel(latestKey);
-    return `${fullName} • ${latestLabel}`;
-  };
-
   const sortedUsers = useMemo(() => {
     return [...(users || [])].sort((a, b) => {
       const aName = `${a.last_name || ''} ${a.first_name || ''}`.toLowerCase();

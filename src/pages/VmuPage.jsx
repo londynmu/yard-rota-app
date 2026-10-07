@@ -80,7 +80,6 @@ export default function VmuPage() {
   const [showAllPhotos, setShowAllPhotos] = useState({});
 
   // ─── Editing state for inline fields ───
-  const [editingFields, setEditingFields] = useState({});
 
   // ─── Activity logs ───
   const [activityLogs, setActivityLogs] = useState({});
@@ -222,7 +221,7 @@ export default function VmuPage() {
         }
         if (logEntries.length > 0) {
           // Fire-and-forget insert + optimistic cache update
-          supabase.from('defect_activity_log').insert(logEntries).then(({ data }) => {
+          supabase.from('defect_activity_log').insert(logEntries).then(() => {
             // Don't block on this - just log errors
           }).catch(err => console.error('[VmuPage] Activity log error:', err));
 
@@ -261,11 +260,6 @@ export default function VmuPage() {
   // ─── Save inline field ───
   const saveField = (damageId, field, value) => {
     updateDamageField(damageId, { [field]: value || null });
-    setEditingFields(prev => {
-      const next = { ...prev };
-      delete next[`${damageId}-${field}`];
-      return next;
-    });
   };
 
   // ─── Fetch activity log + confirmations when defect card expands ───
@@ -469,7 +463,7 @@ export default function VmuPage() {
   };
 
   // ─── Render a defect card ───
-  const renderDefectCard = (d, showTug = true) => {
+  const renderDefectCard = (d) => {
     const isExpanded = expandedDefectId === d.id;
     const cfg = STATUS_CONFIG[d.repair_status] || STATUS_CONFIG.open;
     const resolvedName = d.resolved_profile
@@ -661,7 +655,7 @@ export default function VmuPage() {
               return (
                 <div className="max-h-[360px] overflow-y-auto pr-2">
                 <div className="space-y-1">
-                    {merged.map((entry, idx) => {
+                    {merged.map((entry) => {
                       const name = entry.profiles
                         ? `${entry.profiles.first_name || ''} ${entry.profiles.last_name || ''}`.trim()
                         : 'Unknown';
@@ -676,7 +670,6 @@ export default function VmuPage() {
                       } else if (entry.type === 'confirmation') {
                         description = <>reported that the problem still exists on {dateFormatted}</>;
                       } else if (entry.type === 'status_change') {
-                        const fieldLabel = FIELD_LABELS[entry.field_name] || entry.field_name;
                         const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
                         const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
                         description = (
@@ -827,7 +820,7 @@ export default function VmuPage() {
                   <div className="border-t border-gray-200 p-3 space-y-2">
                     {openDamages.length > 0 && (
                       <div className="space-y-2">
-                        {openDamages.map(d => renderDefectCard(d, false))}
+                        {openDamages.map(d => renderDefectCard(d))}
                       </div>
                     )}
                     {resolvedDamages.length > 0 && (
@@ -837,12 +830,12 @@ export default function VmuPage() {
                             {resolvedDamages.length} resolved defect{resolvedDamages.length !== 1 ? 's' : ''}
                           </summary>
                           <div className="space-y-2 mt-2">
-                            {resolvedDamages.map(d => renderDefectCard(d, false))}
+                            {resolvedDamages.map(d => renderDefectCard(d))}
                           </div>
                         </details>
                       ) : (
                         <div className="space-y-2">
-                          {resolvedDamages.map(d => renderDefectCard(d, false))}
+                          {resolvedDamages.map(d => renderDefectCard(d))}
                         </div>
                       )
                     )}

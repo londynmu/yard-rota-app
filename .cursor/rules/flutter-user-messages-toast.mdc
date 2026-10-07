@@ -1,6 +1,7 @@
 ---
 description: Flutter app — user messages as toasts
-alwaysApply: true
+globs: apps/yard_rota_flutter/**
+alwaysApply: false
 ---
 
 # Flutter user messages (toast)

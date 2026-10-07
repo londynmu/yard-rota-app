@@ -206,27 +206,6 @@ export default function HomePage() {
     setShowDropdown(prev => !prev);
   }, []);
 
-  // Memoize page title to avoid recalculation on every render
-  const pageTitle = useMemo(() => {
-    const path = location.pathname;
-    
-    if (path === '/' || path.startsWith('/calendar')) return 'Main Page';
-    if (path === '/my-rota') return 'My Rota';
-    if (path === '/admin') return 'Admin Dashboard';
-    if (path === '/profile') return 'Your Profile';
-    if (path === '/brakes') return 'Breaks';
-    if (path === '/performance') return 'Performance';
-    if (path.startsWith('/precheck')) return 'Tug PreCheck';
-    if (path === '/vmu') return 'VMU';
-    if (path === '/vmu/tugs') return 'Tugs';
-    if (path === '/vmu/prechecks') return 'PreChecks';
-    if (path === '/vmu/check-items') return 'Check Items';
-    if (path === '/transport-dashboard') return 'Dashboard';
-    if (path === '/yard-guide') return 'Yard induction';
-    
-    return 'My Rota';
-  }, [location.pathname]);
-
   const topNavLinks = useMemo(() => {
     if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');

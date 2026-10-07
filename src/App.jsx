@@ -15,6 +15,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PreferredStartTimePrompt from './components/User/PreferredStartTimePrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
+import { setMonitoringUser } from './lib/monitoring';
 
 const AUTH_HASH_WAIT_MS = 10000;
 const PRIVILEGED_ROLES = new Set(['admin', 'vmu', 'transport_manager']);
@@ -46,6 +47,11 @@ function AppContent() {
   
   // Track page visits for analytics
   usePageTracking();
+
+  useEffect(() => {
+    setMonitoringUser(user?.id ?? null);
+  }, [user?.id]);
+
   const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [profileCheckCompleted, setProfileCheckCompleted] = useState(false); // true only after first check has run (prevents profile page flash)
   const [error, setError] = useState(null);
@@ -150,9 +156,10 @@ function AppContent() {
         setSessionProfile(null);
         setError(err.message);
       } finally {
-        if (cancelled || requestId !== profileCheckRequestRef.current) return;
-        setIsCheckingProfile(false);
-        setProfileCheckCompleted(true);
+        if (!cancelled && requestId === profileCheckRequestRef.current) {
+          setIsCheckingProfile(false);
+          setProfileCheckCompleted(true);
+        }
       }
     };
 
@@ -161,7 +168,9 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, setSessionProfile]); // Only depend on user ID - prevents re-check on token refresh
+    // Only depend on user ID - prevents re-check on token refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, setSessionProfile]);
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {

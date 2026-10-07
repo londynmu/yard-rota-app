@@ -6,7 +6,7 @@ import TugCheckHistory from './TugCheckHistory';
 export default function TugSelector({ selectedTug, onSelect, onStartCheck, userLocationId, checkedTugIds = [] }) {
   const [tugs, setTugs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter] = useState('all');
   const [expandedTug, setExpandedTug] = useState(null);
 
   useEffect(() => {

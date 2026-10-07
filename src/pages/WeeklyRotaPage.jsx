@@ -17,6 +17,24 @@ const getWeekStart = (date) => {
   return subDays(date, diff);
 };
 
+const SHIFT_SECTION_CONFIG = {
+  day: {
+    title: 'Day shift',
+    accent: 'border-l-amber-400',
+    icon: <Sun className="h-3.5 w-3.5 text-amber-500" />,
+  },
+  afternoon: {
+    title: 'Afternoon shift',
+    accent: 'border-l-orange-400',
+    icon: <Cloud className="h-3.5 w-3.5 text-orange-500" />,
+  },
+  night: {
+    title: 'Night shift',
+    accent: 'border-l-blue-500',
+    icon: <Moon className="h-3.5 w-3.5 text-blue-500" />,
+  },
+};
+
 function formatTimeHm(value) {
   return value ? String(value).slice(0, 5) : '';
 }
@@ -534,138 +552,132 @@ const WeeklyRotaPage = () => {
     }
 
     return (
-      <div className="space-y-2.5">
-        {Object.entries(slotsByShiftType).map(([shiftType, slots]) => {
-          if (slots.length === 0) return null;
-          
-          // Different styling based on shift type
-          const shiftConfig = {
-            day: {
-              title: "Day Shift",
-              bgColor: "bg-amber-50",
-              textColor: "text-amber-900",
-              badgeBg: "bg-white",
-              icon: <Sun className="h-3.5 w-3.5 text-amber-600" />
-            },
-            afternoon: {
-              title: "Afternoon Shift",
-              bgColor: "bg-orange-50",
-              textColor: "text-orange-900",
-              badgeBg: "bg-white",
-              icon: <Cloud className="h-3.5 w-3.5 text-orange-600" />
-            },
-            night: {
-              title: "Night Shift",
-              bgColor: "bg-blue-50",
-              textColor: "text-blue-900",
-              badgeBg: "bg-white",
-              icon: <Moon className="h-3.5 w-3.5 text-blue-600" />
-            }
-          };
-
-          const config = shiftConfig[shiftType];
-          
-          // Group slots by start time - memoized
-          const { slotsByStartTime, sortedStartTimes } = useMemo(() => {
-            const grouped = {};
-            slots.forEach(slot => {
-              const startTime = fmtTime(slot.start_time);
-              if (!grouped[startTime]) {
-                grouped[startTime] = [];
-              }
-              grouped[startTime].push(slot);
-            });
-            
-            return {
-              slotsByStartTime: grouped,
-              sortedStartTimes: Object.keys(grouped).sort()
-            };
-          }, [slots]);
-          
-          return (
-            <div key={shiftType} className="mt-2.5 first:mt-0">
-              <div className={`${config.bgColor} ${config.textColor} px-2.5 py-1.5 flex items-center justify-between rounded-xl border border-slate-200/60`}>
-                <div className="flex items-center gap-1.5">
-                  {config.icon}
-                  <h4 className="text-xs font-semibold">{config.title}</h4>
-                </div>
-                <span className={`${config.badgeBg} text-slate-700 text-xs px-2 py-0.5 rounded-full font-medium border border-slate-200/60`}>
-                  {slots.filter(s => !attendanceBySlotId?.[s.id]).length}
-                </span>
-              </div>
-              
-              <div className="bg-white/90 rounded-xl border border-slate-200/60 mt-1.5 overflow-hidden">
-                {sortedStartTimes.map((startTime, timeIndex) => {
-                  const timeSlots = slotsByStartTime[startTime];
-                  // Get end time from first slot (all slots with same start time should have same end time)
-                  const endTime = fmtTime(timeSlots[0].end_time);
-                  
-                  return (
-                    <div key={startTime} className={timeIndex > 0 ? 'border-t border-slate-200/60' : ''}>
-                      {/* Time Header */}
-                      <div className={`${config.bgColor} px-2.5 py-1.5 text-center border-b border-slate-200/60`}>
-                        <span className="text-sm font-semibold text-slate-700">
-                          {startTime} - {endTime}
-                        </span>
-                      </div>
-                      
-                      {/* List of employees for this start time */}
-                      <ul className="divide-y divide-slate-100">
-                        {timeSlots.map((slot) => {
-                          const isCurrentUser = slot.user_id === user?.id;
-                          const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
-                          const attendanceNote = isAdmin ? attendanceBySlotId?.[slot.id]?.note : null;
-                          return (
-                            <li
-                              key={slot.id}
-                              role={isAdmin ? 'button' : undefined}
-                              onClick={isAdmin ? (e) => { e.stopPropagation(); onSlotClick?.(slot); } : undefined}
-                              className={`p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''} ${isCurrentUser ? 'bg-amber-50/60 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-slate-50' : ''}`}
-                            >
-                              <div className="flex flex-col items-center">
-                                <div className="text-center">
-                                  <span className={`text-sm font-medium ${isCurrentUser ? 'text-amber-900' : 'text-charcoal'}`}>
-                                    {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
-                                  </span>
-                                  {attendanceStatus && (
-                                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-rose-50/80 text-rose-700 border border-rose-200/60">
-                                      {attendanceLabel(attendanceStatus)}
-                                    </span>
-                                  )}
-                                  {isCurrentUser && (
-                                    <span className="ml-1.5 text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full uppercase font-semibold border border-amber-200/60">
-                                      You
-                                    </span>
-                                  )}
-                                </div>
-                                {attendanceNote && (
-                                  <p className="mt-0.5 max-w-full truncate text-[11px] text-slate-500" title={attendanceNote}>
-                                    {attendanceNote}
-                                  </p>
-                                )}
-                                
-                                {/* Task Indicator */}
-                                {slot.task && (
-                                  <span className="inline-flex items-center text-xs text-rose-700 bg-rose-50/80 border border-rose-200/60 px-2 py-0.5 rounded-full mt-1">
-                                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full mr-1"></span>
-                                    {slot.task}
-                                  </span>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+      <div className="space-y-3">
+        {Object.entries(slotsByShiftType).map(([shiftType, slots]) => (
+          <ShiftSection
+            key={shiftType}
+            shiftType={shiftType}
+            slots={slots}
+            isAdmin={isAdmin}
+            attendanceBySlotId={attendanceBySlotId}
+            onSlotClick={onSlotClick}
+          />
+        ))}
       </div>
     );
   });
+
+  const ShiftSection = React.memo(({ shiftType, slots, isAdmin, attendanceBySlotId, onSlotClick }) => {
+    const { slotsByStartTime, sortedStartTimes } = useMemo(() => {
+      const grouped = {};
+      slots.forEach(slot => {
+        const startTime = fmtTime(slot.start_time);
+        if (!grouped[startTime]) {
+          grouped[startTime] = [];
+        }
+        grouped[startTime].push(slot);
+      });
+
+      return {
+        slotsByStartTime: grouped,
+        sortedStartTimes: Object.keys(grouped).sort()
+      };
+    }, [slots]);
+
+    if (slots.length === 0) return null;
+
+    const config = SHIFT_SECTION_CONFIG[shiftType];
+    const presentCount = slots.filter(s => !attendanceBySlotId?.[s.id]).length;
+
+    return (
+      <div>
+        <div className="flex items-center justify-between px-1 pb-1.5">
+          <div className="flex items-center gap-1.5">
+            {config.icon}
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{config.title}</h4>
+          </div>
+          <span className="text-xs font-medium tabular-nums text-slate-400">{presentCount}</span>
+        </div>
+
+        <div className={`bg-white/90 rounded-xl border border-slate-200/60 border-l-2 ${config.accent} overflow-hidden`}>
+          {sortedStartTimes.map((startTime) => {
+            const timeSlots = slotsByStartTime[startTime];
+            // All slots with the same start time share the end time of the first one
+            const endTime = fmtTime(timeSlots[0].end_time);
+
+            return (
+              <div key={startTime}>
+                <div className="flex items-center gap-2 px-2.5 pt-2 pb-1">
+                  <span className="h-px flex-1 bg-slate-200/70" />
+                  <span className="text-[11px] font-semibold tabular-nums text-slate-500">
+                    {startTime} - {endTime}
+                  </span>
+                  <span className="h-px flex-1 bg-slate-200/70" />
+                </div>
+
+                {/* List of employees for this start time */}
+                <ul className="divide-y divide-slate-100">
+                  {timeSlots.map((slot) => {
+                    const isCurrentUser = slot.user_id === user?.id;
+                    const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
+                    const attendanceNote = isAdmin ? attendanceBySlotId?.[slot.id]?.note : null;
+                    return (
+                      <li
+                        key={slot.id}
+                        role={isAdmin ? 'button' : undefined}
+                        onClick={isAdmin ? (e) => { e.stopPropagation(); onSlotClick?.(slot); } : undefined}
+                        className={`p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''} ${isCurrentUser ? 'bg-amber-50/60 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-slate-50' : ''}`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <div className="text-center">
+                            <span className={`text-sm font-medium ${isCurrentUser ? 'text-amber-900' : 'text-charcoal'}`}>
+                              {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
+                            </span>
+                            {attendanceStatus && (
+                              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-rose-50/80 text-rose-700 border border-rose-200/60">
+                                {attendanceLabel(attendanceStatus)}
+                              </span>
+                            )}
+                            {isCurrentUser && (
+                              <span className="ml-1.5 text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full uppercase font-semibold border border-amber-200/60">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          {attendanceNote && (
+                            <p className="mt-0.5 max-w-full truncate text-[11px] text-slate-500" title={attendanceNote}>
+                              {attendanceNote}
+                            </p>
+                          )}
+
+                          {/* Task Indicator */}
+                          {slot.task && (
+                            <span className="inline-flex items-center text-xs text-rose-700 bg-rose-50/80 border border-rose-200/60 px-2 py-0.5 rounded-full mt-1">
+                              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full mr-1"></span>
+                              {slot.task}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  });
+
+  ShiftSection.displayName = 'ShiftSection';
+  ShiftSection.propTypes = {
+    shiftType: PropTypes.oneOf(['day', 'afternoon', 'night']).isRequired,
+    slots: PropTypes.array.isRequired,
+    isAdmin: PropTypes.bool,
+    attendanceBySlotId: PropTypes.object,
+    onSlotClick: PropTypes.func,
+  };
 
   DayDetails.displayName = 'DayDetails';
   DayDetails.propTypes = {
@@ -841,7 +853,7 @@ const WeeklyRotaPage = () => {
       {/* Content skeleton - visible on desktop, hidden on mobile */}
       <div className="hidden md:block p-2.5 md:p-2 space-y-2.5">
         {/* Shift type badge skeleton */}
-        <div className="h-7 bg-slate-100 rounded-xl" />
+        <div className="h-3 w-24 bg-slate-100 rounded" />
         
         {/* Time group skeleton */}
         <div className="space-y-1.5">

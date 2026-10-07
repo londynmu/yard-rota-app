@@ -97,17 +97,6 @@ export default function PreCheckList() {
   const sentinelRef = useRef(null);
   const observerRef = useRef(null);
 
-  // ─── Stats (computed from loaded data) ───
-  const stats = useMemo(() => ({
-    total: submissions.length,
-    withDamages: submissions.filter(s =>
-      s.precheck_damages?.some(d => (d.source || 'check_item') !== 'remarks')
-    ).length,
-    withRepairs: submissions.filter(s =>
-      s.precheck_damages?.some(d => d.repair_status === 'open' && (d.source || 'check_item') !== 'remarks')
-    ).length,
-  }), [submissions]);
-
   // ─── Fetch filter options and check item labels ───
   const fetchFilterOptions = useCallback(async () => {
     const [tugsRes, checkItemsRes] = await Promise.all([

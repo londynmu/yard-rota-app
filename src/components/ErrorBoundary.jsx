@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { reportError } from '../lib/monitoring';
 
 // Session storage key to track reload attempts and prevent infinite loops
 const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
@@ -81,6 +82,9 @@ class ErrorBoundary extends React.Component {
     console.error('Error Boundary caught an error:', error, errorInfo);
     
     const chunkError = isChunkLoadError(error);
+    if (!chunkError) {
+      reportError(error, { componentStack: errorInfo?.componentStack });
+    }
     
     this.setState({
       error,
@@ -183,7 +187,7 @@ class ErrorBoundary extends React.Component {
                 The application encountered an unexpected error. Please try refreshing the page.
               </p>
               
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="mb-4 text-left">
                   <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
                     Error details (development only)

@@ -1,6 +1,7 @@
 ---
 description: Modern page shell, reusable CSS classes, segmented filter bar, tokens — use for every new page
-alwaysApply: true
+globs: src/**
+alwaysApply: false
 ---
 
 # Modern Page Design System

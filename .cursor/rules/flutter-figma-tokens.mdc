@@ -1,6 +1,7 @@
 ---
 description: Figma-derived values in Flutter must land in app_tokens for reuse
-alwaysApply: true
+globs: apps/yard_rota_flutter/**
+alwaysApply: false
 ---
 
 # Flutter: Figma → design tokens

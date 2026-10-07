@@ -1103,11 +1103,6 @@ const RotaManager = ({ user }) => {
     return format(dateObj, 'dd/MM/yyyy');
   };
   
-  const getDayName = (dateString) => {
-    const dateObj = parseISO(dateString);
-    return format(dateObj, 'EEEE'); // Full day name
-  };
-  
   const getDayShort = (dateString) => {
     const dateObj = parseISO(dateString);
     return format(dateObj, 'EEE'); // Short day name

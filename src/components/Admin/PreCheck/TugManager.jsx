@@ -13,7 +13,7 @@ export default function TugManager() {
   const [formData, setFormData] = useState({ tug_number: '', display_name: '', location_id: '', status: 'active' });
   const [saving, setSaving] = useState(false);
   const [showQR, setShowQR] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'inactive', 'maintenance'
+  const [filter] = useState('all'); // 'all', 'active', 'inactive', 'maintenance'
   const [showTabletForm, setShowTabletForm] = useState(false);
 
   const fetchData = useCallback(async () => {

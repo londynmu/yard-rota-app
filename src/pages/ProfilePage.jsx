@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import Tooltip from '../components/ui/Tooltip';
 import DeleteAccountButton from '../components/Profile/DeleteAccountButton';
 import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
@@ -26,7 +25,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [avatarUrl, setAvatarUrl] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formErrors, setFormErrors] = useState({});
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   // Rota Planner additional fields
@@ -109,7 +107,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setPreferredLocation(data.preferred_location || '');
         setAgencyId(data.agency_id || null);
       }
-      setProfileLoaded(true);
     } catch (error) {
       console.error('Error fetching profile:', error);
       
@@ -131,7 +128,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         });
         toast.error('Failed to load profile data: ' + (error.message || 'Unknown error'));
       }
-      setProfileLoaded(true);
     } finally {
       setLoading(false);
     }

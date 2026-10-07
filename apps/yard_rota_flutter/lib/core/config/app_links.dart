@@ -19,6 +19,11 @@ abstract final class AppLinks {
   static Uri get privacyPolicy => Uri.parse('$siteUrl/privacy-policy.html');
   static Uri get termsOfUse => Uri.parse('$siteUrl/terms.html');
   static Uri get accountDeletion => Uri.parse('$siteUrl/delete-account.html');
+
+  /// Printed on tug QR stickers, so it must open in a phone camera, not only
+  /// in the app scanner.
+  static Uri tugPreCheck(String qrToken) =>
+      Uri.parse('$siteUrl/precheck/tug/$qrToken');
   static Uri get support => Uri(
     scheme: 'mailto',
     path: supportEmail,

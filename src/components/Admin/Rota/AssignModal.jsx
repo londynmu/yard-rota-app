@@ -432,19 +432,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
     }
   };
 
-  const getAvailabilityClass = (status) => {
-    switch (status) {
-      case 'available':
-        return 'border border-green-200 bg-green-50 text-green-700';
-      case 'unavailable':
-        return 'border border-rota-alert-error-border bg-rota-alert-error-bg text-rota-alert-error-text';
-      case 'tentative':
-        return 'border border-yellow-200 bg-yellow-50 text-yellow-700';
-      default:
-        return 'border border-rota-modal-border bg-rota-day-other-bg-from text-rota-text-muted';
-    }
-  };
-
   const checkUserNote = async (employeeId) => {
     try {
       // Check if user has a note for this day in availability table
@@ -621,11 +608,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const filteredEmployees = getFilteredEmployees();
 
   const capacityPercentage = (localAssignedCount / slot.capacity) * 100;
-  const capacityColorClass = 
-    capacityPercentage >= 100 ? 'bg-red-500' : 
-    capacityPercentage >= 75 ? 'bg-yellow-500' : 
-    'bg-green-500';
-
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
       <div className="flex h-[90vh] w-full max-w-[95vw] md:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
