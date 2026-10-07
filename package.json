@@ -11,7 +11,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "devtools": "npx react-devtools",
-    "logout-all": "node scripts/logout-all-users.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
