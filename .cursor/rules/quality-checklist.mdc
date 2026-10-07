@@ -1,0 +1,28 @@
+---
+description: Quality checklist to run after every code change, and how to report findings to the owner
+alwaysApply: true
+---
+
+# Quality Checklist
+
+The owner is not a programmer. The agent is responsible for catching bugs before users see them.
+
+## After every code change
+
+1. **Lint** the files you changed (`npx eslint <files>`). Fix every error you introduced. Run `flutter analyze` for Flutter changes.
+2. **Tests**: `npm run test:run` (web) or `flutter test` (Flutter). Add a unit test when you change logic in `src/utils/` or similar pure helpers.
+3. **Build**: `npm run build` must succeed before committing web changes.
+4. **Browser check** for any visible UI change: open the page in the browser (`npm run dev`), check desktop and mobile width, and look for layout breaks or console errors.
+5. **Look around**: read the surrounding code of what you touched. Note bugs, dead code, missing loading/error states, or English copy mistakes.
+
+## Database changes
+
+- Production Supabase. Read-only queries only, unless the owner approves a change.
+- After any schema change, run Supabase advisors (security + performance) and report new findings.
+
+## Reporting to the owner
+
+- Write in **Polish**, plain language, short.
+- Say what changed, how you verified it, and what the owner should check.
+- List any problems you noticed but did not fix, ordered by impact on users.
+- If a check could not run, say so explicitly.

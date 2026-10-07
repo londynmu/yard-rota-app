@@ -1,6 +1,7 @@
 ---
 description: Use only project UI components – no ad-hoc buttons, cards, modals, or layouts
-alwaysApply: true
+globs: src/**
+alwaysApply: false
 ---
 
 # Use Only Project UI Components

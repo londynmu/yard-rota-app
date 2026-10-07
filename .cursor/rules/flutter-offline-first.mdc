@@ -1,3 +1,9 @@
+---
+description: Flutter offline-first policy for calendar and availability flows
+globs: apps/yard_rota_flutter/**
+alwaysApply: false
+---
+
 # Flutter Offline-First Policy
 
 ## Scope
