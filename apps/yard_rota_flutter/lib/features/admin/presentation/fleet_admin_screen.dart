@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../core/config/app_links.dart';
 import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -338,7 +339,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
       AppToast.show(context, 'Regenerate the QR code first.');
       return;
     }
-    final url = 'https://yard-rota.vercel.app/precheck/tug/${tug.qrToken}';
+    final url = AppLinks.tugPreCheck(tug.qrToken!).toString();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
