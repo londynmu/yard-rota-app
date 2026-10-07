@@ -7,6 +7,8 @@ import '../../../core/network/my_rota_models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_button.dart';
+import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
 import '../data/my_rota_preferences.dart';
 import '../data/my_rota_repository.dart';
@@ -67,6 +69,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
   String? _error;
   Map<String, List<MyRotaSlot>> _slotsByDate = {};
   Map<String, MyRotaAttendanceStatus> _attendanceBySlotId = {};
+  Map<String, String> _attendanceNoteBySlotId = {};
   String? _expandedDayYmd;
   final Map<String, GlobalKey> _fullRotaDayKeys = {};
 
@@ -176,6 +179,9 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
         _slotsByDate = merged;
         _attendanceBySlotId = Map<String, MyRotaAttendanceStatus>.from(
           data.attendanceBySlotId,
+        );
+        _attendanceNoteBySlotId = Map<String, String>.from(
+          data.attendanceNoteBySlotId,
         );
         _expandedDayYmd = _resolveDefaultExpandedDay(weekYmds, merged);
         _loading = false;
@@ -416,80 +422,51 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     if (!widget.session.isAdmin) {
       return;
     }
-    await showModalBottomSheet<void>(
+    final choice = await showModalBottomSheet<_AttendanceChoice>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: context.appColors.bgElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
-      builder: (ctx) {
-        final colors = ctx.appColors;
-        Future<void> apply(MyRotaAttendanceStatus? status) async {
-          Navigator.pop(ctx);
-          try {
-            await widget.repository.saveAttendance(
-              scheduledRotaId: slot.id,
-              status: status,
-            );
-            if (!mounted) {
-              return;
-            }
-            setState(() {
-              if (status == null) {
-                _attendanceBySlotId.remove(slot.id);
-              } else {
-                _attendanceBySlotId[slot.id] = status;
-              }
-            });
-          } catch (_) {
-            if (!mounted) {
-              return;
-            }
-            AppToast.show(context, 'Could not save attendance.');
-          }
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  slot.displayNameOrNull ?? 'Attendance',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${slot.dateYmd} · ${slot.fmtTimeShort()}',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                ListTile(title: const Text('Clear'), onTap: () => apply(null)),
-                ListTile(
-                  title: const Text('No show'),
-                  onTap: () => apply(MyRotaAttendanceStatus.noShow),
-                ),
-                ListTile(
-                  title: const Text('Sick'),
-                  onTap: () => apply(MyRotaAttendanceStatus.sick),
-                ),
-                ListTile(
-                  title: const Text('Late'),
-                  onTap: () => apply(MyRotaAttendanceStatus.late),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (_) => _AttendanceSheet(
+        slot: slot,
+        currentStatus: _attendanceBySlotId[slot.id],
+        currentNote: _attendanceNoteBySlotId[slot.id] ?? '',
+      ),
     );
+    if (choice == null || !mounted) {
+      return;
+    }
+    try {
+      await widget.repository.saveAttendance(
+        scheduledRotaId: slot.id,
+        status: choice.status,
+        note: choice.note,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        final status = choice.status;
+        if (status == null) {
+          _attendanceBySlotId.remove(slot.id);
+          _attendanceNoteBySlotId.remove(slot.id);
+          return;
+        }
+        _attendanceBySlotId[slot.id] = status;
+        if (choice.note.isEmpty) {
+          _attendanceNoteBySlotId.remove(slot.id);
+        } else {
+          _attendanceNoteBySlotId[slot.id] = choice.note;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      AppToast.show(context, 'Could not save attendance.');
+    }
   }
 
   String? _resolveDefaultExpandedDay(
@@ -649,6 +626,8 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                                           weekYmds: weekYmds,
                                           slotsByDate: _slotsByDate,
                                           attendance: _attendanceBySlotId,
+                                          attendanceNotes:
+                                              _attendanceNoteBySlotId,
                                           sessionUserId: widget.session.userId,
                                           isAdmin: widget.session.isAdmin,
                                           onSlotAdminTap: _openAttendanceSheet,
@@ -681,6 +660,136 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AttendanceChoice {
+  const _AttendanceChoice(this.status, this.note);
+
+  /// Null means "present" (clears the mark and its reason).
+  final MyRotaAttendanceStatus? status;
+  final String note;
+}
+
+class _AttendanceSheet extends StatefulWidget {
+  const _AttendanceSheet({
+    required this.slot,
+    required this.currentStatus,
+    required this.currentNote,
+  });
+
+  final MyRotaSlot slot;
+  final MyRotaAttendanceStatus? currentStatus;
+  final String currentNote;
+
+  @override
+  State<_AttendanceSheet> createState() => _AttendanceSheetState();
+}
+
+class _AttendanceSheetState extends State<_AttendanceSheet> {
+  static const _noteMaxLength = 200;
+
+  late MyRotaAttendanceStatus? _status = widget.currentStatus;
+  late final TextEditingController _note = TextEditingController(
+    text: widget.currentNote,
+  );
+
+  bool get _noteRequired => _status == MyRotaAttendanceStatus.other;
+
+  bool get _canSave =>
+      _status != null && (!_noteRequired || _note.text.trim().isNotEmpty);
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.slot.displayNameOrNull ?? 'Attendance',
+                style: textTheme.titleMedium?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '${widget.slot.dateYmd} · ${widget.slot.fmtTimeShort()}',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SegmentedButton<MyRotaAttendanceStatus>(
+                segments: [
+                  for (final s in MyRotaAttendanceStatus.values)
+                    ButtonSegment(value: s, label: Text(s.labelEnglish)),
+                ],
+                selected: {?_status},
+                emptySelectionAllowed: true,
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) => setState(
+                  () => _status = selection.isEmpty ? null : selection.first,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppTextField(
+                controller: _note,
+                label: _noteRequired
+                    ? 'Reason (required)'
+                    : 'Reason (optional)',
+                hint: 'e.g. Family emergency',
+                maxLines: 2,
+                maxLength: _noteMaxLength,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  if (widget.currentStatus != null) ...[
+                    Expanded(
+                      child: AppButton(
+                        label: 'Clear (Present)',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => Navigator.pop(
+                          context,
+                          const _AttendanceChoice(null, ''),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  Expanded(
+                    child: AppButton(
+                      label: 'Save',
+                      onPressed: _canSave
+                          ? () => Navigator.pop(
+                              context,
+                              _AttendanceChoice(_status, _note.text.trim()),
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1112,6 +1221,7 @@ class _FullRotaSection extends StatelessWidget {
     required this.weekYmds,
     required this.slotsByDate,
     required this.attendance,
+    this.attendanceNotes = const {},
     required this.sessionUserId,
     required this.isAdmin,
     required this.onSlotAdminTap,
@@ -1125,6 +1235,7 @@ class _FullRotaSection extends StatelessWidget {
   final List<String> weekYmds;
   final Map<String, List<MyRotaSlot>> slotsByDate;
   final Map<String, MyRotaAttendanceStatus> attendance;
+  final Map<String, String> attendanceNotes;
   final String sessionUserId;
   final bool isAdmin;
   final void Function(MyRotaSlot slot) onSlotAdminTap;
@@ -1158,6 +1269,7 @@ class _FullRotaSection extends StatelessWidget {
                   dateYmd: ymd,
                   slots: slotsByDate[ymd] ?? const [],
                   attendance: attendance,
+                  attendanceNotes: attendanceNotes,
                   sessionUserId: sessionUserId,
                   isAdmin: isAdmin,
                   onSlotAdminTap: onSlotAdminTap,
@@ -1293,6 +1405,7 @@ class _DayCard extends StatelessWidget {
     required this.dateYmd,
     required this.slots,
     required this.attendance,
+    this.attendanceNotes = const {},
     required this.sessionUserId,
     required this.isAdmin,
     required this.onSlotAdminTap,
@@ -1305,6 +1418,7 @@ class _DayCard extends StatelessWidget {
   final String dateYmd;
   final List<MyRotaSlot> slots;
   final Map<String, MyRotaAttendanceStatus> attendance;
+  final Map<String, String> attendanceNotes;
   final String sessionUserId;
   final bool isAdmin;
   final void Function(MyRotaSlot slot) onSlotAdminTap;
@@ -1468,6 +1582,7 @@ class _DayCard extends StatelessWidget {
               ? _DayDetailsBody(
                   slots: slots,
                   attendance: attendance,
+                  attendanceNotes: attendanceNotes,
                   sessionUserId: sessionUserId,
                   isAdmin: isAdmin,
                   onSlotAdminTap: onSlotAdminTap,
@@ -1571,6 +1686,7 @@ class _DayDetailsBody extends StatelessWidget {
   const _DayDetailsBody({
     required this.slots,
     required this.attendance,
+    this.attendanceNotes = const {},
     required this.sessionUserId,
     required this.isAdmin,
     required this.onSlotAdminTap,
@@ -1578,6 +1694,7 @@ class _DayDetailsBody extends StatelessWidget {
 
   final List<MyRotaSlot> slots;
   final Map<String, MyRotaAttendanceStatus> attendance;
+  final Map<String, String> attendanceNotes;
   final String sessionUserId;
   final bool isAdmin;
   final void Function(MyRotaSlot slot) onSlotAdminTap;
@@ -1648,6 +1765,7 @@ class _DayDetailsBody extends StatelessWidget {
                   startLabel: starts[ti],
                   slots: byStart[starts[ti]]!,
                   attendance: attendance,
+                  attendanceNotes: attendanceNotes,
                   sessionUserId: sessionUserId,
                   isAdmin: isAdmin,
                   onSlotAdminTap: onSlotAdminTap,
@@ -1671,6 +1789,7 @@ class _TimeGroup extends StatelessWidget {
     required this.startLabel,
     required this.slots,
     required this.attendance,
+    this.attendanceNotes = const {},
     required this.sessionUserId,
     required this.isAdmin,
     required this.onSlotAdminTap,
@@ -1679,6 +1798,7 @@ class _TimeGroup extends StatelessWidget {
   final String startLabel;
   final List<MyRotaSlot> slots;
   final Map<String, MyRotaAttendanceStatus> attendance;
+  final Map<String, String> attendanceNotes;
   final String sessionUserId;
   final bool isAdmin;
   final void Function(MyRotaSlot slot) onSlotAdminTap;
@@ -1708,6 +1828,7 @@ class _TimeGroup extends StatelessWidget {
                 child: _PersonRow(
                   slot: slots[i],
                   attendance: attendance[slots[i].id],
+                  note: isAdmin ? attendanceNotes[slots[i].id] : null,
                   isYou: _myRotaSameUserId(slots[i].userId, sessionUserId),
                   timeRange: timeRange,
                   showTimeColumn: i == 0,
@@ -1724,6 +1845,7 @@ class _PersonRow extends StatelessWidget {
   const _PersonRow({
     required this.slot,
     required this.attendance,
+    this.note,
     required this.isYou,
     required this.timeRange,
     required this.showTimeColumn,
@@ -1731,6 +1853,7 @@ class _PersonRow extends StatelessWidget {
 
   final MyRotaSlot slot;
   final MyRotaAttendanceStatus? attendance;
+  final String? note;
   final bool isYou;
   final String timeRange;
   final bool showTimeColumn;
@@ -1860,6 +1983,18 @@ class _PersonRow extends StatelessWidget {
                     ),
                 ],
               ),
+              if (attendance != null && note != null && note!.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  note!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: AppTypography.caption.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
               if (slot.task != null && slot.task!.trim().isNotEmpty) ...[
                 const SizedBox(height: AppMyRotaListSpacing.personTaskGap),
                 Align(

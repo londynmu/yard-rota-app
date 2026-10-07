@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { getWeekStart } from '../utils/rotaHelpers';
 import { toLocalYmd } from '../utils/operationalDay';
+import { attendanceLabel } from '../utils/attendanceStatus';
 
 const NIGHT_MORNING_END_HOUR = 7;
 const TICK_MS = 30 * 1000;
-const ABSENCE_LABELS = { no_show: 'No show', sick: 'Sick', late: 'Late' };
 const EMPTY_DATA = { slots: [], breaks: [], absenceBySlotId: {} };
 
 const hm = (value) => (value ? String(value).slice(0, 5) : '');
@@ -140,7 +140,7 @@ export function useMyDayWeek() {
           .select('scheduled_rota_id, status')
           .in('scheduled_rota_id', slots.map((slot) => slot.id));
         (attendance || []).forEach((row) => {
-          const label = ABSENCE_LABELS[row.status];
+          const label = attendanceLabel(row.status);
           if (row.scheduled_rota_id && label) absenceBySlotId[row.scheduled_rota_id] = label;
         });
       }

@@ -244,6 +244,7 @@ class MockApiClient implements ApiClient {
   Future<void> saveMyRotaAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+    String? note,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }

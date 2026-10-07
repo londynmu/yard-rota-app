@@ -186,6 +186,7 @@ class _TransportDashboardScreenState extends State<TransportDashboardScreen> {
                   ),
                   _AbsenceRow(label: 'Sick', count: summary.absences('sick')),
                   _AbsenceRow(label: 'Late', count: summary.absences('late')),
+                  _AbsenceRow(label: 'Other', count: summary.absences('other')),
                 ],
               ),
             ),

@@ -849,9 +849,32 @@ class SupabaseApiClient implements ApiClient {
       }
     }
 
+    final attendanceNoteBySlotId = <String, String>{};
+    if (attendanceBySlotId.isNotEmpty) {
+      try {
+        final noteRows = await _client
+            .from('attendance_notes')
+            .select('scheduled_rota_id, note')
+            .inFilter('scheduled_rota_id', attendanceBySlotId.keys.toList());
+        for (final dynamic row in noteRows) {
+          if (row is! Map<String, dynamic>) {
+            continue;
+          }
+          final sid = row['scheduled_rota_id']?.toString();
+          final note = (row['note'] as String?)?.trim() ?? '';
+          if (sid != null && note.isNotEmpty) {
+            attendanceNoteBySlotId[sid] = note;
+          }
+        }
+      } catch (_) {
+        // Notes are optional (RLS: admins only); statuses still load without them.
+      }
+    }
+
     return MyRotaWeekData(
       slotsByDateYmd: grouped,
       attendanceBySlotId: attendanceBySlotId,
+      attendanceNoteBySlotId: attendanceNoteBySlotId,
       fetchedAt: DateTime.now(),
     );
   }
@@ -860,6 +883,7 @@ class SupabaseApiClient implements ApiClient {
   Future<void> saveMyRotaAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+    String? note,
   }) async {
     final userId = _currentUserId();
     try {
@@ -875,6 +899,21 @@ class SupabaseApiClient implements ApiClient {
         'status': status.dbValue,
         'recorded_by': userId,
       }, onConflict: 'scheduled_rota_id');
+
+      final trimmedNote = note?.trim() ?? '';
+      if (trimmedNote.isEmpty) {
+        await _client
+            .from('attendance_notes')
+            .delete()
+            .eq('scheduled_rota_id', scheduledRotaId);
+      } else {
+        await _client.from('attendance_notes').upsert(<String, dynamic>{
+          'scheduled_rota_id': scheduledRotaId,
+          'note': trimmedNote,
+          'updated_by': userId,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'scheduled_rota_id');
+      }
     } on PostgrestException catch (error) {
       throw TransientNetworkException(error.message);
     } catch (error) {

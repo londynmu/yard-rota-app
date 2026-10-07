@@ -23,11 +23,12 @@ class MyRotaAnchorShift {
   final String endTime;
 }
 
-/// DB values: `no_show`, `sick`, `late`.
+/// DB values: `no_show`, `sick`, `late`, `other`.
 enum MyRotaAttendanceStatus {
   noShow('no_show'),
   sick('sick'),
-  late('late');
+  late('late'),
+  other('other');
 
   const MyRotaAttendanceStatus(this.dbValue);
 
@@ -53,6 +54,8 @@ enum MyRotaAttendanceStatus {
         return 'Sick';
       case MyRotaAttendanceStatus.late:
         return 'Late';
+      case MyRotaAttendanceStatus.other:
+        return 'Other';
     }
   }
 }
@@ -116,6 +119,7 @@ class MyRotaWeekData {
   const MyRotaWeekData({
     required this.slotsByDateYmd,
     required this.attendanceBySlotId,
+    this.attendanceNoteBySlotId = const {},
     required this.fetchedAt,
   });
 
@@ -124,6 +128,9 @@ class MyRotaWeekData {
 
   /// Slot id → status (absence); missing entry means present.
   final Map<String, MyRotaAttendanceStatus> attendanceBySlotId;
+
+  /// Slot id → free-text reason (`attendance_notes`, readable by admins only).
+  final Map<String, String> attendanceNoteBySlotId;
 
   final DateTime fetchedAt;
 }

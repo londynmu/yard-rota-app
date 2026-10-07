@@ -6,6 +6,8 @@ import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
+import { attendanceLabel } from '../utils/attendanceStatus';
+import { useToast } from '../components/ui/ToastContext';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
 
 // Utility to get week start on Saturday
@@ -17,13 +19,6 @@ const getWeekStart = (date) => {
 
 function formatTimeHm(value) {
   return value ? String(value).slice(0, 5) : '';
-}
-
-function attendanceEnglishLabel(status) {
-  if (status === 'no_show') return 'No show';
-  if (status === 'sick') return 'Sick';
-  if (status === 'late') return 'Late';
-  return null;
 }
 
 function YourShiftsThisWeek({ days, onDayTap }) {
@@ -45,8 +40,8 @@ function YourShiftsThisWeek({ days, onDayTap }) {
             const location = (firstSlot.location || '').trim();
             const timeText = `${formatTimeHm(firstSlot.start_time)} - ${formatTimeHm(firstSlot.end_time)}`;
             const hasTask = day.slots.some((slot) => Boolean(slot.task && String(slot.task).trim()));
-            const attendanceLabel = day.slots
-              .map((slot) => attendanceEnglishLabel(slot.attendanceStatus))
+            const dayAttendanceLabel = day.slots
+              .map((slot) => attendanceLabel(slot.attendanceStatus))
               .find(Boolean);
 
             return (
@@ -78,9 +73,9 @@ function YourShiftsThisWeek({ days, onDayTap }) {
                 {hasTask ? (
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" aria-hidden />
                 ) : null}
-                {attendanceLabel ? (
+                {dayAttendanceLabel ? (
                   <span className="shrink-0 text-xs font-bold text-rose-700">
-                    {attendanceLabel}
+                    {dayAttendanceLabel}
                   </span>
                 ) : null}
               </button>
@@ -104,6 +99,7 @@ YourShiftsThisWeek.propTypes = {
 const WeeklyRotaPage = () => {
   const { user } = useAuth();
   const { isAdmin } = useNotifications();
+  const toast = useToast();
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
   const [dailyRotaData, setDailyRotaData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -353,6 +349,17 @@ const WeeklyRotaPage = () => {
           (attendanceData || []).forEach((r) => {
             bySlot[r.scheduled_rota_id] = { status: r.status };
           });
+          const markedIds = Object.keys(bySlot);
+          if (isAdmin && markedIds.length > 0) {
+            const { data: notesData, error: notesError } = await supabase
+              .from('attendance_notes')
+              .select('scheduled_rota_id, note')
+              .in('scheduled_rota_id', markedIds);
+            if (notesError) console.warn('Could not load attendance notes:', notesError);
+            (notesData || []).forEach((n) => {
+              if (bySlot[n.scheduled_rota_id]) bySlot[n.scheduled_rota_id].note = n.note;
+            });
+          }
           setAttendanceBySlotId(bySlot);
         } else {
           setAttendanceBySlotId({});
@@ -434,9 +441,10 @@ const WeeklyRotaPage = () => {
     setAttendanceModalSlot(slot);
   }, []);
 
-  const handleAttendanceSave = useCallback(async (status) => {
+  const handleAttendanceSave = useCallback(async (status, note = '') => {
     if (!attendanceModalSlot || !user) return;
     setAttendanceSaving(true);
+    const slotId = attendanceModalSlot.id;
     try {
       if (status === null) {
         const { error: delError } = await supabase
@@ -461,18 +469,30 @@ const WeeklyRotaPage = () => {
             { onConflict: 'scheduled_rota_id' }
           );
         if (upsertError) throw upsertError;
+
+        const { error: noteError } = note
+          ? await supabase
+            .from('attendance_notes')
+            .upsert(
+              { scheduled_rota_id: slotId, note, updated_by: user.id, updated_at: new Date().toISOString() },
+              { onConflict: 'scheduled_rota_id' }
+            )
+          : await supabase.from('attendance_notes').delete().eq('scheduled_rota_id', slotId);
+        if (noteError) throw noteError;
+
         setAttendanceBySlotId((prev) => ({
           ...prev,
-          [attendanceModalSlot.id]: { status },
+          [slotId]: note ? { status, note } : { status },
         }));
       }
       setAttendanceModalSlot(null);
     } catch (e) {
       console.error('Error saving attendance:', e);
+      toast.error('Could not save attendance.');
     } finally {
       setAttendanceSaving(false);
     }
-  }, [attendanceModalSlot, user]);
+  }, [attendanceModalSlot, user, toast]);
 
   // Component to render the details for an expanded day - Memoized for performance
   const DayDetails = React.memo(({ dateStr, isAdmin, attendanceBySlotId, onSlotClick }) => {
@@ -594,6 +614,7 @@ const WeeklyRotaPage = () => {
                         {timeSlots.map((slot) => {
                           const isCurrentUser = slot.user_id === user?.id;
                           const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
+                          const attendanceNote = isAdmin ? attendanceBySlotId?.[slot.id]?.note : null;
                           return (
                             <li
                               key={slot.id}
@@ -608,7 +629,7 @@ const WeeklyRotaPage = () => {
                                   </span>
                                   {attendanceStatus && (
                                     <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-rose-50/80 text-rose-700 border border-rose-200/60">
-                                      {attendanceStatus === 'no_show' ? 'No show' : attendanceStatus === 'sick' ? 'Sick' : 'Late'}
+                                      {attendanceLabel(attendanceStatus)}
                                     </span>
                                   )}
                                   {isCurrentUser && (
@@ -617,6 +638,11 @@ const WeeklyRotaPage = () => {
                                     </span>
                                   )}
                                 </div>
+                                {attendanceNote && (
+                                  <p className="mt-0.5 max-w-full truncate text-[11px] text-slate-500" title={attendanceNote}>
+                                    {attendanceNote}
+                                  </p>
+                                )}
                                 
                                 {/* Task Indicator */}
                                 {slot.task && (
@@ -1113,6 +1139,7 @@ const WeeklyRotaPage = () => {
           onClose={() => setAttendanceModalSlot(null)}
           slot={attendanceModalSlot}
           currentStatus={attendanceBySlotId[attendanceModalSlot.id]?.status ?? null}
+          currentNote={attendanceBySlotId[attendanceModalSlot.id]?.note ?? ''}
           onSave={handleAttendanceSave}
           saving={attendanceSaving}
         />

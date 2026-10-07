@@ -50,9 +50,11 @@ abstract class ApiClient {
   });
 
   /// [status] null clears attendance for the slot (admin).
+  /// Empty or null [note] removes the stored reason.
   Future<void> saveMyRotaAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+    String? note,
   });
 
   Future<StatsRemoteSnapshot> getStatsPerformance({

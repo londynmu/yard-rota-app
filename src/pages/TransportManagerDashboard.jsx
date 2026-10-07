@@ -122,7 +122,8 @@ export default function TransportManagerDashboard() {
     let noShow = 0;
     let sick = 0;
     let late = 0;
-    const byShift = { noShow: { day: 0, afternoon: 0, night: 0 }, sick: { day: 0, afternoon: 0, night: 0 }, late: { day: 0, afternoon: 0, night: 0 } };
+    let other = 0;
+    const byShift = { noShow: { day: 0, afternoon: 0, night: 0 }, sick: { day: 0, afternoon: 0, night: 0 }, late: { day: 0, afternoon: 0, night: 0 }, other: { day: 0, afternoon: 0, night: 0 } };
     daySlots.forEach((s) => {
       if (!attendanceBySlotId[s.id]) return;
       const st = s.shift_type || 'day';
@@ -135,9 +136,12 @@ export default function TransportManagerDashboard() {
       } else if (attendanceBySlotId[s.id].status === 'late') {
         late += 1;
         byShift.late[st] += 1;
+      } else if (attendanceBySlotId[s.id].status === 'other') {
+        other += 1;
+        byShift.other[st] += 1;
       }
     });
-    return { noShow, sick, late, byShift };
+    return { noShow, sick, late, other, byShift };
   }, [daySlots, attendanceBySlotId]);
 
   const staffTotal = shiftCounts.day + shiftCounts.afternoon + shiftCounts.night;

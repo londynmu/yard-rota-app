@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { supabase } from '../lib/supabaseClient';
 import { format } from 'date-fns';
 import AddViolationModal from '../components/Admin/AddViolationModal';
+import { attendanceLabel } from '../utils/attendanceStatus';
 
 const CATEGORY_LABELS = {
   trailer_check: 'Trailer not checked',
@@ -11,7 +12,7 @@ const CATEGORY_LABELS = {
 };
 
 /**
- * Black list: users with at least one attendance record (no show / sick / late)
+ * Black list: users with at least one attendance record (no show / sick / late / other)
  * or at least one disciplinary violation. Sorted by total count (attendance + violations).
  */
 export default function AttendancePage({ users = [] }) {
@@ -47,6 +48,16 @@ export default function AttendancePage({ users = [] }) {
           return acc;
         }, {});
 
+        const { data: notesData, error: notesError } = await supabase
+          .from('attendance_notes')
+          .select('scheduled_rota_id, note')
+          .in('scheduled_rota_id', rotaIds);
+        if (notesError) console.warn('[AttendancePage] Could not load attendance notes:', notesError);
+        const noteByRotaId = (notesData || []).reduce((acc, n) => {
+          acc[n.scheduled_rota_id] = n.note;
+          return acc;
+        }, {});
+
         const attUserIds = [...new Set(attendanceData.map((a) => rotaMap[a.scheduled_rota_id]?.user_id).filter(Boolean))];
         let profilesMap = {};
         if (attUserIds.length > 0) {
@@ -73,18 +84,21 @@ export default function AttendancePage({ users = [] }) {
               no_show: 0,
               sick: 0,
               late: 0,
+              other: 0,
               violations: [],
             };
           }
           const rec = {
             date: rota?.date,
             status: row.status,
+            note: noteByRotaId[row.scheduled_rota_id] || null,
             recorded_at: row.recorded_at,
           };
           byUser[uid].records.push(rec);
           if (row.status === 'no_show') byUser[uid].no_show += 1;
           else if (row.status === 'sick') byUser[uid].sick += 1;
           else if (row.status === 'late') byUser[uid].late += 1;
+          else if (row.status === 'other') byUser[uid].other += 1;
         });
       }
 
@@ -117,6 +131,7 @@ export default function AttendancePage({ users = [] }) {
               no_show: 0,
               sick: 0,
               late: 0,
+              other: 0,
               violations: [],
             };
           }
@@ -177,7 +192,7 @@ export default function AttendancePage({ users = [] }) {
         <h2 className="text-lg font-semibold text-charcoal mb-4">Black list</h2>
         <p className="text-gray-600">No one on the black list.</p>
         <p className="text-sm text-gray-500 mt-2">
-          Add attendance marks (no show, sick, late) from the rota or add disciplinary notes from Users.
+          Add attendance marks (no show, sick, late, other) from the rota or add disciplinary notes from Users.
         </p>
       </div>
     );
@@ -189,7 +204,7 @@ export default function AttendancePage({ users = [] }) {
         <div>
           <h2 className="text-lg font-semibold text-charcoal">Black list</h2>
           <p className="text-sm text-gray-600 mt-0.5">
-            Attendance (no show, sick, late) and disciplinary notes. Sorted by total count.
+            Attendance (no show, sick, late, other) and disciplinary notes. Sorted by total count.
           </p>
         </div>
         <button
@@ -227,6 +242,11 @@ export default function AttendancePage({ users = [] }) {
                     Late: {row.late}
                   </span>
                 )}
+                {row.other > 0 && (
+                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-300 text-sm">
+                    Other: {row.other}
+                  </span>
+                )}
                 {(row.violations?.length || 0) > 0 && (
                   <span className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded-full border border-gray-400 text-sm">
                     Violations: {row.violations.length}
@@ -252,7 +272,8 @@ export default function AttendancePage({ users = [] }) {
                     .map((r, i) => (
                       <li key={i}>
                         {r.date ? format(new Date(r.date), 'd MMM yyyy') : '—'} —{' '}
-                        <span className="font-medium capitalize">{r.status.replace('_', ' ')}</span>
+                        <span className="font-medium">{attendanceLabel(r.status) || r.status}</span>
+                        {r.note && <span className="text-gray-500"> — {r.note}</span>}
                       </li>
                     ))}
                 </ul>

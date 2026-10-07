@@ -93,11 +93,13 @@ class MyRotaRepository {
   Future<void> saveAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+    String? note,
   }) async {
     await RetryExecutor.run(
       task: () => _apiClient.saveMyRotaAttendance(
         scheduledRotaId: scheduledRotaId,
         status: status,
+        note: note,
       ),
     );
   }

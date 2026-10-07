@@ -187,6 +187,7 @@ class _IntegrationApiClient extends MockApiClient {
   Future<void> saveMyRotaAttendance({
     required String scheduledRotaId,
     MyRotaAttendanceStatus? status,
+    String? note,
   }) async {}
 
   @override
