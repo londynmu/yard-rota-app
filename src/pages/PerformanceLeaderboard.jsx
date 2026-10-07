@@ -6,6 +6,8 @@ const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import Modal from '../components/ui/Modal';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
+import { useNotifications } from '../lib/NotificationContext';
+import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 
 /** Match WeeklyRotaPage top nav — light gradients per column */
@@ -113,6 +115,7 @@ const secondsToTime = (totalSeconds) => {
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
+  const { isAdmin } = useNotifications() || {};
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const lastFetchTime = useRef(0);
@@ -601,8 +604,8 @@ const PerformanceLeaderboard = () => {
   return (
     <div className="min-h-screen bg-transparent">
       <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
-        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
+        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setShowRangeModal(true)}
@@ -619,6 +622,11 @@ const PerformanceLeaderboard = () => {
               </span>
             </button>
           </div>
+          {isAdmin && (
+            <div className="flex md:hidden">
+              <NotificationBell variant="segment" />
+            </div>
+          )}
         </div>
       </div>
 
