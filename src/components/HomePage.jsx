@@ -8,7 +8,6 @@ import CalendarTab from '../pages/home/CalendarTab';
 import HomeMobileLayout from './Home/HomeMobileLayout';
 import ProfilePage from '../pages/ProfilePage';
 import NotificationBell from './NotificationBell';
-import CountBadge from './ui/CountBadge';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
 import ProtectedAdminRoute from './Auth/ProtectedAdminRoute';
@@ -24,6 +23,7 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 const AdminPage = lazyWithRetry(() => import('../pages/AdminPage'));
 const WeeklyRotaPage = lazyWithRetry(() => import('../pages/WeeklyRotaPage'));
 const UserApprovalPage = lazyWithRetry(() => import('../pages/UserApprovalPage'));
+const NotificationsPage = lazyWithRetry(() => import('../pages/NotificationsPage'));
 const BrakesPage = lazyWithRetry(() => import('../pages/BrakesPage'));
 const PerformanceLeaderboard = lazyWithRetry(() => import('../pages/PerformanceLeaderboard'));
 const PreCheckPage = lazyWithRetry(() => import('../pages/PreCheckPage'));
@@ -73,7 +73,7 @@ function DesktopNavAppIcon() {
 
 export default function HomePage() {
   const { user, signOut, sessionProfile } = useAuth();
-  const { isAdmin, isVmu, isTransportManager, alertCount = 0 } = useNotifications();
+  const { isAdmin, isVmu, isTransportManager } = useNotifications();
   const location = useLocation();
   const isDesktop = useIsDesktop();
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -284,8 +284,9 @@ export default function HomePage() {
       {(() => {
         const isAdminPage = path === '/admin';
         const isProfilePage = path === '/profile';
+        const isNotificationsPage = path === '/notifications';
         const isTransportDashboardPage = path === '/transport-dashboard';
-        const hasStickyHeader = isAdminPage || isProfilePage;
+        const hasStickyHeader = isAdminPage || isProfilePage || isNotificationsPage;
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
@@ -469,6 +470,9 @@ export default function HomePage() {
                 {isProfilePage && !isAdminPage && (
                   <span className="md:hidden font-semibold text-slate-800">Profile</span>
                 )}
+                {isNotificationsPage && (
+                  <span className="md:hidden font-semibold text-slate-800">Notifications</span>
+                )}
                 <DesktopNavAppIcon />
                 <nav className="hidden md:flex space-x-2">
                   {topNavLinks.map((nav) => (
@@ -602,6 +606,14 @@ export default function HomePage() {
                 </ProtectedAdminRoute>
               } 
             />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedAdminRoute>
+                  <NotificationsPage />
+                </ProtectedAdminRoute>
+              }
+            />
             <Route 
               path="/brakes" 
               element={
@@ -696,20 +708,15 @@ export default function HomePage() {
                 const isActive = nav.path === '/precheck' || nav.path === '/calendar'
                   ? location.pathname.startsWith(nav.path)
                   : location.pathname === nav.path;
-                const badgeCount = nav.path === '/admin' && isAdmin ? alertCount : 0;
                 return (
                   <Link
                     key={nav.path}
                     to={nav.path}
-                    aria-label={badgeCount > 0 ? `${nav.shortLabel} (${badgeCount} notifications)` : undefined}
                     className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
                       isActive ? 'active' : ''
                     }`}
                   >
-                    <span className="relative inline-flex">
-                      <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
-                      <CountBadge count={badgeCount} className="-top-1.5 -right-2.5" />
-                    </span>
+                    <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
                     <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
                   </Link>
                 );

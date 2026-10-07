@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
 import { safeAutoReload } from '../lib/reloadGuard';
 import { toLocalYmd } from '../utils/operationalDay';
 
@@ -11,6 +12,7 @@ import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import QRScanner from '../components/PreCheck/QRScanner';
+import NotificationBell from '../components/NotificationBell';
 import {
   getPrecheckQueueStatus,
   onPrecheckQueueUpdate,
@@ -86,6 +88,7 @@ export default function PreCheckPage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAdmin } = useNotifications() || {};
   const { isOnline, connection } = useNetworkStatus();
 
   // Restore state from sessionStorage (survives page refresh)
@@ -414,6 +417,11 @@ export default function PreCheckPage() {
     return (
       <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
         <div className="space-y-3">
+        {isAdmin && (
+          <div className="flex justify-end pt-2 md:hidden">
+            <NotificationBell />
+          </div>
+        )}
         {/* All checks grouped in one card */}
         <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
           {shiftChecks.map((check, idx) => {
@@ -631,7 +639,14 @@ export default function PreCheckPage() {
           </button>
         )}
 
-        <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
+        <div className="flex items-center justify-between gap-2 pt-2">
+          <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
+          {isAdmin && (
+            <div className="md:hidden">
+              <NotificationBell />
+            </div>
+          )}
+        </div>
 
         {/* Scan QR Code button */}
         <button

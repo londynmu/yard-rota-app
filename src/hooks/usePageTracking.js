@@ -26,6 +26,7 @@ const getPageTitle = (pathname) => {
     '/brakes': 'Breaks',
     '/performance': 'Performance Leaderboard',
     '/admin/approvals': 'User Approvals',
+    '/notifications': 'Notifications',
     '/yard-guide': 'Yard induction guide'
   };
   return titleMap[pathname] || pathname;

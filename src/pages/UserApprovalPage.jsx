@@ -1,76 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useAuth } from '../lib/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { useNotifications } from '../lib/NotificationContext';
+import React, { useState } from 'react';
 import { useToast } from '../components/ui/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import usePendingApprovals from '../hooks/usePendingApprovals';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { formatUserName } from '../utils/userName';
 
 const UserApprovalPage = () => {
-  const { user } = useAuth();
-  const { refreshPendingApprovals } = useNotifications() || {};
   const toast = useToast();
-  const [pendingUsers, setPendingUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const { pendingUsers, loading, error, approve, reject, reload } = usePendingApprovals();
+  const [userToReject, setUserToReject] = useState(null);
 
-  // Check if user is admin and fetch pending users
-  useEffect(() => {
-    async function checkAdmin() {
-      if (!user) {
-        navigate('/');
-        return;
-      }
-
-      try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) throw profileError;
-
-        if (profileData?.role !== 'admin') {
-          navigate('/');
-          return;
-        }
-
-        // Fetch pending users using account_status
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('account_status', 'pending_approval')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        setPendingUsers(data || []);
-      } catch (err) {
-        console.error('Error fetching pending users:', err);
-        setError('Failed to load pending users. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    checkAdmin();
-  }, [user, navigate]);
-
-  // Approve a user
   const handleApprove = async (userId) => {
     try {
-      // Update account_status to approved
-      const { error } = await supabase
-        .from('profiles')
-        .update({ account_status: 'approved' })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      // Update the local state
-      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-      refreshPendingApprovals?.();
+      await approve(userId);
       toast.success('User approved.');
     } catch (err) {
       console.error('Error approving user:', err);
@@ -78,24 +20,9 @@ const UserApprovalPage = () => {
     }
   };
 
-  // Reject a user
   const handleReject = async (userId) => {
-    if (!window.confirm('Are you sure you want to reject this user?')) {
-      return;
-    }
-
     try {
-      // Update account_status to rejected
-      const { error } = await supabase
-        .from('profiles')
-        .update({ account_status: 'rejected' })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      // Update the local state
-      setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-      refreshPendingApprovals?.();
+      await reject(userId);
       toast.success('User rejected.');
     } catch (err) {
       console.error('Error rejecting user:', err);
@@ -134,7 +61,7 @@ const UserApprovalPage = () => {
         <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
         <p className="text-gray-600">{error}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={reload}
           className="mt-4 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
         >
           Retry
@@ -236,7 +163,7 @@ const UserApprovalPage = () => {
                       Approve
                     </button>
                     <button
-                      onClick={() => handleReject(user.id)}
+                      onClick={() => setUserToReject(user)}
                       className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-white transition-colors"
                     >
                       Reject
@@ -248,6 +175,16 @@ const UserApprovalPage = () => {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(userToReject)}
+        onClose={() => setUserToReject(null)}
+        onConfirm={() => handleReject(userToReject.id)}
+        title="Reject user"
+        message={`Are you sure you want to reject ${formatUserName(userToReject, 'this user')}?`}
+        confirmText="Reject"
+        isDestructive
+      />
     </div>
   );
 };

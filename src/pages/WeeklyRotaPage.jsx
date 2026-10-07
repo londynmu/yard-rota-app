@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
 import { attendanceLabel } from '../utils/attendanceStatus';
 import { useToast } from '../components/ui/ToastContext';
+import NotificationBell from '../components/NotificationBell';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
 
 // Utility to get week start on Saturday
@@ -923,8 +924,8 @@ const WeeklyRotaPage = () => {
     <>
       {/* Week Navigation */}
       <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
-        <div className="w-full px-4 py-3 md:px-6 md:py-3.5">
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="w-full px-4 py-3 md:px-6 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
             {/* Week Button */}
             <button
               type="button"
@@ -955,6 +956,11 @@ const WeeklyRotaPage = () => {
                 : 'Night'}
             </button>
           </div>
+          {isAdmin && (
+            <div className="flex md:hidden">
+              <NotificationBell variant="segment" />
+            </div>
+          )}
         </div>
       </div>
 
