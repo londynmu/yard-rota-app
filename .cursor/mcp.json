@@ -5,6 +5,10 @@
     },
     "sentry": {
       "url": "https://mcp.sentry.dev/mcp"
+    },
+    "netlify": {
+      "command": "npx",
+      "args": ["-y", "@netlify/mcp"]
     }
   }
 }
