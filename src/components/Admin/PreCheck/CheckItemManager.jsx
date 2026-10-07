@@ -225,21 +225,6 @@ export default function CheckItemManager() {
     }
   };
 
-  // ─── Toggle allow_na (optimistic local update) ───
-  const toggleAllowNa = async (item) => {
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, allow_na: !i.allow_na } : i));
-    try {
-      const { error } = await supabase
-        .from('precheck_check_items')
-        .update({ allow_na: !item.allow_na })
-        .eq('id', item.id);
-      if (error) throw error;
-    } catch (err) {
-      console.error('[CheckItemManager] Toggle N/A error:', err);
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, allow_na: item.allow_na } : i));
-    }
-  };
-
   // ─── Reorder (optimistic local update) ───
   const moveItem = async (item, direction) => {
     const categoryItems = items

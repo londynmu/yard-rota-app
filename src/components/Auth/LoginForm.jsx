@@ -15,7 +15,7 @@ export default function LoginForm({ onRegister, onForgotPassword }) {
   
   // HTTPS enforcement check for production
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production' && 
+    if (import.meta.env.PROD && 
         window.location.protocol !== 'https:') {
       console.error('SECURITY WARNING: Login page is not using HTTPS in production!');
       setError('Warning: This connection is not secure. Please use HTTPS');

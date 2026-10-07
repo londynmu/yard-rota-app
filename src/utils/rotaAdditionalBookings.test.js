@@ -7,7 +7,6 @@ import {
   diffAddedSlots,
   EMAIL_SIGN_OFF,
   formatShiftClock,
-  formatShiftDayLabel,
   formatWeekRangeLabel,
   groupAddedSlotsByAgency,
   isMailtoTooLong,

@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
 
@@ -107,36 +106,23 @@ const getNightSortValue = (timeStr) => {
   return minutes < NIGHT_WINDOW_START ? minutes + 24 * 60 : minutes;
 };
 
-const normalizeTimelineMinutes = (minutes, nowMinutes) => {
-  if (minutes == null) return null;
-  if (nowMinutes < DAY_WINDOW_START && minutes >= NIGHT_WINDOW_START) {
-    return minutes - 24 * 60;
-  }
-  if (nowMinutes >= NIGHT_WINDOW_START && minutes < DAY_WINDOW_START) {
-    return minutes + 24 * 60;
-  }
-  return minutes;
-};
-
 export default function ShiftDashboard({ 
   initialView = 'shift', 
   hideTabSwitcher = false, 
   hideLocationButton = false,
   selectedLocation = null,
-  renderShiftBadges = false,
   selectedShifts = ['day', 'afternoon', 'night'],
   onShiftCountsChange = null,
   onUserBreakLabelChange = null,
   breakHeaderControls = null
 }) {
   const { user, sessionProfile } = useAuth();
-  const [shift, setShift] = useState(null);
+  const [_shift, setShift] = useState(null);
   const [breakInfo, setBreakInfo] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeView, setActiveView] = useState(initialView === 'shifts' ? 'team' : initialView === 'breaks' ? 'team' : initialView); // 'shift', 'breaks', or 'team'
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
   const [tugByUser, setTugByUser] = useState({});
@@ -678,19 +664,6 @@ export default function ShiftDashboard({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  // Format a single break for display
-  const formatBreakTime = (breakItem) => {
-    const startTime = breakItem.break_start_time.substring(0, 5);
-    const endTime = calculateEndTime(startTime, breakItem.break_duration_minutes);
-    return `${startTime} - ${endTime}`;
-  };
-  
-  // Removed unused functions: getShiftLabel, getShiftColor, getShiftAccentColor
-  // These were only used in unreachable code below
-  
-  // Removed unused functions: isShiftNow, getShiftProgress, getTimeRemaining, getNextBreak, toggleView
-  // These were only used in unreachable code below (after line 1177)
-
   if (loading) {
     return (
       <div
@@ -731,21 +704,7 @@ export default function ShiftDashboard({
   }
 
   // Show team schedule for everyone (unified view)
-  if (true) {
-    // Group shifts by type
-    const shiftsByType = {
-      day: allShifts.filter(s => s.shift_type === 'day'),
-      afternoon: allShifts.filter(s => s.shift_type === 'afternoon'),
-      night: allShifts.filter(s => s.shift_type === 'night')
-    };
-
-    // Group breaks by type
-    const breaksByType = {
-      day: allBreaks.filter(b => b.shift_type === 'day'),
-      afternoon: allBreaks.filter(b => b.shift_type === 'afternoon'),
-      night: allBreaks.filter(b => b.shift_type === 'night')
-    };
-
+  {
     // Helpers for highlighting and progress for the current user
     const toMinutes = (hhmm) => {
       if (!hhmm) return null;
@@ -820,18 +779,6 @@ export default function ShiftDashboard({
       if (m === 0) return `${h}h`;
       return `${h}h ${m}m`;
     };
-    const getBreakProgressFor = (start, duration) => {
-      const startRaw = toMinutes(start);
-      const nowM = getNowMinutes();
-      const startM = normalizeTimelineMinutes(startRaw, nowM);
-      const endM = startM != null ? startM + (duration || 0) : null;
-      if (startM == null || endM == null) return { active: false, pct: 0, left: 0 };
-      if (nowM < startM) return { active: false, pct: 0, left: startM - nowM };
-      if (nowM >= endM) return { active: false, pct: 100, left: 0 };
-      const pct = Math.floor(((nowM - startM) / (endM - startM)) * 100);
-      const left = Math.max(0, endM - nowM);
-      return { active: true, pct, left };
-    };
     // Compute next/active break info for current user
     const getNextBreakForUser = () => {
       if (!breakInfo || !breakInfo.myBreaks || breakInfo.myBreaks.length === 0) return null;
@@ -873,60 +820,6 @@ export default function ShiftDashboard({
 
     // Map user -> location for breaks filtering fallback
     const userLocationMap = new Map(allShifts.map(s => [s.user_id, s.location]));
-
-    // Helper function to check if break is currently active (handles overnight breaks)
-    const isBreakActive = (breakStartTime, breakDurationMinutes) => {
-      const now = getNowMinutes();
-      const startRaw = toMinutes(breakStartTime);
-      const start = normalizeTimelineMinutes(startRaw, now);
-      if (start == null) return false;
-      const end = start + (breakDurationMinutes || 0);
-      return now >= start && now < end;
-    };
-
-    // Determine current shift type based on time
-    const getCurrentShiftType = () => {
-      const now = getNowMinutes();
-      // Night: 17:00 -> 07:00. Day/afternoon share 07:00 -> 17:00.
-      if (now >= NIGHT_WINDOW_START || now < DAY_WINDOW_START) return 'night';
-      return 'day';
-    };
-
-    // Check if break belongs to current shift
-    const isBreakFromCurrentShift = (breakShiftType) => {
-      const currentShift = getCurrentShiftType();
-      return breakShiftType === currentShift;
-    };
-
-    // Sort breaks: active first, then by time (considering night shift)
-    const sortBreaks = (breaks, shiftType) => {
-      return [...breaks].sort((a, b) => {
-        const aActive = isBreakActive(a.break_start_time, a.break_duration_minutes);
-        const bActive = isBreakActive(b.break_start_time, b.break_duration_minutes);
-        
-        // 1. Active breaks first
-        if (aActive && !bActive) return -1;
-        if (!aActive && bActive) return 1;
-        
-        // 2. Sort by time - handle night shift properly
-        const aTime = toMinutes(a.break_start_time);
-        const bTime = toMinutes(b.break_start_time);
-        
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        
-        // Night shift spans 17:00 -> 07:00; early morning sorts after evening
-        if (shiftType === 'night') {
-          const aAdjusted = aTime >= NIGHT_WINDOW_START ? aTime : aTime + 24 * 60;
-          const bAdjusted = bTime >= NIGHT_WINDOW_START ? bTime : bTime + 24 * 60;
-          return aAdjusted - bAdjusted;
-        }
-        
-        // For day and afternoon shifts, normal time sorting
-        return aTime - bTime;
-      });
-    };
 
     return (
       <>

@@ -28,7 +28,6 @@ if (Capacitor.getPlatform() !== 'web') {
 }
 
 /** Check for newer deploy (web/PWA only). If newer, reload. Deferred so it does not block first paint / LCP. */
-/* global __BUILD_TIMESTAMP__ */
 async function ensureLatestVersion() {
   if (Capacitor.getPlatform() !== 'web') return
   try {

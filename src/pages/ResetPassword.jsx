@@ -36,7 +36,7 @@ export default function ResetPassword() {
           localStorage.setItem('recoveryHash', hash);
           
           // Directly process the token that's already in the URL
-          const { data, error } = await supabase.auth.getSession();
+          const { error } = await supabase.auth.getSession();
           
           if (error) {
             console.error('Session error:', error);
@@ -56,7 +56,7 @@ export default function ResetPassword() {
           window.location.hash = storedHash;
           
           // Process the hash
-          const { data, error } = await supabase.auth.getSession();
+          const { error } = await supabase.auth.getSession();
           
           if (error) {
             console.error('Session error with stored hash:', error);
@@ -115,7 +115,7 @@ export default function ResetPassword() {
               <span>{errorMessage}</span>
             </div>
             
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
               <div className="bg-gray-100 p-3 rounded-lg mb-4 text-xs font-mono text-charcoal overflow-auto max-h-40">
                 <h3 className="font-bold mb-1">Debug Information (Development Only):</h3>
                 <pre>{JSON.stringify(debugInfo, null, 2)}</pre>

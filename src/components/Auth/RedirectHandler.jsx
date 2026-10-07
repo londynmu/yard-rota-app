@@ -16,7 +16,7 @@ export default function RedirectHandler() {
     const fullUrl = window.location.href;
     
     // Store debug info only in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       setDebugInfo({ hash, search, pathname, fullUrl });
     }
 
@@ -53,7 +53,7 @@ export default function RedirectHandler() {
         setMessage('Processing authentication...');
         
         // Let Supabase handle the auth callback
-        const { data, error } = await supabase.auth.getSession();
+        const { error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Auth callback error:', error);
@@ -114,7 +114,7 @@ export default function RedirectHandler() {
             </div>
             
             {/* Debug information - only in development */}
-            {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
+            {import.meta.env.DEV && Object.keys(debugInfo).length > 0 && (
               <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
                 <div className="font-bold mb-1">Debug Info (Development Only):</div>
                 <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
@@ -130,7 +130,7 @@ export default function RedirectHandler() {
             <p className="text-gray-600 mb-4">You will be redirected automatically.</p>
             
             {/* Debug information - only in development */}
-            {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
+            {import.meta.env.DEV && Object.keys(debugInfo).length > 0 && (
               <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left text-xs text-charcoal font-mono overflow-auto max-h-40">
                 <div className="font-bold mb-1">Debug Info (Development Only):</div>
                 <pre>{JSON.stringify(debugInfo, null, 2)}</pre>

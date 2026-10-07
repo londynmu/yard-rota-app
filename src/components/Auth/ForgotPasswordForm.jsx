@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import PropTypes from 'prop-types';
-import { getSecureResetPasswordErrorMessage } from '../../utils/authErrorMessages';
 
 export default function ForgotPasswordForm({ onLogin }) {
   const [email, setEmail] = useState('');

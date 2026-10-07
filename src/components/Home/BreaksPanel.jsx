@@ -34,7 +34,6 @@ export default function BreaksPanel({ filters, fullWidthFilters = false, isolate
       hideTabSwitcher={true}
       hideLocationButton={true}
       selectedLocation={selectedLocation}
-      renderShiftBadges={true}
       selectedShifts={selectedShifts}
       onShiftCountsChange={setShiftCounts}
       breakHeaderControls={

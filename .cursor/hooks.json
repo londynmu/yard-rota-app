@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": ".cursor/hooks/lint-after-edit.sh",
+        "timeout": 30
+      }
+    ]
+  }
+}

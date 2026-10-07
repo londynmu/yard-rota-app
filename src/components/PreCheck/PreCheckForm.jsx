@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
@@ -113,7 +113,6 @@ const isItemChecked = (item, checkItems, knownDefectsByItem, markedResolvedDamag
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
-  /* global __PRECHECK_SCHEMA_VERSION__ */
   const CLIENT_SCHEMA_VERSION = typeof __PRECHECK_SCHEMA_VERSION__ !== 'undefined'
     ? __PRECHECK_SCHEMA_VERSION__
     : '0';
@@ -197,7 +196,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
   }, [CLIENT_SCHEMA_VERSION]);
 
   // Derived: all items combined (only available after fetch)
-  const allItems = outsideItems && insideItems ? [...outsideItems, ...insideItems] : [];
+  const allItems = useMemo(
+    () => (outsideItems && insideItems ? [...outsideItems, ...insideItems] : []),
+    [outsideItems, insideItems]
+  );
 
   // ─── Known defects per item (fetched when tug selected) ───
   const [knownDefectsByItem, setKnownDefectsByItem] = useState({});

@@ -150,9 +150,10 @@ function AppContent() {
         setSessionProfile(null);
         setError(err.message);
       } finally {
-        if (cancelled || requestId !== profileCheckRequestRef.current) return;
-        setIsCheckingProfile(false);
-        setProfileCheckCompleted(true);
+        if (!cancelled && requestId === profileCheckRequestRef.current) {
+          setIsCheckingProfile(false);
+          setProfileCheckCompleted(true);
+        }
       }
     };
 
@@ -161,7 +162,9 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, setSessionProfile]); // Only depend on user ID - prevents re-check on token refresh
+    // Only depend on user ID - prevents re-check on token refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, setSessionProfile]);
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {

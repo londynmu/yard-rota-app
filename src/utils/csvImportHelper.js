@@ -220,7 +220,7 @@ export function aggregateShiftData(parsedData) {
   
   const aggregated = {};
   
-  parsedData.forEach((entry, idx) => {
+  parsedData.forEach((entry) => {
     const id = entry.yardSystemId;
     
     if (!aggregated[id]) {

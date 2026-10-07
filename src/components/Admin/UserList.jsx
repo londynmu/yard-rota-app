@@ -520,10 +520,6 @@ export default function UserList({ users, onRefresh }) {
     }
   };
   
-  const openFilterModal = () => {
-    setShowFilterModal(true);
-  };
-  
   const closeFilterModal = () => {
     setShowFilterModal(false);
   };
@@ -567,19 +563,6 @@ export default function UserList({ users, onRefresh }) {
     }
   };
   
-  const openInfoModal = async (user) => {
-    setInfoUser(user);
-    setInfoModalOpen(true);
-    try {
-      const { data, error } = await supabase.rpc('get_user_last_login', { uid: user.id });
-      if (error) throw error;
-      setLastLogin(data);
-    } catch (err) {
-      console.error('Error fetching last login:', err);
-      setLastLogin(null);
-    }
-  };
-
   const closeInfoModal = () => {
     setInfoModalOpen(false);
     setInfoUser(null);

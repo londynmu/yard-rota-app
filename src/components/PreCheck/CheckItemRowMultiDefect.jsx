@@ -105,7 +105,6 @@ export default function CheckItemRowMultiDefect({
         >
         {unsettledDefects.map((def) => {
           const stateKey = `${itemKey}::${def.id}`;
-          const ci = checkItems[stateKey] || {};
           const isFixed = isPendingResolved(def.id);
           const isSameProblem = isSameProblemFor(def);
 

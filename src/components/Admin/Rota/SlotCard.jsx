@@ -23,7 +23,6 @@ const SlotCard = ({
 }) => {
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isAvailable, setIsAvailable] = useState(slot.status === 'available');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -75,13 +74,6 @@ const SlotCard = ({
     
     fetchUsers();
   }, [slot.assigned_employees]);
-
-  // Update isAvailable when slot status changes
-  useEffect(() => {
-    setIsAvailable(slot.status === 'available');
-  }, [slot.status]);
-
-  // Removed debug useEffect
 
   assignedEmployeesRef.current = slot.assigned_employees;
 
@@ -333,20 +325,6 @@ const SlotCard = ({
     return timeString.substring(0, 5); // HH:MM format
   };
 
-  // Funkcja określająca kolor bocznego znacznika w zależności od typu zmiany
-  const getShiftIndicatorColor = (shiftType) => {
-    switch (shiftType) {
-      case 'day':
-        return 'bg-rota-shift-day';
-      case 'afternoon':
-        return 'bg-rota-shift-afternoon';
-      case 'night':
-        return 'bg-rota-shift-night';
-      default:
-        return 'bg-rota-toolbar-border';
-    }
-  };
-
   const ratio = assignedCount / slot.capacity;
   const stateStyles = isSlotFull
     ? {
@@ -375,12 +353,6 @@ const SlotCard = ({
         badgeClass: 'bg-rota-badge-partial-low-bg text-rota-badge-partial-low-text border-rota-badge-partial-low-border',
         dotColor: 'bg-rota-card-partial-low-border'
       };
-
-  const statusInfo = isSlotFull
-    ? { text: 'Full' }
-    : fillPercentage === 0
-    ? { text: 'Empty' }
-    : { text: 'Partial' };
 
   const deleteConfirmMessage =
     assignedCount > 0

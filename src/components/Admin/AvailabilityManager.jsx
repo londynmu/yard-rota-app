@@ -291,20 +291,6 @@ export default function AvailabilityManager() {
     }
   };
 
-  // Get color for shift type
-  const getShiftTypeColor = (shiftType) => {
-    switch (shiftType?.toLowerCase()) {
-      case 'day':
-        return 'text-yellow-700 bg-yellow-100';
-      case 'afternoon':
-        return 'text-orange-700 bg-orange-100';
-      case 'night':
-        return 'text-blue-700 bg-blue-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
   // Get the week date range for display - memoized
   const weekDisplayRange = useMemo(() => {
     const weekStart = getWeekStartingSaturday(currentDate);

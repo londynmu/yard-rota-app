@@ -110,8 +110,11 @@ export default function TransportManagerDashboard() {
     }).finally(() => setLoading(false));
   }, [fetchWeekRota]);
 
-  const daySlots = dailyRota[selectedDate] || [];
-  const presentSlots = daySlots.filter((s) => s.profiles && !attendanceBySlotId[s.id]);
+  const daySlots = useMemo(() => dailyRota[selectedDate] || [], [dailyRota, selectedDate]);
+  const presentSlots = useMemo(
+    () => daySlots.filter((s) => s.profiles && !attendanceBySlotId[s.id]),
+    [daySlots, attendanceBySlotId]
+  );
   const shiftCounts = useMemo(() => ({
     day: presentSlots.filter((s) => s.shift_type === 'day').length,
     afternoon: presentSlots.filter((s) => s.shift_type === 'afternoon').length,
@@ -301,7 +304,6 @@ export default function TransportManagerDashboard() {
               const hasAny = (shiftListItems.day?.length || 0) > 0 || (shiftListItems.afternoon?.length || 0) > 0 || (shiftListItems.night?.length || 0) > 0;
               const isExpandedDesktop = expandedShift !== null;
               const isExpandedThis = expandedShift === key;
-              const isLast = key === 'night';
               const listItems = shiftListItems[key] || [];
               return (
                 <div

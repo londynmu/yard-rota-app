@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import PropTypes from 'prop-types';
-import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
@@ -241,7 +240,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       }
       
       // Update the profile record
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id)

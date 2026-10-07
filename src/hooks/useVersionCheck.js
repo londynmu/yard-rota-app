@@ -2,8 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { safeAutoReload } from '../lib/reloadGuard'
 
-/* global __BUILD_TIMESTAMP__ */
-
 const POLL_INTERVAL_MS = 2 * 60 * 1000 // 2 minutes (first load already checked pre-render)
 const CURRENT_VERSION = __BUILD_TIMESTAMP__
 

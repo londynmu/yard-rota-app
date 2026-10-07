@@ -107,12 +107,6 @@ function NoShiftWithBreaksView() {
     fetchBreakInfo();
   }, [user, userProfile]);
 
-  const formatTime = (timeStr) => {
-    if (!timeStr) return '';
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
-
   const calculateEndTime = (startTime, durationMinutes) => {
     try {
       const [hours, minutes] = startTime.split(':').map(Number);
@@ -357,16 +351,6 @@ export default function TodaysShiftInfo() {
       case 'afternoon': return 'Afternoon Shift';
       case 'night': return 'Night Shift';
       default: return type ? type.charAt(0).toUpperCase() + type.slice(1) + ' Shift' : 'Shift';
-    }
-  };
-  
-  const getShiftColor = (type) => {
-    switch(type) {
-      case 'morning': return 'from-amber-600/50 to-orange-700/50 border-amber-500/50';
-      case 'day': return 'from-blue-600/50 to-cyan-700/50 border-blue-500/50';
-      case 'afternoon': return 'from-purple-600/50 to-pink-700/50 border-purple-500/50';
-      case 'night': return 'from-indigo-600/50 to-blue-800/50 border-indigo-500/50';
-      default: return 'from-gray-700/50 to-slate-800/50 border-gray-500/50';
     }
   };
   

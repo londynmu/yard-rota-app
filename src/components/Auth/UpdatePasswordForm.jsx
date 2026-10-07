@@ -57,7 +57,7 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
         
         // We have a hash with access token, process it
         // This will parse the hash and set the session
-        const { data, error } = await supabase.auth.getSession();
+        const { error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('UpdatePasswordForm: Error setting session from URL:', error);
@@ -107,7 +107,7 @@ export default function UpdatePasswordForm({ onComplete, recoveryHash }) {
         throw new Error('Your password reset session has expired. Please request a new reset link.');
       }
       
-      const { data, error } = await supabase.auth.updateUser({ 
+      const { error } = await supabase.auth.updateUser({ 
         password 
       });
       
