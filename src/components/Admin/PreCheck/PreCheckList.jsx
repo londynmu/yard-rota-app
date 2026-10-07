@@ -5,6 +5,7 @@ import { useAuth } from '../../../lib/AuthContext';
 import { useToast } from '../../ui/ToastContext';
 import Modal from '../../ui/Modal';
 import { printSingleCheck, printAuditPack } from '../../../lib/precheckPrint';
+import { getStatusOptions } from '../../../utils/defectStatus';
 
 // ─── Shared status config for repair_status lifecycle ───
 export const STATUS_CONFIG = {
@@ -19,12 +20,6 @@ export const STATUS_CONFIG = {
 /** Statuses that still need repair work (acknowledged = known, will not be repaired). */
 export const isDefectAwaitingRepair = (repairStatus) =>
   repairStatus !== 'resolved' && repairStatus !== 'acknowledged';
-
-const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
-  value,
-  label: cfg.label,
-  dot: cfg.dot,
-}));
 
 const TIME_RANGES = {
   '24h': { ms: 24 * 3600000, label: '24h' },
@@ -210,6 +205,11 @@ export default function PreCheckList() {
 
   // ─── Update damage status (optimistic + targeted refetch) ───
   const updateDamageStatus = async (damageId, newStatus, submissionId) => {
+    const oldStatus = submissions
+      .find(sub => sub.id === submissionId)
+      ?.precheck_damages?.find(d => d.id === damageId)
+      ?.repair_status ?? null;
+    if (oldStatus === newStatus) return;
     try {
       const updates = { repair_status: newStatus };
       if (newStatus === 'resolved') {
@@ -238,6 +238,16 @@ export default function PreCheckList() {
         .eq('id', damageId);
 
       if (error) throw error;
+
+      const { error: logError } = await supabase.from('defect_activity_log').insert({
+        damage_id: damageId,
+        user_id: user.id,
+        action_type: 'status_change',
+        field_name: 'repair_status',
+        old_value: oldStatus,
+        new_value: newStatus,
+      });
+      if (logError) console.error('[PreCheckList] Activity log error:', logError);
 
       // Targeted refetch for resolved_profile data
       const { data: freshDamages } = await supabase
@@ -992,7 +1002,7 @@ function FaultCard({ fault, onStatusChange }) {
                 className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
                 style={{ top: menuPosition.top, right: menuPosition.right }}
               >
-                {STATUS_OPTIONS.map(opt => (
+                {getStatusOptions(STATUS_CONFIG, fault.repairStatus).map(opt => (
                   <button
                     key={opt.value}
                     type="button"
@@ -1143,7 +1153,7 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
                   className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
                   style={{ top: menuPosition.top, right: menuPosition.right }}
                 >
-                  {STATUS_OPTIONS.map(opt => (
+                  {getStatusOptions(STATUS_CONFIG, repairStatus).map(opt => (
                     <button
                       key={opt.value}
                       type="button"

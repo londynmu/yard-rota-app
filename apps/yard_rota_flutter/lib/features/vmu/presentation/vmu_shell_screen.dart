@@ -225,7 +225,12 @@ class _DefectBoardScreenState extends State<DefectBoardScreen> {
                       value: '',
                       child: Text('All statuses'),
                     ),
-                    for (final status in RepairStatus.values)
+                    for (final status
+                        in _status.isEmpty
+                            ? RepairStatus.selectable
+                            : RepairStatus.selectableFor(
+                                RepairStatus.fromDb(_status),
+                              ))
                       DropdownMenuItem(
                         value: status.dbValue,
                         child: Text(status.label),
@@ -340,9 +345,7 @@ class _DefectTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(Icons.circle, size: AppSpacing.md, color: statusColor),
         title: Text(defect.itemLabel ?? defect.description),
-        subtitle: Text(
-          '${defect.defectNumber ?? 'No defect number'} · ${defect.status.label}',
-        ),
+        subtitle: Text(defect.status.label),
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
           await Navigator.of(context).push<void>(
@@ -377,22 +380,19 @@ class DefectDetailScreen extends StatefulWidget {
 }
 
 class _DefectDetailScreenState extends State<DefectDetailScreen> {
-  late final _number = TextEditingController(text: widget.defect.defectNumber);
   late final _notes = TextEditingController(text: widget.defect.vmuNotes);
+  late DefectRecord _current = widget.defect;
   List<DefectActivity>? _activity;
-  DateTime? _terberg;
   var _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _terberg = widget.defect.reportedToTerbergAt;
     _loadActivity();
   }
 
   @override
   void dispose() {
-    _number.dispose();
     _notes.dispose();
     super.dispose();
   }
@@ -414,14 +414,15 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
     try {
       await widget.repository.updateDefect(
         session: widget.session,
-        current: widget.defect,
+        current: _current,
         status: status,
-        defectNumber: _number.text,
-        reportedToTerbergAt: _terberg,
         vmuNotes: _notes.text,
-        updateDefectNumber: true,
-        updateTerbergDate: true,
         updateNotes: true,
+      );
+      final notes = _notes.text.trim();
+      _current = _current.withVmuChanges(
+        status: status ?? _current.status,
+        vmuNotes: notes.isEmpty ? null : notes,
       );
       if (!mounted) return;
       AppToast.show(context, 'Defect updated.');
@@ -502,10 +503,10 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
           ],
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<RepairStatus>(
-            initialValue: widget.defect.status,
+            initialValue: _current.status,
             decoration: const InputDecoration(labelText: 'Repair status'),
             items: [
-              for (final value in RepairStatus.values)
+              for (final value in RepairStatus.selectableFor(_current.status))
                 DropdownMenuItem(value: value, child: Text(value.label)),
             ],
             onChanged: _saving
@@ -525,29 +526,10 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          AppTextField(controller: _number, label: 'Defect number'),
-          const SizedBox(height: AppSpacing.md),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Reported to Terberg'),
-            subtitle: Text(
-              _terberg == null ? 'Not reported' : _dateLabel(_terberg!),
-            ),
-            trailing: const Icon(Icons.calendar_today_outlined),
-            onTap: () async {
-              final result = await showDatePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-                initialDate: _terberg ?? DateTime.now(),
-              );
-              if (result != null) setState(() => _terberg = result);
-            },
-          ),
           AppTextField(controller: _notes, label: 'VMU notes', maxLines: 4),
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: _saving ? 'Saving...' : 'Save fields',
+            label: _saving ? 'Saving...' : 'Save notes',
             onPressed: _saving ? null : _save,
           ),
           const SizedBox(height: AppSpacing.xxl),
@@ -566,15 +548,22 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
 class _ActivityTile extends StatelessWidget {
   const _ActivityTile({required this.activity});
   final DefectActivity activity;
+
+  static const _fieldLabels = {
+    'vmu_notes': 'VMU notes',
+    'defect_number': 'defect number',
+    'reported_to_terberg_at': 'Reported to Terberg',
+  };
   @override
   Widget build(BuildContext context) {
     final description = switch (activity.type) {
       'initial_report' => 'reported this defect',
       'confirmation' => 'confirmed the problem still exists',
       'status_change' =>
-        'changed status from ${activity.oldValue ?? 'unknown'} to ${activity.newValue ?? 'unknown'}',
+        'changed status from ${RepairStatus.labelForDb(activity.oldValue)} '
+            'to ${RepairStatus.labelForDb(activity.newValue)}',
       _ =>
-        'updated ${activity.fieldName?.replaceAll('_', ' ') ?? 'the defect'}'
+        'updated ${_fieldLabels[activity.fieldName] ?? activity.fieldName?.replaceAll('_', ' ') ?? 'the defect'}'
             '${activity.newValue?.isNotEmpty == true ? ' to ${activity.newValue}' : ''}',
     };
     return ListTile(
@@ -917,7 +906,9 @@ class PreCheckDetailScreen extends StatelessWidget {
                       initialValue: defect.status,
                       decoration: const InputDecoration(labelText: 'Status'),
                       items: [
-                        for (final status in RepairStatus.values)
+                        for (final status in RepairStatus.selectableFor(
+                          defect.status,
+                        ))
                           DropdownMenuItem(
                             value: status,
                             child: Text(status.label),

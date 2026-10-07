@@ -85,8 +85,51 @@ void main() {
     );
     expect(defect.matches(tug: 't1', status: 'awaiting_parts'), isTrue);
     expect(defect.matches(search: 'part ordered'), isTrue);
-    expect(defect.matches(search: 'd-123'), isTrue);
+    expect(defect.matches(search: 'd-123'), isFalse);
     expect(defect.matches(tug: 'other'), isFalse);
+  });
+
+  test('VMU status pickers show four statuses and keep legacy values', () {
+    expect(RepairStatus.selectable, [
+      RepairStatus.open,
+      RepairStatus.reported,
+      RepairStatus.acknowledged,
+      RepairStatus.resolved,
+    ]);
+    expect(
+      RepairStatus.selectableFor(RepairStatus.reported),
+      RepairStatus.selectable,
+    );
+    expect(
+      RepairStatus.selectableFor(RepairStatus.awaitingParts).last,
+      RepairStatus.awaitingParts,
+    );
+    expect(RepairStatus.labelForDb('in_progress'), 'In Progress');
+    expect(RepairStatus.labelForDb('mystery'), 'mystery');
+    expect(RepairStatus.labelForDb(null), 'unknown');
+  });
+
+  test('withVmuChanges updates status and notes only', () {
+    final defect = DefectRecord(
+      id: 'd1',
+      submissionId: 's1',
+      tugId: 't1',
+      tugLabel: 'Tug Alpha',
+      tugNumber: '06925',
+      description: 'Broken mirror',
+      status: RepairStatus.open,
+      createdAt: DateTime.utc(2026, 8, 9),
+      reporterName: 'Alex Smith',
+      defectNumber: 'D-123',
+    );
+    final next = defect.withVmuChanges(
+      status: RepairStatus.reported,
+      vmuNotes: 'Called Terberg',
+    );
+    expect(next.status, RepairStatus.reported);
+    expect(next.vmuNotes, 'Called Terberg');
+    expect(next.defectNumber, 'D-123');
+    expect(next.id, 'd1');
   });
 
   test('settings domain values are safely clamped', () {

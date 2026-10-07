@@ -20,6 +20,24 @@ enum RepairStatus {
     (status) => status.dbValue == value,
     orElse: () => RepairStatus.open,
   );
+
+  /// Statuses VMU can pick. Older values stay readable from the database.
+  static const selectable = [open, reported, acknowledged, resolved];
+
+  /// Picker options; a legacy [current] value is kept so dropdowns never miss it.
+  static List<RepairStatus> selectableFor(RepairStatus? current) =>
+      current == null || selectable.contains(current)
+      ? selectable
+      : [...selectable, current];
+
+  /// Display label for a raw database value (falls back to the raw text).
+  static String labelForDb(String? value) {
+    if (value == null || value.isEmpty) return 'unknown';
+    for (final status in values) {
+      if (status.dbValue == value) return status.label;
+    }
+    return value;
+  }
 }
 
 class TugRecord {
@@ -101,13 +119,35 @@ class DefectRecord {
     if (query.isEmpty) return true;
     return [
       description,
-      defectNumber,
       tugLabel,
       tugNumber,
       vmuNotes,
       itemLabel,
     ].whereType<String>().any((value) => value.toLowerCase().contains(query));
   }
+
+  DefectRecord withVmuChanges({
+    required RepairStatus status,
+    required String? vmuNotes,
+  }) => DefectRecord(
+    id: id,
+    submissionId: submissionId,
+    tugId: tugId,
+    tugLabel: tugLabel,
+    tugNumber: tugNumber,
+    description: description,
+    status: status,
+    createdAt: createdAt,
+    reporterName: reporterName,
+    defectNumber: defectNumber,
+    reportedToTerbergAt: reportedToTerbergAt,
+    vmuNotes: vmuNotes,
+    resolvedAt: resolvedAt,
+    resolvedBy: resolvedBy,
+    resolvedByName: resolvedByName,
+    itemLabel: itemLabel,
+    imageUrls: imageUrls,
+  );
 }
 
 class DefectActivity {
