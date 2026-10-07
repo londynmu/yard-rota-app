@@ -1,0 +1,10 @@
+archive/
+dist/
+.vite/
+node_modules/
+coverage/
+apps/yard_rota_flutter/build/
+apps/yard_rota_flutter/.dart_tool/
+android/app/build/
+ios/App/build/
+*.har

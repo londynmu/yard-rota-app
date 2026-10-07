@@ -1,5 +1,7 @@
 apps/yard_rota_flutter/build/
-apps/yard_rota_flutter/.dart_tool/# Logs
+apps/yard_rota_flutter/.dart_tool/
+
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -36,3 +38,9 @@ lighthouse-reports/nav-detail-*.json
 
 # Local Netlify folder
 .netlify
+
+# Tool caches
+.vite/
+.vercel/
+.tmp-lint/
+coverage/

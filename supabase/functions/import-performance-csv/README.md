@@ -100,7 +100,7 @@ Stwórz `test-import.js`:
 ```javascript
 import { readFileSync } from 'fs';
 
-const csvContent = readFileSync('./raportyyms/Shunters (1).csv', 'utf-8');
+const csvContent = readFileSync('./archive/reports/raportyyms/Shunters (1).csv', 'utf-8');
 
 const response = await fetch('http://localhost:54321/functions/v1/import-performance-csv', {
   method: 'POST',
