@@ -16,7 +16,6 @@ export async function initMonitoring() {
       environment: import.meta.env.MODE,
       sendDefaultPii: false,
       tracesSampleRate: 0,
-      attachStacktrace: true,
       integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
       ignoreErrors: [
         ...CHUNK_ERROR_REGEXES,
