@@ -16,6 +16,8 @@ export async function initMonitoring() {
       environment: import.meta.env.MODE,
       sendDefaultPii: false,
       tracesSampleRate: 0,
+      // Default is true in v11: console.error messages would get a minified-frame title and group together
+      attachStacktrace: false,
       integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
       ignoreErrors: [
         ...CHUNK_ERROR_REGEXES,
