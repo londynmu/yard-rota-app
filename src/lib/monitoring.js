@@ -1,3 +1,5 @@
+import { CHUNK_ERROR_REGEXES } from '../utils/chunkLoadError';
+
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 
 let sentry = null;
@@ -14,10 +16,15 @@ export async function initMonitoring() {
       environment: import.meta.env.MODE,
       sendDefaultPii: false,
       tracesSampleRate: 0,
+      attachStacktrace: true,
+      integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
       ignoreErrors: [
-        /Loading chunk/i,
-        /dynamically imported module/i,
+        ...CHUNK_ERROR_REGEXES,
         /ResizeObserver loop/i,
+        // Offline / flaky mobile signal in the yard, not app bugs
+        /Failed to fetch/i,
+        /Load failed/i,
+        /NetworkError when attempting to fetch resource/i,
       ],
     });
     sentry = Sentry;
