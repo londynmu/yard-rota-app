@@ -72,6 +72,43 @@ void main() {
     AppToast.dismissPending();
   });
 
+  testWidgets('bottom menu and top bar mark the selected item', (
+    tester,
+  ) async {
+    await _signInAsShunter(tester);
+
+    bool isSelected(String label) {
+      final semantics = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.text(label).last,
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics && widget.properties.button == true,
+              ),
+            )
+            .first,
+      );
+      return semantics.properties.selected == true;
+    }
+
+    expect(isSelected('Home'), isTrue);
+    expect(isSelected('Calendar'), isTrue);
+    expect(isSelected('Stats'), isFalse);
+
+    await tester.tap(find.text('Breaks'));
+    await tester.pumpAndSettle();
+    expect(isSelected('Breaks'), isTrue);
+    expect(isSelected('Calendar'), isFalse);
+
+    await tester.tap(find.text('Stats'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(isSelected('Stats'), isTrue);
+    expect(isSelected('Home'), isFalse);
+    AppToast.dismissPending();
+  });
+
   testWidgets('every tab lays out on a small phone screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 740));
     await _signInAsShunter(tester);

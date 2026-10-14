@@ -393,9 +393,24 @@ class AppHomeTabs {
   static const double trackPadding = 3;
   static const double segmentIconSize = 18;
   static const double bellSegmentWidth = 48;
+}
 
-  /// Matches the bottom navigation indicator tint.
-  static const double selectedFillAlpha = 0.18;
+/// Solid primary pill marking the selected item in the top bar, the bottom
+/// menu and filter chips.
+@immutable
+class AppNavPill {
+  const AppNavPill._();
+
+  static const double glowBlur = 12;
+  static const double glowAlpha = 0.35;
+  static const double glowOffsetY = 2;
+
+  static const double bottomPillWidth = 56;
+  static const double bottomPillHeight = 32;
+  static const double bottomIconSize = 22;
+
+  static const double chipHeight = 36;
+  static const double chipIconSize = 16;
 }
 
 /// Screens shown before the app opens (login, sign-up, onboarding).

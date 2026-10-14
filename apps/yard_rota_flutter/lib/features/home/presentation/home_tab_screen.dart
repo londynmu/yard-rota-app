@@ -6,6 +6,7 @@ import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/glass_bar_surface.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../../breaks/presentation/breaks_screen.dart';
 import '../../calendar/data/availability_repository.dart';
 import '../../calendar/data/calendar_repository.dart';
@@ -290,7 +291,7 @@ class _HomeSectionSegment extends StatelessWidget {
       HomeSection.breaks => ('Breaks', Icons.free_breakfast_outlined),
       HomeSection.info => ('Info', Icons.info_outline),
     };
-    final foreground = selected ? colors.primary : colors.textSecondary;
+    final foreground = navPillForeground(colors, selected: selected);
 
     return Semantics(
       button: true,
@@ -298,12 +299,7 @@ class _HomeSectionSegment extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.normal,
         curve: AppMotion.emphasized,
-        decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: AppHomeTabs.selectedFillAlpha)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-        ),
+        decoration: navPillDecoration(colors, selected: selected),
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
@@ -326,9 +322,10 @@ class _HomeSectionSegment extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: selected
-                            ? colors.textPrimary
-                            : colors.textSecondary,
+                        color: foreground,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                   ),
