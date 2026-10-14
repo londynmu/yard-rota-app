@@ -15,6 +15,7 @@ import '../../induction/presentation/induction_guide_screen.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 import '../../today/presentation/today_screen.dart';
 import '../data/stage_one_repository.dart';
+import 'my_day_card.dart';
 
 enum HomeSection { calendar, breaks, info }
 
@@ -28,6 +29,7 @@ class HomeTabScreen extends StatefulWidget {
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
     required this.onOpenPreCheck,
+    required this.onOpenMyRota,
     required this.onTrack,
     this.stageOneRepository,
   });
@@ -38,6 +40,7 @@ class HomeTabScreen extends StatefulWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final VoidCallback onOpenPreCheck;
+  final VoidCallback onOpenMyRota;
   final void Function(String path, String title) onTrack;
   final StageOneRepository? stageOneRepository;
 
@@ -48,6 +51,7 @@ class HomeTabScreen extends StatefulWidget {
 class HomeTabScreenState extends State<HomeTabScreen> {
   HomeSection _section = HomeSection.calendar;
   final Set<HomeSection> _visited = <HomeSection>{HomeSection.calendar};
+  final GlobalKey<MyDayCardState> _myDayKey = GlobalKey<MyDayCardState>();
   int _unreadNotifications = 0;
   int _infoGeneration = 0;
 
@@ -187,6 +191,16 @@ class HomeTabScreenState extends State<HomeTabScreen> {
           availabilityRepository: widget.availabilityRepository,
           lightHomeWallpaper: widget.lightHomeWallpaper,
           darkHomeWallpaper: widget.darkHomeWallpaper,
+          footer: repository == null
+              ? null
+              : MyDayCard(
+                  key: _myDayKey,
+                  repository: repository,
+                  userId: widget.session.userId,
+                  onOpenMyRota: widget.onOpenMyRota,
+                  onOpenBreaks: () => _selectSection(HomeSection.breaks),
+                ),
+          onRefresh: () async => _myDayKey.currentState?.reload(),
         );
       case HomeSection.breaks:
         if (repository == null) {
