@@ -37,6 +37,7 @@ android {
         targetSdk = maxOf(flutter.targetSdkVersion, 35)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appName"] = "Yard Rota"
     }
 
     signingConfigs {
@@ -51,6 +52,11 @@ android {
     }
 
     buildTypes {
+        // Separate package so a dev build can sit next to the release build on one phone.
+        debug {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "Yard Rota Dev"
+        }
         release {
             // Without key.properties the release build falls back to debug keys so
             // `flutter run --release` still works locally; Play rejects such uploads.

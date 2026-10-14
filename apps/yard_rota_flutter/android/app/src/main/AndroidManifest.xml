@@ -9,7 +9,7 @@
         android:name="android.hardware.camera"
         android:required="false"/>
     <application
-        android:label="Yard Rota"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
