@@ -14,8 +14,10 @@ import '../pre_check/data/pre_check_repository.dart';
 import '../stats/data/stats_repository.dart';
 import '../stage_three/data/stage_three_repository.dart';
 import '../stage_two/data/stage_two_repository.dart';
+import 'home_shell_screen.dart';
 
-/// Root shell after sign-in. Home acts as the hub for full-screen features.
+/// Root shell after sign-in. Shunters and admins get the bottom-menu layout;
+/// VMU and transport managers keep the tile hub.
 class MainShell extends StatelessWidget {
   const MainShell({
     super.key,
@@ -81,6 +83,36 @@ class MainShell extends StatelessWidget {
             systemNavigationBarIconBrightness: Brightness.dark,
             systemNavigationBarDividerColor: Colors.transparent,
           );
+
+    final usesTileHub =
+        !session.isAdmin && (session.isVmu || session.isTransportManager);
+    if (!usesTileHub) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlay,
+        child: ConnectivityBanner(
+          child: HomeShellScreen(
+            apiClient: apiClient,
+            session: session,
+            calendarRepository: calendarRepository,
+            availabilityRepository: availabilityRepository,
+            myRotaRepository: myRotaRepository,
+            statsRepository: statsRepository,
+            preCheckRepository: preCheckRepository,
+            stageOneRepository: stageOneRepository,
+            stageTwoRepository: stageTwoRepository,
+            stageThreeRepository: stageThreeRepository,
+            onLogout: onLogout,
+            onProfileSaved: onProfileSaved,
+            themeMode: themeMode,
+            onThemeModeChanged: onThemeModeChanged,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+            onLightHomeWallpaperChanged: onLightHomeWallpaperChanged,
+            onDarkHomeWallpaperChanged: onDarkHomeWallpaperChanged,
+          ),
+        ),
+      );
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,

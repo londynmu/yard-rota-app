@@ -372,6 +372,29 @@ class AppLuxuryHomeGradient {
   static const stops = [0.0, 0.17, 0.34, 0.52, 0.68, 0.84, 1.0];
 }
 
+/// Frosted top bars and bottom navigation drawn over the home wallpaper.
+@immutable
+class AppGlassBar {
+  const AppGlassBar._();
+
+  static const double blurSigma = 18;
+  static const double topFadeDarkAlpha = 0.28;
+  static const double topFadeLightAlpha = 0.42;
+  static const double bottomDarkAlpha = 0.62;
+  static const double bottomLightAlpha = 0.72;
+}
+
+/// Home tab top bar: Calendar / Breaks / Info segments and the bell.
+@immutable
+class AppHomeTabs {
+  const AppHomeTabs._();
+
+  static const double segmentHeight = 40;
+  static const double trackPadding = 3;
+  static const double segmentIconSize = 18;
+  static const double selectedShadowAlpha = 0.14;
+}
+
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
 @immutable
 class AppMyRotaListSpacing {

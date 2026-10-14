@@ -34,12 +34,10 @@ class BreaksPanel extends StatefulWidget {
     super.key,
     required this.repository,
     required this.currentUserId,
-    this.compact = false,
   });
 
   final StageOneRepository repository;
   final String currentUserId;
-  final bool compact;
 
   @override
   State<BreaksPanel> createState() => _BreaksPanelState();
@@ -137,12 +135,6 @@ class _BreaksPanelState extends State<BreaksPanel> {
         ),
     ];
 
-    if (widget.compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: content,
-      );
-    }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
