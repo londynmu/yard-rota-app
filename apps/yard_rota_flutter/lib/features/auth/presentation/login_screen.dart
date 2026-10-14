@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return AuthScaffold(
       title: 'Yard Rota',
-      subtitle: 'Sign in to continue your shift.',
+      subtitle: 'Sign in to your account.',
       icon: Icons.local_shipping_outlined,
       showLegalFooter: true,
       children: [
