@@ -50,7 +50,8 @@ void main() {
       expect(status.kind, MyBreakKind.upcoming);
       expect(status.start, DateTime(2026, 10, 14, 10));
       expect(status.end, DateTime(2026, 10, 14, 10, 30));
-      expect(status.moreCount, 1);
+      expect(status.followingStart, DateTime(2026, 10, 14, 13));
+      expect(status.followingEnd, DateTime(2026, 10, 14, 13, 30));
     });
 
     test('break in progress is active', () {
@@ -65,14 +66,13 @@ void main() {
 
     test('all breaks finished reads done, no breaks reads none', () {
       final now = DateTime(2026, 10, 14, 15);
-      expect(
-        MyDayLogic.summarise(
-          shifts: const [_dayShift],
-          breaks: _dayBreaks,
-          now: now,
-        ).breakStatus!.kind,
-        MyBreakKind.done,
-      );
+      final done = MyDayLogic.summarise(
+        shifts: const [_dayShift],
+        breaks: _dayBreaks,
+        now: now,
+      ).breakStatus!;
+      expect(done.kind, MyBreakKind.done);
+      expect(done.end, DateTime(2026, 10, 14, 13, 30));
       expect(
         MyDayLogic.summarise(
           shifts: const [_dayShift],
@@ -174,12 +174,16 @@ void main() {
   });
 
   group('MyDayCard', () {
+    late int rotaTaps;
+    late int breaksTaps;
+
     Future<void> pumpCard(
       WidgetTester tester, {
-      required MyDayData data,
+      required MyDayData? data,
       required DateTime now,
-      VoidCallback? onOpenMyRota,
     }) async {
+      rotaTaps = 0;
+      breaksTaps = 0;
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark(),
@@ -188,7 +192,8 @@ void main() {
               repository: _FakeStageOneRepository(data),
               userId: 'me',
               clock: () => now,
-              onOpenMyRota: onOpenMyRota ?? () {},
+              onOpenMyRota: () => rotaTaps++,
+              onOpenBreaks: () => breaksTaps++,
             ),
           ),
         ),
@@ -199,7 +204,16 @@ void main() {
     Future<void> disposeCard(WidgetTester tester) =>
         tester.pumpWidget(const SizedBox());
 
-    testWidgets('shows today shift with the next break countdown', (
+    MyShift dayShiftMarked(String absence) => MyShift(
+      dateYmd: '2026-10-14',
+      startTime: '07:00',
+      endTime: '17:00',
+      shiftType: 'day',
+      location: 'Rugby',
+      absence: absence,
+    );
+
+    testWidgets('shift tile opens My Rota, break tile counts down', (
       tester,
     ) async {
       await pumpCard(
@@ -208,40 +222,88 @@ void main() {
         now: DateTime(2026, 10, 14, 9, 35),
       );
 
-      expect(find.text('Today · Day 07:00–17:00'), findsOneWidget);
-      expect(find.text('Rugby · Break 10:00–10:30 +1'), findsOneWidget);
+      expect(find.text("You're working today"), findsOneWidget);
+      expect(find.text('Rugby · Day shift · 07:00–17:00'), findsOneWidget);
+      expect(find.text('Your break'), findsOneWidget);
+      expect(find.text('in 25m'), findsOneWidget);
+      expect(find.text('Today 10:00–10:30 · Next 13:00–13:30'), findsOneWidget);
+      expect(find.text('Open My Rota'), findsNothing);
+
+      await tester.tap(find.text("You're working today"));
+      expect(rotaTaps, 1);
+      await disposeCard(tester);
+    });
+
+    testWidgets('break in progress shows time left and progress', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        data: const MyDayData(shifts: [_dayShift], breaks: _dayBreaks),
+        now: DateTime(2026, 10, 14, 10, 12),
+      );
+
+      expect(find.text('On break'), findsOneWidget);
+      expect(find.text('18m left'), findsOneWidget);
+      expect(find.text('Until 10:30 · Next 13:00–13:30'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      await disposeCard(tester);
+    });
+
+    testWidgets('finished breaks read done', (tester) async {
+      await pumpCard(
+        tester,
+        data: const MyDayData(shifts: [_dayShift], breaks: _dayBreaks),
+        now: DateTime(2026, 10, 14, 15),
+      );
+
+      expect(find.text('Breaks done for today'), findsOneWidget);
+      expect(find.text('Last break ended at 13:30'), findsOneWidget);
+      await disposeCard(tester);
+    });
+
+    testWidgets('no booked break opens Breaks', (tester) async {
+      await pumpCard(
+        tester,
+        data: const MyDayData(shifts: [_dayShift], breaks: []),
+        now: DateTime(2026, 10, 14, 9),
+      );
+
+      expect(find.text('No break booked yet'), findsOneWidget);
+      await tester.tap(find.text("Tap to see today's breaks"));
+      expect(breaksTaps, 1);
+      expect(rotaTaps, 0);
+      await disposeCard(tester);
+    });
+
+    testWidgets('absence hides the break tile', (tester) async {
+      await pumpCard(
+        tester,
+        data: MyDayData(shifts: [dayShiftMarked('Sick')], breaks: _dayBreaks),
+        now: DateTime(2026, 10, 14, 9, 35),
+      );
+
+      expect(find.text('Marked as Sick today'), findsOneWidget);
+      expect(find.text('Your break'), findsNothing);
+      await disposeCard(tester);
+    });
+
+    testWidgets('late keeps the break tile', (tester) async {
+      await pumpCard(
+        tester,
+        data: MyDayData(shifts: [dayShiftMarked('Late')], breaks: _dayBreaks),
+        now: DateTime(2026, 10, 14, 9, 35),
+      );
+
+      expect(find.text("You're working today"), findsOneWidget);
+      expect(find.text('Late'), findsOneWidget);
       expect(find.text('in 25m'), findsOneWidget);
       await disposeCard(tester);
     });
 
-    testWidgets('shows absence instead of the break', (tester) async {
-      await pumpCard(
-        tester,
-        data: const MyDayData(
-          shifts: [
-            MyShift(
-              dateYmd: '2026-10-14',
-              startTime: '07:00',
-              endTime: '17:00',
-              shiftType: 'day',
-              location: 'Rugby',
-              absence: 'Sick',
-            ),
-          ],
-          breaks: _dayBreaks,
-        ),
-        now: DateTime(2026, 10, 14, 9, 35),
-      );
-
-      expect(find.text('Rugby · Sick'), findsOneWidget);
-      expect(find.text('in 25m'), findsNothing);
-      await disposeCard(tester);
-    });
-
-    testWidgets('day off shows the next shift and opens My Rota', (
+    testWidgets('day off shows the next shift and no break tile', (
       tester,
     ) async {
-      var opened = 0;
       await pumpCard(
         tester,
         data: const MyDayData(
@@ -256,23 +318,19 @@ void main() {
           breaks: [],
         ),
         now: DateTime(2026, 10, 14, 12),
-        onOpenMyRota: () => opened++,
       );
 
       expect(find.text('Day off today'), findsOneWidget);
-      expect(find.text('Next: Tomorrow Night 17:00'), findsOneWidget);
+      expect(find.text('Next shift: Tomorrow, Night 17:00'), findsOneWidget);
+      expect(find.text('No break booked yet'), findsNothing);
 
-      await tester.tap(find.text('Open My Rota'));
-      expect(opened, 1);
+      await tester.tap(find.text('Day off today'));
+      expect(rotaTaps, 1);
       await disposeCard(tester);
     });
 
     testWidgets('load failure asks to retry', (tester) async {
-      await pumpCard(
-        tester,
-        data: _FakeStageOneRepository.failure,
-        now: DateTime(2026, 10, 14, 12),
-      );
+      await pumpCard(tester, data: null, now: DateTime(2026, 10, 14, 12));
 
       expect(
         find.text('Could not load your shift. Pull down to retry.'),
@@ -293,14 +351,11 @@ class _FakeStageOneRepository extends StageOneRepository {
         ),
       );
 
-  /// Marker data that makes [loadMyDay] throw.
-  static const failure = MyDayData(shifts: [], breaks: []);
-
-  final MyDayData _data;
+  /// `null` makes [loadMyDay] fail.
+  final MyDayData? _data;
 
   @override
   Future<MyDayData> loadMyDay({required String userId, DateTime? now}) async {
-    if (identical(_data, failure)) throw Exception('offline');
-    return _data;
+    return _data ?? (throw Exception('offline'));
   }
 }

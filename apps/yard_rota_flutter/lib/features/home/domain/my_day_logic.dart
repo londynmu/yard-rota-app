@@ -20,6 +20,9 @@ class MyShift {
   /// Attendance label (e.g. 'Sick') when the shift is marked as missed.
   final String? absence;
 
+  /// Late workers still do the shift and take breaks.
+  bool get isAbsent => absence != null && absence != 'Late';
+
   DateTime get start => MyDayLogic.atTime(dateYmd, startTime);
 
   DateTime get end {
@@ -61,17 +64,24 @@ class MyBreak {
 enum MyBreakKind { none, upcoming, active, done }
 
 class MyBreakStatus {
-  const MyBreakStatus._(this.kind, {this.start, this.end, this.moreCount = 0});
+  const MyBreakStatus._(
+    this.kind, {
+    this.start,
+    this.end,
+    this.followingStart,
+    this.followingEnd,
+  });
 
   const MyBreakStatus.none() : this._(MyBreakKind.none);
-  const MyBreakStatus.done() : this._(MyBreakKind.done);
 
+  /// Upcoming or active: the break shown. Done: the last break of the shift.
   final MyBreakKind kind;
   final DateTime? start;
   final DateTime? end;
 
-  /// Further breaks after the one shown.
-  final int moreCount;
+  /// The break after the one shown, if any.
+  final DateTime? followingStart;
+  final DateTime? followingEnd;
 }
 
 class MyDaySummary {
@@ -155,15 +165,34 @@ class MyDayLogic {
     if (mine.isEmpty) return const MyBreakStatus.none();
 
     final open = mine.where((item) => item.end.isAfter(now)).toList();
-    if (open.isEmpty) return const MyBreakStatus.done();
+    if (open.isEmpty) {
+      final last = mine.reduce((a, b) => a.end.isAfter(b.end) ? a : b);
+      return MyBreakStatus._(
+        MyBreakKind.done,
+        start: last.start,
+        end: last.end,
+      );
+    }
 
     final first = open.first;
+    final following = open.length > 1 ? open[1] : null;
     return MyBreakStatus._(
       now.isBefore(first.start) ? MyBreakKind.upcoming : MyBreakKind.active,
       start: first.start,
       end: first.end,
-      moreCount: open.length - 1,
+      followingStart: following?.start,
+      followingEnd: following?.end,
     );
+  }
+
+  /// Share of the break already used, for the progress bar.
+  static double breakProgress(MyBreakStatus status, DateTime now) {
+    final start = status.start;
+    final end = status.end;
+    if (start == null || end == null) return 0;
+    final total = end.difference(start).inSeconds;
+    if (total <= 0) return 0;
+    return now.difference(start).inSeconds.clamp(0, total) / total;
   }
 
   /// `45m`, `1h`, `1h 20m`; rounds up so "in 0m" never shows.

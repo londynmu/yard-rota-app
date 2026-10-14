@@ -198,6 +198,7 @@ class HomeTabScreenState extends State<HomeTabScreen> {
                   repository: repository,
                   userId: widget.session.userId,
                   onOpenMyRota: widget.onOpenMyRota,
+                  onOpenBreaks: () => _selectSection(HomeSection.breaks),
                 ),
           onRefresh: () async => _myDayKey.currentState?.reload(),
         );
