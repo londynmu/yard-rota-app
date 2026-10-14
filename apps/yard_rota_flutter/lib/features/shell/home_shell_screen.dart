@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/models.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/theme/home_wallpaper.dart';
 import '../../core/ui/app_card.dart';
 import '../../core/ui/glass_bar_surface.dart';
+import '../../core/ui/nav_pill.dart';
 import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
 import '../home/data/stage_one_repository.dart';
@@ -161,49 +163,63 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       ),
       bottomNavigationBar: GlassBarSurface(
         edge: GlassBarEdge.bottom,
-        child: NavigationBar(
-          backgroundColor: Colors.transparent,
-          elevation: AppElevation.level0,
-          height: AppComponentTokens.bottomNavHeight,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          selectedIndex: _current.index,
-          onDestinationSelected: (index) => _select(ShellTab.values[index]),
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: AppComponentTokens.bottomNavHeight,
+            child: Row(
+              children: [
+                for (final tab in ShellTab.values)
+                  Expanded(
+                    child: _ShellNavItem(
+                      destination: _destinationFor(tab, isAdmin: isAdmin),
+                      selected: tab == _current,
+                      onTap: () => _select(tab),
+                    ),
+                  ),
+              ],
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.calendar_view_week_outlined),
-              selectedIcon: Icon(Icons.calendar_view_week),
-              label: 'My Rota',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.query_stats_outlined),
-              selectedIcon: Icon(Icons.query_stats),
-              label: 'Stats',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.fact_check_outlined),
-              selectedIcon: Icon(Icons.fact_check),
-              label: 'PreCheck',
-            ),
-            NavigationDestination(
-              icon: Icon(
-                isAdmin
-                    ? Icons.admin_panel_settings_outlined
-                    : Icons.person_outline,
-              ),
-              selectedIcon: Icon(
-                isAdmin ? Icons.admin_panel_settings : Icons.person,
-              ),
-              label: isAdmin ? 'Admin' : 'Account',
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  _NavDestination _destinationFor(ShellTab tab, {required bool isAdmin}) {
+    return switch (tab) {
+      ShellTab.home => const _NavDestination(
+        'Home',
+        Icons.home_outlined,
+        Icons.home_rounded,
+      ),
+      ShellTab.myRota => const _NavDestination(
+        'My Rota',
+        Icons.calendar_view_week_outlined,
+        Icons.calendar_view_week_rounded,
+      ),
+      ShellTab.stats => const _NavDestination(
+        'Stats',
+        Icons.query_stats_outlined,
+        Icons.query_stats_rounded,
+      ),
+      ShellTab.preCheck => const _NavDestination(
+        'PreCheck',
+        Icons.fact_check_outlined,
+        Icons.fact_check_rounded,
+      ),
+      ShellTab.account =>
+        isAdmin
+            ? const _NavDestination(
+                'Admin',
+                Icons.admin_panel_settings_outlined,
+                Icons.admin_panel_settings_rounded,
+              )
+            : const _NavDestination(
+                'Account',
+                Icons.person_outline_rounded,
+                Icons.person_rounded,
+              ),
+    };
   }
 
   Widget _buildTab(ShellTab tab) {
@@ -217,6 +233,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         lightHomeWallpaper: widget.lightHomeWallpaper,
         darkHomeWallpaper: widget.darkHomeWallpaper,
         onOpenPreCheck: () => _select(ShellTab.preCheck),
+        onOpenMyRota: () => _select(ShellTab.myRota),
         onTrack: _track,
       ),
       ShellTab.myRota => MyRotaScreen(
@@ -270,6 +287,67 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       session: widget.session,
       lightHomeWallpaper: widget.lightHomeWallpaper,
       darkHomeWallpaper: widget.darkHomeWallpaper,
+    );
+  }
+}
+
+class _NavDestination {
+  const _NavDestination(this.label, this.icon, this.selectedIcon);
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+}
+
+class _ShellNavItem extends StatelessWidget {
+  const _ShellNavItem({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _NavDestination destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkResponse(
+        onTap: onTap,
+        containedInkWell: true,
+        highlightShape: BoxShape.rectangle,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: AppMotion.normal,
+              curve: AppMotion.emphasized,
+              width: AppNavPill.bottomPillWidth,
+              height: AppNavPill.bottomPillHeight,
+              decoration: navPillDecoration(colors, selected: selected),
+              child: Icon(
+                selected ? destination.selectedIcon : destination.icon,
+                size: AppNavPill.bottomIconSize,
+                color: navPillForeground(colors, selected: selected),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              destination.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.labelMedium.copyWith(
+                color: selected ? colors.primary : colors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

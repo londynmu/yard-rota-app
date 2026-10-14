@@ -69,16 +69,70 @@ class BreakFilters {
     this.night = true,
   });
 
+  /// Default filter for a user: their profile hub (when it is still an active
+  /// location) and only their profile shift. Missing values mean "all".
+  factory BreakFilters.forProfile({
+    required String? location,
+    required String? shift,
+    required List<String> activeLocations,
+  }) {
+    final wanted = location?.trim().toLowerCase();
+    String? matched;
+    if (wanted != null && wanted.isNotEmpty) {
+      for (final name in activeLocations) {
+        if (name.trim().toLowerCase() == wanted) {
+          matched = name;
+          break;
+        }
+      }
+    }
+    final preferred = BreakShift.fromDb(shift?.trim().toLowerCase());
+    return BreakFilters(
+      location: matched,
+      day: preferred == null || preferred == BreakShift.day,
+      afternoon: preferred == null || preferred == BreakShift.afternoon,
+      night: preferred == null || preferred == BreakShift.night,
+    );
+  }
+
   final String? location;
   final bool day;
   final bool afternoon;
   final bool night;
+
+  bool get allShifts => day && afternoon && night;
+  bool get showsEverything => location == null && allShifts;
 
   bool includes(BreakShift shift) => switch (shift) {
     BreakShift.day => day,
     BreakShift.afternoon => afternoon,
     BreakShift.night => night,
   };
+
+  BreakFilters withLocation(String? value) => BreakFilters(
+    location: value,
+    day: day,
+    afternoon: afternoon,
+    night: night,
+  );
+
+  BreakFilters toggleShift(BreakShift shift) => BreakFilters(
+    location: location,
+    day: shift == BreakShift.day ? !day : day,
+    afternoon: shift == BreakShift.afternoon ? !afternoon : afternoon,
+    night: shift == BreakShift.night ? !night : night,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is BreakFilters &&
+      other.location == location &&
+      other.day == day &&
+      other.afternoon == afternoon &&
+      other.night == night;
+
+  @override
+  int get hashCode => Object.hash(location, day, afternoon, night);
 }
 
 class BreakWindowLogic {

@@ -296,6 +296,8 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
         role: profile.role,
         accountStatus: profile.accountStatus,
         profileCompleted: profile.profileCompleted,
+        preferredLocation: profile.preferredLocation,
+        shiftPreference: profile.shiftPreference,
       );
     });
   }

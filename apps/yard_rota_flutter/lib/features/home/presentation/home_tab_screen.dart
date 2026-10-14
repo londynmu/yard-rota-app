@@ -6,6 +6,7 @@ import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/glass_bar_surface.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../../breaks/presentation/breaks_screen.dart';
 import '../../calendar/data/availability_repository.dart';
 import '../../calendar/data/calendar_repository.dart';
@@ -14,6 +15,7 @@ import '../../induction/presentation/induction_guide_screen.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 import '../../today/presentation/today_screen.dart';
 import '../data/stage_one_repository.dart';
+import 'my_day_card.dart';
 
 enum HomeSection { calendar, breaks, info }
 
@@ -27,6 +29,7 @@ class HomeTabScreen extends StatefulWidget {
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
     required this.onOpenPreCheck,
+    required this.onOpenMyRota,
     required this.onTrack,
     this.stageOneRepository,
   });
@@ -37,6 +40,7 @@ class HomeTabScreen extends StatefulWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final VoidCallback onOpenPreCheck;
+  final VoidCallback onOpenMyRota;
   final void Function(String path, String title) onTrack;
   final StageOneRepository? stageOneRepository;
 
@@ -47,6 +51,7 @@ class HomeTabScreen extends StatefulWidget {
 class HomeTabScreenState extends State<HomeTabScreen> {
   HomeSection _section = HomeSection.calendar;
   final Set<HomeSection> _visited = <HomeSection>{HomeSection.calendar};
+  final GlobalKey<MyDayCardState> _myDayKey = GlobalKey<MyDayCardState>();
   int _unreadNotifications = 0;
   int _infoGeneration = 0;
 
@@ -186,6 +191,16 @@ class HomeTabScreenState extends State<HomeTabScreen> {
           availabilityRepository: widget.availabilityRepository,
           lightHomeWallpaper: widget.lightHomeWallpaper,
           darkHomeWallpaper: widget.darkHomeWallpaper,
+          footer: repository == null
+              ? null
+              : MyDayCard(
+                  key: _myDayKey,
+                  repository: repository,
+                  userId: widget.session.userId,
+                  onOpenMyRota: widget.onOpenMyRota,
+                  onOpenBreaks: () => _selectSection(HomeSection.breaks),
+                ),
+          onRefresh: () async => _myDayKey.currentState?.reload(),
         );
       case HomeSection.breaks:
         if (repository == null) {
@@ -193,10 +208,7 @@ class HomeTabScreenState extends State<HomeTabScreen> {
             message: 'Breaks are unavailable. Try again later.',
           );
         }
-        return BreaksPanel(
-          repository: repository,
-          currentUserId: widget.session.userId,
-        );
+        return BreaksPanel(repository: repository, session: widget.session);
       case HomeSection.info:
         if (repository == null) {
           return const _UnavailableCard(
@@ -290,7 +302,7 @@ class _HomeSectionSegment extends StatelessWidget {
       HomeSection.breaks => ('Breaks', Icons.free_breakfast_outlined),
       HomeSection.info => ('Info', Icons.info_outline),
     };
-    final foreground = selected ? colors.primary : colors.textSecondary;
+    final foreground = navPillForeground(colors, selected: selected);
 
     return Semantics(
       button: true,
@@ -298,12 +310,7 @@ class _HomeSectionSegment extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.normal,
         curve: AppMotion.emphasized,
-        decoration: BoxDecoration(
-          color: selected
-              ? colors.primary.withValues(alpha: AppHomeTabs.selectedFillAlpha)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-        ),
+        decoration: navPillDecoration(colors, selected: selected),
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
@@ -326,9 +333,10 @@ class _HomeSectionSegment extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: selected
-                            ? colors.textPrimary
-                            : colors.textSecondary,
+                        color: foreground,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                   ),

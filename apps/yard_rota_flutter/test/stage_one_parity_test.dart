@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yard_rota_flutter/core/network/models.dart';
 import 'package:yard_rota_flutter/core/theme/app_theme.dart';
 import 'package:yard_rota_flutter/features/breaks/domain/break_models.dart';
 import 'package:yard_rota_flutter/features/breaks/presentation/breaks_screen.dart';
@@ -96,13 +96,61 @@ void main() {
     expect(mapped.location, 'Rugby');
   });
 
+  group('BreakFilters.forProfile', () {
+    const active = <String>['Barnsley', 'NRC', 'Rugby'];
+
+    test('uses the profile hub and only the profile shift', () {
+      final filters = BreakFilters.forProfile(
+        location: 'Rugby',
+        shift: 'day',
+        activeLocations: active,
+      );
+      expect(filters.location, 'Rugby');
+      expect(filters.day, isTrue);
+      expect(filters.afternoon, isFalse);
+      expect(filters.night, isFalse);
+    });
+
+    test('matches the hub name case-insensitively', () {
+      final filters = BreakFilters.forProfile(
+        location: ' nrc ',
+        shift: 'NIGHT',
+        activeLocations: active,
+      );
+      expect(filters.location, 'NRC');
+      expect(filters.night, isTrue);
+      expect(filters.day, isFalse);
+    });
+
+    test('falls back to all locations for an inactive or missing hub', () {
+      for (final location in <String?>['Old Yard', null, '']) {
+        final filters = BreakFilters.forProfile(
+          location: location,
+          shift: 'afternoon',
+          activeLocations: active,
+        );
+        expect(filters.location, isNull);
+        expect(filters.afternoon, isTrue);
+      }
+    });
+
+    test('shows every shift when the profile has none', () {
+      final filters = BreakFilters.forProfile(
+        location: 'Rugby',
+        shift: null,
+        activeLocations: active,
+      );
+      expect(filters.allShifts, isTrue);
+      expect(filters, const BreakFilters(location: 'Rugby'));
+    });
+  });
+
   testWidgets('shunter breaks remain read-only', (tester) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
     final repository = _FakeStageOneRepository();
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
-        home: BreaksScreen(repository: repository, currentUserId: 'user-1'),
+        home: BreaksScreen(repository: repository, session: _rugbyDaySession),
       ),
     );
     await tester.pumpAndSettle();
@@ -112,7 +160,78 @@ void main() {
     expect(find.text('Manage breaks'), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
   });
+
+  testWidgets('breaks filter starts from the profile and can be reset', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: BreaksScreen(
+          repository: _FakeStageOneRepository(),
+          session: _rugbyDaySession,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Location: Rugby'), findsOneWidget);
+    expect(
+      find.text('No active or upcoming breaks for Rugby · Day.'),
+      findsOneWidget,
+    );
+    expect(find.text('Reset'), findsNothing);
+
+    await tester.tap(find.text('Night'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No active or upcoming breaks for Rugby · Day, Night.'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Reset to my shift'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Reset to my shift'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Reset to my shift'), findsNothing);
+
+    await tester.tap(find.text('Show all breaks'));
+    await tester.pumpAndSettle();
+    expect(find.text('No active or upcoming breaks.'), findsOneWidget);
+    expect(find.text('Show all breaks'), findsNothing);
+  });
+
+  testWidgets('location sheet lists every active location from the database', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: BreaksScreen(
+          repository: _FakeStageOneRepository(),
+          session: _rugbyDaySession,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Location: Rugby'));
+    await tester.pumpAndSettle();
+    for (final name in <String>['All locations', 'Barnsley', 'NRC']) {
+      expect(find.text(name), findsOneWidget);
+    }
+
+    await tester.tap(find.text('NRC'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Location: NRC'), findsOneWidget);
+  });
 }
+
+const _rugbyDaySession = UserSession(
+  userId: 'user-1',
+  displayName: 'Test Shunter',
+  preferredLocation: 'Rugby',
+  shiftPreference: 'day',
+);
 
 ScheduledBreak _break(
   String id,
@@ -147,4 +266,11 @@ class _FakeStageOneRepository extends StageOneRepository {
   @override
   Future<List<ScheduledBreak>> loadBreaks({DateTime? now}) async =>
       const <ScheduledBreak>[];
+
+  @override
+  Future<List<String>> loadActiveLocations() async => const <String>[
+    'Barnsley',
+    'NRC',
+    'Rugby',
+  ];
 }

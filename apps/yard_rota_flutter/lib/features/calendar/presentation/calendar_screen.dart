@@ -21,6 +21,8 @@ class CalendarScreen extends StatefulWidget {
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
     this.embedded = false,
+    this.footer,
+    this.onRefresh,
   });
 
   final String displayName;
@@ -32,6 +34,12 @@ class CalendarScreen extends StatefulWidget {
   /// Renders only the month view; the host supplies app bar, wallpaper and
   /// safe-area padding.
   final bool embedded;
+
+  /// Shown under the month card, inside the same scroll view.
+  final Widget? footer;
+
+  /// Runs together with the month reload on pull-to-refresh.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -515,11 +523,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (_calendarHiddenForAvailabilityModal) {
       return const SizedBox.shrink();
     }
+    final footer = widget.footer;
     return RefreshIndicator(
-      onRefresh: () => _loadMonth(showGlobalLoader: false),
+      onRefresh: () async {
+        await Future.wait<void>([
+          _loadMonth(showGlobalLoader: false),
+          if (widget.onRefresh case final refresh?) refresh(),
+        ]);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [_buildMonthCalendar(context, data)],
+        children: [
+          _buildMonthCalendar(context, data),
+          if (footer != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            footer,
+          ],
+        ],
       ),
     );
   }
@@ -540,7 +560,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onHorizontalDragUpdate: _handleCalendarDragUpdate,
         onHorizontalDragEnd: _handleCalendarDragEnd,
         child: AppCard(
-          surfaceOpacity: 0.5,
+          surfaceOpacity: AppOpacity.homeCard,
           child: Column(
             children: [
               Row(
