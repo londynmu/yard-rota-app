@@ -277,19 +277,10 @@ class _HomeSectionSegment extends StatelessWidget {
         duration: AppMotion.normal,
         curve: AppMotion.emphasized,
         decoration: BoxDecoration(
-          color: selected ? colors.bgElevated : Colors.transparent,
+          color: selected
+              ? colors.primary.withValues(alpha: AppHomeTabs.selectedFillAlpha)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.full),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: colors.shadow.withValues(
-                      alpha: AppHomeTabs.selectedShadowAlpha,
-                    ),
-                    blurRadius: AppElevation.level4,
-                    offset: const Offset(0, AppElevation.level2),
-                  ),
-                ]
-              : const [],
         ),
         child: Material(
           type: MaterialType.transparency,

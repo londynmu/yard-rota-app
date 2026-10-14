@@ -392,7 +392,9 @@ class AppHomeTabs {
   static const double segmentHeight = 40;
   static const double trackPadding = 3;
   static const double segmentIconSize = 18;
-  static const double selectedShadowAlpha = 0.14;
+
+  /// Matches the bottom navigation indicator tint.
+  static const double selectedFillAlpha = 0.18;
 }
 
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
