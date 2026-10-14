@@ -398,6 +398,18 @@ class AppHomeTabs {
   static const double selectedFillAlpha = 0.18;
 }
 
+/// Screens shown before the app opens (login, sign-up, onboarding).
+@immutable
+class AppAuthScreen {
+  const AppAuthScreen._();
+
+  static const double contentMaxWidth = 420;
+
+  /// Dark scrim over the hex wallpaper so cards and text stay readable.
+  static const double scrimTopAlpha = 0.25;
+  static const double scrimBottomAlpha = 0.65;
+}
+
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
 @immutable
 class AppMyRotaListSpacing {

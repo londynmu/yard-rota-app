@@ -173,7 +173,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Complete your profile'), findsOneWidget);
+    expect(find.text('Welcome to Yard Rota'), findsOneWidget);
     expect(find.text('First name'), findsOneWidget);
     AppToast.dismissPending();
   });

@@ -8,6 +8,7 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/glass_bar_surface.dart';
+import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
 import '../../admin/presentation/admin_shell_screen.dart';
 import '../../home/data/stage_one_repository.dart';
@@ -122,10 +123,10 @@ class AccountMenuScreen extends StatelessWidget {
         children: [
           _ProfileHeaderCard(session: session),
           if (isAdmin) ...[
-            const _SectionLabel('Management'),
-            _MenuGroup(
+            const MenuSectionLabel('Management'),
+            MenuGroup(
               children: [
-                _MenuTile(
+                MenuTile(
                   icon: Icons.admin_panel_settings_outlined,
                   title: 'Admin Panel',
                   subtitle: 'Users, rota, breaks and settings',
@@ -141,7 +142,7 @@ class AccountMenuScreen extends StatelessWidget {
                           ),
                   ),
                 ),
-                _MenuTile(
+                MenuTile(
                   icon: Icons.build_circle_outlined,
                   title: 'VMU',
                   subtitle: 'Defects and tug PreChecks',
@@ -156,7 +157,7 @@ class AccountMenuScreen extends StatelessWidget {
                           ),
                   ),
                 ),
-                _MenuTile(
+                MenuTile(
                   icon: Icons.local_shipping_outlined,
                   title: 'Transport Dashboard',
                   subtitle: 'Shifts and absences today',
@@ -174,10 +175,10 @@ class AccountMenuScreen extends StatelessWidget {
               ],
             ),
           ],
-          const _SectionLabel('Settings'),
-          _MenuGroup(
+          const MenuSectionLabel('Settings'),
+          MenuGroup(
             children: [
-              _MenuTile(
+              MenuTile(
                 icon: Icons.person_outline,
                 title: 'Profile',
                 subtitle: 'Name, shift and account details',
@@ -191,7 +192,7 @@ class AccountMenuScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              _MenuTile(
+              MenuTile(
                 icon: Icons.palette_outlined,
                 title: 'Themes',
                 subtitle: 'Light, dark and wallpapers',
@@ -208,7 +209,7 @@ class AccountMenuScreen extends StatelessWidget {
                 ),
               ),
               if (stageOne != null)
-                _MenuTile(
+                MenuTile(
                   icon: Icons.menu_book_outlined,
                   title: 'Shunter Guide',
                   subtitle: 'Yard induction guide',
@@ -217,7 +218,7 @@ class AccountMenuScreen extends StatelessWidget {
                     (_) => InductionGuideScreen(repository: stageOne),
                   ),
                 ),
-              _MenuTile(
+              MenuTile(
                 icon: Icons.info_outline,
                 title: 'About',
                 subtitle: 'Version, support and privacy',
@@ -226,9 +227,9 @@ class AccountMenuScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          _MenuGroup(
+          MenuGroup(
             children: [
-              _MenuTile(
+              MenuTile(
                 icon: Icons.logout,
                 title: 'Log out',
                 subtitle: 'End this session and return to sign in',
@@ -262,7 +263,7 @@ class _ProfileHeaderCard extends StatelessWidget {
       surfaceOpacity: AppOpacity.subtle,
       child: Row(
         children: [
-          _IconBadge(
+          IconBadge(
             icon: Icons.person_outline,
             foreground: colors.info,
             background: colors.infoBg,
@@ -297,160 +298,6 @@ class _ProfileHeaderCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        AppSpacing.lg,
-        AppSpacing.xs,
-        AppSpacing.sm,
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: context.appColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuGroup extends StatelessWidget {
-  const _MenuGroup({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final divider = Divider(
-      height: AppStroke.thin,
-      thickness: AppStroke.thin,
-      color: context.appColors.divider,
-    );
-    return AppCard(
-      padding: EdgeInsets.zero,
-      surfaceOpacity: AppOpacity.subtle,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Column(
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) divider,
-              children[i],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.isDestructive = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final bool isDestructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final textTheme = Theme.of(context).textTheme;
-    return InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minHeight: AppComponentTokens.listItemMinHeight,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppComponentTokens.cardPadding,
-            vertical: AppComponentTokens.listItemVerticalPadding,
-          ),
-          child: Row(
-            children: [
-              _IconBadge(
-                icon: icon,
-                foreground: isDestructive ? colors.danger : colors.primary,
-                background: isDestructive
-                    ? colors.dangerBg
-                    : colors.primary.withValues(
-                        alpha: AppOpacity.overlayLight / 2,
-                      ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: isDestructive
-                            ? colors.danger
-                            : colors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      subtitle,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isDestructive)
-                Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IconBadge extends StatelessWidget {
-  const _IconBadge({
-    required this.icon,
-    required this.foreground,
-    required this.background,
-  });
-
-  final IconData icon;
-  final Color foreground;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: AppComponentTokens.buttonHeightSm,
-      height: AppComponentTokens.buttonHeightSm,
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Icon(icon, color: foreground),
     );
   }
 }
