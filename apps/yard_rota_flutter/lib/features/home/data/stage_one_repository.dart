@@ -1,6 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../breaks/domain/break_models.dart';
+import '../domain/my_day_logic.dart';
+
+class MyDayData {
+  const MyDayData({required this.shifts, required this.breaks});
+  final List<MyShift> shifts;
+  final List<MyBreak> breaks;
+}
 
 class TodayShiftSummary {
   const TodayShiftSummary({
@@ -199,6 +206,97 @@ class StageOneRepository {
     }
     return null;
   }
+
+  /// The user's shifts from yesterday to a week ahead and their own breaks
+  /// for yesterday and today, for the card under the calendar.
+  Future<MyDayData> loadMyDay({required String userId, DateTime? now}) async {
+    final today = BreakWindowLogic.dateOnly(now ?? DateTime.now());
+    final yesterdayYmd = BreakWindowLogic.toYmd(
+      today.subtract(const Duration(days: 1)),
+    );
+    final todayYmd = BreakWindowLogic.toYmd(today);
+    final results = await Future.wait<List<Map<String, dynamic>>>([
+      _client
+          .from('scheduled_rota')
+          .select('id,date,shift_type,location,start_time,end_time')
+          .eq('user_id', userId)
+          .gte('date', yesterdayYmd)
+          .lte(
+            'date',
+            BreakWindowLogic.toYmd(today.add(const Duration(days: 7))),
+          ),
+      _client
+          .from('scheduled_breaks')
+          .select('date,shift_type,break_start_time,break_duration_minutes')
+          .eq('user_id', userId)
+          .inFilter('date', [yesterdayYmd, todayYmd]),
+    ]);
+
+    final seen = <String>{};
+    final rotaRows = results[0].where((row) {
+      final key = '${row['date']}-${row['start_time']}-${row['end_time']}';
+      return row['id'] != null && seen.add(key);
+    }).toList();
+
+    final absenceByRotaId = <String, String>{};
+    if (rotaRows.isNotEmpty) {
+      final attendance = await _client
+          .from('attendance')
+          .select('scheduled_rota_id,status')
+          .inFilter(
+            'scheduled_rota_id',
+            rotaRows.map((row) => row['id'].toString()).toList(),
+          );
+      for (final row in attendance) {
+        final label = attendanceLabel(row['status']?.toString());
+        final id = row['scheduled_rota_id']?.toString();
+        if (id != null && label != null) absenceByRotaId[id] = label;
+      }
+    }
+
+    final shifts = <MyShift>[];
+    for (final row in rotaRows) {
+      final date = row['date']?.toString() ?? '';
+      final start = _timeText(row['start_time']);
+      final end = _timeText(row['end_time']);
+      if (date.isEmpty || start.isEmpty || end.isEmpty) continue;
+      shifts.add(
+        MyShift(
+          dateYmd: date,
+          startTime: start,
+          endTime: end,
+          shiftType: row['shift_type']?.toString() ?? '',
+          location: row['location']?.toString().trim() ?? '',
+          absence: absenceByRotaId[row['id'].toString()],
+        ),
+      );
+    }
+
+    final breaks = <MyBreak>[];
+    for (final row in results[1]) {
+      final date = row['date']?.toString() ?? '';
+      final start = _timeText(row['break_start_time']);
+      if (date.isEmpty || start.isEmpty) continue;
+      breaks.add(
+        MyBreak(
+          dateYmd: date,
+          startTime: start,
+          durationMinutes:
+              (row['break_duration_minutes'] as num?)?.round() ?? 0,
+          shiftType: row['shift_type']?.toString(),
+        ),
+      );
+    }
+    return MyDayData(shifts: shifts, breaks: breaks);
+  }
+
+  static String? attendanceLabel(String? status) => switch (status) {
+    'no_show' => 'No show',
+    'sick' => 'Sick',
+    'late' => 'Late',
+    'other' => 'Other',
+    _ => null,
+  };
 
   Future<bool> needsPreCheck({required String userId, DateTime? now}) async {
     final instant = now ?? DateTime.now();

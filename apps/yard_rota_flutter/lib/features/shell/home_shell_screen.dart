@@ -233,6 +233,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         lightHomeWallpaper: widget.lightHomeWallpaper,
         darkHomeWallpaper: widget.darkHomeWallpaper,
         onOpenPreCheck: () => _select(ShellTab.preCheck),
+        onOpenMyRota: () => _select(ShellTab.myRota),
         onTrack: _track,
       ),
       ShellTab.myRota => MyRotaScreen(

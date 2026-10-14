@@ -292,6 +292,9 @@ class AppOpacity {
   static const overlayLight = 0.32;
   static const overlayStrong = 0.70;
 
+  /// Cards on the Home calendar tab, over the wallpaper.
+  static const homeCard = 0.5;
+
   /// M3 segmented-button track scrim over wallpaper (Figma M3 kit — Segmented button).
   static const segmentedTrackFill = 0.5;
 }
