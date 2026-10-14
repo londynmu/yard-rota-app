@@ -292,6 +292,9 @@ class AppOpacity {
   static const overlayLight = 0.32;
   static const overlayStrong = 0.70;
 
+  /// Cards on the Home calendar tab, over the wallpaper.
+  static const homeCard = 0.5;
+
   /// M3 segmented-button track scrim over wallpaper (Figma M3 kit — Segmented button).
   static const segmentedTrackFill = 0.5;
 }
@@ -370,6 +373,59 @@ class AppLuxuryHomeGradient {
   ];
 
   static const stops = [0.0, 0.17, 0.34, 0.52, 0.68, 0.84, 1.0];
+}
+
+/// Frosted top bars and bottom navigation drawn over the home wallpaper.
+@immutable
+class AppGlassBar {
+  const AppGlassBar._();
+
+  static const double blurSigma = 18;
+  static const double topFadeDarkAlpha = 0.28;
+  static const double topFadeLightAlpha = 0.42;
+  static const double bottomDarkAlpha = 0.62;
+  static const double bottomLightAlpha = 0.72;
+}
+
+/// Home tab top bar: Calendar / Breaks / Info segments and the bell.
+@immutable
+class AppHomeTabs {
+  const AppHomeTabs._();
+
+  static const double segmentHeight = 40;
+  static const double trackPadding = 3;
+  static const double segmentIconSize = 18;
+  static const double bellSegmentWidth = 48;
+}
+
+/// Solid primary pill marking the selected item in the top bar, the bottom
+/// menu and filter chips.
+@immutable
+class AppNavPill {
+  const AppNavPill._();
+
+  static const double glowBlur = 12;
+  static const double glowAlpha = 0.35;
+  static const double glowOffsetY = 2;
+
+  static const double bottomPillWidth = 56;
+  static const double bottomPillHeight = 32;
+  static const double bottomIconSize = 22;
+
+  static const double chipHeight = 36;
+  static const double chipIconSize = 16;
+}
+
+/// Screens shown before the app opens (login, sign-up, onboarding).
+@immutable
+class AppAuthScreen {
+  const AppAuthScreen._();
+
+  static const double contentMaxWidth = 420;
+
+  /// Dark scrim over the hex wallpaper so cards and text stay readable.
+  static const double scrimTopAlpha = 0.25;
+  static const double scrimBottomAlpha = 0.65;
 }
 
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).

@@ -8,12 +8,6 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
-import '../../breaks/presentation/breaks_screen.dart';
-import '../../home/data/stage_one_repository.dart';
-import '../../induction/presentation/induction_guide_screen.dart';
-import '../../pre_check/data/pre_check_repository.dart';
-import '../../pre_check/presentation/pre_check_screen.dart';
-import '../../today/presentation/today_screen.dart';
 import '../data/availability_repository.dart';
 import '../data/calendar_repository.dart';
 import 'availability_sheet.dart';
@@ -26,9 +20,9 @@ class CalendarScreen extends StatefulWidget {
     required this.availabilityRepository,
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
-    this.session,
-    this.stageOneRepository,
-    this.preCheckRepository,
+    this.embedded = false,
+    this.footer,
+    this.onRefresh,
   });
 
   final String displayName;
@@ -36,9 +30,16 @@ class CalendarScreen extends StatefulWidget {
   final AvailabilityRepository availabilityRepository;
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
-  final UserSession? session;
-  final StageOneRepository? stageOneRepository;
-  final PreCheckRepository? preCheckRepository;
+
+  /// Renders only the month view; the host supplies app bar, wallpaper and
+  /// safe-area padding.
+  final bool embedded;
+
+  /// Shown under the month card, inside the same scroll view.
+  final Widget? footer;
+
+  /// Runs together with the month reload on pull-to-refresh.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -405,6 +406,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embedded) {
+      return _buildBody(context);
+    }
     final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
@@ -519,67 +523,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (_calendarHiddenForAvailabilityModal) {
       return const SizedBox.shrink();
     }
-    final stageRepository = widget.stageOneRepository;
-    final session = widget.session;
+    final footer = widget.footer;
     return RefreshIndicator(
-      onRefresh: () => _loadMonth(showGlobalLoader: false),
+      onRefresh: () async {
+        await Future.wait<void>([
+          _loadMonth(showGlobalLoader: false),
+          if (widget.onRefresh case final refresh?) refresh(),
+        ]);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (stageRepository != null && session != null) ...[
-            TodayPanel(
-              repository: stageRepository,
-              session: session,
-              onOpenPreCheck: _openPreCheck,
-              onOpenGuide: _openGuide,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Today’s breaks',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            BreaksPanel(
-              repository: stageRepository,
-              currentUserId: session.userId,
-              compact: true,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
           _buildMonthCalendar(context, data),
+          if (footer != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            footer,
+          ],
         ],
-      ),
-    );
-  }
-
-  void _openGuide() {
-    final repository = widget.stageOneRepository;
-    if (repository == null) return;
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => InductionGuideScreen(repository: repository),
-      ),
-    );
-  }
-
-  void _openPreCheck() {
-    final repository = widget.preCheckRepository;
-    final session = widget.session;
-    if (repository == null || session == null) {
-      AppToast.show(
-        context,
-        'PreCheck is unavailable. Please try again later.',
-      );
-      return;
-    }
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => PreCheckScreen(
-          repository: repository,
-          session: session,
-          lightHomeWallpaper: widget.lightHomeWallpaper,
-          darkHomeWallpaper: widget.darkHomeWallpaper,
-        ),
       ),
     );
   }
@@ -600,7 +560,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onHorizontalDragUpdate: _handleCalendarDragUpdate,
         onHorizontalDragEnd: _handleCalendarDragEnd,
         child: AppCard(
-          surfaceOpacity: 0.5,
+          surfaceOpacity: AppOpacity.homeCard,
           child: Column(
             children: [
               Row(

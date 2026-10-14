@@ -15,6 +15,7 @@ import 'core/theme/home_wallpaper.dart';
 import 'core/theme/home_wallpaper_storage.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/auth_flow_screens.dart';
+import 'features/auth/presentation/auth_scaffold.dart';
 import 'features/calendar/data/availability_repository.dart';
 import 'features/calendar/data/calendar_repository.dart';
 import 'features/home/data/stage_one_repository.dart';
@@ -79,6 +80,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   bool _isBootstrapping = true;
   bool _isLoginLoading = false;
   String? _loginError;
+  String? _authNotice;
   late ThemeMode _themeMode;
   late LightHomeWallpaper _lightHomeWallpaper;
   late DarkHomeWallpaper _darkHomeWallpaper;
@@ -113,7 +115,10 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     _stageThreeRepository =
         widget._stageThreeRepository ?? _resolveStageThreeRepository();
     PerfMetrics.recorder = _recordMetric;
-    _authSubscription = _apiClient.authEvents.listen(_handleAuthEvent);
+    _authSubscription = _apiClient.authEvents.listen(
+      _handleAuthEvent,
+      onError: _handleAuthLinkError,
+    );
     _bootstrap();
   }
 
@@ -127,7 +132,10 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   Future<void> _handleAuthEvent(AuthFlowEvent event) async {
     if (!mounted) return;
     if (event == AuthFlowEvent.passwordRecovery) {
-      setState(() => _authScreen = _AuthScreen.resetPassword);
+      setState(() {
+        _authNotice = null;
+        _authScreen = _AuthScreen.resetPassword;
+      });
       return;
     }
     if (event == AuthFlowEvent.signedOut) {
@@ -143,6 +151,24 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
         setState(() => _session = restored);
       }
     }
+  }
+
+  /// Email links (sign-up confirmation, password reset) report failures here,
+  /// e.g. when the link expired or was already used.
+  void _handleAuthLinkError(Object error) {
+    if (!mounted || _session != null) return;
+    setState(() {
+      _authNotice =
+          'This link is invalid or has expired. Request a new one below.';
+      _authScreen = _AuthScreen.login;
+    });
+  }
+
+  void _showAuthScreen(_AuthScreen screen) {
+    setState(() {
+      _authNotice = null;
+      _authScreen = screen;
+    });
   }
 
   @override
@@ -180,6 +206,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     setState(() {
       _isLoginLoading = true;
       _loginError = null;
+      _authNotice = null;
     });
 
     final loginStopwatch = Stopwatch()..start();
@@ -269,6 +296,8 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
         role: profile.role,
         accountStatus: profile.accountStatus,
         profileCompleted: profile.profileCompleted,
+        preferredLocation: profile.preferredLocation,
+        shiftPreference: profile.shiftPreference,
       );
     });
   }
@@ -355,7 +384,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
 
   Widget _resolveHome() {
     if (_isBootstrapping) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const AuthLoadingScreen();
     }
 
     if (_authScreen == _AuthScreen.resetPassword) {
@@ -366,33 +395,46 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     }
 
     if (_session == null) {
+      void backToLogin() => _showAuthScreen(_AuthScreen.login);
+      // These screens replace the home route, so the system back gesture
+      // would otherwise close the app instead of returning to sign in.
+      Widget backToLoginOnPop(Widget child) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) backToLogin();
+        },
+        child: child,
+      );
       return switch (_authScreen) {
-        _AuthScreen.register => RegisterScreen(
-          apiClient: _apiClient,
-          onBackToLogin: () => setState(() => _authScreen = _AuthScreen.login),
+        _AuthScreen.register => backToLoginOnPop(
+          RegisterScreen(apiClient: _apiClient, onBackToLogin: backToLogin),
         ),
-        _AuthScreen.forgotPassword => ForgotPasswordScreen(
-          apiClient: _apiClient,
-          onBackToLogin: () => setState(() => _authScreen = _AuthScreen.login),
+        _AuthScreen.forgotPassword => backToLoginOnPop(
+          ForgotPasswordScreen(
+            apiClient: _apiClient,
+            onBackToLogin: backToLogin,
+          ),
         ),
         _ => LoginScreen(
           isLoading: _isLoginLoading,
           errorMessage: _loginError,
+          noticeMessage: _authNotice,
           onLogin: _handleLogin,
-          onRegister: () => setState(() => _authScreen = _AuthScreen.register),
-          onForgotPassword: () =>
-              setState(() => _authScreen = _AuthScreen.forgotPassword),
+          onRegister: () => _showAuthScreen(_AuthScreen.register),
+          onForgotPassword: () => _showAuthScreen(_AuthScreen.forgotPassword),
         ),
       };
     }
 
     if (_session!.requiresProfileCompletion) {
-      return ProfileScreen(
-        apiClient: _apiClient,
-        session: _session!,
-        isRequired: true,
-        onProfileSaved: _handleProfileSaved,
-        onLogout: _handleLogout,
+      return AuthTheme(
+        child: ProfileScreen(
+          apiClient: _apiClient,
+          session: _session!,
+          isRequired: true,
+          onProfileSaved: _handleProfileSaved,
+          onLogout: _handleLogout,
+        ),
       );
     }
 

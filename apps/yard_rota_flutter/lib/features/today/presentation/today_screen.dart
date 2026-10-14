@@ -27,7 +27,6 @@ class TodayPanel extends StatefulWidget {
 }
 
 class _TodayPanelState extends State<TodayPanel> {
-  TodayShiftSummary? _shift;
   List<MonthlyShunterAward> _awards = const <MonthlyShunterAward>[];
   bool _needsPreCheck = false;
   bool _loading = true;
@@ -41,15 +40,13 @@ class _TodayPanelState extends State<TodayPanel> {
   Future<void> _load() async {
     try {
       final results = await Future.wait<dynamic>([
-        widget.repository.loadTodayShift(userId: widget.session.userId),
         widget.repository.needsPreCheck(userId: widget.session.userId),
         widget.repository.loadRecentAwards(),
       ]);
       if (!mounted) return;
       setState(() {
-        _shift = results[0] as TodayShiftSummary?;
-        _needsPreCheck = results[1] as bool;
-        _awards = results[2] as List<MonthlyShunterAward>;
+        _needsPreCheck = results[0] as bool;
+        _awards = results[1] as List<MonthlyShunterAward>;
         _loading = false;
       });
     } catch (_) {
@@ -67,70 +64,17 @@ class _TodayPanelState extends State<TodayPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ShiftCard(shift: _shift),
         if (_needsPreCheck) ...[
-          const SizedBox(height: AppSpacing.md),
           _PreCheckReminder(onOpen: widget.onOpenPreCheck),
+          const SizedBox(height: AppSpacing.md),
         ],
         if (_awards.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
           _AwardsCard(awards: _awards),
+          const SizedBox(height: AppSpacing.md),
         ],
-        const SizedBox(height: AppSpacing.md),
         _GuidePromoCard(onOpen: widget.onOpenGuide),
       ],
     );
-  }
-}
-
-class _ShiftCard extends StatelessWidget {
-  const _ShiftCard({required this.shift});
-
-  final TodayShiftSummary? shift;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.badge_outlined, color: colors.primary),
-              const SizedBox(width: AppSpacing.sm),
-              Text('Today', style: Theme.of(context).textTheme.titleLarge),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (shift == null)
-            Text(
-              'No shift scheduled today.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-            )
-          else ...[
-            Text(
-              '${_capitalise(shift!.shiftType)} shift',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '${shift!.startTime}–${shift!.endTime} • ${shift!.location}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _capitalise(String value) {
-    if (value.isEmpty) return 'Scheduled';
-    return '${value[0].toUpperCase()}${value.substring(1)}';
   }
 }
 

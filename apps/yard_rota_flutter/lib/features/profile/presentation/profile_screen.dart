@@ -10,7 +10,9 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
+import '../../auth/presentation/auth_scaffold.dart';
 import 'delete_account_flow.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -190,56 +192,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isRequired) return _buildOnboarding();
     return Scaffold(
-      appBar: widget.isRequired ? null : AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: const Text('Profile')),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 children: [
-                  if (widget.isRequired) ...[
-                    Text(
-                      'Complete your profile',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'All fields below are required before approval.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.appColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
                   _identityCard(),
                   const SizedBox(height: AppSpacing.md),
                   _preferencesCard(),
-                  if (!widget.isRequired) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    _historyCard(),
-                  ],
+                  const SizedBox(height: AppSpacing.md),
+                  _historyCard(),
                   const SizedBox(height: AppSpacing.lg),
                   AppButton(
-                    label: _saving
-                        ? 'Saving...'
-                        : widget.isRequired
-                        ? 'Complete profile'
-                        : 'Save profile',
+                    label: _saving ? 'Saving...' : 'Save profile',
                     onPressed: _saving ? null : _save,
                   ),
-                  if (!widget.isRequired) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    AppButton(
-                      label: 'About & privacy',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const AboutScreen(),
-                        ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(
+                    label: 'About & privacy',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AboutScreen(),
                       ),
                     ),
-                  ],
+                  ),
                   if (widget.onLogout != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     AppButton(
@@ -260,9 +241,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// First screen after the email is confirmed. The host wraps it in
+  /// [AuthTheme], so it shares the sign-in look.
+  Widget _buildOnboarding() {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AppAuthScreen.contentMaxWidth,
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    children: [
+                      const AuthHeaderCard(
+                        title: 'Welcome to Yard Rota',
+                        subtitle:
+                            'Complete your profile so an admin can approve '
+                            'your access.',
+                        icon: Icons.waving_hand_outlined,
+                      ),
+                      const MenuSectionLabel('Your details'),
+                      _identityCard(),
+                      const MenuSectionLabel('Your shifts'),
+                      _preferencesCard(),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppButton(
+                        label: _saving ? 'Saving...' : 'Complete profile',
+                        onPressed: _saving ? null : _save,
+                      ),
+                      if (widget.onLogout != null) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        MenuGroup(
+                          children: [
+                            MenuTile(
+                              icon: Icons.logout,
+                              title: 'Sign out',
+                              subtitle: 'Finish your profile later',
+                              onTap: _saving ? null : widget.onLogout,
+                            ),
+                            MenuTile(
+                              icon: Icons.delete_outline_rounded,
+                              title: 'Delete account',
+                              subtitle:
+                                  'Permanently remove your account and data',
+                              isDestructive: true,
+                              onTap: _saving ? null : _deleteAccount,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  double? get _cardOpacity => widget.isRequired ? AppOpacity.subtle : null;
+
   Widget _identityCard() {
     final colors = context.appColors;
     return AppCard(
+      surfaceOpacity: _cardOpacity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -311,14 +356,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _preferencesCard() {
     return AppCard(
+      surfaceOpacity: _cardOpacity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Work preferences',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
+          if (!widget.isRequired) ...[
+            Text(
+              'Work preferences',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           _dropdown(
             label: 'Shift preference',
             value: _shift,

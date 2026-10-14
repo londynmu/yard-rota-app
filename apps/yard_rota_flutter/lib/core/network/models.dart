@@ -47,6 +47,8 @@ class UserSession {
     this.role = UserRole.user,
     this.accountStatus = AccountStatus.approved,
     this.profileCompleted = true,
+    this.preferredLocation,
+    this.shiftPreference,
   });
 
   final String userId;
@@ -55,6 +57,12 @@ class UserSession {
   final UserRole role;
   final AccountStatus accountStatus;
   final bool profileCompleted;
+
+  /// Home hub from the profile, e.g. `Rugby`. Used as the default Breaks filter.
+  final String? preferredLocation;
+
+  /// `day`, `afternoon` or `night` from the profile.
+  final String? shiftPreference;
 
   String get userRole => role.dbValue;
 
@@ -77,6 +85,8 @@ class UserSession {
     UserRole? role,
     AccountStatus? accountStatus,
     bool? profileCompleted,
+    String? preferredLocation,
+    String? shiftPreference,
   }) {
     return UserSession(
       userId: userId,
@@ -85,6 +95,8 @@ class UserSession {
       role: role ?? this.role,
       accountStatus: accountStatus ?? this.accountStatus,
       profileCompleted: profileCompleted ?? this.profileCompleted,
+      preferredLocation: preferredLocation ?? this.preferredLocation,
+      shiftPreference: shiftPreference ?? this.shiftPreference,
     );
   }
 }
