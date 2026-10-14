@@ -523,9 +523,12 @@ class SupabaseApiClient implements ApiClient {
   }
 
   Future<UserSession> _buildUserSession(User user) async {
-    final profile = _profileFromRow(user, await _fetchProfileRow(user.id));
+    final row = await _fetchProfileRow(user.id);
+    final profile = _profileFromRow(user, row);
     final isPrivileged = profile.role != UserRole.user;
     return UserSession(
+      preferredLocation: profile.preferredLocation,
+      shiftPreference: row?['shift_preference'] as String?,
       userId: user.id,
       displayName: profile.displayName,
       email: user.email ?? '',

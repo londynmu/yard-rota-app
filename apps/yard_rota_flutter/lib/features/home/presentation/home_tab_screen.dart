@@ -194,10 +194,7 @@ class HomeTabScreenState extends State<HomeTabScreen> {
             message: 'Breaks are unavailable. Try again later.',
           );
         }
-        return BreaksPanel(
-          repository: repository,
-          currentUserId: widget.session.userId,
-        );
+        return BreaksPanel(repository: repository, session: widget.session);
       case HomeSection.info:
         if (repository == null) {
           return const _UnavailableCard(

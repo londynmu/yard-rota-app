@@ -69,6 +69,20 @@ class StageOneRepository {
 
   final SupabaseClient _client;
 
+  /// Names of active hubs, for the Breaks location filter.
+  Future<List<String>> loadActiveLocations() async {
+    final rows = await _client
+        .from('locations')
+        .select('name')
+        .eq('is_active', true)
+        .order('name');
+    return rows
+        .map((row) => row['name']?.toString().trim())
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
+  }
+
   Future<List<ScheduledBreak>> loadBreaks({DateTime? now}) async {
     final instant = now ?? DateTime.now();
     final dates = BreakWindowLogic.queryDates(instant).toList()..sort();

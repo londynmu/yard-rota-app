@@ -424,7 +424,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
         MaterialPageRoute<void>(
           builder: (context) => BreaksScreen(
             repository: stageOneRepository,
-            currentUserId: widget.session.userId,
+            session: widget.session,
           ),
         ),
       );
