@@ -122,24 +122,32 @@ class HomeTabScreenState extends State<HomeTabScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: AppElevation.level0,
-        scrolledUnderElevation: AppElevation.level0,
-        automaticallyImplyLeading: false,
-        toolbarHeight: AppComponentTokens.appBarHeight,
-        titleSpacing: AppSpacing.lg,
-        flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
-        title: _HomeSectionBar(
-          selected: _section,
-          onSelected: _selectSection,
-          unreadNotifications: _unreadNotifications,
-          onBellPressed: widget.stageOneRepository == null
-              ? null
-              : _openNotifications,
+      // Not an AppBar: its title slot adds extra trailing space, and the bar
+      // must line up exactly with the content column below.
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(AppComponentTokens.appBarHeight),
+        child: GlassBarSurface(
+          edge: GlassBarEdge.top,
+          child: SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: AppComponentTokens.appBarHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Center(
+                  child: _HomeSectionBar(
+                    selected: _section,
+                    onSelected: _selectSection,
+                    unreadNotifications: _unreadNotifications,
+                    onBellPressed: widget.stageOneRepository == null
+                        ? null
+                        : _openNotifications,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        actions: const [SizedBox(width: AppSpacing.lg)],
       ),
       body: Padding(
         padding: EdgeInsets.fromLTRB(
