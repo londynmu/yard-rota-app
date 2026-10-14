@@ -131,15 +131,15 @@ class HomeTabScreenState extends State<HomeTabScreen> {
         toolbarHeight: AppComponentTokens.appBarHeight,
         titleSpacing: AppSpacing.lg,
         flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
-        title: _HomeSectionBar(selected: _section, onSelected: _selectSection),
-        actions: [
-          if (widget.stageOneRepository != null)
-            _NotificationBellButton(
-              unreadCount: _unreadNotifications,
-              onPressed: _openNotifications,
-            ),
-          const SizedBox(width: AppSpacing.lg),
-        ],
+        title: _HomeSectionBar(
+          selected: _section,
+          onSelected: _selectSection,
+          unreadNotifications: _unreadNotifications,
+          onBellPressed: widget.stageOneRepository == null
+              ? null
+              : _openNotifications,
+        ),
+        actions: const [SizedBox(width: AppSpacing.lg)],
       ),
       body: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -215,10 +215,19 @@ class HomeTabScreenState extends State<HomeTabScreen> {
 }
 
 class _HomeSectionBar extends StatelessWidget {
-  const _HomeSectionBar({required this.selected, required this.onSelected});
+  const _HomeSectionBar({
+    required this.selected,
+    required this.onSelected,
+    required this.unreadNotifications,
+    this.onBellPressed,
+  });
 
   final HomeSection selected;
   final ValueChanged<HomeSection> onSelected;
+  final int unreadNotifications;
+
+  /// Bell is hidden when notifications are unavailable.
+  final VoidCallback? onBellPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +251,11 @@ class _HomeSectionBar extends StatelessWidget {
                 selected: section == selected,
                 onTap: () => onSelected(section),
               ),
+            ),
+          if (onBellPressed case final onBellPressed?)
+            _BellSegment(
+              unreadCount: unreadNotifications,
+              onPressed: onBellPressed,
             ),
         ],
       ),
@@ -320,11 +334,8 @@ class _HomeSectionSegment extends StatelessWidget {
   }
 }
 
-class _NotificationBellButton extends StatelessWidget {
-  const _NotificationBellButton({
-    required this.unreadCount,
-    required this.onPressed,
-  });
+class _BellSegment extends StatelessWidget {
+  const _BellSegment({required this.unreadCount, required this.onPressed});
 
   final int unreadCount;
   final VoidCallback onPressed;
@@ -332,28 +343,35 @@ class _NotificationBellButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Padding(
-      padding: const EdgeInsets.only(left: AppSpacing.sm),
-      child: IconButton(
-        tooltip: 'Notifications',
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: colors.bgPrimary.withValues(
-            alpha: AppOpacity.segmentedTrackFill,
-          ),
-          side: BorderSide(color: colors.borderDefault),
-          minimumSize: const Size.square(
-            AppHomeTabs.segmentHeight + AppHomeTabs.trackPadding * 2,
-          ),
-        ),
-        icon: Badge(
-          isLabelVisible: unreadCount > 0,
-          label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
-          backgroundColor: colors.danger,
-          textColor: colors.onDanger,
-          child: Icon(
-            Icons.notifications_none_outlined,
-            color: colors.textPrimary,
+    return SizedBox(
+      width: AppHomeTabs.bellSegmentWidth,
+      child: Tooltip(
+        message: 'Notifications',
+        child: Semantics(
+          button: true,
+          label: unreadCount > 0
+              ? 'Notifications, $unreadCount unread'
+              : 'Notifications',
+          excludeSemantics: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onPressed,
+              child: Center(
+                child: Badge(
+                  isLabelVisible: unreadCount > 0,
+                  label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+                  backgroundColor: colors.danger,
+                  textColor: colors.onDanger,
+                  child: Icon(
+                    Icons.notifications_none_outlined,
+                    size: AppHomeTabs.segmentIconSize + AppSpacing.xs,
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

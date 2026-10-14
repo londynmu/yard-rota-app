@@ -392,6 +392,7 @@ class AppHomeTabs {
   static const double segmentHeight = 40;
   static const double trackPadding = 3;
   static const double segmentIconSize = 18;
+  static const double bellSegmentWidth = 48;
 
   /// Matches the bottom navigation indicator tint.
   static const double selectedFillAlpha = 0.18;
