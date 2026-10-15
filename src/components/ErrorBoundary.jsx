@@ -1,37 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { reportError } from '../lib/monitoring';
+import { isChunkLoadError } from '../utils/chunkLoadError';
 
 // Session storage key to track reload attempts and prevent infinite loops
 const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
 const RELOAD_COOLDOWN_MS = 10000; // 10 seconds cooldown between reloads
-
-/**
- * Check if the error is a chunk loading error (dynamic import failed)
- * This typically happens after a new deployment when old chunk files are no longer available
- */
-const isChunkLoadError = (error) => {
-  if (!error) return false;
-  
-  const errorString = error.toString().toLowerCase();
-  const errorMessage = (error.message || '').toLowerCase();
-  
-  // Common patterns for chunk loading errors
-  const patterns = [
-    'loading chunk',
-    'loading css chunk',
-    'dynamically imported module',
-    'failed to fetch dynamically imported module',
-    'error loading dynamically imported module',
-    'chunkloaderror',
-    'loading module',
-    'failed to load module script',
-  ];
-  
-  return patterns.some(pattern => 
-    errorString.includes(pattern) || errorMessage.includes(pattern)
-  );
-};
 
 /**
  * Check if we can safely reload the page (not in a reload loop)
@@ -78,8 +52,8 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log the error to console for debugging
-    console.error('Error Boundary caught an error:', error, errorInfo);
+    // warn, not error: console.error is forwarded to Sentry and reportError below already sends it
+    console.warn('Error Boundary caught an error:', error, errorInfo);
     
     const chunkError = isChunkLoadError(error);
     if (!chunkError) {
