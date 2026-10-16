@@ -1,56 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { reportError } from '../lib/monitoring';
-
-// Session storage key to track reload attempts and prevent infinite loops
-const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
-const RELOAD_COOLDOWN_MS = 10000; // 10 seconds cooldown between reloads
-
-/**
- * Check if the error is a chunk loading error (dynamic import failed)
- * This typically happens after a new deployment when old chunk files are no longer available
- */
-const isChunkLoadError = (error) => {
-  if (!error) return false;
-  
-  const errorString = error.toString().toLowerCase();
-  const errorMessage = (error.message || '').toLowerCase();
-  
-  // Common patterns for chunk loading errors
-  const patterns = [
-    'loading chunk',
-    'loading css chunk',
-    'dynamically imported module',
-    'failed to fetch dynamically imported module',
-    'error loading dynamically imported module',
-    'chunkloaderror',
-    'loading module',
-    'failed to load module script',
-  ];
-  
-  return patterns.some(pattern => 
-    errorString.includes(pattern) || errorMessage.includes(pattern)
-  );
-};
-
-/**
- * Check if we can safely reload the page (not in a reload loop)
- */
-const canReloadSafely = () => {
-  const lastReloadTime = sessionStorage.getItem(CHUNK_ERROR_RELOAD_KEY);
-  
-  if (!lastReloadTime) return true;
-  
-  const timeSinceLastReload = Date.now() - parseInt(lastReloadTime, 10);
-  return timeSinceLastReload > RELOAD_COOLDOWN_MS;
-};
-
-/**
- * Mark that we're about to reload due to chunk error
- */
-const markReloadAttempt = () => {
-  sessionStorage.setItem(CHUNK_ERROR_RELOAD_KEY, Date.now().toString());
-};
+import { safeAutoReload } from '../lib/reloadGuard';
+import { isChunkLoadError } from '../utils/chunkLoadError';
 
 /**
  * Error Boundary Component
@@ -64,7 +16,8 @@ class ErrorBoundary extends React.Component {
       hasError: false, 
       error: null,
       errorInfo: null,
-      isChunkError: false
+      isChunkError: false,
+      autoReloadStarted: false,
     };
   }
 
@@ -86,31 +39,21 @@ class ErrorBoundary extends React.Component {
       reportError(error, { componentStack: errorInfo?.componentStack });
     }
     
+    const autoReloadStarted = chunkError && safeAutoReload('errorBoundary.chunk');
     this.setState({
       error,
       errorInfo,
-      isChunkError: chunkError
+      isChunkError: chunkError,
+      autoReloadStarted,
     });
-    
-    // If it's a chunk loading error and we can safely reload, do it automatically
-    if (chunkError && canReloadSafely()) {
-      console.log('[ErrorBoundary] Chunk loading error detected, reloading page...');
-      markReloadAttempt();
-      // Small delay to ensure the log is visible
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
-    }
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null, isChunkError: false });
+    this.setState({ hasError: false, error: null, errorInfo: null, isChunkError: false, autoReloadStarted: false });
     window.location.href = '/calendar';
   };
   
   handleReload = () => {
-    // Clear the reload tracking so user can manually trigger reload
-    sessionStorage.removeItem(CHUNK_ERROR_RELOAD_KEY);
     window.location.reload();
   };
 
@@ -141,12 +84,16 @@ class ErrorBoundary extends React.Component {
                 </h2>
                 
                 <p className="text-gray-600 mb-6">
-                  A new version of the app is available. The page will refresh automatically to load the latest version.
+                  {this.state.autoReloadStarted
+                    ? 'A new version of the app is available. The page will refresh automatically to load the latest version.'
+                    : 'A new version of the app is available. Refresh the page to load the latest version.'}
                 </p>
                 
-                <p className="text-sm text-gray-500 mb-6">
-                  If the page doesn&apos;t refresh automatically, please click the button below.
-                </p>
+                {!this.state.autoReloadStarted && (
+                  <p className="text-sm text-gray-500 mb-6">
+                    If the page doesn&apos;t refresh, please click the button below.
+                  </p>
+                )}
                 
                 <button
                   onClick={this.handleReload}

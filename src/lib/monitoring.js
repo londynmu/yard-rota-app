@@ -17,6 +17,7 @@ export async function initMonitoring() {
       ignoreErrors: [
         /Loading chunk/i,
         /dynamically imported module/i,
+        /Importing a module script failed/i,
         /ResizeObserver loop/i,
       ],
     });
