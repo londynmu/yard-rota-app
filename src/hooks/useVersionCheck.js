@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
-import { safeAutoReload } from '../lib/reloadGuard'
+import {
+  clearDeferredServerVersion,
+  deferServerVersion,
+  isPrecheckPath,
+  reloadForServerVersion,
+  willAutoReload,
+} from '../lib/reloadGuard'
 
 const POLL_INTERVAL_MS = 2 * 60 * 1000 // 2 minutes (first load already checked pre-render)
 const CURRENT_VERSION = __BUILD_TIMESTAMP__
@@ -10,8 +17,8 @@ const AUTO_RELOAD_DELAY_MS = 2500 // 2.5 s – auto-reload without user action
 /**
  * Hook that polls /version.json to detect when a new build is deployed.
  * Independent of the service worker update mechanism - acts as a safety net.
- * When a new version is detected, triggers an automatic reload after a short
- * delay (no user click required).
+ * When a new version is detected off the pre-check page, shows the reload
+ * screen once. On /precheck the reload waits until the user leaves.
  *
  * Returns { updateAvailable: boolean, triggerUpdate: () => Promise<void> }
  *
@@ -23,6 +30,8 @@ const AUTO_RELOAD_DELAY_MS = 2500 // 2.5 s – auto-reload without user action
 export function useVersionCheck() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const intervalRef = useRef(null)
+  const pendingVersionRef = useRef(null)
+  const location = useLocation()
   const isNative = Capacitor.getPlatform() !== 'web'
 
   const checkVersion = useCallback(async () => {
@@ -37,48 +46,53 @@ export function useVersionCheck() {
       if (!res.ok) return
 
       const data = await res.json()
+      const serverVersion = data?.version
 
-      if (data.version && data.version !== CURRENT_VERSION) {
-        setUpdateAvailable(true)
+      if (!serverVersion || serverVersion === CURRENT_VERSION) {
+        pendingVersionRef.current = null
+        clearDeferredServerVersion()
+        setUpdateAvailable(false)
+        return
       }
+
+      // Finish the vehicle check first. The next page can take the update.
+      if (isPrecheckPath(window.location.pathname)) {
+        pendingVersionRef.current = serverVersion
+        deferServerVersion(serverVersion)
+        setUpdateAvailable(false)
+        return
+      }
+
+      if (!willAutoReload({ serverVersion, currentVersion: CURRENT_VERSION })) {
+        pendingVersionRef.current = null
+        setUpdateAvailable(false)
+        return
+      }
+
+      pendingVersionRef.current = serverVersion
+      setUpdateAvailable(true)
     } catch {
       // Silently ignore – user might be offline or network hiccup
     }
   }, [isNative])
 
-  // Intelligent reload: SW update → clear caches → hard reload
+  // Clear caches, then one guarded reload. Hide the screen if the reload does not run.
   const triggerUpdate = useCallback(async () => {
-    try {
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.getRegistration()
-
-        if (registration) {
-          // Ask the browser to re-fetch the SW script and check for a new version
-          await registration.update()
-
-          // Give the new SW 2 seconds to install + activate (skipWaiting)
-          // If controllerchange fires, main.jsx auto-reloads before timeout ends
-          await new Promise((resolve) => setTimeout(resolve, 2000))
-        }
-
-        // Still here? controllerchange didn't fire – clear all SW caches manually
-        const cacheNames = await caches.keys()
-        await Promise.all(cacheNames.map((name) => caches.delete(name)))
-      }
-    } catch (err) {
-      console.warn('[useVersionCheck] Error during update:', err)
-    }
-
-    // Final fallback: hard reload (guarded to avoid reload loops)
-    safeAutoReload('useVersionCheck.triggerUpdate')
+    const didReload = await reloadForServerVersion(
+      pendingVersionRef.current,
+      CURRENT_VERSION,
+      'useVersionCheck.triggerUpdate',
+    )
+    if (!didReload) setUpdateAvailable(false)
   }, [])
 
   // When new version is detected, auto-reload after short delay (no user action)
   useEffect(() => {
     if (!updateAvailable || isNative) return
+    if (isPrecheckPath(location.pathname)) return
     const t = setTimeout(() => triggerUpdate(), AUTO_RELOAD_DELAY_MS)
     return () => clearTimeout(t)
-  }, [updateAvailable, isNative, triggerUpdate])
+  }, [updateAvailable, isNative, triggerUpdate, location.pathname])
 
   useEffect(() => {
     if (isNative) return
@@ -103,6 +117,12 @@ export function useVersionCheck() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [isNative, checkVersion])
+
+  // Leaving pre-check is when a deferred update is allowed to run.
+  useEffect(() => {
+    if (isNative) return
+    checkVersion()
+  }, [isNative, checkVersion, location.pathname])
 
   return { updateAvailable, triggerUpdate }
 }

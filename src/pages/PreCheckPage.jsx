@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNotifications } from '../lib/NotificationContext';
-import { safeAutoReload } from '../lib/reloadGuard';
 import { toLocalYmd } from '../utils/operationalDay';
 
 import useNetworkStatus from '../lib/useNetworkStatus';
@@ -132,25 +130,6 @@ export default function PreCheckPage() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   useEffect(() => {
-    if (Capacitor.getPlatform() !== 'web') return;
-
-    // Soft revalidate version when entering /precheck to avoid stale chunks
-    const checkVersion = async () => {
-      try {
-        const res = await fetch(`/version.json?_=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.version && typeof __BUILD_TIMESTAMP__ !== 'undefined' && data.version !== __BUILD_TIMESTAMP__) {
-          safeAutoReload('precheck.pageVersionMismatch');
-        }
-      } catch {
-        // ignore – do not block the user
-      }
-    };
-    checkVersion();
-  }, []);
-
-  useEffect(() => {
     initialize();
     return () => {
       clearPendingPhotos();
@@ -161,8 +140,12 @@ export default function PreCheckPage() {
     if (!user?.id) return;
 
     const refreshStatus = async () => {
-      const status = await getPrecheckQueueStatus(user.id);
-      setQueueStatus(status);
+      try {
+        const status = await getPrecheckQueueStatus(user.id);
+        setQueueStatus(status);
+      } catch (err) {
+        console.warn('[PreCheckPage] Queue status unavailable:', err);
+      }
     };
 
     refreshStatus();
@@ -340,15 +323,18 @@ export default function PreCheckPage() {
     setQrError(null);
   };
 
-  const handleProceedToForm = () => {
-    if (!selectedTug) {
+  const handleProceedToForm = (tug) => {
+    const nextTug = tug || selectedTug;
+    if (!nextTug) {
       alert('Please select a tug.');
       return;
     }
+    // Save before any state update so a refresh still reopens this tug's form.
+    savePageState('form', nextTug);
     clearPendingPhotos();
     window.scrollTo({ top: 0 });
+    setSelectedTug(nextTug);
     setStep('form');
-    savePageState('form', selectedTug);
   };
 
   const handleSubmitSuccess = (submission, meta = {}) => {
@@ -673,8 +659,7 @@ export default function PreCheckPage() {
           selectedTug={selectedTug}
           onSelect={handleTugSelect}
           onStartCheck={(tug) => {
-            setSelectedTug(tug);
-            handleProceedToForm();
+            handleProceedToForm(tug);
           }}
           userLocationId={userLocationId}
           checkedTugIds={checkedTugIds}

@@ -7,8 +7,18 @@ const QUEUE_EVENT = 'precheck-queue-update';
 const DEFAULT_UPLOAD_CONCURRENCY = 3;
 
 let processingPromise = null;
+let dbPromise = null;
 
-const getDb = async () => openDB(DB_NAME, 1, {
+const EMPTY_QUEUE_STATUS = { total: 0, pending: 0, uploading: 0, failed: 0 };
+
+/** Safari on iPhone drops the IndexedDB server after the app is backgrounded. */
+export function isIdbConnectionLost(error) {
+  const text = `${error?.name || ''} ${error?.message || ''}`.toLowerCase();
+  return text.includes('indexed database server lost')
+    || text.includes('connection to indexed database');
+}
+
+const openDatabase = () => openDB(DB_NAME, 1, {
   upgrade(db) {
     if (!db.objectStoreNames.contains(STORE_NAME)) {
       const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
@@ -17,6 +27,25 @@ const getDb = async () => openDB(DB_NAME, 1, {
     }
   }
 });
+
+const getDb = async () => {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = (async () => {
+    try {
+      return await openDatabase();
+    } catch (error) {
+      if (!isIdbConnectionLost(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      return openDatabase();
+    }
+  })().catch((error) => {
+    dbPromise = null;
+    throw error;
+  });
+
+  return dbPromise;
+};
 
 const createId = () => {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -113,7 +142,7 @@ export const queueDuringShiftSubmission = async (payload) => {
   return job;
 };
 
-export const getPrecheckQueueStatus = async (userId) => {
+const readQueueStatus = async (userId) => {
   const db = await getDb();
   const jobs = await db.getAll(STORE_NAME);
   const filtered = userId ? jobs.filter(j => j.userId === userId) : jobs;
@@ -123,6 +152,25 @@ export const getPrecheckQueueStatus = async (userId) => {
     uploading: filtered.filter(j => j.status === 'uploading').length,
     failed: filtered.filter(j => j.status === 'failed').length,
   };
+};
+
+export const getPrecheckQueueStatus = async (userId) => {
+  try {
+    return await readQueueStatus(userId);
+  } catch (error) {
+    if (!isIdbConnectionLost(error)) {
+      console.warn('[precheckQueue] Queue status unavailable:', error);
+      return { ...EMPTY_QUEUE_STATUS };
+    }
+
+    dbPromise = null;
+    try {
+      return await readQueueStatus(userId);
+    } catch (retryError) {
+      console.warn('[precheckQueue] Queue status unavailable:', retryError);
+      return { ...EMPTY_QUEUE_STATUS };
+    }
+  }
 };
 
 const uploadImages = async (supabase, submissionId, images, options = {}) => {
@@ -328,54 +376,61 @@ export const processPrecheckQueue = async ({ supabase, userId }) => {
   if (processingPromise) return processingPromise;
 
   processingPromise = (async () => {
-    const db = await getDb();
-    const jobs = (await db.getAll(STORE_NAME))
-      .filter(job => job.userId === userId)
-      .sort((a, b) => a.createdAt - b.createdAt);
+    try {
+      const db = await getDb();
+      const jobs = (await db.getAll(STORE_NAME))
+        .filter(job => job.userId === userId)
+        .sort((a, b) => a.createdAt - b.createdAt);
 
-    let processed = 0;
+      let processed = 0;
 
-    for (const job of jobs) {
-      if (!navigator?.onLine) break;
+      for (const job of jobs) {
+        if (!navigator?.onLine) break;
 
-      const updating = { ...job, status: 'uploading', updatedAt: Date.now() };
-      await db.put(STORE_NAME, updating);
-      notifyQueueUpdate();
+        const updating = { ...job, status: 'uploading', updatedAt: Date.now() };
+        await db.put(STORE_NAME, updating);
+        notifyQueueUpdate();
 
-      try {
-        if (job.type === 'precheck') {
-          const submission = await submitPrecheckPayload(job.payload, supabase);
-          const ids = job.payload.markedResolvedDamageIds;
-          if (Array.isArray(ids) && ids.length > 0) {
-            for (const damageId of ids) {
-              const { error } = await supabase.rpc('record_precheck_damage_fixed_confirmation', {
-                damage_id: damageId,
-                submission_id: submission.id,
-              });
-              if (error) throw error;
+        try {
+          if (job.type === 'precheck') {
+            const submission = await submitPrecheckPayload(job.payload, supabase);
+            const ids = job.payload.markedResolvedDamageIds;
+            if (Array.isArray(ids) && ids.length > 0) {
+              for (const damageId of ids) {
+                const { error } = await supabase.rpc('record_precheck_damage_fixed_confirmation', {
+                  damage_id: damageId,
+                  submission_id: submission.id,
+                });
+                if (error) throw error;
+              }
             }
+          } else if (job.type === 'during_shift') {
+            await submitDuringShiftPayload(job.payload, supabase);
           }
-        } else if (job.type === 'during_shift') {
-          await submitDuringShiftPayload(job.payload, supabase);
+          await db.delete(STORE_NAME, job.id);
+          processed += 1;
+          notifyQueueUpdate();
+        } catch (err) {
+          if (isIdbConnectionLost(err)) throw err;
+          const failed = {
+            ...job,
+            status: 'failed',
+            attempts: (job.attempts || 0) + 1,
+            lastError: String(err?.message || err),
+            updatedAt: Date.now(),
+          };
+          await db.put(STORE_NAME, failed);
+          notifyQueueUpdate();
+          if (isLikelyNetworkError(err)) break;
         }
-        await db.delete(STORE_NAME, job.id);
-        processed += 1;
-        notifyQueueUpdate();
-      } catch (err) {
-        const failed = {
-          ...job,
-          status: 'failed',
-          attempts: (job.attempts || 0) + 1,
-          lastError: String(err?.message || err),
-          updatedAt: Date.now(),
-        };
-        await db.put(STORE_NAME, failed);
-        notifyQueueUpdate();
-        if (isLikelyNetworkError(err)) break;
       }
-    }
 
-    return { processed };
+      return { processed };
+    } catch (error) {
+      if (isIdbConnectionLost(error)) dbPromise = null;
+      console.warn('[precheckQueue] Queue unavailable:', error);
+      return { processed: 0 };
+    }
   })().finally(() => {
     processingPromise = null;
   });
