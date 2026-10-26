@@ -54,7 +54,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  is_caller_admin := public.is_admin();
+  -- Real admin only: same criteria as last-admin protection.
+  -- Deactivated / rejected / deleted admins take the restricted path
+  -- (cannot self-restore is_active or account_status via is_admin() alone).
+  is_caller_admin := caller IS NOT NULL AND EXISTS (
+    SELECT 1
+      FROM public.profiles p
+     WHERE p.id = caller
+       AND p.role = 'admin'
+       AND p.deleted_at IS NULL
+       AND p.account_status IS DISTINCT FROM 'rejected'
+       AND COALESCE(p.is_active, true)
+  );
 
   IF NOT is_caller_admin THEN
     -- Non-admin: force safe defaults / block privilege columns
@@ -91,9 +102,11 @@ BEGIN
         RAISE EXCEPTION 'Cannot change notes_for_admin' USING ERRCODE = '42501';
       END IF;
       IF NEW.account_status IS DISTINCT FROM OLD.account_status THEN
+        -- Allow first-time completion → pending_approval; block rejected → pending_approval
         IF NEW.account_status IS DISTINCT FROM 'pending_approval'
            OR caller IS NULL
-           OR NEW.id IS DISTINCT FROM caller THEN
+           OR NEW.id IS DISTINCT FROM caller
+           OR OLD.account_status = 'rejected' THEN
           RAISE EXCEPTION 'Only pending_approval is allowed for account_status on own row'
             USING ERRCODE = '42501';
         END IF;
