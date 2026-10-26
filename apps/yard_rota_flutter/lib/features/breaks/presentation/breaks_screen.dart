@@ -6,7 +6,6 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_scaffold.dart';
-import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/nav_pill.dart';
 import '../../../core/ui/status_badge.dart';
 import '../../home/data/stage_one_repository.dart';
@@ -55,6 +54,7 @@ class _BreaksPanelState extends State<BreaksPanel> {
   BreakFilters _filters = const BreakFilters();
   bool _filtersInitialized = false;
   bool _loading = true;
+  Object? _error;
 
   @override
   void initState() {
@@ -86,6 +86,10 @@ class _BreaksPanelState extends State<BreaksPanel> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final results = await Future.wait<Object>([
         widget.repository.loadBreaks(),
@@ -111,12 +115,15 @@ class _BreaksPanelState extends State<BreaksPanel> {
             !locations.contains(_filters.location)) {
           _filters = _filters.withLocation(null);
         }
+        _error = null;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _loading = false);
-      AppToast.show(context, 'Breaks could not be loaded. Please retry.');
+      setState(() {
+        _error = error;
+        _loading = false;
+      });
     }
   }
 
@@ -148,6 +155,29 @@ class _BreaksPanelState extends State<BreaksPanel> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: AppCard(
+            surfaceOpacity: AppOpacity.subtle,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Could not load breaks.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(label: 'Retry', onPressed: _load),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     final visible = BreakWindowLogic.visibleBreaks(
