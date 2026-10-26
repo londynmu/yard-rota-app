@@ -1,0 +1,49 @@
+---
+description: Git delivery workflow – branch, checks, PR, CI, merge approval
+alwaysApply: true
+---
+
+# Git Delivery Workflow
+
+Base branch is `flutter`. Every change reaches users only through a pull request that the owner has approved.
+
+## Branching
+
+1. **Never commit on `flutter` or `main`.** Always create a new branch from the latest `flutter` before making changes (e.g. `fix/break-list-order`, `docs/git-delivery-workflow`).
+2. **One task / one concern = one branch = one PR.** Do not mix unrelated work on the same branch.
+3. Keep the branch focused. If scope grows into a second concern, start a second branch.
+
+## Before push / PR
+
+1. Run the quality checklist in `.cursor/rules/quality-checklist.mdc`:
+   - Lint
+   - Tests
+   - Build (when web code changed)
+   - Browser check for any visible UI change
+2. Commit with the format in `.cursor/rules/commit-messages.mdc` (`[type] short description`, max 50 characters).
+3. **Open the PR only after local checks pass.** Do not push a half-checked change and hope CI will catch it.
+4. If a check could not run, say so explicitly in the PR / owner message. Do not pretend it passed.
+
+## Pull request and CI
+
+1. Open the PR into `flutter`.
+2. **Do not ask the owner to merge, and do not merge, until GitHub CI is green.**
+3. For web UI changes, also wait for a successful Netlify deploy preview when one is expected.
+4. After opening a ready PR, send the owner (Polish, plain language):
+   - the PR link
+   - the Netlify preview link if any
+   - what changed
+   - how you verified
+   - what they should check
+
+## Merge
+
+1. **Merge into `flutter` only after the owner explicitly approves.**
+2. Do not merge on your own initiative. Do not pressure the owner to merge while CI or Netlify is still red or unknown.
+3. After merge to `flutter`, Netlify publishes the web app to users.
+
+## Safety (see also AGENTS.md Safety rules)
+
+1. No force-push. No history rewrite.
+2. Never commit secrets (`.env`, service role keys, tokens).
+3. No production database changes without the owner's explicit approval. Read-only queries are fine; schema changes go through `supabase/migrations/` and are applied only after approval.
