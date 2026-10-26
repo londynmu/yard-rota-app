@@ -467,9 +467,11 @@ BEGIN
   END IF;
 
   -- get_user_auth_details(uuid)
+  -- Param must not be named user_id (clashes with RETURNS TABLE column).
   IF to_regprocedure('public.get_user_auth_details(uuid)') IS NOT NULL THEN
+    EXECUTE 'DROP FUNCTION IF EXISTS public.get_user_auth_details(uuid)';
     EXECUTE $fn$
-      CREATE OR REPLACE FUNCTION public.get_user_auth_details(user_id uuid)
+      CREATE OR REPLACE FUNCTION public.get_user_auth_details(p_user_id uuid)
       RETURNS TABLE (
         user_id uuid,
         email text,
@@ -499,7 +501,7 @@ BEGIN
           END as days_since_last_login,
           EXTRACT(DAY FROM now() - u.created_at)::integer as days_since_registration
         FROM auth.users u
-        WHERE u.id = get_user_auth_details.user_id;
+        WHERE u.id = p_user_id;
       END;
       $body$;
     $fn$;
