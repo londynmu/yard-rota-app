@@ -1320,6 +1320,19 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Shunters: only approved, active, non-deleted accounts may confirm/resolve
+  IF NOT EXISTS (
+    SELECT 1
+      FROM profiles
+     WHERE id = auth.uid()
+       AND account_status = 'approved'
+       AND COALESCE(is_active, true)
+       AND deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Account not approved'
+      USING ERRCODE = '42501';
+  END IF;
+
   -- Only record if damage exists, is not resolved and not acknowledged by VMU
   SELECT repair_status INTO v_status
   FROM precheck_damages
