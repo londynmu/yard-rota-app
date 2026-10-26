@@ -4,7 +4,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import Auth from './components/Auth/Auth';
 import HomePage from './components/HomePage';
 import ProfilePage from './pages/ProfilePage';
-import { supabase } from './lib/supabaseClient';
+import { supabase, supabaseMissingEnv } from './lib/supabaseClient';
 import { PROFILE_SELECT_FIELDS } from './lib/AuthContext';
 import { normalizeAvatarStorageUrl } from './utils/avatarUrl';
 import ResetPassword from './pages/ResetPassword';
@@ -257,6 +257,15 @@ function AppContent() {
   // Main routing
   return (
     <>
+    {supabaseMissingEnv && (
+      <div
+        role="status"
+        className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-sm text-center"
+      >
+        App configuration warning: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in this production build.
+        Ask an administrator to set them on Netlify. Temporary fallbacks are still in use.
+      </div>
+    )}
     {needsPreferredStart && (
       <PreferredStartTimePrompt
         userId={user.id}

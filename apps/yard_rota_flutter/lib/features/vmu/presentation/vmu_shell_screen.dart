@@ -8,6 +8,7 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/precheck_signed_image.dart';
 import '../../../core/ui/share_origin.dart';
 import '../../stage_three/data/precheck_export_service.dart';
 import '../../stage_three/data/stage_three_repository.dart';
@@ -463,40 +464,42 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
               ),
               itemCount: widget.defect.imageUrls.length,
               itemBuilder: (_, index) => InkWell(
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => Dialog.fullscreen(
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: InteractiveViewer(
-                            child: Image.network(
-                              widget.defect.imageUrls[index],
-                              errorBuilder: (_, _, _) =>
-                                  const Icon(Icons.broken_image_outlined),
+                onTap: () async {
+                  final signed = await widget.repository.signPrecheckImageUrl(
+                    widget.defect.imageUrls[index],
+                  );
+                  if (!context.mounted) return;
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => Dialog.fullscreen(
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: InteractiveViewer(
+                              child: Image.network(
+                                signed,
+                                errorBuilder: (_, _, _) =>
+                                    const Icon(Icons.broken_image_outlined),
+                              ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          right: AppSpacing.sm,
-                          top: AppSpacing.sm,
-                          child: IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close),
+                          Positioned(
+                            right: AppSpacing.sm,
+                            top: AppSpacing.sm,
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                child: ClipRRect(
+                  );
+                },
+                child: PrecheckSignedImage(
+                  url: widget.defect.imageUrls[index],
+                  fit: BoxFit.cover,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Image.network(
-                    widget.defect.imageUrls[index],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const Center(child: Icon(Icons.broken_image_outlined)),
-                  ),
                 ),
               ),
             ),

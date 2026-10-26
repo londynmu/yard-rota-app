@@ -14,6 +14,7 @@ import {
 } from '../../lib/precheckQueue';
 import { getOpenDefectsForTug, splitAcknowledged } from '../../lib/precheckDefects';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
+import { buildPrecheckImagePath } from '../../utils/precheckImageUrl';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
 const FALLBACK_OUTSIDE = [
@@ -311,22 +312,28 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
   // ─── Upload image to temp storage immediately ───
   const uploadTempImage = useCallback(async (file, imageId) => {
-    try {
-      const ext = file.name?.split('.').pop() || 'jpg';
-      const filePath = `temp/${formSessionId}/${imageId}.${ext}`;
-      const { error } = await supabase.storage
-        .from('precheck-images')
-        .upload(filePath, file, { upsert: true });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage
-        .from('precheck-images')
-        .getPublicUrl(filePath);
-      return publicUrl;
-    } catch (err) {
-      console.error('[PreCheckForm] Temp upload failed:', err);
-      return null;
+    if (!user?.id) {
+      throw new Error('You must be signed in to upload photos');
     }
-  }, [formSessionId]);
+    const ext = file.name?.split('.').pop() || 'jpg';
+    const filePath = buildPrecheckImagePath(
+      user.id,
+      'temp',
+      formSessionId,
+      `${imageId}.${ext}`,
+    );
+    const { error } = await supabase.storage
+      .from('precheck-images')
+      .upload(filePath, file, { upsert: true });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('precheck-images')
+      .getPublicUrl(filePath);
+    if (!publicUrl) {
+      throw new Error('Failed to resolve uploaded image URL');
+    }
+    return publicUrl;
+  }, [formSessionId, user?.id]);
 
   // Initialize form state once items are loaded
   useEffect(() => {
@@ -616,8 +623,8 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     if (toUpload.length === 0) return;
 
     for (const img of toUpload) {
-      const url = await uploadTempImage(img.file, img.id);
-      if (url) {
+      try {
+        const url = await uploadTempImage(img.file, img.id);
         setCheckItems(prev => {
           const currentImages = prev[itemKey]?.images || [];
           return {
@@ -628,6 +635,19 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
             },
           };
         });
+      } catch (err) {
+        console.error('[PreCheckForm] Item image upload failed:', err);
+        setCheckItems(prev => {
+          const currentImages = prev[itemKey]?.images || [];
+          return {
+            ...prev,
+            [itemKey]: {
+              ...prev[itemKey],
+              images: currentImages.filter(i => i.id !== img.id),
+            },
+          };
+        });
+        window.alert('Photo upload failed. Please try again before submitting.');
       }
     }
   }, [uploadTempImage]);
@@ -645,11 +665,15 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     if (toUpload.length === 0) return;
 
     for (const img of toUpload) {
-      const url = await uploadTempImage(img.file, img.id);
-      if (url) {
+      try {
+        const url = await uploadTempImage(img.file, img.id);
         setRemarksImages(prev =>
           prev.map(i => i.id === img.id ? { ...i, url } : i)
         );
+      } catch (err) {
+        console.error('[PreCheckForm] Remarks image upload failed:', err);
+        setRemarksImages(prev => prev.filter(i => i.id !== img.id));
+        window.alert('Photo upload failed. Please try again before submitting.');
       }
     }
   }, [uploadTempImage]);

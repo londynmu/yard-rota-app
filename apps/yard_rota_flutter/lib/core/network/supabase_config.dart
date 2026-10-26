@@ -1,6 +1,10 @@
 class SupabaseConfig {
   const SupabaseConfig._();
 
+  // Prefer --dart-define. Hardcoded defaults kept until store builds always
+  // pass SUPABASE_URL / SUPABASE_ANON_KEY.
+  // TODO(#3 Wave D): remove defaultValue after Netlify/store env is confirmed;
+  // do not rotate anon key in this PR.
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: 'https://jkjvtvwedjiupxoibpld.supabase.co',

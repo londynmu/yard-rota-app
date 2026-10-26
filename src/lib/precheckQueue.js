@@ -1,5 +1,6 @@
 import { openDB } from 'idb';
 import { retryWithBackoff, runWithConcurrency, isLikelyNetworkError } from './uploadRetry';
+import { buildPrecheckImagePath } from '../utils/precheckImageUrl';
 
 const DB_NAME = 'precheck-queue';
 const STORE_NAME = 'precheck_jobs';
@@ -126,6 +127,11 @@ export const getPrecheckQueueStatus = async (userId) => {
 };
 
 const uploadImages = async (supabase, submissionId, images, options = {}) => {
+  const userId = options.userId;
+  if (!userId) {
+    throw new Error('userId is required to upload precheck images');
+  }
+
   const allEntries = (images || []).filter(img => (img?.blob instanceof Blob) || img?.url);
   if (allEntries.length === 0) return [];
 
@@ -137,7 +143,7 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
   const concurrency = options.concurrency || DEFAULT_UPLOAD_CONCURRENCY;
   const urls = await runWithConcurrency(entries, concurrency, async (img) => {
     const ext = getFileExt(img.name, img.type);
-    const filePath = `damages/${submissionId}/${img.id}.${ext}`;
+    const filePath = buildPrecheckImagePath(userId, 'damages', submissionId, `${img.id}.${ext}`);
 
     await retryWithBackoff(async () => {
       const { error: uploadError } = await supabase.storage
@@ -146,14 +152,24 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
       if (uploadError) throw uploadError;
     }, options.retryOptions);
 
+    // Persist the public-form URL (or path-equivalent) so display code can
+    // extract the object key and createSignedUrl after the bucket is private.
     const { data: { publicUrl } } = supabase.storage
       .from('precheck-images')
       .getPublicUrl(filePath);
 
+    if (!publicUrl) {
+      throw new Error('Failed to resolve uploaded image URL');
+    }
+
     return publicUrl;
   });
 
-  return [...preUploaded, ...urls.filter(Boolean)];
+  if (urls.some((u) => !u)) {
+    throw new Error('One or more image uploads failed');
+  }
+
+  return [...preUploaded, ...urls];
 };
 
 export const submitPrecheckPayload = async (payload, supabase) => {
@@ -222,6 +238,7 @@ export const submitPrecheckPayload = async (payload, supabase) => {
       supabase,
       submission.id,
       payload.remarksImages,
+      { userId: payload.userId },
     );
     const { error: remarksError } = await supabase
       .from('precheck_damages')
@@ -268,7 +285,12 @@ export const submitPrecheckPayload = async (payload, supabase) => {
         if (confError) throw confError;
       }
     } else if (item.images?.length > 0 || item.notes) {
-      const imageUrls = await uploadImages(supabase, submission.id, item.images);
+      const imageUrls = await uploadImages(
+        supabase,
+        submission.id,
+        item.images,
+        { userId: payload.userId },
+      );
       const { error: damageError } = await supabase
         .from('precheck_damages')
         .insert({
@@ -304,6 +326,7 @@ export const submitDuringShiftPayload = async (payload, supabase) => {
     supabase,
     submission.id,
     payload.images,
+    { userId: payload.userId },
   );
 
   const { error: damageError } = await supabase

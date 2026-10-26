@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/local_db/app_local_database.dart';
 import '../../../core/network/network_policy.dart';
+import '../../../core/network/precheck_image_urls.dart';
 import '../domain/pre_check_models.dart';
 
 class PreCheckRepository {
@@ -594,7 +595,11 @@ class PreCheckRepository {
             .whereType<Map<String, dynamic>>()
             .toList(growable: false);
     if (remarks.isNotEmpty || remarkImages.isNotEmpty) {
-      final urls = await _uploadPhotos(submissionId, remarkImages);
+      final urls = await _uploadPhotos(
+        submissionId,
+        remarkImages,
+        userId: payload['userId']?.toString() ?? '',
+      );
       await _client.from('precheck_damages').insert(<String, dynamic>{
         'submission_id': submissionId,
         'description': remarks.isEmpty ? 'Additional photos' : remarks,
@@ -626,7 +631,11 @@ class PreCheckRepository {
       if (notes.isEmpty && images.isEmpty) {
         continue;
       }
-      final urls = await _uploadPhotos(submissionId, images);
+      final urls = await _uploadPhotos(
+        submissionId,
+        images,
+        userId: payload['userId']?.toString() ?? '',
+      );
       await _client.from('precheck_damages').insert(<String, dynamic>{
         'submission_id': submissionId,
         'item_id': itemIdMap[item['key']?.toString()],
@@ -667,7 +676,11 @@ class PreCheckRepository {
     final images = ((payload['images'] as List<dynamic>?) ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
-    final urls = await _uploadPhotos(submissionId, images);
+    final urls = await _uploadPhotos(
+      submissionId,
+      images,
+      userId: payload['userId']?.toString() ?? '',
+    );
     await _client.from('precheck_damages').insert(<String, dynamic>{
       'submission_id': submissionId,
       'description': payload['description']?.toString().trim().isEmpty ?? true
@@ -690,8 +703,12 @@ class PreCheckRepository {
 
   Future<List<String>> _uploadPhotos(
     String submissionId,
-    List<Map<String, dynamic>> photos,
-  ) async {
+    List<Map<String, dynamic>> photos, {
+    required String userId,
+  }) async {
+    if (userId.isEmpty) {
+      throw StateError('userId is required to upload precheck images');
+    }
     final urls = <String>[];
     for (final photo in photos) {
       final existingUrl = photo['url'] as String?;
@@ -701,13 +718,19 @@ class PreCheckRepository {
       }
       final path = photo['path'] as String?;
       if (path == null || path.isEmpty || !File(path).existsSync()) {
-        continue;
+        throw StateError(
+          'Photo file is missing. Please re-add the photo and try again.',
+        );
       }
       final id = photo['id']?.toString() ?? _randomId();
       final ext = _extensionForPath(path);
-      final storagePath = 'damages/$submissionId/$id.$ext';
+      final storagePath = buildPrecheckImagePath(userId, <String>[
+        'damages',
+        submissionId,
+        '$id.$ext',
+      ]);
       await _client.storage
-          .from('precheck-images')
+          .from(precheckImagesBucket)
           .upload(
             storagePath,
             File(path),
@@ -716,9 +739,13 @@ class PreCheckRepository {
               contentType: photo['contentType']?.toString() ?? 'image/jpeg',
             ),
           );
-      urls.add(
-        _client.storage.from('precheck-images').getPublicUrl(storagePath),
-      );
+      final publicUrl = _client.storage
+          .from(precheckImagesBucket)
+          .getPublicUrl(storagePath);
+      if (publicUrl.isEmpty) {
+        throw StateError('Failed to resolve uploaded image URL');
+      }
+      urls.add(publicUrl);
     }
     return urls;
   }
