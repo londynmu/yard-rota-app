@@ -87,7 +87,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       
       const { data, error } = await supabaseClient
         .from('profiles')
-        .select('*')
+        .select(
+          'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role',
+        )
         .eq('id', user.id)
         .single();
       
