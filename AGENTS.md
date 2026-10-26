@@ -89,10 +89,12 @@ flutter test
 
 ## How we work
 
+Hard delivery rules live in `.cursor/rules/git-workflow.mdc`. Local quality gates live in `.cursor/rules/quality-checklist.mdc`.
+
 1. The owner describes the task (ideally with a screenshot).
-2. Create a new branch from `flutter` (e.g. `fix/break-list-order`).
+2. Create a **new branch from `flutter`** — never commit on `flutter` or `main`. One task = one branch = one PR.
 3. Make the change. Follow `.cursor/rules/` (design system, toasts, break logic, commit format).
-4. Run the quality checklist (`.cursor/rules/quality-checklist.mdc`): lint, tests, build, browser check for UI changes.
-5. Commit with `[type] short description` (see `.cursor/rules/commit-messages.mdc`), push, open a pull request.
-6. CI must pass. Send the owner the Netlify preview link and explain what to check.
-7. Merge into `flutter` only after the owner approves. Netlify then publishes to users.
+4. Run the quality checklist before push/PR: lint, tests, build, browser check for UI.
+5. Commit (`[type] short description`), push, open a PR into `flutter` **only after local checks pass**.
+6. Wait for **green GitHub CI** (and Netlify deploy preview when expected). Then send the owner the PR link, preview link if any, what changed, how you verified, and what to check.
+7. **Merge into `flutter` only after the owner explicitly approves.** Netlify then publishes to users.
