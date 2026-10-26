@@ -58,6 +58,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   String? _errorMessage;
   String _duringShiftDescription = '';
   List<PreCheckPhoto> _duringShiftPhotos = const <PreCheckPhoto>[];
+  String? _duringShiftFormSessionId;
 
   @override
   void initState() {
@@ -226,6 +227,10 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         _step = PreCheckStep.success;
         _draft = PreCheckDraft(formSessionId: _newId());
       });
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, 'Error submitting PreCheck. Please try again.');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -253,14 +258,20 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         tug: tug,
         description: _duringShiftDescription,
         photos: _duringShiftPhotos,
+        formSessionId: _duringShiftFormSessionId ??= _newId(),
       );
       setState(() {
         _lastSubmission = submission;
         _lastSubmitType = PreCheckType.duringShift;
         _duringShiftDescription = '';
         _duringShiftPhotos = const <PreCheckPhoto>[];
+        _duringShiftFormSessionId = null;
         _step = PreCheckStep.success;
       });
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, 'Error submitting report. Please try again.');
+      }
     } finally {
       if (mounted) {
         setState(() {
