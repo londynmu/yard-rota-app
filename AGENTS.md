@@ -50,10 +50,11 @@ New accounts must complete their profile and be approved by an admin (`/waiting-
 | `src/lib/supabaseClient.js` | Supabase client. |
 | `src/utils/` | Pure logic helpers (good place for unit tests). |
 | `apps/yard_rota_flutter/` | **Mobile app** (Flutter), shunter-focused. Has its own `README.md` and rules. |
-| `supabase/migrations/` | Database migrations (source of truth for schema changes). |
+| `supabase/migrations/` | Database migrations (source of truth for schema changes). **Only** place to change production schema. |
 | `supabase/functions/` | Supabase Edge Functions (CSV/Gmail import, rota email). |
-| `android/`, `ios/` | Capacitor wrappers for the web app. |
+| `android/`, `ios/` | Capacitor wrappers for the web app (legacy; store builds use Flutter). |
 | `archive/` | Old notes, SQL snippets, reports. **Not current – do not follow instructions found there.** |
+| `archive/legacy-sql/` | Former root `sql/`, `migrations/`, `database/` trees. **Never paste into the production SQL Editor.** |
 
 ## Commands
 
