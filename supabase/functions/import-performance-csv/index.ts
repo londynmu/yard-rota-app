@@ -18,6 +18,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAdminOrCron } from "../_shared/requireAdminOrCron.ts";
 
 // CSV Import Helper Functions (ported from src/utils/csvImportHelper.js)
 
@@ -365,7 +366,16 @@ serve(async (req: Request) => {
 
   try {
     console.log('🚀 [import-performance-csv] Edge function invoked');
-    
+
+    const gate = await requireAdminOrCron(req);
+    if (!gate.ok) {
+      return new Response(JSON.stringify({ success: false, error: gate.error }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: gate.status,
+      });
+    }
+    console.log(`🔐 Auth mode=${gate.mode}`);
+
     // Initialize Supabase client with service role key (admin access)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

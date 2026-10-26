@@ -3,7 +3,9 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAdminOrCron } from "../_shared/requireAdminOrCron.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -12,8 +14,15 @@ serve(async (req) => {
   }
   
   try {
-    // Log the request for debugging
     console.log("Request received:", req.method, req.url);
+
+    const gate = await requireAdminOrCron(req);
+    if (!gate.ok) {
+      return new Response(JSON.stringify({ error: gate.error }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: gate.status,
+      });
+    }
     
     // Parse the JSON with error handling
     let body;
@@ -41,6 +50,31 @@ serve(async (req) => {
           status: 400,
         }
       );
+    }
+
+    // Recipients must match an agency contact email (plain-text body already used below)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (supabaseUrl && serviceKey) {
+      const adminClient = createClient(supabaseUrl, serviceKey);
+      const { data: agencies } = await adminClient
+        .from("agencies")
+        .select("email, name");
+      const allowed = new Set(
+        (agencies || [])
+          .map((a: { email?: string }) => (a.email || "").trim().toLowerCase())
+          .filter(Boolean),
+      );
+      const recip = String(recipient).trim().toLowerCase();
+      if (allowed.size > 0 && !allowed.has(recip)) {
+        return new Response(
+          JSON.stringify({ error: "Recipient is not an agency contact email" }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 403,
+          },
+        );
+      }
     }
     
     console.log("Email request received for:", recipient);
@@ -85,17 +119,17 @@ serve(async (req) => {
         },
       });
       
-      // Prepare email with attachment
+      // Prepare email with attachment (plain text body only)
       const email = {
         from: emailFrom,
         to: recipient,
         subject: `Weekly Schedule: ${weekStart} - ${weekEnd}`,
         content: `Dear ${agencyName},\n\n${message || "Please find attached the weekly schedule."}`,
-        html: `<p>Dear ${agencyName},</p><p>${(message || "Please find attached the weekly schedule.").replace(/\n/g, "<br>")}</p>`,
         attachments: [
           {
             filename: `rota_${weekStart}_${weekEnd}.csv`,
             content: csvData,
+            encoding: "binary" as const,
             contentType: "text/csv",
           },
         ],
@@ -103,7 +137,7 @@ serve(async (req) => {
       
       // Send email
       console.log("Sending email...");
-      await client.send(email);
+      await client.send(email as Parameters<typeof client.send>[0]);
       console.log("Email sent successfully to:", recipient);
       
       // Close connection
@@ -116,20 +150,22 @@ serve(async (req) => {
           status: 200,
         }
       );
-    } catch (smtpError) {
+    } catch (smtpError: unknown) {
       console.error("SMTP Error:", smtpError);
+      const msg = smtpError instanceof Error ? smtpError.message : String(smtpError);
       return new Response(
-        JSON.stringify({ error: `SMTP Error: ${smtpError.message}` }),
+        JSON.stringify({ error: `SMTP Error: ${msg}` }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
         }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("General error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: `Unexpected error: ${error.message}` }),
+      JSON.stringify({ error: `Unexpected error: ${msg}` }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

@@ -42,3 +42,20 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+
+  edge-functions:
+    name: Edge functions (deno check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check edge functions
+        run: |
+          # Shared gate + interactive functions (no npm:googleapis).
+          # Gmail importer uses npm:googleapis — validated via deploy smoke, not CI.
+          deno check supabase/functions/_shared/requireAdminOrCron.ts
+          deno check supabase/functions/import-performance-csv/index.ts
+          deno check supabase/functions/send-rota-email/index.ts
