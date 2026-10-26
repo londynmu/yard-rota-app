@@ -60,6 +60,7 @@ export default function VmuPage() {
   const [damages, setDamages] = useState([]);
   const [tugs, setTugs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   // ─── Filters ───
   const [filters, setFilters] = useState(loadPersistedFilters);
@@ -89,6 +90,7 @@ export default function VmuPage() {
   // ─── Fetch data ───
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [damagesRes, tugsRes, checkItemsRes] = await Promise.all([
         supabase
@@ -133,8 +135,10 @@ export default function VmuPage() {
 
       setDamages(enhancedDamages);
       setTugs(tugsRes.data || []);
+      setLoadError(null);
     } catch (err) {
       console.error('[VmuPage] Fetch error:', err);
+      setLoadError('Could not load defects.');
     } finally {
       setLoading(false);
     }
@@ -728,10 +732,21 @@ export default function VmuPage() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — error vs empty: never show "No defects found" after a failed fetch */}
       {loading ? (
         <div className="animate-pulse space-y-3">
           {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-slate-200 rounded-xl" />)}
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-12">
+          <p className="font-medium text-red-600">{loadError}</p>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="mt-4 btn-secondary px-4 py-2 text-sm font-medium"
+          >
+            Retry
+          </button>
         </div>
       ) : filteredDamages.length === 0 ? (
         <div className="text-center py-12 text-gray-400">

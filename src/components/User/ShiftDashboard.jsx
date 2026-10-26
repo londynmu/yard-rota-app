@@ -126,6 +126,10 @@ export default function ShiftDashboard({
   const [allShifts, setAllShifts] = useState([]);
   const [allBreaks, setAllBreaks] = useState([]);
   const [tugByUser, setTugByUser] = useState({});
+  // Team schedule load is independent of personal shift `loading` — avoid empty-list flash
+  // while team fetch is in flight or after it fails.
+  const [teamLoading, setTeamLoading] = useState(true);
+  const [teamError, setTeamError] = useState(null);
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState(selectedLocation || ''); // location tab
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -339,10 +343,19 @@ export default function ShiftDashboard({
   // must not leave the break list empty until the next 15-minute interval tick.
   const teamRetryRef = useRef({ timeoutId: null, attempts: 0 });
 
-  const fetchTeamSchedule = useCallback(async () => {
-      if (!user) return;
+  const fetchTeamSchedule = useCallback(async ({ resetAttempts = false } = {}) => {
+      if (!user) {
+        setTeamLoading(false);
+        return;
+      }
+
+      if (resetAttempts) {
+        teamRetryRef.current.attempts = 0;
+        clearTimeout(teamRetryRef.current.timeoutId);
+      }
 
       try {
+        setTeamError(null);
         // Day/afternoon: calendar today (07:00-17:00). Night: 17:00 -> 07:00 next morning.
         const now = new Date();
         const today = toLocalYmd(now);
@@ -488,14 +501,20 @@ export default function ShiftDashboard({
           setAllBreaks([]);
         }
         teamRetryRef.current.attempts = 0;
+        setTeamError(null);
+        setTeamLoading(false);
       } catch (err) {
         console.error('Error fetching team schedule:', err);
         if (teamRetryRef.current.attempts < 3) {
           teamRetryRef.current.attempts += 1;
+          // Keep spinner (no data yet) or last good list; do not show empty-success copy.
           clearTimeout(teamRetryRef.current.timeoutId);
           teamRetryRef.current.timeoutId = setTimeout(() => {
             fetchTeamSchedule();
           }, 30 * 1000);
+        } else {
+          setTeamError('Could not load breaks.');
+          setTeamLoading(false);
         }
       }
   }, [user]);
@@ -1019,6 +1038,29 @@ export default function ShiftDashboard({
                 })()}
               </div>
             )
+          ) : teamError && allBreaks.length === 0 ? (
+            <div className="w-full mb-4 bg-red-50 rounded-lg border border-red-200 p-4 text-center">
+              <p className="text-red-600 text-sm">{teamError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamLoading(true);
+                  setTeamError(null);
+                  fetchTeamSchedule({ resetAttempts: true });
+                }}
+                className="mt-3 btn-secondary px-4 py-2 text-sm font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          ) : teamLoading && allBreaks.length === 0 ? (
+            <div
+              className="w-full py-8 flex justify-center"
+              aria-busy="true"
+              aria-label="Loading breaks"
+            >
+              <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+            </div>
           ) : (
             allBreaks.length === 0 ? (
               <p className="text-gray-600 text-center py-4">No breaks scheduled for today</p>
@@ -1067,7 +1109,8 @@ export default function ShiftDashboard({
                     .filter((entry) => entry.window.start > nowMinutes)
                     .sort(byShiftThenTime);
                   const displayBreaks = [...activeEntries, ...upcomingEntries];
-                  const filterEmpty = filteredBreaks.length === 0;
+                  // Only show filter/empty-success copy after a successful team fetch
+                  const filterEmpty = !teamLoading && !teamError && filteredBreaks.length === 0;
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
                     const { isActiveList = false, index = 0 } = options;
