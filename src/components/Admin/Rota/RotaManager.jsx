@@ -23,6 +23,10 @@ import {
   normalizeAssignedEmployeeIds,
   countUniqueAssigned,
 } from '../../../utils/rotaAssignedEmployees';
+import {
+  collectCrossDayRestConflictIds,
+  collectSameDayConflictIds,
+} from '../../../utils/rotaSlotConflicts';
 
 // Week start on Saturday (same as My Rota)
 const getWeekStart = (date) => {
@@ -626,11 +630,12 @@ const RotaManager = ({ user }) => {
           settingsByKey.max_consecutive_work_days
         );
         
-        if (minBreakMinutes > 0) {
-          // Find all slots where this employee is already assigned on this day
+        // Always check hour overlap (even when min rest is 0). Also check
+        // previous-night → next-morning rest across calendar dates.
+        {
           const { data: employeeSlots, error: slotsError } = await supabase
             .from('scheduled_rota')
-            .select('start_time, end_time')
+            .select('id, start_time, end_time, shift_type')
             .eq('date', slotToAssign.date)
             .eq('user_id', employeeId);
 
@@ -640,52 +645,83 @@ const RotaManager = ({ user }) => {
             return;
           }
 
-          // If employee already has assignments, check for break time conflicts
-          if (employeeSlots && employeeSlots.length > 0) {
-            // Parse slot times to minutes since midnight for easier comparison
-            const newSlotStart = timeToMinutes(slotToAssign.start_time);
-            const newSlotEnd = timeToMinutes(slotToAssign.end_time);
-            
-            // Check against each existing slot
-            for (const existingSlot of employeeSlots) {
-              const existingStart = timeToMinutes(existingSlot.start_time);
-              const existingEnd = timeToMinutes(existingSlot.end_time);
-              
-              // Normalize times for overnight shifts
-              const normalizedNewEnd = newSlotEnd < newSlotStart ? newSlotEnd + 1440 : newSlotEnd;
-              const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
-              
-              // Standard overlap check using potentially normalized end times
-              // Overlap exists if start of one is before end of other, AND vice-versa
-              const overlapDetected = (newSlotStart < normalizedExistingEnd) && (existingStart < normalizedNewEnd);
-              
-              // If slots overlap, prevent assignment
-              if (overlapDetected) {
-                console.error(`[AssignCheck] OVERLAP DETECTED between new slot ${slotToAssign.start_time}-${slotToAssign.end_time} and existing ${existingSlot.start_time}-${existingSlot.end_time}`);
-                setError(`Cannot assign staff member: Overlapping shifts detected. This person is already assigned to a slot during this time period (${existingSlot.start_time} - ${existingSlot.end_time}).`);
-                return;
-              }
-              
-              // --- Break time calculation remains the same, but needs adjustment for normalized times? ---
-              // Let's re-evaluate break calculation for robustness, especially with overnight shifts.
-              // A simpler approach: Calculate time difference only if slots DON'T overlap.
-              
-              let breakMinutes = -1; // Default to -1 (no break or overlap)
-              
-              // Calculate break time IF they don't overlap
-              if (newSlotStart >= normalizedExistingEnd) { // New slot starts after existing ends
-                breakMinutes = newSlotStart - normalizedExistingEnd;
-              } else if (existingStart >= normalizedNewEnd) { // Existing slot starts after new ends
-                breakMinutes = existingStart - normalizedNewEnd;
-              }
+          const sameDayConflictSlots = (employeeSlots || []).map((s) => ({
+            id: s.id,
+            start_time: s.start_time,
+            end_time: s.end_time,
+            assigned_employees: [employeeId],
+          }));
+          const sameDay = collectSameDayConflictIds(
+            slotToAssign,
+            sameDayConflictSlots,
+            minBreakMinutes
+          );
+          if (sameDay.overlappingConflictIds.has(employeeId)) {
+            setError(
+              'Cannot assign staff member: Overlapping shifts detected on this day.'
+            );
+            return;
+          }
+          if (sameDay.breakConflictIds.has(employeeId)) {
+            setError(
+              `Cannot assign staff member: Minimum ${formatMinutesToHours(minBreakMinutes)} time off between shifts is required.`
+            );
+            return;
+          }
 
-              // Check if the calculated break is too short
-              if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) {
-                console.error(`[AssignCheck] BREAK CONFLICT DETECTED. Break: ${breakMinutes} mins, Required: ${minBreakMinutes} mins`);
-                setError(`Cannot assign staff member: Minimum ${formatMinutesToHours(minBreakMinutes)} time off between shifts is required. Conflict with slot ${existingSlot.start_time}-${existingSlot.end_time}.`);
-                return;
-              }
-            }
+          const prevDate = format(subDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
+          const nextDate = format(addDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
+          const [{ data: prevSlots }, { data: nextSlots }] = await Promise.all([
+            supabase
+              .from('scheduled_rota')
+              .select('id, start_time, end_time, shift_type')
+              .eq('date', prevDate)
+              .eq('user_id', employeeId),
+            supabase
+              .from('scheduled_rota')
+              .select('id, start_time, end_time, shift_type')
+              .eq('date', nextDate)
+              .eq('user_id', employeeId),
+          ]);
+
+          const toConflict = (rows) =>
+            (rows || []).map((s) => ({
+              id: s.id,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              shift_type: s.shift_type,
+              assigned_employees: [employeeId],
+            }));
+
+          const fromPrev = collectCrossDayRestConflictIds(
+            slotToAssign,
+            toConflict(prevSlots),
+            minBreakMinutes,
+            'previousNight'
+          );
+          const fromNext = collectCrossDayRestConflictIds(
+            slotToAssign,
+            toConflict(nextSlots),
+            minBreakMinutes,
+            'nextMorning'
+          );
+          if (
+            fromPrev.overlappingConflictIds.has(employeeId) ||
+            fromNext.overlappingConflictIds.has(employeeId)
+          ) {
+            setError(
+              'Cannot assign staff member: Shift overlaps the previous night or next morning.'
+            );
+            return;
+          }
+          if (
+            fromPrev.breakConflictIds.has(employeeId) ||
+            fromNext.breakConflictIds.has(employeeId)
+          ) {
+            setError(
+              `Cannot assign staff member: Minimum ${formatMinutesToHours(minBreakMinutes)} time off between night and morning is required.`
+            );
+            return;
           }
         }
 
@@ -822,12 +858,6 @@ const RotaManager = ({ user }) => {
       }
       setError('Failed to update assignment');
     }
-  };
-
-  // Helper function to convert time string (HH:MM) to minutes since midnight
-  const timeToMinutes = (timeString) => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return hours * 60 + minutes;
   };
 
   // Helper function to format minutes as hours

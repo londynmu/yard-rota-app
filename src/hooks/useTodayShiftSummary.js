@@ -6,6 +6,7 @@ const EMPTY_SUMMARY = { day: 0, afternoon: 0, night: 0, total: 0 };
 
 /**
  * Unique shunters rostered today at `location` (absent slots excluded), split by shift.
+ * Uses the same 07:00 operational-day threshold as the break list night cycle.
  */
 export function useTodayShiftSummary(location) {
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
@@ -16,6 +17,7 @@ export function useTodayShiftSummary(location) {
 
     const fetchTodayShiftSummary = async () => {
       try {
+        // Before 07:00 this is yesterday — same night-cycle anchor as the break list.
         const today = getEffectiveTodayYmd();
 
         const { data: rotaData, error: rotaError } = await supabase
@@ -38,7 +40,8 @@ export function useTodayShiftSummary(location) {
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', userIds);
-          if (!profilesError && profilesData) {
+          if (profilesError) throw profilesError;
+          if (profilesData) {
             profilesData.forEach((p) => {
               profilesMap[p.id] = p;
             });
@@ -48,10 +51,11 @@ export function useTodayShiftSummary(location) {
         const slotIds = slots.map((s) => s.id).filter(Boolean);
         const attendanceBySlotId = {};
         if (slotIds.length) {
-          const { data: attData } = await supabase
+          const { data: attData, error: attError } = await supabase
             .from('attendance')
             .select('scheduled_rota_id, status')
             .in('scheduled_rota_id', slotIds);
+          if (attError) throw attError;
           (attData || []).forEach((r) => {
             if (r.scheduled_rota_id) {
               attendanceBySlotId[r.scheduled_rota_id] = { status: r.status };
@@ -87,8 +91,8 @@ export function useTodayShiftSummary(location) {
           });
         }
       } catch (err) {
+        // Keep the previous summary — do not pretend the yard is empty on fetch failure.
         console.warn('useTodayShiftSummary: could not fetch today shift summary', err);
-        if (!cancelled) setSummary(EMPTY_SUMMARY);
       }
     };
 
