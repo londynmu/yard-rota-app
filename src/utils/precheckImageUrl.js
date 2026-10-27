@@ -65,7 +65,7 @@ export async function createPrecheckSignedUrl(supabase, urlOrPath, expiresIn = 3
 
 /**
  * Resolve many stored URLs/paths to signed display URLs.
- * On sign failure, falls back to the original value (useful while bucket is still public).
+ * Drops entries that cannot be signed (private bucket public URLs always 403).
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string[]} urls
  * @param {number} [expiresIn=3600]
@@ -73,16 +73,17 @@ export async function createPrecheckSignedUrl(supabase, urlOrPath, expiresIn = 3
  */
 export async function resolvePrecheckImageUrls(supabase, urls = [], expiresIn = 3600) {
   const list = Array.isArray(urls) ? urls.filter(Boolean) : [];
-  return Promise.all(
+  const resolved = await Promise.all(
     list.map(async (url) => {
       try {
-        const signed = await createPrecheckSignedUrl(supabase, url, expiresIn);
-        return signed || url;
-      } catch {
-        return url;
+        return await createPrecheckSignedUrl(supabase, url, expiresIn);
+      } catch (err) {
+        console.warn('[resolvePrecheckImageUrls] sign failed', err);
+        return null;
       }
     }),
   );
+  return resolved.filter(Boolean);
 }
 
 /**
