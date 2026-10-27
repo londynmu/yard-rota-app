@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
 import { STATUS_CONFIG, isDefectAwaitingRepair } from '../components/Admin/PreCheck/PreCheckList';
 import { getStatusOptions } from '../utils/defectStatus';
 import PrecheckSignedImage from '../components/PreCheck/PrecheckSignedImage';
 import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+
 
 const VMU_FILTERS_KEY = 'vmu_filters';
 const RESOLVED_FETCH_LIMIT = 200;
@@ -84,7 +86,11 @@ function enhanceDamages(rows, checkItemLabels) {
 
 export default function VmuPage() {
   const { user, sessionProfile } = useAuth();
+  const { isAdmin, isTransportManager } = useNotifications();
   const toast = useToast();
+  /** Transport managers may view fleet defects but must not update status / notes. */
+  const readOnly = isTransportManager && !isAdmin;
+
 
   // ─── Data ───
   const [damages, setDamages] = useState([]);
@@ -218,8 +224,11 @@ export default function VmuPage() {
 
   // ─── Update damage field ───
   const updateDamageField = async (damageId, updates) => {
+    if (readOnly) return;
+
     // 1. Read old values BEFORE optimistic update
     const currentDamage = damages.find(d => d.id === damageId);
+
 
     // 2. Optimistic update
     setDamages(prev => prev.map(d => d.id === damageId ? { ...d, ...updates } : d));
@@ -304,6 +313,7 @@ export default function VmuPage() {
   };
 
   const handleStatusChange = (damageId, newStatus) => {
+    if (readOnly) return;
     if (newStatus === 'resolved') {
       setResolveConfirm({ damageId, newStatus });
       return;
@@ -313,6 +323,7 @@ export default function VmuPage() {
 
   // ─── Save inline field ───
   const saveField = (damageId, field, value) => {
+    if (readOnly) return;
     updateDamageField(damageId, { [field]: value || null });
   };
 
@@ -589,31 +600,49 @@ export default function VmuPage() {
               <div className="p-3 lg:pl-4 space-y-2.5">
                 <div>
                   <label htmlFor={`vmu-status-${d.id}`} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Status</label>
-                  <select
-                    id={`vmu-status-${d.id}`}
-                    value={d.repair_status}
-                    onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                    className={`w-full text-xs font-medium text-charcoal rounded-lg pl-2.5 pr-8 py-1.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:0.875rem_0.875rem] bg-[right_0.625rem_center] focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
-                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-                  >
-                    {getStatusOptions(STATUS_CONFIG, d.repair_status).map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
+                  {readOnly ? (
+                    <div
+                      id={`vmu-status-${d.id}`}
+                      className={`w-full text-xs font-medium text-charcoal rounded-lg px-2.5 py-1.5 border ${cfg.border} ${cfg.bg}`}
+                    >
+                      {cfg.label}
+                    </div>
+                  ) : (
+                    <select
+                      id={`vmu-status-${d.id}`}
+                      value={d.repair_status}
+                      onChange={(e) => handleStatusChange(d.id, e.target.value)}
+                      className={`w-full text-xs font-medium text-charcoal rounded-lg pl-2.5 pr-8 py-1.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:0.875rem_0.875rem] bg-[right_0.625rem_center] focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
+                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+                    >
+                      {getStatusOptions(STATUS_CONFIG, d.repair_status).map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label htmlFor={`vmu-notes-${d.id}`} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">VMU Notes</label>
-                  <textarea
-                    id={`vmu-notes-${d.id}`}
-                    defaultValue={d.vmu_notes || ''}
-                    placeholder="Add notes..."
-                    rows={2}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
-                    }}
-                    className="w-full text-xs leading-snug text-gray-700 rounded-lg px-2.5 py-1.5 border border-slate-200 bg-white placeholder:text-gray-400 resize-none focus:outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-300/40 transition-colors"
-                  />
+                  {readOnly ? (
+                    <p
+                      id={`vmu-notes-${d.id}`}
+                      className="w-full text-xs leading-snug text-gray-700 rounded-lg px-2.5 py-1.5 border border-slate-200 bg-slate-50 min-h-[2.5rem]"
+                    >
+                      {d.vmu_notes || '—'}
+                    </p>
+                  ) : (
+                    <textarea
+                      id={`vmu-notes-${d.id}`}
+                      defaultValue={d.vmu_notes || ''}
+                      placeholder="Add notes..."
+                      rows={2}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
+                      }}
+                      className="w-full text-xs leading-snug text-gray-700 rounded-lg px-2.5 py-1.5 border border-slate-200 bg-white placeholder:text-gray-400 resize-none focus:outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-300/40 transition-colors"
+                    />
+                  )}
                 </div>
                 {d.repair_status === 'resolved' && resolvedName && (
                   <div className="text-[10px] text-green-700 bg-green-50/70 rounded-lg px-2.5 py-1.5 border border-green-100">

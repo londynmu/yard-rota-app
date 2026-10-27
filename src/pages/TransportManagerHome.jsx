@@ -1,0 +1,322 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { format, subDays, parseISO } from 'date-fns';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/AuthContext';
+import { getEffectiveTodayYmd } from '../utils/operationalDay';
+import { aggregateYesterdayPerformance } from '../utils/tmPerformanceKpi';
+
+/**
+ * Transport Manager Home — greeting + today's KPI cards.
+ * Location preference shared with Rota via localStorage `tm_dashboard_location`.
+ */
+export default function TransportManagerHome() {
+  const { sessionProfile } = useAuth();
+  const firstName = sessionProfile?.first_name?.trim() || 'there';
+
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
+  const [absences, setAbsences] = useState({ noShow: 0, sick: 0, late: 0, other: 0, total: 0 });
+  const [performanceKpi, setPerformanceKpi] = useState({
+    totalMoves: 0,
+    best: null,
+    worst: null,
+    hasData: false,
+  });
+
+  const todayYmd = useMemo(() => getEffectiveTodayYmd(), []);
+  const yesterdayYmd = useMemo(
+    () => format(subDays(parseISO(`${todayYmd}T12:00:00`), 1), 'yyyy-MM-dd'),
+    [todayYmd]
+  );
+  const reportDateForYesterday = todayYmd;
+  const todayFormatted = useMemo(
+    () => format(parseISO(`${todayYmd}T12:00:00`), 'EEEE d MMM yyyy'),
+    [todayYmd]
+  );
+
+  const fetchLocations = useCallback(async () => {
+    const { data, error: e } = await supabase
+      .from('locations')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    if (e) return;
+    if (data?.length) {
+      setLocations(data);
+      const saved = localStorage.getItem('tm_dashboard_location');
+      if (saved && data.some((l) => l.name === saved)) setSelectedLocation(saved);
+      else setSelectedLocation(data[0].name);
+    }
+  }, []);
+
+  const fetchKpis = useCallback(async () => {
+    if (!selectedLocation) return;
+
+    const { data: rotaData, error: rotaError } = await supabase
+      .from('scheduled_rota')
+      .select('id, date, shift_type, user_id')
+      .eq('date', todayYmd)
+      .eq('location', selectedLocation);
+
+    if (rotaError) throw rotaError;
+
+    const userIds = [...new Set((rotaData || []).map((r) => r.user_id).filter(Boolean))];
+    let profilesMap = {};
+    if (userIds.length) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+      if (!profilesError && profilesData) {
+        profilesData.forEach((p) => {
+          profilesMap[p.id] = p;
+        });
+      }
+    }
+
+    const slots = (rotaData || []).map((slot) => ({
+      ...slot,
+      profiles: profilesMap[slot.user_id] || null,
+    }));
+
+    const slotIds = slots.map((s) => s.id);
+    const attendanceBySlotId = {};
+    if (slotIds.length) {
+      const { data: attData } = await supabase
+        .from('attendance')
+        .select('scheduled_rota_id, status')
+        .in('scheduled_rota_id', slotIds);
+      (attData || []).forEach((r) => {
+        attendanceBySlotId[r.scheduled_rota_id] = { status: r.status };
+      });
+    }
+
+    const presentSlots = slots.filter((s) => s.profiles && !attendanceBySlotId[s.id]);
+    setShiftCounts({
+      day: presentSlots.filter((s) => s.shift_type === 'day').length,
+      afternoon: presentSlots.filter((s) => s.shift_type === 'afternoon').length,
+      night: presentSlots.filter((s) => s.shift_type === 'night').length,
+    });
+
+    let noShow = 0;
+    let sick = 0;
+    let late = 0;
+    let other = 0;
+    slots.forEach((s) => {
+      const st = attendanceBySlotId[s.id]?.status;
+      if (!st) return;
+      if (st === 'no_show') noShow += 1;
+      else if (st === 'sick') sick += 1;
+      else if (st === 'late') late += 1;
+      else if (st === 'other') other += 1;
+    });
+    setAbsences({
+      noShow,
+      sick,
+      late,
+      other,
+      total: noShow + sick + late + other,
+    });
+
+    // actual_date = report_date - 1 → yesterday's work is report_date = today
+    const { data: perfData, error: perfError } = await supabase
+      .from('shunter_performance')
+      .select(`
+        user_id,
+        number_of_moves,
+        report_date,
+        profiles:user_id (
+          first_name,
+          last_name
+        )
+      `)
+      .eq('report_date', reportDateForYesterday);
+
+    if (perfError) throw perfError;
+    setPerformanceKpi(aggregateYesterdayPerformance(perfData || []));
+  }, [selectedLocation, todayYmd, reportDateForYesterday]);
+
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
+
+  useEffect(() => {
+    localStorage.setItem('tm_dashboard_location', selectedLocation);
+  }, [selectedLocation]);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchKpis()
+      .catch((e) => {
+        console.error(e);
+        setError(e.message || 'Failed to load dashboard');
+      })
+      .finally(() => setLoading(false));
+  }, [fetchKpis]);
+
+  const staffTotal = shiftCounts.day + shiftCounts.afternoon + shiftCounts.night;
+
+  if (loading && locations.length === 0) {
+    return (
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+        <div className="page-content-inner">
+          <div className="h-9 w-56 bg-slate-100 rounded-xl animate-pulse" />
+          <div className="h-4 w-40 bg-slate-100 rounded animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-36 card-modern animate-pulse bg-slate-50" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+        <div className="page-content-inner text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
+      <div className="page-content-inner">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-charcoal">
+              Hello, {firstName}
+            </h1>
+            <p className="text-sm text-rota-text-muted-light mt-1">{todayFormatted}</p>
+          </div>
+          {locations.length > 1 && (
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              aria-label="Location"
+              className="text-sm border border-slate-200/60 rounded-xl px-3 py-2 text-charcoal bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300/40"
+            >
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.name}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Shunters today */}
+          <div className="card-modern p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+              Shunters today
+            </p>
+            <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-amber-50/80 border border-amber-200/60 px-2 py-2">
+                <p className="text-lg font-bold text-amber-800 tabular-nums">{shiftCounts.day}</p>
+                <p className="text-[10px] font-semibold uppercase text-amber-700">Day</p>
+              </div>
+              <div className="rounded-xl bg-orange-50/80 border border-orange-200/60 px-2 py-2">
+                <p className="text-lg font-bold text-orange-800 tabular-nums">{shiftCounts.afternoon}</p>
+                <p className="text-[10px] font-semibold uppercase text-orange-700">Aft</p>
+              </div>
+              <div className="rounded-xl bg-blue-50/80 border border-blue-200/60 px-2 py-2">
+                <p className="text-lg font-bold text-blue-800 tabular-nums">{shiftCounts.night}</p>
+                <p className="text-[10px] font-semibold uppercase text-blue-700">Night</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Absences today */}
+          <div className="card-modern p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+              Absences today
+            </p>
+            <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{absences.total}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-charcoal">
+              <p>
+                <span className="font-semibold text-red-600 tabular-nums">{absences.noShow}</span>
+                {' '}No show
+              </p>
+              <p>
+                <span className="font-semibold text-amber-700 tabular-nums">{absences.sick}</span>
+                {' '}Sick
+              </p>
+              <p>
+                <span className="font-semibold text-orange-700 tabular-nums">{absences.late}</span>
+                {' '}Late
+              </p>
+              <p>
+                <span className="font-semibold text-slate-600 tabular-nums">{absences.other}</span>
+                {' '}Other
+              </p>
+            </div>
+          </div>
+
+          {/* Yesterday moves */}
+          <div className="card-modern p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+              Yesterday moves
+            </p>
+            <p className="text-[10px] text-rota-text-muted-light mt-0.5">
+              {format(parseISO(`${yesterdayYmd}T12:00:00`), 'EEE d MMM')}
+            </p>
+            {performanceKpi.hasData ? (
+              <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">
+                {performanceKpi.totalMoves}
+              </p>
+            ) : (
+              <p className="text-sm text-rota-text-muted-light mt-4">
+                No performance data for yesterday
+              </p>
+            )}
+          </div>
+
+          {/* Best / Worst */}
+          <div className="card-modern p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+              Best / Worst yesterday
+            </p>
+            {performanceKpi.hasData ? (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                    Best
+                  </p>
+                  <p className="text-sm font-semibold text-charcoal mt-0.5">
+                    {performanceKpi.best?.name}
+                  </p>
+                  <p className="text-lg font-bold text-emerald-800 tabular-nums">
+                    {performanceKpi.best?.moves ?? 0} moves
+                  </p>
+                </div>
+                <div className="rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                    Worst
+                  </p>
+                  <p className="text-sm font-semibold text-charcoal mt-0.5">
+                    {performanceKpi.worst?.name}
+                  </p>
+                  <p className="text-lg font-bold text-rose-800 tabular-nums">
+                    {performanceKpi.worst?.moves ?? 0} moves
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-rota-text-muted-light mt-4">
+                No performance data for yesterday
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

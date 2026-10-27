@@ -42,9 +42,10 @@ function defaultPackDateRange() {
   return { from: toDateInputValue(from), to: toDateInputValue(to) };
 }
 
-export default function PreCheckList() {
+export default function PreCheckList({ readOnly = false }) {
   const { user } = useAuth();
   const toast = useToast();
+
 
   // ─── Core state ───
   const [submissions, setSubmissions] = useState([]);
@@ -205,6 +206,8 @@ export default function PreCheckList() {
 
   // ─── Update damage status (optimistic + targeted refetch) ───
   const updateDamageStatus = async (damageId, newStatus, submissionId) => {
+    if (readOnly) return;
+
     const oldStatus = submissions
       .find(sub => sub.id === submissionId)
       ?.precheck_damages?.find(d => d.id === damageId)
@@ -633,12 +636,14 @@ export default function PreCheckList() {
                       <FaultCard
                         key={fault.id}
                         fault={fault}
-                        onStatusChange={typeof fault.id === 'string' && fault.id.startsWith('remarks-')
-                          ? undefined
-                          : (newStatus) => updateDamageStatus(fault.id, newStatus, sub.id)
+                        onStatusChange={
+                          readOnly || (typeof fault.id === 'string' && fault.id.startsWith('remarks-'))
+                            ? undefined
+                            : (newStatus) => updateDamageStatus(fault.id, newStatus, sub.id)
                         }
                       />
                     ))}
+
                   </div>
                 </div>
               );
@@ -679,9 +684,10 @@ export default function PreCheckList() {
                           label={label}
                           description={defectDesc}
                           damage={damage}
-                          onStatusChange={damage
-                            ? (newStatus) => updateDamageStatus(damage.id, newStatus, sub.id)
-                            : undefined
+                          onStatusChange={
+                            !readOnly && damage
+                              ? (newStatus) => updateDamageStatus(damage.id, newStatus, sub.id)
+                              : undefined
                           }
                         />
                       );
@@ -983,40 +989,49 @@ function FaultCard({ fault, onStatusChange }) {
 
         {fault.repairStatus !== null && (
           <div className="relative ml-auto flex-shrink-0">
-            <button
-              ref={triggerRef}
-              type="button"
-              onClick={handleToggleMenu}
-              className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).dot}`} />
-              <span>{(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).label}</span>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            {onStatusChange ? (
+              <>
+                <button
+                  ref={triggerRef}
+                  type="button"
+                  onClick={handleToggleMenu}
+                  className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).dot}`} />
+                  <span>{(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).label}</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-            {showMenu && menuPosition && createPortal(
-              <div
-                ref={menuRef}
-                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
-                style={{ top: menuPosition.top, right: menuPosition.right }}
-              >
-                {getStatusOptions(STATUS_CONFIG, fault.repairStatus).map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => { onStatusChange(opt.value); setShowMenu(false); setMenuPosition(null); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
-                      fault.repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
-                    }`}
+                {showMenu && menuPosition && createPortal(
+                  <div
+                    ref={menuRef}
+                    className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[99998] py-1 min-w-[140px]"
+                    style={{ top: menuPosition.top, right: menuPosition.right }}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>,
-              document.body
+                    {getStatusOptions(STATUS_CONFIG, fault.repairStatus).map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => { onStatusChange(opt.value); setShowMenu(false); setMenuPosition(null); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
+                          fault.repairStatus === opt.value ? 'font-medium text-charcoal' : 'text-gray-500'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${opt.dot}`} />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
+              </>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).dot}`} />
+                <span>{(STATUS_CONFIG[fault.repairStatus] || STATUS_CONFIG.open).label}</span>
+              </span>
             )}
           </div>
         )}
@@ -1132,7 +1147,7 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
             <span className="text-charcoal font-normal"> – {label}</span>
           </span>
           {/* Status menu – portal to body to escape overflow/z-index */}
-          {onStatusChange && (
+          {onStatusChange ? (
             <span className="relative ml-auto flex-shrink-0">
               <button
                 ref={triggerRef}
@@ -1170,7 +1185,13 @@ function DefectItemCard({ label, description, damage, onStatusChange }) {
                 document.body
               )}
             </span>
-          )}
+          ) : damage ? (
+            <span className="ml-auto flex-shrink-0 flex items-center gap-1 text-[10px] text-gray-400">
+              <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open).dot}`} />
+              <span>{(STATUS_CONFIG[repairStatus] || STATUS_CONFIG.open).label}</span>
+            </span>
+          ) : null}
+
         </span>
         {description && <span className="block text-gray-600 text-xs mt-0.5">{description}</span>}
         {resolvedAt && resolvedByName && (

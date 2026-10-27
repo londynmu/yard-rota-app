@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { mainNavConfig } from '../config/navIcons';
+import { mainNavConfig, transportManagerNavConfig } from '../config/navIcons';
+
 import NavIcon from './NavIcon';
 import CalendarPage from '../pages/CalendarPage';
 import CalendarTab from '../pages/home/CalendarTab';
@@ -31,7 +32,9 @@ const VmuPage = lazyWithRetry(() => import('../pages/VmuPage'));
 const TugManager = lazyWithRetry(() => import('../components/Admin/PreCheck/TugManager'));
 const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/PreCheckList'));
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
-const TransportManagerDashboard = lazyWithRetry(() => import('../pages/TransportManagerDashboard'));
+const TransportManagerHome = lazyWithRetry(() => import('../pages/TransportManagerHome'));
+const TransportManagerRota = lazyWithRetry(() => import('../pages/TransportManagerRota'));
+
 const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePage'));
 const PreCheckReminder = lazyWithRetry(() => import('./PreCheck/PreCheckReminder'));
 const InductionGuidePromoCard = lazyWithRetry(() => import('./InductionGuide/InductionGuidePromoCard'));
@@ -52,10 +55,10 @@ function topNavLinkClassName(isActive) {
 }
 
 /** App icon in top bar — desktop only (`public/android-chrome-512x512.png`) */
-function DesktopNavAppIcon() {
+function DesktopNavAppIcon({ homePath = '/calendar' }) {
   return (
     <Link
-      to="/calendar"
+      to={homePath}
       className="mr-3 hidden md:inline-flex flex-shrink-0 rounded-xl border border-slate-200/60 shadow-sm overflow-hidden transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50"
       aria-label="Yard Rota home"
     >
@@ -207,19 +210,20 @@ export default function HomePage() {
   }, []);
 
   const topNavLinks = useMemo(() => {
-    if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
+    if (isTransportManager && !isAdmin) return transportManagerNavConfig;
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     if (!isAdmin) return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
     return mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck', '/vmu', '/admin'].includes(n.path));
   }, [isAdmin, isVmu, isTransportManager]);
 
   const bottomNavLinks = useMemo(() => {
-    if (isTransportManager && !isAdmin) return mainNavConfig.filter((n) => n.path === '/transport-dashboard');
+    if (isTransportManager && !isAdmin) return transportManagerNavConfig;
     if (isVmu && !isAdmin) return mainNavConfig.filter((n) => n.path === '/vmu' || n.path === '/vmu/prechecks');
     const base = mainNavConfig.filter((n) => ['/calendar', '/my-rota', '/performance', '/precheck'].includes(n.path));
     if (isAdmin) return [...base, mainNavConfig.find((n) => n.path === '/admin')];
     return [...base, mainNavConfig.find((n) => n.path === '/profile')];
   }, [isAdmin, isVmu, isTransportManager]);
+
 
   if (location.pathname === '/' || location.pathname === '') {
     return <Navigate to={isTransportManager && !isAdmin ? '/transport-dashboard' : isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />;
@@ -275,8 +279,9 @@ export default function HomePage() {
   const path = location.pathname;
   const hideHeaderOnMobile =
     path === '/my-rota' || path === '/brakes' || path.startsWith('/calendar') ||
-    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path === '/transport-dashboard' ||
+    path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path.startsWith('/transport-dashboard') ||
     path === '/yard-guide';
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
@@ -285,7 +290,8 @@ export default function HomePage() {
         const isAdminPage = path === '/admin';
         const isProfilePage = path === '/profile';
         const isNotificationsPage = path === '/notifications';
-        const isTransportDashboardPage = path === '/transport-dashboard';
+        const isTransportDashboardPage = path.startsWith('/transport-dashboard');
+
         const hasStickyHeader = isAdminPage || isProfilePage || isNotificationsPage;
         const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
@@ -348,20 +354,30 @@ export default function HomePage() {
               ) : isTransportManager && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
-                  {isTransportDashboardPage && <span className="md:hidden font-semibold text-slate-800">Dashboard</span>}
-                  <DesktopNavAppIcon />
+                  {isTransportDashboardPage && path === '/transport-dashboard' && (
+                    <span className="md:hidden font-semibold text-slate-800">Home</span>
+                  )}
+                  {path === '/transport-dashboard/rota' && (
+                    <span className="md:hidden font-semibold text-slate-800">Rota</span>
+                  )}
+                  <DesktopNavAppIcon homePath="/transport-dashboard" />
+
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
-                    {topNavLinks.map((nav) => (
-                      <Link
-                        key={nav.path}
-                        to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
-                      >
-                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
-                        {nav.label}
-                      </Link>
-                    ))}
+                    {topNavLinks.map((nav) => {
+                      const isActive = location.pathname === nav.path;
+                      return (
+                        <Link
+                          key={nav.path}
+                          to={nav.path}
+                          className={topNavLinkClassName(isActive)}
+                        >
+                          <NavIcon Icon={nav.Icon} colorClass={isActive ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                          {nav.label}
+                        </Link>
+                      );
+                    })}
                   </nav>
+
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     <div className="relative">
@@ -536,7 +552,10 @@ export default function HomePage() {
             <Route
               path="/calendar/*"
               element={
-                isDesktop ? (
+                isTransportManager && !isAdmin ? (
+                  <Navigate to="/transport-dashboard" replace />
+                ) : isDesktop ? (
+
                   <Routes>
                     <Route
                       index
@@ -628,7 +647,15 @@ export default function HomePage() {
               path="/transport-dashboard"
               element={
                 <ProtectedTransportManagerRoute>
-                  <TransportManagerDashboard />
+                  <TransportManagerHome />
+                </ProtectedTransportManagerRoute>
+              }
+            />
+            <Route
+              path="/transport-dashboard/rota"
+              element={
+                <ProtectedTransportManagerRoute>
+                  <TransportManagerRota />
                 </ProtectedTransportManagerRoute>
               }
             />
@@ -663,7 +690,9 @@ export default function HomePage() {
               path="/vmu/prechecks" 
               element={
                 <ProtectedVmuRoute>
-                  <div className="max-w-4xl mx-auto px-4 py-6"><PreCheckList /></div>
+                  <div className="max-w-4xl mx-auto px-4 py-6">
+                    <PreCheckList readOnly={isTransportManager && !isAdmin} />
+                  </div>
                 </ProtectedVmuRoute>
               } 
             />
@@ -680,6 +709,7 @@ export default function HomePage() {
               } 
             />
             <Route path="*" element={<Navigate to={isTransportManager && !isAdmin ? '/transport-dashboard' : isVmu && !isAdmin ? '/vmu' : '/calendar'} replace />} />
+
           </Routes>
         </Suspense>
       </main>
@@ -689,7 +719,7 @@ export default function HomePage() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t border-slate-200/60 shadow-lg pb-safe backdrop-blur-md"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
-          {isVmu && !isAdmin ? (
+          {(isVmu && !isAdmin) || (isTransportManager && !isAdmin) ? (
             bottomNavLinks.map((nav) => (
               <Link
                 key={nav.path}
