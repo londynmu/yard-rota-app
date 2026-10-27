@@ -1,0 +1,30 @@
+# Minimal Supabase CLI config for Yard Rota.
+# Schema source of truth: supabase/migrations/
+# Do NOT use this file to auto-apply migrations to production.
+
+[project]
+# Production project id (reference only for local tooling).
+id = "jkjvtvwedjiupxoibpld"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[db.migrations]
+schema_paths = []
+
+[functions]
+# Edge functions require a valid JWT by default (interactive callers).
+# Cron / service_role paths must be implemented inside each function body
+# (see import-performance-from-gmail), not by disabling verify_jwt here.
+
+[functions.import-performance-from-gmail]
+verify_jwt = true
+
+[functions.import-performance-csv]
+verify_jwt = true
+
+[functions.send-rota-email]
+verify_jwt = true
