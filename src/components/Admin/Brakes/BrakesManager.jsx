@@ -9,6 +9,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
 import { toLocalYmd } from '../../../utils/operationalDay';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -213,6 +214,7 @@ const BrakesManager = () => {
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [deleteConfirmSlot, setDeleteConfirmSlot] = useState(null); // Slot pending deletion
+  const [removeConfirmAssignment, setRemoveConfirmAssignment] = useState(null); // Staff pending removal
 
   // UI: unified header badge pickers
   const [showDateModal, setShowDateModal] = useState(false);
@@ -1041,7 +1043,11 @@ const BrakesManager = () => {
       
     } catch (error) {
       console.error('Error saving all breaks:', error);
-      toast.error("Failed to save breaks: " + error.message);
+      toast.error(
+        silent
+          ? 'Could not update breaks. Try again.'
+          : 'Could not save breaks. Try again.'
+      );
     } finally {
       if (!silent) {
         setIsLoading(false);
@@ -1118,7 +1124,7 @@ const BrakesManager = () => {
         
         if (error) {
           console.error('[confirmDeleteSlot] Error deleting from database:', error);
-          toast.error('Failed to delete slot from database.');
+          toast.error('Could not delete break slot. Try again.');
           setDeleteConfirmSlot(null);
           return;
         }
@@ -1159,7 +1165,7 @@ const BrakesManager = () => {
       }
     } catch (err) {
       console.error('[confirmDeleteSlot] Unexpected error:', err);
-      toast.error('An error occurred while deleting the slot.');
+      toast.error('Could not delete break slot. Try again.');
       setDeleteConfirmSlot(null);
     }
   };
@@ -1258,7 +1264,19 @@ const BrakesManager = () => {
     );
   };
   
-  const handleRemoveStaff = async (assignment) => {
+  const requestRemoveStaff = (assignment) => {
+    if (!isAdmin && assignment.user_id !== currentUser?.id) {
+      toast.error('You can only remove your own breaks');
+      return;
+    }
+    setRemoveConfirmAssignment(assignment);
+  };
+
+  const confirmRemoveStaff = async () => {
+    const assignment = removeConfirmAssignment;
+    setRemoveConfirmAssignment(null);
+    if (!assignment) return;
+
     // Check if user has permission to remove this assignment
     if (!isAdmin && assignment.user_id !== currentUser?.id) {
       toast.error('You can only remove your own breaks');
@@ -1299,7 +1317,7 @@ const BrakesManager = () => {
     );
     
     // Auto-save to server after removal (silent save). Pass updated list so save uses it immediately – no stale state.
-    handleSaveAllBreaks(true, updatedAssignments);
+    await handleSaveAllBreaks(true, updatedAssignments);
   };
 
   // --- Grouping Logic ---
@@ -1748,7 +1766,7 @@ const BrakesManager = () => {
                     assignedStaff={getAssignedStaffForSlot(slot.id)}
                     onSlotClick={handleSlotClick}
                     onDeleteClick={handleDeleteCustomSlot}
-                    onRemoveStaffClick={handleRemoveStaff}
+                    onRemoveStaffClick={requestRemoveStaff}
                     isAdmin={isAdmin}
                     currentUserId={currentUser?.id ?? null}
                   />
@@ -1782,7 +1800,7 @@ const BrakesManager = () => {
           availableStaff={isAdmin ? availableStaff : (availableStaff.filter(s => s.id === currentUser?.id) ?? [])}
           assignedStaff={getAssignedStaffForSlot(selectedSlot.id)}
           onAssignStaff={handleAssignStaff}
-          onRemoveStaff={handleRemoveStaff}
+          onRemoveStaff={requestRemoveStaff}
           currentLocation={selectedLocation}
           isAllLocation={selectedLocation === ALL_LOCATIONS_VALUE}
           onSave={handleSaveAllBreaks}
@@ -1800,36 +1818,37 @@ const BrakesManager = () => {
         />
       )}
       
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmSlot && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full max-w-sm overflow-hidden">
-            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 z-10">
-              <h3 className="text-lg font-bold text-white">Delete Custom Slot?</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-base text-charcoal mb-5">
-                Are you sure you want to delete slot at <strong className="text-orange-600">{deleteConfirmSlot.start_time}</strong> ({deleteConfirmSlot.duration_minutes} min)?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmDeleteSlot}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors shadow-md"
-                >
-                  Yes, Delete
-                </button>
-                <button
-                  onClick={() => setDeleteConfirmSlot(null)}
-                  className="flex-1 px-4 py-3 bg-gray-200 text-charcoal rounded-lg hover:bg-gray-300 font-semibold transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmDialog
+        isOpen={Boolean(deleteConfirmSlot)}
+        onClose={() => setDeleteConfirmSlot(null)}
+        onConfirm={confirmDeleteSlot}
+        title="Delete break slot"
+        message={
+          deleteConfirmSlot
+            ? `Delete the ${deleteConfirmSlot.start_time} slot (${deleteConfirmSlot.duration_minutes} min)? This action cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive
+        overlayClassName="z-[9999]"
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(removeConfirmAssignment)}
+        onClose={() => setRemoveConfirmAssignment(null)}
+        onConfirm={confirmRemoveStaff}
+        title="Remove break"
+        message={
+          removeConfirmAssignment
+            ? `Remove ${removeConfirmAssignment.user_name || 'this person'} from the break?`
+            : ''
+        }
+        confirmText="Remove"
+        cancelText="Cancel"
+        isDestructive
+        overlayClassName="z-[9999]"
+      />
     </div>
   );
 };

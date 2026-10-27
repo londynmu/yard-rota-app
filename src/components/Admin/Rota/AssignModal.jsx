@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays, subDays } from 'date-fns';
 import { countUniqueAssigned } from '../../../utils/rotaAssignedEmployees';
 import { hasDifferentSlotLocation, matchesSlotLocation } from '../../../utils/rotaLocationMatch';
 import { formatPreferredStartTime } from '../../../utils/preferredStartTime';
+import {
+  collectCrossDayRestConflictIds,
+  collectSameDayConflictIds,
+  timeToMinutes,
+} from '../../../utils/rotaSlotConflicts';
 import UserNoteModal from './UserNoteModal';
 
 const AssignModal = ({ slot, onClose, onAssign }) => {
@@ -237,84 +242,84 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
         if (availabilityError) throw availabilityError;
 
-        // Get existing scheduled slots for all employees for this date
-        const { data: existingSlots, error: slotsError } = await supabase
-          .from('scheduled_rota')
-          .select('user_id, start_time, end_time')
-          .eq('date', date);
+        // Same-day + adjacent-day (previous night / next morning) conflict checks.
+        // Hour overlap always runs, even when minBreakMinutes is 0.
+        const prevDate = format(subDays(parseISO(date), 1), 'yyyy-MM-dd');
+        const nextDate = format(addDays(parseISO(date), 1), 'yyyy-MM-dd');
+        const [
+          { data: existingSlots, error: slotsError },
+          { data: prevSlots, error: prevError },
+          { data: nextSlots, error: nextError },
+        ] = await Promise.all([
+          supabase
+            .from('scheduled_rota')
+            .select('id, user_id, start_time, end_time, shift_type')
+            .eq('date', date),
+          supabase
+            .from('scheduled_rota')
+            .select('id, user_id, start_time, end_time, shift_type')
+            .eq('date', prevDate),
+          supabase
+            .from('scheduled_rota')
+            .select('id, user_id, start_time, end_time, shift_type')
+            .eq('date', nextDate),
+        ]);
 
         if (slotsError) throw slotsError;
+        if (prevError) throw prevError;
+        if (nextError) throw nextError;
 
-        // Group existing slots by user_id
-        const userSlots = {};
-        if (existingSlots) {
-          existingSlots.forEach(s => {
-            if (!userSlots[s.user_id]) {
-              userSlots[s.user_id] = [];
+        const toConflictSlots = (rows) => {
+          const groups = new Map();
+          (rows || []).forEach((row) => {
+            if (!row?.user_id) return;
+            const key = `${row.start_time}|${row.end_time}|${row.location || ''}`;
+            if (!groups.has(key)) {
+              groups.set(key, {
+                id: row.id,
+                start_time: row.start_time,
+                end_time: row.end_time,
+                shift_type: row.shift_type,
+                assigned_employees: [],
+              });
             }
-            userSlots[s.user_id].push({
-              start_time: s.start_time,
-              end_time: s.end_time
-            });
+            groups.get(key).assigned_employees.push(row.user_id);
           });
-        }
+          return Array.from(groups.values());
+        };
 
-        // Check which employees would have break conflicts with this slot
-        const conflictingIds = new Set();
-        const overlappingConflictIds = new Set(); // Store IDs of staff with overlapping conflicts
-        const breakConflictIds = new Set();      // Store IDs of staff with break time conflicts
-        
-        // Get current slot times in minutes
-        const slotStart = timeToMinutes(slot.start_time);
-        const slotEnd = timeToMinutes(slot.end_time);
-        // Normalize current slot end time for potential overnight shift
-        const normalizedSlotEnd = slotEnd < slotStart ? slotEnd + 1440 : slotEnd;
+        const sameDay = collectSameDayConflictIds(
+          slot,
+          toConflictSlots(existingSlots),
+          minBreakMinutes
+        );
+        const fromPrev = collectCrossDayRestConflictIds(
+          slot,
+          toConflictSlots(prevSlots),
+          minBreakMinutes,
+          'previousNight'
+        );
+        const fromNext = collectCrossDayRestConflictIds(
+          slot,
+          toConflictSlots(nextSlots),
+          minBreakMinutes,
+          'nextMorning'
+        );
 
-        Object.entries(userSlots).forEach(([userId, slots]) => {
-          for (const existingSlot of slots) {
-            const existingStart = timeToMinutes(existingSlot.start_time);
-            const existingEnd = timeToMinutes(existingSlot.end_time);
-            // Normalize existing slot end time for potential overnight shift
-            const normalizedExistingEnd = existingEnd < existingStart ? existingEnd + 1440 : existingEnd;
-
-            // --- Overlap Check (using normalized times) ---
-            // Overlap exists if the start of one interval is before the end of the other, for both intervals.
-            const overlapDetected = (slotStart < normalizedExistingEnd) && (existingStart < normalizedSlotEnd);
-            
-            // Log the check for debugging
-            // console.log(`[AssignModal Check] User ${userId}: Slot ${slotStart}-${normalizedSlotEnd} vs Existing ${existingStart}-${normalizedExistingEnd}. Overlap: ${overlapDetected}`);
-
-            if (overlapDetected) {
-              // Mark user for overlap conflict
-              conflictingIds.add(userId);
-              overlappingConflictIds.add(userId);
-              continue; // If they overlap, no need to check for break time
-            }
-
-            // --- Break Check (only if they DON'T overlap and minBreakMinutes > 0) ---
-            if (minBreakMinutes > 0) {
-              let breakMinutes = -1; // Default to no calculable break
-              
-              // Calculate break time only if slots are sequential (non-overlapping)
-              if (slotStart >= normalizedExistingEnd) { // New slot starts after or exactly when existing ends
-                breakMinutes = slotStart - normalizedExistingEnd;
-              } else if (existingStart >= normalizedSlotEnd) { // Existing slot starts after or exactly when new ends
-                breakMinutes = existingStart - normalizedSlotEnd;
-              }
-              
-              // Log the break check
-              // console.log(`[AssignModal Check] User ${userId}: Calculated break: ${breakMinutes} mins. Required: ${minBreakMinutes}`);
-
-              // Check if the calculated break is insufficient
-              if (breakMinutes !== -1 && breakMinutes < minBreakMinutes) {
-                 // Mark user for break time conflict
-                conflictingIds.add(userId);
-                breakConflictIds.add(userId);
-              }
-            }
-          }
-        });
-        // Removed the outer if(minBreakMinutes > 0) check for the loop, as overlap check should always run
+        const overlappingConflictIds = new Set([
+          ...sameDay.overlappingConflictIds,
+          ...fromPrev.overlappingConflictIds,
+          ...fromNext.overlappingConflictIds,
+        ]);
+        const breakConflictIds = new Set([
+          ...sameDay.breakConflictIds,
+          ...fromPrev.breakConflictIds,
+          ...fromNext.breakConflictIds,
+        ]);
+        const conflictingIds = new Set([
+          ...overlappingConflictIds,
+          ...breakConflictIds,
+        ]);
 
         // Mark employees as assigned or not
         const availabilityMap = new Map();
@@ -413,12 +418,6 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
 
     fetchEmployees();
   }, [slot, minBreakMinutes]);
-
-  // Helper function to convert time string (HH:MM) to minutes since midnight
-  const timeToMinutes = (timeString) => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return hours * 60 + minutes;
-  };
 
   // Nowa funkcja do konwersji minut na format godzinowy
   const formatMinutesToHours = (minutes) => {

@@ -25,6 +25,28 @@ void main() {
     });
 
     test(
+      'at 06:00 does not show next night early morning when current night has none',
+      () {
+        final now = DateTime(2026, 8, 9, 6);
+        final visible = BreakWindowLogic.visibleBreaks(
+          breaks: <ScheduledBreak>[
+            _break('evening', '2026-08-08', '23:00', BreakShift.night),
+            // Next night's 01:00 stored on its night-start date (= today morning)
+            _break('next-morning', '2026-08-09', '01:00', BreakShift.night),
+          ],
+          now: now,
+          filters: const BreakFilters(),
+        );
+
+        expect(
+          visible.map((item) => item.breakItem.id),
+          isNot(contains('next-morning')),
+        );
+        expect(visible.map((item) => item.breakItem.id), <String>[]);
+      },
+    );
+
+    test(
       'day window includes tonight and treats post-midnight as tomorrow',
       () {
         final now = DateTime(2026, 8, 9, 8);
