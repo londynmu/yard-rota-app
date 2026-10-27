@@ -239,12 +239,12 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         updates.avatar_url = publicUrl;
       }
       
-      // Update the profile record
+      // Update the profile record (no .select() — email/notes columns are
+      // not SELECT-able for clients after profiles column revoke).
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user.id)
-        .select();
+        .eq('id', user.id);
         
       if (updateError) {
         throw updateError;
