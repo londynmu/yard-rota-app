@@ -6,6 +6,7 @@ import { useToast } from '../../ui/ToastContext';
 import Modal from '../../ui/Modal';
 import { printSingleCheck, printAuditPack } from '../../../lib/precheckPrint';
 import { getStatusOptions } from '../../../utils/defectStatus';
+import PrecheckSignedImage from '../../PreCheck/PrecheckSignedImage';
 
 // ─── Shared status config for repair_status lifecycle ───
 export const STATUS_CONFIG = {
@@ -422,8 +423,8 @@ export default function PreCheckList({ readOnly = false }) {
     setOkItemsExpandedByCard(prev => ({ ...prev, [subId]: !prev[subId] }));
   }, []);
 
-  const handlePrintCheck = useCallback((sub) => {
-    const opened = printSingleCheck(sub, checkItemLabels);
+  const handlePrintCheck = useCallback(async (sub) => {
+    const opened = await printSingleCheck(sub, checkItemLabels);
     if (!opened) {
       toast.error('Pop-up blocked. Allow pop-ups to print.');
     }
@@ -483,7 +484,7 @@ export default function PreCheckList({ readOnly = false }) {
           : selectedTug.tug_number)
         : (results[0]?.tugs?.display_name || results[0]?.tugs?.tug_number || 'Tug');
 
-      const opened = printAuditPack({
+      const opened = await printAuditPack({
         tugLabel,
         from: packDates.from,
         to: packDates.to,
@@ -1040,7 +1041,7 @@ function FaultCard({ fault, onStatusChange }) {
       {/* Description */}
       <p className="text-xs text-gray-700 mb-2">{fault.description}</p>
 
-      {/* Photos - grid 2 columns */}
+      {/* Photos - grid 2 columns (signed URLs — private bucket) */}
       {fault.imageUrls.length > 0 && (
         <div className="grid grid-cols-2 gap-1 mb-2">
           {fault.imageUrls.map((url, idx) => (
@@ -1050,8 +1051,8 @@ function FaultCard({ fault, onStatusChange }) {
               onClick={() => setOpenImage(url)}
               className="rounded-md overflow-hidden border border-gray-200 cursor-pointer aspect-square block"
             >
-              <img
-                src={url}
+              <PrecheckSignedImage
+                url={url}
                 alt={`Photo ${idx + 1}`}
                 className="w-full h-full object-cover"
               />
@@ -1075,12 +1076,13 @@ function FaultCard({ fault, onStatusChange }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <img
-            src={openImage}
-            alt="Full size"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <PrecheckSignedImage
+              url={openImage}
+              alt="Full size"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            />
+          </div>
         </div>,
         document.body
       )}

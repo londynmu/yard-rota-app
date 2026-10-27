@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import PrecheckSignedImage from './PrecheckSignedImage';
 
 export default function TugCheckHistory({ tugId }) {
   const [checks, setChecks] = useState([]);
@@ -214,15 +215,14 @@ export default function TugCheckHistory({ tugId }) {
                         {problem.imageUrls.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {problem.imageUrls.map((url, index) => (
-                              <a
+                              <PrecheckSignedImage
                                 key={`${problem.key}-${index}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                url={url}
+                                alt=""
+                                asLink
                                 className="w-14 h-14 rounded-md overflow-hidden border border-slate-200 bg-slate-100"
-                              >
-                                <img src={url} alt="" className="w-full h-full object-cover" />
-                              </a>
+                                imgClassName="w-full h-full object-cover"
+                              />
                             ))}
                           </div>
                         )}

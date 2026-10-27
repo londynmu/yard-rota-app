@@ -118,6 +118,20 @@ export default function TransportManagerHome() {
       (attData || []).forEach((r) => {
         attendanceBySlotId[r.scheduled_rota_id] = { status: r.status };
       });
+
+      const { data: notesData, error: notesError } = await supabase
+        .from('attendance_notes')
+        .select('scheduled_rota_id, note')
+        .in('scheduled_rota_id', slotIds);
+      if (notesError) {
+        console.warn('Could not load attendance notes:', notesError);
+      } else {
+        (notesData || []).forEach((n) => {
+          if (attendanceBySlotId[n.scheduled_rota_id]) {
+            attendanceBySlotId[n.scheduled_rota_id].note = n.note;
+          }
+        });
+      }
     }
 
     const presentSlots = slots.filter((s) => s.profiles && !attendanceBySlotId[s.id]);
@@ -140,7 +154,8 @@ export default function TransportManagerHome() {
       else if (st === 'late') late += 1;
       else if (st === 'other') other += 1;
       const name = `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim() || 'Unknown';
-      people.push({ name, status: st });
+      const note = attendanceBySlotId[s.id]?.note?.trim() || '';
+      people.push({ name, status: st, note });
     });
     people.sort((a, b) => a.name.localeCompare(b.name));
     setAbsences({
@@ -366,16 +381,26 @@ export default function TransportManagerHome() {
               </p>
             </div>
             {absences.people?.length > 0 && (
-              <ul className="mt-4 space-y-1.5 border-t border-slate-200/60 pt-3">
+              <ul className="mt-4 space-y-2 border-t border-slate-200/60 pt-3">
                 {absences.people.map((person, idx) => (
                   <li
                     key={`${person.name}-${person.status}-${idx}`}
-                    className="text-sm text-charcoal flex items-baseline justify-between gap-2"
+                    className="text-sm text-charcoal"
                   >
-                    <span className="font-medium truncate">{person.name}</span>
-                    <span className="text-xs text-rota-text-muted-light flex-shrink-0">
-                      {ABSENCE_STATUS_LABEL[person.status] || person.status}
-                    </span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-medium truncate">{person.name}</span>
+                      <span className="text-xs text-rota-text-muted-light flex-shrink-0">
+                        {ABSENCE_STATUS_LABEL[person.status] || person.status}
+                      </span>
+                    </div>
+                    {person.note ? (
+                      <p
+                        className="mt-0.5 text-xs text-rota-text-muted-light truncate"
+                        title={person.note}
+                      >
+                        {person.note}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ul>

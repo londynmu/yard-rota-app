@@ -9,6 +9,7 @@ import {
   resolveTmLocationSelection,
 } from '../utils/tmLocationsWithStaff';
 import TmLocationPills from '../components/TransportManager/TmLocationPills';
+import { attendanceLabel } from '../utils/attendanceStatus';
 
 const getWeekStart = (date) => {
   const day = date.getDay();
@@ -164,9 +165,11 @@ export default function TransportManagerRota() {
     daySlots.forEach((s) => {
       if (!s.profiles) return;
       const name = `${s.profiles.first_name || ''} ${s.profiles.last_name || ''}`.trim() || 'Unknown';
-      const isNoShow = attendanceBySlotId[s.id]?.status === 'no_show';
+      const status = attendanceBySlotId[s.id]?.status ?? null;
+      const isAbsent = Boolean(status);
+      const statusLabel = attendanceLabel(status);
       const st = s.shift_type || 'day';
-      out[st].push({ name, isNoShow });
+      out[st].push({ name, isAbsent, statusLabel });
     });
     return out;
   }, [daySlots, attendanceBySlotId]);
@@ -355,7 +358,19 @@ export default function TransportManagerRota() {
                     <div className="px-4 py-3 border-t border-gray-100">
                       <ul className="space-y-2 text-base text-charcoal">
                         {listItems.map((item, i) => (
-                          <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
+                          <li
+                            key={i}
+                            className={
+                              item.isAbsent
+                                ? 'rounded-md bg-red-50 px-2 py-1 text-red-700 font-semibold flex items-baseline justify-between gap-2'
+                                : ''
+                            }
+                          >
+                            <span className="truncate">{item.name}</span>
+                            {item.statusLabel && (
+                              <span className="text-xs font-semibold flex-shrink-0">{item.statusLabel}</span>
+                            )}
+                          </li>
                         ))}
                         {listItems.length === 0 && <li className="text-gray-400">—</li>}
                       </ul>
@@ -375,7 +390,19 @@ export default function TransportManagerRota() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-amber-700 mb-3">Day</p>
                 <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.day || []).map((item, i) => (
-                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
+                    <li
+                      key={i}
+                      className={
+                        item.isAbsent
+                          ? 'rounded-md bg-red-50 px-2 py-1 text-red-700 font-semibold flex items-baseline justify-between gap-2'
+                          : ''
+                      }
+                    >
+                      <span className="truncate">{item.name}</span>
+                      {item.statusLabel && (
+                        <span className="text-xs font-semibold flex-shrink-0">{item.statusLabel}</span>
+                      )}
+                    </li>
                   ))}
                   {(shiftListItems.day || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
@@ -384,7 +411,19 @@ export default function TransportManagerRota() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-orange-700 mb-3">Afternoon</p>
                 <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.afternoon || []).map((item, i) => (
-                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
+                    <li
+                      key={i}
+                      className={
+                        item.isAbsent
+                          ? 'rounded-md bg-red-50 px-2 py-1 text-red-700 font-semibold flex items-baseline justify-between gap-2'
+                          : ''
+                      }
+                    >
+                      <span className="truncate">{item.name}</span>
+                      {item.statusLabel && (
+                        <span className="text-xs font-semibold flex-shrink-0">{item.statusLabel}</span>
+                      )}
+                    </li>
                   ))}
                   {(shiftListItems.afternoon || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
@@ -393,7 +432,19 @@ export default function TransportManagerRota() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-blue-700 mb-3">Night</p>
                 <ul className="space-y-2 text-base text-charcoal">
                   {(shiftListItems.night || []).map((item, i) => (
-                    <li key={i} className={item.isNoShow ? 'text-red-600 font-semibold' : ''}>{item.name}</li>
+                    <li
+                      key={i}
+                      className={
+                        item.isAbsent
+                          ? 'rounded-md bg-red-50 px-2 py-1 text-red-700 font-semibold flex items-baseline justify-between gap-2'
+                          : ''
+                      }
+                    >
+                      <span className="truncate">{item.name}</span>
+                      {item.statusLabel && (
+                        <span className="text-xs font-semibold flex-shrink-0">{item.statusLabel}</span>
+                      )}
+                    </li>
                   ))}
                   {(shiftListItems.night || []).length === 0 && <li className="text-gray-400">—</li>}
                 </ul>
