@@ -32,7 +32,9 @@ const UserProfile = () => {
         
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(
+            'id, first_name, last_name, shift_preference, avatar_url, preferred_location, agency_id, account_status, profile_completed, role, yard_system_id',
+          )
           .eq('id', user.id)
           .single();
           

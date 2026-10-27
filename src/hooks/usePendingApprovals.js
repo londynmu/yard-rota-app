@@ -19,12 +19,8 @@ export default function usePendingApprovals() {
       return;
     }
     try {
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('account_status', 'pending_approval')
-        .order('created_at', { ascending: false });
-
+      // Admin RPC includes email (direct profiles.email is revoked for clients).
+      const { data, error: fetchError } = await supabase.rpc('get_pending_users');
       if (fetchError) throw fetchError;
       setPendingUsers(data || []);
       setError(null);

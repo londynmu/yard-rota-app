@@ -177,10 +177,12 @@ export default function AdminPage() {
         setPageLoading(false);
         return;
       }
-      // Fallback: direct profiles query
+      // Fallback without email/notes columns (revoked for clients)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('*, agencies(id, name)')
+        .select(
+          'id, first_name, last_name, role, account_status, is_active, performance_score, agency_id, avatar_url, shift_preference, preferred_location, yard_system_id, deleted_at, agencies(id, name)',
+        )
         .is('deleted_at', null);
 
       if (profilesError) throw profilesError;
