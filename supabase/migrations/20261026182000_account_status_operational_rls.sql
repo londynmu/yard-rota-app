@@ -46,16 +46,11 @@ CREATE POLICY scheduled_rota_insert ON public.scheduled_rota
   WITH CHECK (public.is_approved_active_user() AND public.is_admin());
 
 DROP POLICY IF EXISTS scheduled_rota_update ON public.scheduled_rota;
+-- Keep B1 (#22): UPDATE remains admin-only. claim_shift is SECURITY DEFINER.
 CREATE POLICY scheduled_rota_update ON public.scheduled_rota
   FOR UPDATE TO authenticated
-  USING (
-    public.is_approved_active_user()
-    AND (public.is_admin() OR user_id = (SELECT auth.uid()))
-  )
-  WITH CHECK (
-    public.is_approved_active_user()
-    AND (public.is_admin() OR user_id = (SELECT auth.uid()))
-  );
+  USING (public.is_approved_active_user() AND public.is_admin())
+  WITH CHECK (public.is_approved_active_user() AND public.is_admin());
 
 DROP POLICY IF EXISTS scheduled_rota_delete ON public.scheduled_rota;
 CREATE POLICY scheduled_rota_delete ON public.scheduled_rota
