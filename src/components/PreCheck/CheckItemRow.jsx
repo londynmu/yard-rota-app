@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import ImageUpload from './ImageUpload';
 import AcknowledgedDefectsPanel from './AcknowledgedDefectsPanel';
+import PrecheckSignedImage from './PrecheckSignedImage';
 
 export default function CheckItemRow({
   itemKey,
@@ -150,8 +151,8 @@ export default function CheckItemRow({
                 </p>
                 {def.imageUrls?.length > 0 && (
                   <div className="mt-2 rounded-lg overflow-hidden bg-amber-100/50 border border-amber-200">
-                    <img
-                      src={def.imageUrls[0]}
+                    <PrecheckSignedImage
+                      url={def.imageUrls[0]}
                       alt="Defect"
                       className="w-full max-w-full h-auto max-h-[40vh] object-contain"
                     />

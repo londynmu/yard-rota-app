@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import PrecheckSignedImage from './PrecheckSignedImage';
 
 export default function AcknowledgedDefectsPanel({ defects }) {
   if (!defects?.length) return null;
@@ -16,8 +17,8 @@ export default function AcknowledgedDefectsPanel({ defects }) {
           </p>
           {def.imageUrls?.length > 0 && (
             <div className="mt-2 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
-              <img
-                src={def.imageUrls[0]}
+              <PrecheckSignedImage
+                url={def.imageUrls[0]}
                 alt="Known defect"
                 className="w-full max-w-full h-auto max-h-[40vh] object-contain"
               />

@@ -2,6 +2,9 @@
  * PreCheck audit print helpers — HTML documents for browser print / Save as PDF.
  */
 
+import { supabase } from './supabaseClient';
+import { resolvePrecheckImageUrls } from '../utils/precheckImageUrl';
+
 const STATUS_LABELS = {
   ok: 'OK',
   repair_needed: 'Repair',
@@ -621,21 +624,41 @@ export function openPrintWindow(title, htmlBody) {
 }
 
 /**
+ * Replace stored public/raw image URLs with short-lived signed URLs for print.
+ */
+async function signRecordImages(record) {
+  const defects = await Promise.all(
+    (record.defects || []).map(async (d) => ({
+      ...d,
+      imageUrls: await resolvePrecheckImageUrls(supabase, d.imageUrls || []),
+    }))
+  );
+  const remarksImages = await resolvePrecheckImageUrls(
+    supabase,
+    record.remarksImages || []
+  );
+  return { ...record, defects, remarksImages };
+}
+
+/**
  * Print a single precheck submission.
  */
-export function printSingleCheck(sub, checkItemLabels = {}) {
+export async function printSingleCheck(sub, checkItemLabels = {}) {
   const record = normalizeSubmissionForPrint(sub, checkItemLabels);
-  const title = `PreCheck – ${record.tugDisplay} – ${record.checkDateLabel}`;
-  const html = buildCheckRecordHtml(record);
+  const signed = await signRecordImages(record);
+  const title = `PreCheck – ${signed.tugDisplay} – ${signed.checkDateLabel}`;
+  const html = buildCheckRecordHtml(signed);
   return openPrintWindow(title, html);
 }
 
 /**
  * Print an audit pack for multiple normalized records.
  */
-export function printAuditPack({ tugLabel, from, to, submissions, checkItemLabels = {} }) {
-  const records = submissions.map((sub) =>
-    normalizeSubmissionForPrint(sub, checkItemLabels)
+export async function printAuditPack({ tugLabel, from, to, submissions, checkItemLabels = {} }) {
+  const records = await Promise.all(
+    submissions.map(async (sub) =>
+      signRecordImages(normalizeSubmissionForPrint(sub, checkItemLabels))
+    )
   );
   const title = `PreCheck audit pack – ${tugLabel}`;
   const html = buildAuditPackHtml({ tugLabel, from, to, records });
