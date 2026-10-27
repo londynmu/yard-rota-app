@@ -1,12 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Prefer Netlify / local env. Hardcoded fallbacks kept until production + preview
-// VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are confirmed on Netlify.
-// TODO(#3 Wave D): remove FALLBACK_* after Netlify env is verified; do not rotate anon key yet.
-const FALLBACK_SUPABASE_URL = 'https://jkjvtvwedjiupxoibpld.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw';
-
+// Production / preview builds must receive VITE_* from Netlify
+// (`netlify.toml` [build.environment] and/or Site env).
+// Local `npm run dev` can use `.env` (see `.env.example`).
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
 const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
@@ -16,15 +12,18 @@ export const supabaseMissingEnv = Boolean(
   import.meta.env.PROD && (!envUrl || !envAnonKey),
 );
 
-const usingFallback = !envUrl || !envAnonKey;
-if (usingFallback) {
+if (supabaseMissingEnv) {
+  console.error(
+    '[Yard Rota] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing in production build. Set them on Netlify (Site env or netlify.toml [build.environment]).',
+  );
+} else if (!import.meta.env.PROD && (!envUrl || !envAnonKey)) {
   console.warn(
-    '[Yard Rota] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing; using hardcoded fallback. Confirm Netlify env before removing fallbacks (Wave D #3).',
+    '[Yard Rota] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing. Copy .env.example to .env for local dev.',
   );
 }
 
-const supabaseUrl = envUrl || FALLBACK_SUPABASE_URL;
-const supabaseAnonKey = envAnonKey || FALLBACK_SUPABASE_ANON_KEY;
+const supabaseUrl = envUrl || '';
+const supabaseAnonKey = envAnonKey || '';
 
 function projectRefFromUrl(url) {
   try {
@@ -36,7 +35,7 @@ function projectRefFromUrl(url) {
   }
 }
 
-const storageKey = `sb-${projectRefFromUrl(supabaseUrl)}-auth-token`;
+const storageKey = `sb-${projectRefFromUrl(supabaseUrl || 'https://jkjvtvwedjiupxoibpld.supabase.co')}-auth-token`;
 
 // Singleton pattern to ensure only one client instance is created
 let supabaseInstance = null;
