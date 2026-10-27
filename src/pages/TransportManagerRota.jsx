@@ -4,6 +4,11 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { supabase } from '../lib/supabaseClient';
 import { getEffectiveTodayYmd } from '../utils/operationalDay';
+import {
+  locationsWithStaffToday,
+  resolveTmLocationSelection,
+} from '../utils/tmLocationsWithStaff';
+import TmLocationPills from '../components/TransportManager/TmLocationPills';
 
 const getWeekStart = (date) => {
   const day = date.getDay();
@@ -14,8 +19,10 @@ const getWeekStart = (date) => {
 export default function TransportManagerRota() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => getEffectiveTodayYmd());
-  const [locations, setLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+  const [staffedLocations, setStaffedLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('tm_dashboard_location') || '' : ''
+  );
   const [dailyRota, setDailyRota] = useState({});
   const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
   const [loading, setLoading] = useState(true);
@@ -23,20 +30,20 @@ export default function TransportManagerRota() {
   const [expandedShift, setExpandedShift] = useState(null);
   const expandedCardRef = React.useRef(null);
 
-  const fetchLocations = useCallback(async () => {
+  const todayYmd = useMemo(() => getEffectiveTodayYmd(), []);
+
+  const fetchStaffedLocations = useCallback(async () => {
     const { data, error: e } = await supabase
-      .from('locations')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name');
+      .from('scheduled_rota')
+      .select('location')
+      .eq('date', todayYmd);
     if (e) return;
-    if (data?.length) {
-      setLocations(data);
-      const saved = localStorage.getItem('tm_dashboard_location');
-      if (saved && data.some((l) => l.name === saved)) setSelectedLocation(saved);
-      else setSelectedLocation(data[0].name);
-    }
-  }, []);
+    const staffed = locationsWithStaffToday(data || []);
+    setStaffedLocations(staffed);
+    const saved = localStorage.getItem('tm_dashboard_location');
+    const next = resolveTmLocationSelection(staffed, saved);
+    if (next) setSelectedLocation(next);
+  }, [todayYmd]);
 
   const fetchWeekRota = useCallback(async () => {
     if (!selectedLocation) return;
@@ -88,10 +95,11 @@ export default function TransportManagerRota() {
   }, [weekStart, selectedLocation]);
 
   useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
+    fetchStaffedLocations();
+  }, [fetchStaffedLocations]);
 
   useEffect(() => {
+    if (!selectedLocation) return;
     localStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation]);
 
@@ -165,8 +173,8 @@ export default function TransportManagerRota() {
 
   if (loading && Object.keys(dailyRota).length === 0) {
     return (
-      <div className="min-h-screen bg-offwhite py-6 px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-6" />
           <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
@@ -180,16 +188,22 @@ export default function TransportManagerRota() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-offwhite py-6 px-4">
-        <div className="max-w-4xl mx-auto text-red-600">{error}</div>
+      <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto text-red-600">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-offwhite py-6 px-4 pb-24">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Date picker + Today + location – one line on mobile, smaller controls */}
+    <div className="min-h-screen bg-offwhite py-6 px-4 sm:px-6 lg:px-8 pb-24">
+      <div className="w-full max-w-7xl mx-auto space-y-6">
+        <TmLocationPills
+          locations={staffedLocations}
+          selected={selectedLocation}
+          onSelect={setSelectedLocation}
+        />
+
+        {/* Date picker + Today – one line on mobile, smaller controls */}
         <div className="tm-dashboard-datepicker flex flex-nowrap md:flex-wrap items-center gap-2 md:gap-4">
           <div className="flex flex-1 min-w-0 flex-nowrap gap-2 items-center">
             <DatePicker
@@ -219,17 +233,6 @@ export default function TransportManagerRota() {
               Today
             </button>
           </div>
-          {locations.length > 1 && (
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="flex-shrink-0 text-sm md:text-base border-2 border-gray-300 rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 text-charcoal bg-white min-w-0"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.name}>{loc.name}</option>
-              ))}
-            </select>
-          )}
         </div>
         <style>{`
           .tm-dashboard-datepicker .react-datepicker-wrapper { min-width: 0; flex: 1; }
@@ -346,7 +349,7 @@ export default function TransportManagerRota() {
                   </div>
                   {/* Mobile only: expandable list under this card */}
                   <div
-                    className={`md:hidden overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-xl bg-white ${isExpandedThis ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}
+                    className={`md:hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-xl bg-white ${isExpandedThis ? 'max-h-[400px] overflow-y-auto opacity-100' : 'max-h-0 overflow-hidden opacity-0'}`}
                     aria-hidden={!isExpandedThis}
                   >
                     <div className="px-4 py-3 border-t border-gray-100">
@@ -364,7 +367,7 @@ export default function TransportManagerRota() {
           </div>
           {/* Desktop only: single expanded list below all 3 shifts */}
           <div
-            className={`hidden md:block overflow-hidden transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift !== null ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+            className={`hidden md:block transition-all duration-300 ease-out border-2 border-t-0 border-gray-200 rounded-b-2xl bg-white ${expandedShift !== null ? 'max-h-[500px] overflow-y-auto opacity-100' : 'max-h-0 overflow-hidden opacity-0'}`}
             aria-hidden={expandedShift === null}
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-t border-gray-100">
