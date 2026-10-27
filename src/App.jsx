@@ -263,7 +263,7 @@ function AppContent() {
         className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-sm text-center"
       >
         App configuration warning: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in this production build.
-        Ask an administrator to set them on Netlify. Temporary fallbacks are still in use.
+        Ask an administrator to set them on Netlify (Site environment variables) and redeploy.
       </div>
     )}
     {needsPreferredStart && (
