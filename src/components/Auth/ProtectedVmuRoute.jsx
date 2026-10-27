@@ -6,11 +6,11 @@ import { useNotifications } from '../../lib/NotificationContext';
 
 /**
  * Protected Route Component for VMU pages
- * Allows access for users with 'vmu' role or admin
+ * Allows access for users with 'vmu' role, admin, or transport_manager (read-only UI).
  */
 export default function ProtectedVmuRoute({ children }) {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, isVmu, loading: notificationLoading } = useNotifications();
+  const { isAdmin, isVmu, isTransportManager, loading: notificationLoading } = useNotifications();
 
   if (authLoading || notificationLoading) {
     return (
@@ -24,7 +24,7 @@ export default function ProtectedVmuRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isAdmin && !isVmu) {
+  if (!isAdmin && !isVmu && !isTransportManager) {
     return <Navigate to="/calendar" replace />;
   }
 

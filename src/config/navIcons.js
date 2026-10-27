@@ -79,9 +79,19 @@ export const mainNavConfig = [
   { path: '/vmu', label: 'VMU', shortLabel: 'VMU', Icon: Wrench, colorClass: colors.slate },
   { path: '/vmu/prechecks', label: 'PreChecks', shortLabel: 'PreChecks', Icon: ListChecks, colorClass: colors.success },
   { path: '/admin', label: 'Admin Panel', shortLabel: 'Admin', Icon: Shield, colorClass: colors.slateStrong },
-  { path: '/transport-dashboard', label: 'Dashboard', shortLabel: 'Dashboard', Icon: Gauge, colorClass: colors.slateStrong },
+  { path: '/transport-dashboard', label: 'Home', shortLabel: 'Home', Icon: Home, colorClass: colors.primary },
+  { path: '/transport-dashboard/rota', label: 'Rota', shortLabel: 'Rota', Icon: CalendarFold, colorClass: colors.info },
   { path: '/profile', label: 'Profile', shortLabel: 'Profile', Icon: UserCircle2, colorClass: colors.secondary },
 ];
+
+/** Transport manager bottom/top nav (Fleet/Checks reuse VMU routes with TM labels). */
+export const transportManagerNavConfig = [
+  { path: '/transport-dashboard', label: 'Home', shortLabel: 'Home', Icon: Home, colorClass: colors.primary },
+  { path: '/transport-dashboard/rota', label: 'Rota', shortLabel: 'Rota', Icon: CalendarFold, colorClass: colors.info },
+  { path: '/vmu', label: 'Fleet', shortLabel: 'Fleet', Icon: Truck, colorClass: colors.slate },
+  { path: '/vmu/prechecks', label: 'Checks', shortLabel: 'Checks', Icon: ListChecks, colorClass: colors.success },
+];
+
 
 /** Mobile Home section tabs (top bar under /calendar) */
 export const homeTabsConfig = [
