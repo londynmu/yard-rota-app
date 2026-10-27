@@ -56,11 +56,13 @@ Future<String> createPrecheckSignedUrl(
     final signed = await client.storage
         .from(precheckImagesBucket)
         .createSignedUrl(path, expiresIn);
-    if (signed.isEmpty) return urlOrPath;
+    if (signed.isEmpty) {
+      throw StateError('empty signed URL for $path');
+    }
     return signed;
   } catch (_) {
-    // While the bucket is still public (or path is legacy), fall back.
-    return urlOrPath;
+    // Private bucket: public/object URLs always 403 — do not fall back.
+    rethrow;
   }
 }
 
@@ -71,7 +73,11 @@ Future<List<String>> resolvePrecheckImageUrls(
 }) async {
   final out = <String>[];
   for (final url in urls) {
-    out.add(await createPrecheckSignedUrl(client, url, expiresIn: expiresIn));
+    try {
+      out.add(await createPrecheckSignedUrl(client, url, expiresIn: expiresIn));
+    } catch (_) {
+      // Skip unsignable URLs (private bucket).
+    }
   }
   return out;
 }

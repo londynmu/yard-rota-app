@@ -465,10 +465,19 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
               itemCount: widget.defect.imageUrls.length,
               itemBuilder: (_, index) => InkWell(
                 onTap: () async {
-                  final signed = await widget.repository.signPrecheckImageUrl(
-                    widget.defect.imageUrls[index],
-                  );
+                  String? signed;
+                  try {
+                    signed = await widget.repository.signPrecheckImageUrl(
+                      widget.defect.imageUrls[index],
+                    );
+                  } catch (_) {
+                    signed = null;
+                  }
                   if (!context.mounted) return;
+                  if (signed == null || signed.isEmpty) {
+                    AppToast.show(context, 'Photo could not be opened.');
+                    return;
+                  }
                   await showDialog<void>(
                     context: context,
                     builder: (_) => Dialog.fullscreen(
@@ -477,7 +486,7 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
                           Center(
                             child: InteractiveViewer(
                               child: Image.network(
-                                signed,
+                                signed!,
                                 errorBuilder: (_, _, _) =>
                                     const Icon(Icons.broken_image_outlined),
                               ),
