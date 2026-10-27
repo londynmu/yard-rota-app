@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { format, subDays, parseISO } from 'date-fns';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { getEffectiveTodayYmd } from '../utils/operationalDay';
 import { aggregateYesterdayPerformance } from '../utils/tmPerformanceKpi';
+import {
+  locationsWithStaffToday,
+  resolveTmLocationSelection,
+} from '../utils/tmLocationsWithStaff';
+import TmLocationPills from '../components/TransportManager/TmLocationPills';
 
 /**
  * Transport Manager Home — greeting + today's KPI cards.
@@ -13,8 +19,10 @@ export default function TransportManagerHome() {
   const { sessionProfile } = useAuth();
   const firstName = sessionProfile?.first_name?.trim() || 'there';
 
-  const [locations, setLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('Rugby');
+  const [staffedLocations, setStaffedLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('tm_dashboard_location') || '' : ''
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -37,24 +45,32 @@ export default function TransportManagerHome() {
     () => format(parseISO(`${todayYmd}T12:00:00`), 'EEEE d MMM yyyy'),
     [todayYmd]
   );
+  const yesterdayFormatted = useMemo(
+    () => format(parseISO(`${yesterdayYmd}T12:00:00`), 'EEE d MMM'),
+    [yesterdayYmd]
+  );
 
-  const fetchLocations = useCallback(async () => {
+  const fetchStaffedLocations = useCallback(async () => {
     const { data, error: e } = await supabase
-      .from('locations')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name');
-    if (e) return;
-    if (data?.length) {
-      setLocations(data);
-      const saved = localStorage.getItem('tm_dashboard_location');
-      if (saved && data.some((l) => l.name === saved)) setSelectedLocation(saved);
-      else setSelectedLocation(data[0].name);
-    }
-  }, []);
+      .from('scheduled_rota')
+      .select('location')
+      .eq('date', todayYmd);
+    if (e) throw e;
+
+    const staffed = locationsWithStaffToday(data || []);
+    setStaffedLocations(staffed);
+
+    const saved = localStorage.getItem('tm_dashboard_location');
+    const next = resolveTmLocationSelection(staffed, saved);
+    if (next) setSelectedLocation(next);
+  }, [todayYmd]);
 
   const fetchKpis = useCallback(async () => {
-    if (!selectedLocation) return;
+    if (!selectedLocation) {
+      setShiftCounts({ day: 0, afternoon: 0, night: 0 });
+      setAbsences({ noShow: 0, sick: 0, late: 0, other: 0, total: 0 });
+      return;
+    }
 
     const { data: rotaData, error: rotaError } = await supabase
       .from('scheduled_rota')
@@ -141,14 +157,23 @@ export default function TransportManagerHome() {
   }, [selectedLocation, todayYmd, reportDateForYesterday]);
 
   useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
+    setLoading(true);
+    setError(null);
+    fetchStaffedLocations()
+      .catch((e) => {
+        console.error(e);
+        setError(e.message || 'Failed to load dashboard');
+      })
+      .finally(() => setLoading(false));
+  }, [fetchStaffedLocations]);
 
   useEffect(() => {
+    if (!selectedLocation) return;
     localStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation]);
 
   useEffect(() => {
+    if (!selectedLocation) return;
     setLoading(true);
     setError(null);
     fetchKpis()
@@ -157,18 +182,21 @@ export default function TransportManagerHome() {
         setError(e.message || 'Failed to load dashboard');
       })
       .finally(() => setLoading(false));
-  }, [fetchKpis]);
+  }, [fetchKpis, selectedLocation]);
 
   const staffTotal = shiftCounts.day + shiftCounts.afternoon + shiftCounts.night;
+  const performanceHref = `/performance?date=${yesterdayYmd}`;
 
-  if (loading && locations.length === 0) {
+  if (loading && staffedLocations.length === 0 && !error) {
     return (
-      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
-        <div className="page-content-inner">
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 sm:px-6 lg:px-8 pb-bottom-nav">
+        <div className="w-full max-w-7xl mx-auto space-y-6">
           <div className="h-9 w-56 bg-slate-100 rounded-xl animate-pulse" />
           <div className="h-4 w-40 bg-slate-100 rounded animate-pulse" />
+          <div className="h-10 w-full max-w-md bg-slate-100 rounded-full animate-pulse" />
+          <div className="h-36 card-modern animate-pulse bg-slate-50" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2].map((i) => (
               <div key={i} className="h-36 card-modern animate-pulse bg-slate-50" />
             ))}
           </div>
@@ -179,15 +207,15 @@ export default function TransportManagerHome() {
 
   if (error) {
     return (
-      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
-        <div className="page-content-inner text-red-600">{error}</div>
+      <div className="h-full overflow-y-auto bg-transparent px-4 py-6 sm:px-6 lg:px-8 pb-bottom-nav">
+        <div className="w-full max-w-7xl mx-auto text-red-600">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-bottom-nav">
-      <div className="page-content-inner">
+    <div className="h-full overflow-y-auto bg-transparent px-4 py-6 sm:px-6 lg:px-8 pb-bottom-nav">
+      <div className="w-full max-w-7xl mx-auto space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-charcoal">
@@ -195,21 +223,77 @@ export default function TransportManagerHome() {
             </h1>
             <p className="text-sm text-rota-text-muted-light mt-1">{todayFormatted}</p>
           </div>
-          {locations.length > 1 && (
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              aria-label="Location"
-              className="text-sm border border-slate-200/60 rounded-xl px-3 py-2 text-charcoal bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300/40"
-            >
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.name}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
+
+        <TmLocationPills
+          locations={staffedLocations}
+          selected={selectedLocation}
+          onSelect={setSelectedLocation}
+        />
+
+        {staffedLocations.length === 0 && (
+          <p className="text-sm text-rota-text-muted-light">
+            No shunters scheduled today at any location.
+          </p>
+        )}
+
+        {/* Yesterday band — one clickable card → performance for yesterday */}
+        <Link
+          to={performanceHref}
+          className="card-modern block p-5 sm:p-6 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50"
+          aria-label={`View yesterday performance for ${yesterdayFormatted}`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+                Yesterday&apos;s moves
+              </p>
+              <p className="text-[10px] text-rota-text-muted-light mt-0.5">{yesterdayFormatted}</p>
+            </div>
+            <span className="text-sm font-medium text-slate-600">
+              View full list →
+            </span>
+          </div>
+
+          {performanceKpi.hasData ? (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div>
+                <p className="text-3xl sm:text-4xl font-bold text-charcoal tabular-nums">
+                  {performanceKpi.totalMoves.toLocaleString()}
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light mt-1">
+                  Moves
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  Best
+                </p>
+                <p className="text-sm font-semibold text-charcoal mt-0.5 truncate">
+                  {performanceKpi.best?.name}
+                </p>
+                <p className="text-lg font-bold text-emerald-800 tabular-nums">
+                  {performanceKpi.best?.moves ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                  Worst
+                </p>
+                <p className="text-sm font-semibold text-charcoal mt-0.5 truncate">
+                  {performanceKpi.worst?.name}
+                </p>
+                <p className="text-lg font-bold text-rose-800 tabular-nums">
+                  {performanceKpi.worst?.moves ?? 0}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-rota-text-muted-light mt-4">
+              No performance data for yesterday
+            </p>
+          )}
+        </Link>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Shunters today */}
@@ -258,62 +342,6 @@ export default function TransportManagerHome() {
                 {' '}Other
               </p>
             </div>
-          </div>
-
-          {/* Yesterday moves */}
-          <div className="card-modern p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
-              Yesterday moves
-            </p>
-            <p className="text-[10px] text-rota-text-muted-light mt-0.5">
-              {format(parseISO(`${yesterdayYmd}T12:00:00`), 'EEE d MMM')}
-            </p>
-            {performanceKpi.hasData ? (
-              <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">
-                {performanceKpi.totalMoves}
-              </p>
-            ) : (
-              <p className="text-sm text-rota-text-muted-light mt-4">
-                No performance data for yesterday
-              </p>
-            )}
-          </div>
-
-          {/* Best / Worst */}
-          <div className="card-modern p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
-              Best / Worst yesterday
-            </p>
-            {performanceKpi.hasData ? (
-              <div className="mt-3 space-y-3">
-                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/70 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                    Best
-                  </p>
-                  <p className="text-sm font-semibold text-charcoal mt-0.5">
-                    {performanceKpi.best?.name}
-                  </p>
-                  <p className="text-lg font-bold text-emerald-800 tabular-nums">
-                    {performanceKpi.best?.moves ?? 0} moves
-                  </p>
-                </div>
-                <div className="rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                    Worst
-                  </p>
-                  <p className="text-sm font-semibold text-charcoal mt-0.5">
-                    {performanceKpi.worst?.name}
-                  </p>
-                  <p className="text-lg font-bold text-rose-800 tabular-nums">
-                    {performanceKpi.worst?.moves ?? 0} moves
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-rota-text-muted-light mt-4">
-                No performance data for yesterday
-              </p>
-            )}
           </div>
         </div>
       </div>

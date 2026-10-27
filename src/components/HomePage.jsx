@@ -300,7 +300,7 @@ export default function HomePage() {
 
         return (
           <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
-            <div className={isAdmin ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu || isTransportManager ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+            <div className={isAdmin || (isTransportManager && !isAdmin) ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}

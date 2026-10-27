@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
-import { format as formatDate, subDays, parseISO } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
+import { format as formatDate, subDays, addDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart2 } from 'lucide-react';
 const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
@@ -9,6 +10,16 @@ import { useToast } from '../components/ui/ToastContext';
 import { useNotifications } from '../lib/NotificationContext';
 import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Parse `?date=YYYY-MM-DD` as an actual_date (work day). */
+function parseActualDateParam(value) {
+  if (!value || !ISO_DATE_RE.test(value)) return null;
+  const parsed = parseISO(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatDate(parsed, 'yyyy-MM-dd');
+}
 
 /** Match WeeklyRotaPage top nav — light gradients per column */
 const FILTER_RANGE_CLASS =
@@ -116,11 +127,20 @@ const secondsToTime = (totalSeconds) => {
 const PerformanceLeaderboard = () => {
   const toast = useToast();
   const { isAdmin } = useNotifications() || {};
+  const [searchParams, setSearchParams] = useSearchParams();
+  const actualDateFilter = useMemo(
+    () => parseActualDateParam(searchParams.get('date')),
+    [searchParams]
+  );
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const lastFetchTime = useRef(0);
   const [selectedRange, setSelectedRange] = useState(() => {
     if (typeof window === 'undefined') return 'last_day';
+    // Deep-link ?date= uses a single actual_date day
+    if (parseActualDateParam(new URLSearchParams(window.location.search).get('date'))) {
+      return 'last_day';
+    }
     const stored = localStorage.getItem('performance_range');
     // Validate stored value
     const validRanges = ['last_day', 'last_week', 'last_month', 'all'];
@@ -142,6 +162,10 @@ const PerformanceLeaderboard = () => {
   });
   const [sortOption, setSortOption] = useState(() => {
     if (typeof window === 'undefined') return 'moves';
+    // Deep-link from TM Home → sort by moves
+    if (parseActualDateParam(new URLSearchParams(window.location.search).get('date'))) {
+      return 'moves';
+    }
     const stored = localStorage.getItem('performance_sort');
     const validSorts = ['moves', 'per_day'];
     return (stored && validSorts.includes(stored)) ? stored : 'moves';
@@ -162,8 +186,17 @@ const PerformanceLeaderboard = () => {
     localStorage.setItem('performance_sort', sortOption);
   }, [sortOption]);
 
-  // Calculate date range based on selected range (rolling windows)
+  // Calculate date range based on selected range (rolling windows).
+  // When ?date=YYYY-MM-DD is set, treat it as actual_date → report_date = date + 1 day.
   const getDateRange = useCallback(() => {
+    if (actualDateFilter) {
+      const reportDate = formatDate(
+        addDays(parseISO(`${actualDateFilter}T12:00:00`), 1),
+        'yyyy-MM-dd'
+      );
+      return { startDate: reportDate, endDate: reportDate };
+    }
+
     const today = new Date();
     if (selectedRange === 'all') {
       return {
@@ -178,7 +211,7 @@ const PerformanceLeaderboard = () => {
     const endDate = formatDate(today, 'yyyy-MM-dd');
 
     return { startDate, endDate };
-  }, [selectedRange]);
+  }, [selectedRange, actualDateFilter]);
 
   // Fetch ALL leaderboard data with pagination (Supabase has 1000 row limit)
   const fetchLeaderboard = useCallback(async () => {
@@ -212,8 +245,8 @@ const PerformanceLeaderboard = () => {
             )
           `);
 
-        // Apply date filters only if not "all time"
-        if (selectedRange !== 'all') {
+        // Apply date filters when deep-linked or not "all time"
+        if (actualDateFilter || selectedRange !== 'all') {
           const dateRange = getDateRange();
           if (!dateRange) {
             toast.error('Please select a valid date range');
@@ -254,7 +287,13 @@ const PerformanceLeaderboard = () => {
 
       const performanceData = allPerformanceData;
 
-      const normalizedPerformance = normalizePerformanceRecords(performanceData);
+      let normalizedPerformance = normalizePerformanceRecords(performanceData);
+      // Keep only the requested actual_date when deep-linked via ?date=
+      if (actualDateFilter) {
+        normalizedPerformance = normalizedPerformance.filter(
+          (record) => record.actual_date === actualDateFilter
+        );
+      }
       setRawPerformance(normalizedPerformance);
 
       // Aggregate data by user
@@ -325,7 +364,7 @@ const PerformanceLeaderboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedRange, getDateRange, toast]);
+  }, [selectedRange, getDateRange, toast, actualDateFilter]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -334,7 +373,23 @@ const PerformanceLeaderboard = () => {
   // Helper functions are defined at module level (timeToSeconds, secondsToTime)
 
   const getRangeLabel = (range) => {
+    if (actualDateFilter) {
+      try {
+        return formatDate(parseISO(`${actualDateFilter}T12:00:00`), 'd MMM yyyy');
+      } catch {
+        return actualDateFilter;
+      }
+    }
     return RANGE_LOOKUP[range]?.label || RANGE_LOOKUP.last_day.label;
+  };
+
+  const clearDateParamAndSetRange = (rangeValue) => {
+    setSelectedRange(rangeValue);
+    if (actualDateFilter) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('date');
+      setSearchParams(next, { replace: true });
+    }
   };
 
   const teamHighlights = useMemo(() => {
@@ -651,10 +706,10 @@ const PerformanceLeaderboard = () => {
                 key={option.value}
                 type="button"
                 onClick={() => {
-                  setSelectedRange(option.value);
+                  clearDateParamAndSetRange(option.value);
                   setShowRangeModal(false);
                 }}
-                className={modalOptionClass(selectedRange === option.value)}
+                className={modalOptionClass(!actualDateFilter && selectedRange === option.value)}
               >
                 {option.label}
               </button>
