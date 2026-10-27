@@ -11,6 +11,15 @@ import {
 } from '../utils/tmLocationsWithStaff';
 import TmLocationPills from '../components/TransportManager/TmLocationPills';
 
+const ABSENCE_STATUS_LABEL = {
+  no_show: 'No show',
+  sick: 'Sick',
+  late: 'Late',
+  other: 'Other',
+};
+
+const EMPTY_ABSENCES = { noShow: 0, sick: 0, late: 0, other: 0, total: 0, people: [] };
+
 /**
  * Transport Manager Home — greeting + today's KPI cards.
  * Location preference shared with Rota via localStorage `tm_dashboard_location`.
@@ -27,7 +36,7 @@ export default function TransportManagerHome() {
   const [error, setError] = useState(null);
 
   const [shiftCounts, setShiftCounts] = useState({ day: 0, afternoon: 0, night: 0 });
-  const [absences, setAbsences] = useState({ noShow: 0, sick: 0, late: 0, other: 0, total: 0 });
+  const [absences, setAbsences] = useState(EMPTY_ABSENCES);
   const [performanceKpi, setPerformanceKpi] = useState({
     totalMoves: 0,
     best: null,
@@ -68,7 +77,7 @@ export default function TransportManagerHome() {
   const fetchKpis = useCallback(async () => {
     if (!selectedLocation) {
       setShiftCounts({ day: 0, afternoon: 0, night: 0 });
-      setAbsences({ noShow: 0, sick: 0, late: 0, other: 0, total: 0 });
+      setAbsences(EMPTY_ABSENCES);
       return;
     }
 
@@ -122,20 +131,25 @@ export default function TransportManagerHome() {
     let sick = 0;
     let late = 0;
     let other = 0;
+    const people = [];
     slots.forEach((s) => {
       const st = attendanceBySlotId[s.id]?.status;
-      if (!st) return;
+      if (!st || !ABSENCE_STATUS_LABEL[st]) return;
       if (st === 'no_show') noShow += 1;
       else if (st === 'sick') sick += 1;
       else if (st === 'late') late += 1;
       else if (st === 'other') other += 1;
+      const name = `${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim() || 'Unknown';
+      people.push({ name, status: st });
     });
+    people.sort((a, b) => a.name.localeCompare(b.name));
     setAbsences({
       noShow,
       sick,
       late,
       other,
       total: noShow + sick + late + other,
+      people,
     });
 
     // actual_date = report_date - 1 → yesterday's work is report_date = today
@@ -296,11 +310,20 @@ export default function TransportManagerHome() {
         </Link>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Shunters today */}
-          <div className="card-modern p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
-              Shunters today
-            </p>
+          {/* Shunters today → Rota */}
+          <Link
+            to="/transport-dashboard/rota"
+            className="card-modern block p-5 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50"
+            aria-label="View today's rota"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
+                Shunters today
+              </p>
+              <span className="text-sm font-medium text-slate-600 whitespace-nowrap">
+                View rota →
+              </span>
+            </div>
             <p className="text-4xl font-bold text-charcoal tabular-nums mt-2">{staffTotal}</p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl bg-amber-50/80 border border-amber-200/60 px-2 py-2">
@@ -316,9 +339,9 @@ export default function TransportManagerHome() {
                 <p className="text-[10px] font-semibold uppercase text-blue-700">Night</p>
               </div>
             </div>
-          </div>
+          </Link>
 
-          {/* Absences today */}
+          {/* Absences today — counts + names */}
           <div className="card-modern p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-muted-light">
               Absences today
@@ -342,6 +365,21 @@ export default function TransportManagerHome() {
                 {' '}Other
               </p>
             </div>
+            {absences.people?.length > 0 && (
+              <ul className="mt-4 space-y-1.5 border-t border-slate-200/60 pt-3">
+                {absences.people.map((person, idx) => (
+                  <li
+                    key={`${person.name}-${person.status}-${idx}`}
+                    className="text-sm text-charcoal flex items-baseline justify-between gap-2"
+                  >
+                    <span className="font-medium truncate">{person.name}</span>
+                    <span className="text-xs text-rota-text-muted-light flex-shrink-0">
+                      {ABSENCE_STATUS_LABEL[person.status] || person.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
