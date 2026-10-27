@@ -9,6 +9,11 @@ export type GateResult =
  * Cron / automation may use:
  * - Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
  * - or header x-cron-secret: <CRON_SECRET> (when CRON_SECRET env is set)
+ *
+ * pg_cron for gmail-import must NOT use the public anon JWT (that only
+ * satisfies verify_jwt and then fails here with 401). Prod schedule reads
+ * SUPABASE_SERVICE_ROLE_KEY from Vault — see migration
+ * 20261027142000_gmail_import_cron_service_role.sql.
  */
 export async function requireAdminOrCron(req: Request): Promise<GateResult> {
   const authHeader = req.headers.get("Authorization") || "";
