@@ -12,6 +12,7 @@ import {
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 
 const FORM_STORAGE_KEY = 'precheck_during_shift_form';
+const FORM_SESSION_ID_KEY = 'precheck_during_shift_form_session_id';
 
 const saveFormState = (data) => {
   try {
@@ -29,8 +30,23 @@ const loadFormState = () => {
   } catch { return null; }
 };
 
+const getOrCreateFormSessionId = () => {
+  try {
+    const existing = sessionStorage.getItem(FORM_SESSION_ID_KEY);
+    if (existing) return existing;
+    const id = globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(FORM_SESSION_ID_KEY, id);
+    return id;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+};
+
 const clearFormState = () => {
   sessionStorage.removeItem(FORM_STORAGE_KEY);
+  sessionStorage.removeItem(FORM_SESSION_ID_KEY);
 };
 
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
@@ -40,6 +56,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const [description, setDescription] = useState(savedForm?.description || '');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [formSessionId] = useState(() => getOrCreateFormSessionId());
 
   const handleImagesChange = useCallback((newImagesOrFn) => {
     setImages(prev => (typeof newImagesOrFn === 'function' ? newImagesOrFn(prev) : newImagesOrFn));
@@ -57,6 +74,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const buildPayload = () => ({
     userId: user.id,
     tugId: selectedTug.id,
+    formSessionId,
     description: description.trim(),
     images: mapImagesToQueueEntries(images),
   });

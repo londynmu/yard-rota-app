@@ -148,6 +148,108 @@ void main() {
       ]);
       expect(progress.checked, 1);
       expect(progress.issueCount, 1);
+
+      final actions = collectMultiDefectActions(
+        item: tyres,
+        draft: draft,
+        defects: defects,
+      );
+      expect(actions.sameProblemDamageIds, ['damage-1']);
+      expect(actions.newDefect?.notes, 'New sidewall damage');
+    });
+
+    test('two defects on one item: both same-problem actions are collected', () {
+      final defects = [
+        const PreCheckKnownDefect(
+          id: 'damage-1',
+          itemKey: 'tyres',
+          description: 'Cut',
+          reporterName: 'Alex',
+          dateLabel: '18 May 2026',
+        ),
+        const PreCheckKnownDefect(
+          id: 'damage-2',
+          itemKey: 'tyres',
+          description: 'Flat',
+          reporterName: 'Sam',
+          dateLabel: '18 May 2026',
+        ),
+      ];
+      const draft = PreCheckDraft(
+        formSessionId: 'form-1',
+        itemStates: {
+          'tyres::damage-1': PreCheckItemState(
+            status: PreCheckItemStatus.repairNeeded,
+            linkedDamageId: 'damage-1',
+          ),
+          'tyres::damage-2': PreCheckItemState(
+            status: PreCheckItemStatus.repairNeeded,
+            linkedDamageId: 'damage-2',
+          ),
+          'tyres::new': PreCheckItemState(
+            status: PreCheckItemStatus.repairNeeded,
+            notes: 'Extra crack',
+          ),
+        },
+      );
+
+      final result = validatePreCheckDraft(
+        items: const [tyres],
+        draft: draft,
+        defectsByItem: {'tyres': defects},
+      );
+      expect(result.isValid, isTrue);
+
+      final actions = collectMultiDefectActions(
+        item: tyres,
+        draft: draft,
+        defects: defects,
+      );
+      expect(actions.sameProblemDamageIds, ['damage-1', 'damage-2']);
+      expect(actions.newDefect?.notes, 'Extra crack');
+    });
+
+    test('multi-defect item is not ready when only new defect is filled', () {
+      final defects = [
+        const PreCheckKnownDefect(
+          id: 'damage-1',
+          itemKey: 'tyres',
+          description: 'Cut',
+          reporterName: 'Alex',
+          dateLabel: '18 May 2026',
+        ),
+        const PreCheckKnownDefect(
+          id: 'damage-2',
+          itemKey: 'tyres',
+          description: 'Flat',
+          reporterName: 'Sam',
+          dateLabel: '18 May 2026',
+        ),
+      ];
+      const draft = PreCheckDraft(
+        formSessionId: 'form-1',
+        itemStates: {
+          'tyres::new': PreCheckItemState(
+            status: PreCheckItemStatus.repairNeeded,
+            notes: 'Brand new issue',
+          ),
+        },
+      );
+
+      expect(
+        isPreCheckItemHandled(
+          item: tyres,
+          draft: draft,
+          defectsByItem: {'tyres': defects},
+        ),
+        isFalse,
+      );
+      final result = validatePreCheckDraft(
+        items: const [tyres],
+        draft: draft,
+        defectsByItem: {'tyres': defects},
+      );
+      expect(result.isValid, isFalse);
     });
 
     test('acknowledged defects are info only and do not block the item', () {

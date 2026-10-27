@@ -14,6 +14,10 @@ import {
 } from '../../lib/precheckQueue';
 import { getOpenDefectsForTug, splitAcknowledged } from '../../lib/precheckDefects';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
+import {
+  isMultiDefectItemReady,
+  collectMultiDefectActions,
+} from '../../utils/precheckMultiDefect';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
 const FALLBACK_OUTSIDE = [
@@ -98,16 +102,12 @@ const isItemChecked = (item, checkItems, knownDefectsByItem, markedResolvedDamag
     if (checkItems[item.key]?.status) return true;
     return defects.every(d => markedResolvedDamageIds.includes(d.id));
   }
-  const stateKeys = defects.map(d => `${item.key}::${d.id}`);
-  const newKey = `${item.key}::new`;
-  const allDefectsHandled = stateKeys.every(sk => {
-    const ci = checkItems[sk];
-    if (ci?.status === 'repair_needed' && ci?.linkedDamageId) return true;
-    const defId = sk.split('::')[1];
-    return markedResolvedDamageIds.includes(defId);
-  });
-  const newDefectComplete = Boolean(checkItems[newKey]?.status === 'repair_needed' && checkItems[newKey]?.notes?.trim());
-  return allDefectsHandled || newDefectComplete;
+  return isMultiDefectItemReady(
+    item.key,
+    checkItems,
+    defects,
+    markedResolvedDamageIds
+  );
 };
 
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
@@ -515,29 +515,26 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
         linkedDamageId = checkItems[item.key]?.linkedDamageId || null;
         images = mapImagesToQueueEntries(checkItems[item.key]?.images || []);
       } else {
-        const stateKeys = defects.map(d => `${item.key}::${d.id}`);
-        const newKey = `${item.key}::new`;
         effectiveStatus = getEffectiveItemStatus(item, checkItems, knownDefectsByItem, markedResolvedDamageIds);
-        const repairEntry = stateKeys.find(sk => {
-          const ci = checkItems[sk];
-          return ci?.status === 'repair_needed';
-        });
-        const newDefectEntry = checkItems[newKey]?.status === 'repair_needed' ? newKey : null;
-        if (repairEntry) {
-          const ci = checkItems[repairEntry];
-          linkedDamageId = ci?.linkedDamageId || null;
-          notes = ci?.notes || '';
-          images = mapImagesToQueueEntries(ci?.images || []);
-        } else if (newDefectEntry) {
-          const ci = checkItems[newKey];
-          linkedDamageId = null;
-          notes = ci?.notes || '';
-          images = mapImagesToQueueEntries(ci?.images || []);
-        } else {
-          linkedDamageId = null;
-          notes = '';
-          images = [];
-        }
+        const actions = collectMultiDefectActions(item.key, checkItems, defects);
+        linkedDamageId = null;
+        notes = actions.newDefect?.notes || '';
+        images = mapImagesToQueueEntries(actions.newDefect?.images || []);
+        return {
+          key: item.key,
+          label: item.label,
+          status: effectiveStatus,
+          notes,
+          linkedDamageId,
+          images,
+          sameProblemDamageIds: actions.sameProblemDamageIds,
+          newDefect: actions.newDefect
+            ? {
+                notes: actions.newDefect.notes || '',
+                images: mapImagesToQueueEntries(actions.newDefect.images || []),
+              }
+            : null,
+        };
       }
       return {
         key: item.key,
