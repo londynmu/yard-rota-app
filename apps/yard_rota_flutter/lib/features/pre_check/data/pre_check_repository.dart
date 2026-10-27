@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -8,6 +9,21 @@ import '../../../core/local_db/app_local_database.dart';
 import '../../../core/network/network_policy.dart';
 import '../../../core/network/precheck_image_urls.dart';
 import '../domain/pre_check_models.dart';
+
+bool isLikelyNetworkError(Object error) {
+  if (error is SocketException) return true;
+  if (error is TimeoutException) return true;
+  if (error is TransientNetworkException) return true;
+  final message = error.toString().toLowerCase();
+  return message.contains('socket') ||
+      message.contains('network') ||
+      message.contains('timeout') ||
+      message.contains('failed host lookup') ||
+      message.contains('connection refused') ||
+      message.contains('connection reset') ||
+      message.contains('clientexception') ||
+      message.contains('failed to fetch');
+}
 
 class PreCheckRepository {
   PreCheckRepository({
@@ -294,7 +310,10 @@ class PreCheckRepository {
       );
       await clearDraft();
       return submission;
-    } catch (_) {
+    } catch (error) {
+      if (!isLikelyNetworkError(error)) {
+        rethrow;
+      }
       await _localDb.enqueuePreCheckJob(
         jobKey: draft.formSessionId,
         opType: PreCheckType.preShift.dbValue,
@@ -317,26 +336,32 @@ class PreCheckRepository {
     required PreCheckTug tug,
     required String description,
     required List<PreCheckPhoto> photos,
+    String? formSessionId,
   }) async {
+    final sessionId =
+        formSessionId ?? '${tug.id}:${DateTime.now().millisecondsSinceEpoch}';
     final payload = <String, dynamic>{
       'userId': userId,
       'tugId': tug.id,
       'tugNumber': tug.tugNumber,
       'tugDisplayName': tug.displayName,
+      'formSessionId': sessionId,
       'description': description.trim(),
       'images': photos.map((photo) => photo.toJson()).toList(),
     };
     try {
       return await _submitDuringShiftPayload(payload);
-    } catch (_) {
-      final jobKey = '${tug.id}:${DateTime.now().millisecondsSinceEpoch}';
+    } catch (error) {
+      if (!isLikelyNetworkError(error)) {
+        rethrow;
+      }
       await _localDb.enqueuePreCheckJob(
-        jobKey: jobKey,
+        jobKey: sessionId,
         opType: PreCheckType.duringShift.dbValue,
         payloadJson: jsonEncode(payload),
       );
       return PreCheckSubmissionSummary(
-        id: jobKey,
+        id: sessionId,
         tugId: tug.id,
         tugNumber: tug.tugNumber,
         tugDisplayName: tug.displayName,
@@ -492,27 +517,39 @@ class PreCheckRepository {
       'items': items.map((item) {
         final defects =
             defectsByItem[item.key] ?? const <PreCheckKnownDefect>[];
-        String stateKey = item.key;
-        if (defects.length >= 2) {
-          stateKey = defects
-              .map((defect) => '${item.key}::${defect.id}')
-              .firstWhere(
-                (key) =>
-                    draft.itemStates[key]?.status ==
-                    PreCheckItemStatus.repairNeeded,
-                orElse: () =>
-                    draft.itemStates['${item.key}::new']?.status ==
-                        PreCheckItemStatus.repairNeeded
-                    ? '${item.key}::new'
-                    : item.key,
-              );
-        }
-        final state = draft.itemStates[stateKey] ?? const PreCheckItemState();
         final effectiveStatus = effectiveStatusForItem(
           item: item,
           draft: draft,
           defectsByItem: defectsByItem,
         );
+        if (defects.length >= 2) {
+          final actions = collectMultiDefectActions(
+            item: item,
+            draft: draft,
+            defects: defects,
+          );
+          final newDefect = actions.newDefect;
+          return <String, dynamic>{
+            'key': item.key,
+            'label': item.label,
+            'status': effectiveStatus.dbValue,
+            'notes': newDefect?.notes ?? '',
+            'linkedDamageId': null,
+            'images':
+                newDefect?.photos.map((photo) => photo.toJson()).toList() ??
+                const <dynamic>[],
+            'sameProblemDamageIds': actions.sameProblemDamageIds,
+            'newDefect': newDefect == null
+                ? null
+                : <String, dynamic>{
+                    'notes': newDefect.notes,
+                    'images': newDefect.photos
+                        .map((photo) => photo.toJson())
+                        .toList(),
+                  },
+          };
+        }
+        final state = draft.itemStates[item.key] ?? const PreCheckItemState();
         return <String, dynamic>{
           'key': item.key,
           'label': item.label,
@@ -524,6 +561,188 @@ class PreCheckRepository {
       }).toList(),
       'markedResolvedDamageIds': draft.markedResolvedDamageIds,
     };
+  }
+
+  Future<Map<String, String>> _ensureItemIdMap(
+    String submissionId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final existing = await _client
+        .from('precheck_items')
+        .select('id,item_name')
+        .eq('submission_id', submissionId);
+    final itemIdMap = <String, String>{};
+    for (final row in existing.whereType<Map<String, dynamic>>()) {
+      final key = row['item_name']?.toString();
+      final id = row['id']?.toString();
+      if (key != null && id != null) {
+        itemIdMap[key] = id;
+      }
+    }
+    final missing = items
+        .where((item) => item['key'] != null && !itemIdMap.containsKey(item['key']))
+        .toList(growable: false);
+    if (missing.isEmpty) {
+      return itemIdMap;
+    }
+    final insertedItems = await _client
+        .from('precheck_items')
+        .insert(
+          missing
+              .map(
+                (item) => <String, dynamic>{
+                  'submission_id': submissionId,
+                  'item_category': 'check',
+                  'item_name': item['key'],
+                  'status': item['status'],
+                  'notes': (item['notes'] as String?)?.trim().isEmpty ?? true
+                      ? null
+                      : item['notes'],
+                },
+              )
+              .toList(),
+        )
+        .select('id,item_name');
+    for (final row in insertedItems.whereType<Map<String, dynamic>>()) {
+      final key = row['item_name']?.toString();
+      final id = row['id']?.toString();
+      if (key != null && id != null) {
+        itemIdMap[key] = id;
+      }
+    }
+    return itemIdMap;
+  }
+
+  List<String> _sameProblemIdsForItem(Map<String, dynamic> item) {
+    final fromList =
+        ((item['sameProblemDamageIds'] as List<dynamic>?) ?? const <dynamic>[])
+            .whereType<String>()
+            .where((id) => id.isNotEmpty)
+            .toList(growable: false);
+    if (fromList.isNotEmpty) {
+      return fromList;
+    }
+    final linked = item['linkedDamageId'] as String?;
+    if (linked != null && linked.isNotEmpty) {
+      return <String>[linked];
+    }
+    return const <String>[];
+  }
+
+  Map<String, dynamic>? _newDefectForItem(Map<String, dynamic> item) {
+    final nested = item['newDefect'];
+    if (nested is Map<String, dynamic>) {
+      final notes = nested['notes']?.toString().trim() ?? '';
+      final images =
+          ((nested['images'] as List<dynamic>?) ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .toList(growable: false);
+      if (notes.isNotEmpty || images.isNotEmpty) {
+        return <String, dynamic>{'notes': notes, 'images': images};
+      }
+    }
+    final sameIds = _sameProblemIdsForItem(item);
+    if (sameIds.isNotEmpty) {
+      return null;
+    }
+    final notes = item['notes']?.toString().trim() ?? '';
+    final images = ((item['images'] as List<dynamic>?) ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+    if (notes.isEmpty && images.isEmpty) {
+      return null;
+    }
+    return <String, dynamic>{'notes': notes, 'images': images};
+  }
+
+  Future<void> _completeExistingPreShift(
+    String submissionId,
+    Map<String, dynamic> payload,
+  ) async {
+    final items = ((payload['items'] as List<dynamic>?) ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+    final itemIdMap = await _ensureItemIdMap(submissionId, items);
+
+    final remarks = payload['remarks']?.toString().trim() ?? '';
+    final remarkImages =
+        ((payload['remarksImages'] as List<dynamic>?) ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList(growable: false);
+    if (remarks.isNotEmpty || remarkImages.isNotEmpty) {
+      final existingRemarks = await _client
+          .from('precheck_damages')
+          .select('id')
+          .eq('submission_id', submissionId)
+          .eq('source', 'remarks')
+          .limit(1);
+      if (existingRemarks.isEmpty) {
+        final urls = await _uploadPhotos(
+          submissionId,
+          remarkImages,
+          userId: payload['userId']?.toString() ?? '',
+        );
+        await _client.from('precheck_damages').insert(<String, dynamic>{
+          'submission_id': submissionId,
+          'description': remarks.isEmpty ? 'Additional photos' : remarks,
+          'severity': 'minor',
+          'image_urls': urls,
+          'source': 'remarks',
+        });
+      }
+    }
+
+    for (final item in items) {
+      if (item['status'] != PreCheckItemStatus.repairNeeded.dbValue) {
+        continue;
+      }
+      for (final damageId in _sameProblemIdsForItem(item)) {
+        await _insertSameProblemConfirmation(
+          damageId: damageId,
+          userId: payload['userId']?.toString() ?? '',
+          submissionId: submissionId,
+          tugId: payload['tugId']?.toString() ?? '',
+          itemKey: item['key']?.toString() ?? '',
+        );
+      }
+      final newDefect = _newDefectForItem(item);
+      if (newDefect == null) {
+        continue;
+      }
+      final itemId = itemIdMap[item['key']?.toString()];
+      if (itemId != null) {
+        final existingNew = await _client
+            .from('precheck_damages')
+            .select('id')
+            .eq('submission_id', submissionId)
+            .eq('item_id', itemId)
+            .eq('source', 'check_item')
+            .limit(1);
+        if (existingNew.isNotEmpty) {
+          continue;
+        }
+      }
+      final notes = newDefect['notes']?.toString().trim() ?? '';
+      final images =
+          ((newDefect['images'] as List<dynamic>?) ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .toList(growable: false);
+      final urls = await _uploadPhotos(
+        submissionId,
+        images,
+        userId: payload['userId']?.toString() ?? '',
+      );
+      await _client.from('precheck_damages').insert(<String, dynamic>{
+        'submission_id': submissionId,
+        'item_id': itemId,
+        'description': notes.isEmpty
+            ? '${item['label'] ?? item['key']} - repair needed'
+            : notes,
+        'severity': 'minor',
+        'image_urls': urls,
+        'source': 'check_item',
+      });
+    }
   }
 
   Future<PreCheckSubmissionSummary> _submitPreShiftPayload(
@@ -539,6 +758,8 @@ class PreCheckRepository {
           .eq('form_session_id', formSessionId)
           .maybeSingle();
       if (existing != null) {
+        final submissionId = existing['id']?.toString() ?? '';
+        await _completeExistingPreShift(submissionId, payload);
         return _summaryFromRow(existing);
       }
     }
@@ -554,114 +775,60 @@ class PreCheckRepository {
               : payload['remarks'],
           'form_session_id': formSessionId,
         })
-        .select()
+        .select(
+          'id,tug_id,check_time,created_at,tugs(tug_number,display_name)',
+        )
         .single();
     final submissionId = inserted['id']?.toString() ?? '';
-    final items = ((payload['items'] as List<dynamic>?) ?? const <dynamic>[])
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
-
-    final insertedItems = await _client
-        .from('precheck_items')
-        .insert(
-          items
-              .map(
-                (item) => <String, dynamic>{
-                  'submission_id': submissionId,
-                  'item_category': 'check',
-                  'item_name': item['key'],
-                  'status': item['status'],
-                  'notes': (item['notes'] as String?)?.trim().isEmpty ?? true
-                      ? null
-                      : item['notes'],
-                },
-              )
-              .toList(),
-        )
-        .select('id,item_name');
-
-    final itemIdMap = <String, String>{};
-    for (final row in insertedItems.whereType<Map<String, dynamic>>()) {
-      final key = row['item_name']?.toString();
-      final id = row['id']?.toString();
-      if (key != null && id != null) {
-        itemIdMap[key] = id;
-      }
-    }
-
-    final remarks = payload['remarks']?.toString().trim() ?? '';
-    final remarkImages =
-        ((payload['remarksImages'] as List<dynamic>?) ?? const <dynamic>[])
-            .whereType<Map<String, dynamic>>()
-            .toList(growable: false);
-    if (remarks.isNotEmpty || remarkImages.isNotEmpty) {
-      final urls = await _uploadPhotos(
-        submissionId,
-        remarkImages,
-        userId: payload['userId']?.toString() ?? '',
-      );
-      await _client.from('precheck_damages').insert(<String, dynamic>{
-        'submission_id': submissionId,
-        'description': remarks.isEmpty ? 'Additional photos' : remarks,
-        'severity': 'minor',
-        'image_urls': urls,
-        'source': 'remarks',
-      });
-    }
-
-    for (final item in items) {
-      if (item['status'] != PreCheckItemStatus.repairNeeded.dbValue) {
-        continue;
-      }
-      final linkedDamageId = item['linkedDamageId'] as String?;
-      if (linkedDamageId != null && linkedDamageId.isNotEmpty) {
-        await _insertSameProblemConfirmation(
-          damageId: linkedDamageId,
-          userId: payload['userId']?.toString() ?? '',
-          submissionId: submissionId,
-          tugId: payload['tugId']?.toString() ?? '',
-          itemKey: item['key']?.toString() ?? '',
-        );
-        continue;
-      }
-      final notes = item['notes']?.toString().trim() ?? '';
-      final images = ((item['images'] as List<dynamic>?) ?? const <dynamic>[])
-          .whereType<Map<String, dynamic>>()
-          .toList(growable: false);
-      if (notes.isEmpty && images.isEmpty) {
-        continue;
-      }
-      final urls = await _uploadPhotos(
-        submissionId,
-        images,
-        userId: payload['userId']?.toString() ?? '',
-      );
-      await _client.from('precheck_damages').insert(<String, dynamic>{
-        'submission_id': submissionId,
-        'item_id': itemIdMap[item['key']?.toString()],
-        'description': notes.isEmpty
-            ? '${item['label'] ?? item['key']} - repair needed'
-            : notes,
-        'severity': 'minor',
-        'image_urls': urls,
-        'source': 'check_item',
-      });
-    }
-
-    return PreCheckSubmissionSummary(
-      id: submissionId,
-      tugId: payload['tugId']?.toString() ?? '',
-      tugNumber: payload['tugNumber']?.toString() ?? '',
-      tugDisplayName: payload['tugDisplayName'] as String?,
-      checkTime:
-          DateTime.tryParse(inserted['check_time']?.toString() ?? '') ??
-          DateTime.now(),
-    );
+    await _completeExistingPreShift(submissionId, payload);
+    return _summaryFromRow(inserted);
   }
 
   Future<PreCheckSubmissionSummary> _submitDuringShiftPayload(
     Map<String, dynamic> payload,
   ) async {
+    final formSessionId = payload['formSessionId'] as String?;
+    if (formSessionId != null && formSessionId.isNotEmpty) {
+      final existing = await _client
+          .from('precheck_submissions')
+          .select(
+            'id,tug_id,check_time,created_at,tugs(tug_number,display_name)',
+          )
+          .eq('form_session_id', formSessionId)
+          .maybeSingle();
+      if (existing != null) {
+        final submissionId = existing['id']?.toString() ?? '';
+        final existingDamages = await _client
+            .from('precheck_damages')
+            .select('id')
+            .eq('submission_id', submissionId)
+            .eq('source', 'during_shift')
+            .limit(1);
+        if (existingDamages.isEmpty) {
+          final images =
+              ((payload['images'] as List<dynamic>?) ?? const <dynamic>[])
+                  .whereType<Map<String, dynamic>>()
+                  .toList(growable: false);
+          final urls = await _uploadPhotos(
+            submissionId,
+            images,
+            userId: payload['userId']?.toString() ?? '',
+          );
+          await _client.from('precheck_damages').insert(<String, dynamic>{
+            'submission_id': submissionId,
+            'description':
+                payload['description']?.toString().trim().isEmpty ?? true
+                ? 'Damage report'
+                : payload['description']?.toString().trim(),
+            'severity': 'minor',
+            'image_urls': urls,
+            'source': 'during_shift',
+          });
+        }
+        return _summaryFromRow(existing);
+      }
+    }
+
     final inserted = await _client
         .from('precheck_submissions')
         .insert(<String, dynamic>{
@@ -669,8 +836,11 @@ class PreCheckRepository {
           'tug_id': payload['tugId'],
           'check_type': PreCheckType.duringShift.dbValue,
           'remarks': payload['description']?.toString().trim(),
+          'form_session_id': formSessionId,
         })
-        .select()
+        .select(
+          'id,tug_id,check_time,created_at,tugs(tug_number,display_name)',
+        )
         .single();
     final submissionId = inserted['id']?.toString() ?? '';
     final images = ((payload['images'] as List<dynamic>?) ?? const <dynamic>[])
@@ -690,15 +860,7 @@ class PreCheckRepository {
       'image_urls': urls,
       'source': 'during_shift',
     });
-    return PreCheckSubmissionSummary(
-      id: submissionId,
-      tugId: payload['tugId']?.toString() ?? '',
-      tugNumber: payload['tugNumber']?.toString() ?? '',
-      tugDisplayName: payload['tugDisplayName'] as String?,
-      checkTime:
-          DateTime.tryParse(inserted['check_time']?.toString() ?? '') ??
-          DateTime.now(),
-    );
+    return _summaryFromRow(inserted);
   }
 
   Future<List<String>> _uploadPhotos(
@@ -776,6 +938,15 @@ class PreCheckRepository {
         damage['repair_status'] == 'acknowledged' ||
         subMap?['tug_id']?.toString() != tugId ||
         itemMap?['item_name']?.toString() != itemKey) {
+      return;
+    }
+    final existing = await _client
+        .from('precheck_damage_confirmations')
+        .select('id')
+        .eq('damage_id', damageId)
+        .eq('submission_id', submissionId)
+        .maybeSingle();
+    if (existing != null) {
       return;
     }
     await _client.from('precheck_damage_confirmations').insert(

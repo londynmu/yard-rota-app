@@ -276,9 +276,38 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
   }
 
   Future<void> _delete(BreakSlot slot) async {
-    await widget.repository.deleteBreakSlot(widget.session, slot);
-    if (mounted) AppToast.show(context, 'Break slot deleted.');
-    await _load();
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete break slot'),
+            content: Text(
+              'Delete the ${slot.startTime} slot'
+              '${slot.assignments.isEmpty ? '' : ' and all assignments'}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await widget.repository.deleteBreakSlot(widget.session, slot);
+      if (mounted) AppToast.show(context, 'Break slot deleted.');
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, 'Could not delete break slot. Try again.');
+      }
+    }
   }
 
   List<StaffProfile> get _scheduledStaff {
@@ -339,12 +368,38 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
   }
 
   Future<void> _unassign(BreakAssignment assignment) async {
-    await widget.repository.unassignBreakStaff(
-      session: widget.session,
-      assignmentRowId: assignment.rowId,
-    );
-    if (mounted) AppToast.show(context, 'Break unassigned.');
-    await _load();
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Remove break'),
+            content: Text('Remove ${assignment.name} from this break?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await widget.repository.unassignBreakStaff(
+        session: widget.session,
+        assignmentRowId: assignment.rowId,
+      );
+      if (mounted) AppToast.show(context, 'Break unassigned.');
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(context, 'Could not remove break. Try again.');
+      }
+    }
   }
 
   Future<void> _addStandardSlots() async {

@@ -4,7 +4,17 @@ import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { createPortal } from 'react-dom';
-import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
+import {
+  getAbsentShiftKeysForDates,
+  isBreakAbsent,
+} from '../../utils/attendanceHelpers';
+import {
+  DAY_WINDOW_START_HOUR,
+  NIGHT_WINDOW_START_HOUR,
+  getNightStartYmd as getNightStartYmdUtil,
+  isInNightWindow as isInNightWindowUtil,
+  toLocalYmd as toLocalYmdUtil,
+} from '../../utils/operationalDay';
 
 // Helper to calculate end time for breaks
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -21,13 +31,7 @@ const calculateEndTime = (startTime, durationMinutes) => {
   }
 };
 
-// Local calendar date as YYYY-MM-DD (toISOString would give the UTC date, which is wrong around midnight in BST)
-const toLocalYmd = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+const toLocalYmd = (d) => toLocalYmdUtil(d);
 
 const parseTimeToMinutes = (timeStr) => {
   if (!timeStr) return null;
@@ -44,22 +48,16 @@ const addDaysYmd = (ymd, days) => {
 };
 
 /** Day/afternoon window: 07:00-17:00. Night window: 17:00-07:00 next morning. */
-const DAY_WINDOW_START = 7 * 60;
-const NIGHT_WINDOW_START = 17 * 60;
+const DAY_WINDOW_START = DAY_WINDOW_START_HOUR * 60;
+const NIGHT_WINDOW_START = NIGHT_WINDOW_START_HOUR * 60;
 
-const getNowMinutesOf = (now = new Date()) => now.getHours() * 60 + now.getMinutes();
-
-const isInNightWindow = (now = new Date()) => {
-  const m = getNowMinutesOf(now);
-  return m >= NIGHT_WINDOW_START || m < DAY_WINDOW_START;
-};
+const isInNightWindow = (now = new Date()) => isInNightWindowUtil(now);
 
 /** Calendar date on which the current (or upcoming tonight) night cycle starts. */
-const getNightStartYmd = (now = new Date()) => {
-  const today = toLocalYmd(now);
-  if (getNowMinutesOf(now) < DAY_WINDOW_START) return addDaysYmd(today, -1);
-  return today;
-};
+const getNightStartYmd = (now = new Date()) => getNightStartYmdUtil(now);
+
+const windowEpochKey = (now = new Date()) =>
+  `${isInNightWindow(now) ? 'night' : 'day'}:${getNightStartYmd(now)}`;
 
 const isNightEarlyMorningTime = (timeStr) => {
   const minutes = parseTimeToMinutes(timeStr);
@@ -117,10 +115,12 @@ export default function ShiftDashboard({
   breakHeaderControls = null
 }) {
   const { user, sessionProfile } = useAuth();
+  // Breaks-only surfaces (BreaksPanel) never render own-shift UI — skip that fetch path.
+  const breaksOnlyView = initialView === 'breaks' && hideTabSwitcher;
   const [_shift, setShift] = useState(null);
   const [breakInfo, setBreakInfo] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!breaksOnlyView);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [allShifts, setAllShifts] = useState([]);
@@ -130,9 +130,11 @@ export default function ShiftDashboard({
   // while team fetch is in flight or after it fails.
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamError, setTeamError] = useState(null);
+  const [attendanceWarning, setAttendanceWarning] = useState(null);
   const [teamView, setTeamView] = useState(initialView === 'breaks' ? 'breaks' : 'shifts'); // 'shifts' or 'breaks' - for team schedule
   const [teamLocation, setTeamLocation] = useState(selectedLocation || ''); // location tab
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const openWindowKeyRef = useRef(windowEpochKey());
   
   // Parent CalendarPage owns location when selectedLocation is set — always sync, never override from shifts
   useEffect(() => {
@@ -262,8 +264,12 @@ export default function ShiftDashboard({
     fetchUserProfile();
   }, [user, sessionProfile]);
 
-  // Fetch today's shift
+  // Fetch today's shift (skipped on breaks-only view — BreaksPanel never shows it)
   const fetchTodaysShift = useCallback(async () => {
+    if (breaksOnlyView) {
+      setLoading(false);
+      return;
+    }
     if (!user) {
       setLoading(false);
       return;
@@ -319,24 +325,18 @@ export default function ShiftDashboard({
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, breaksOnlyView]);
 
   useEffect(() => {
     fetchTodaysShift();
-    
-    // Update current time every minute for progress bars and time calculations
-    const timeIntervalId = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60 * 1000);
-    
-    // Refresh data every 15 minutes
-    const dataIntervalId = setInterval(fetchTodaysShift, 15 * 60 * 1000);
-    
+    // Refresh own-shift data every 15 minutes (not needed on breaks-only)
+    const dataIntervalId = breaksOnlyView
+      ? null
+      : setInterval(fetchTodaysShift, 15 * 60 * 1000);
     return () => {
-      clearInterval(timeIntervalId);
-      clearInterval(dataIntervalId);
+      if (dataIntervalId) clearInterval(dataIntervalId);
     };
-  }, [fetchTodaysShift]);
+  }, [fetchTodaysShift, breaksOnlyView]);
 
   // Fetch ALL today's shifts and breaks for team view
   // Retry state: transient failures (expired token right after iOS resume, flaky yard network)
@@ -361,8 +361,8 @@ export default function ShiftDashboard({
         const today = toLocalYmd(now);
         const yesterday = addDaysYmd(today, -1);
         const nightStart = getNightStartYmd(now);
-        const nightMorning = addDaysYmd(nightStart, 1);
         const inNightWindow = isInNightWindow(now);
+        openWindowKeyRef.current = windowEpochKey(now);
 
         const { data: shiftsData, error: shiftsError } = await supabase
           .from('scheduled_rota')
@@ -383,7 +383,11 @@ export default function ShiftDashboard({
           });
         }
 
-        const breakDates = [...new Set([today, nightStart, nightMorning])];
+        // While the current night window is open, only query the open night start date
+        // so tomorrow's early-morning rows cannot leak in (audit #9).
+        const breakDates = inNightWindow
+          ? [...new Set([today, nightStart])]
+          : [...new Set([today, nightStart, addDaysYmd(nightStart, 1)])];
         const { data: breaksRaw, error: breaksError } = await supabase
           .from('scheduled_breaks')
           .select('id, user_id, break_start_time, break_duration_minutes, break_type, shift_type, date, location')
@@ -392,29 +396,15 @@ export default function ShiftDashboard({
           
         if (breaksError) throw breaksError;
 
-        const anchorHasEarlyMorning = (breaksRaw || []).some(
-          (b) =>
-            b.shift_type === 'night' &&
-            b.date === nightStart &&
-            isNightEarlyMorningTime(b.break_start_time)
-        );
-
         const breaksData = (breaksRaw || []).filter((b) => {
           if (b.shift_type === 'day' || b.shift_type === 'afternoon') {
             // Day window only — do not surface tomorrow's day list during the night cycle
             return b.date === today && !inNightWindow;
           }
           if (b.shift_type === 'night') {
-            if (b.date === nightStart) return true;
-            // Legacy rows dated on the morning calendar day (only if anchor has none)
-            if (
-              b.date === nightMorning &&
-              isNightEarlyMorningTime(b.break_start_time) &&
-              !anchorHasEarlyMorning
-            ) {
-              return true;
-            }
-            return false;
+            // Only the open night cycle (night start date). Do not show the next
+            // night's 00:00-06:59 rows while this window is still open.
+            return b.date === nightStart;
           }
           return false;
         });
@@ -476,9 +466,28 @@ export default function ShiftDashboard({
               profiles: profilesMap[b.user_id]
             }));
 
-          // Exclude users marked absent (no show / sick / late) on effective date(s)
-          const absentUserIds = await getAbsentUserIdsForDates(supabase, [nightStart, today, yesterday]);
-          const breaksFilteredAbsent = breaksWithProfiles.filter(b => !absentUserIds.has(b.user_id));
+          // Hide break only when absence matches same person + date + shift type.
+          let absentKeys;
+          try {
+            absentKeys = await getAbsentShiftKeysForDates(supabase, [
+              nightStart,
+              today,
+              yesterday,
+            ]);
+            setAttendanceWarning(null);
+          } catch (attErr) {
+            console.error('Attendance filter failed; keeping previous break list:', attErr);
+            // Do not pretend nobody is absent — keep previous list and warn.
+            setAttendanceWarning('Could not check absences. Showing last loaded break list.');
+            teamRetryRef.current.attempts = 0;
+            setTeamError(null);
+            setTeamLoading(false);
+            return;
+          }
+
+          const breaksFilteredAbsent = breaksWithProfiles.filter(
+            (b) => !isBreakAbsent(b, absentKeys)
+          );
           
           // DEDUPLICATE: Remove duplicate entries - same user can have multiple breaks
           const uniqueBreaks = [];
@@ -499,6 +508,7 @@ export default function ShiftDashboard({
           setAllBreaks(sortedBreaks);
         } else {
           setAllBreaks([]);
+          setAttendanceWarning(null);
         }
         teamRetryRef.current.attempts = 0;
         setTeamError(null);
@@ -540,12 +550,26 @@ export default function ShiftDashboard({
 
   useEffect(() => {
     fetchTeamSchedule();
-    
+
     // Refresh team data every 15 minutes
     const teamDataInterval = setInterval(fetchTeamSchedule, 15 * 60 * 1000);
+
+    // Tick every minute: update "on break" cards via currentTime only (no remount),
+    // and refetch when the open window flips at 07:00 / 17:00.
+    const timeIntervalId = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      const nextKey = windowEpochKey(now);
+      if (nextKey !== openWindowKeyRef.current) {
+        openWindowKeyRef.current = nextKey;
+        fetchTeamSchedule({ resetAttempts: true });
+      }
+    }, 60 * 1000);
+
     const retryState = teamRetryRef.current;
     return () => {
       clearInterval(teamDataInterval);
+      clearInterval(timeIntervalId);
       clearTimeout(retryState.timeoutId);
     };
   }, [fetchTeamSchedule]);
@@ -563,8 +587,9 @@ export default function ShiftDashboard({
     };
   }, [fetchTugAssignments]);
 
-  // Fetch team break info
+  // Fetch team break info (unused on breaks-only view — BreaksPanel forces breaks)
   const fetchBreakInfo = useCallback(async () => {
+      if (breaksOnlyView) return;
       if (!user || !userProfile) return;
 
       // Night cycle anchors to night start date (17:00 -> 07:00); day uses calendar today
@@ -637,15 +662,16 @@ export default function ShiftDashboard({
         console.error('Error in break info component:', e);
         setBreakInfo('error');
       }
-  }, [user, userProfile]);
+  }, [user, userProfile, breaksOnlyView]);
 
   useEffect(() => {
+    if (breaksOnlyView) return;
     if (!user || !userProfile) {
       setBreakInfo(null);
       return;
     }
     fetchBreakInfo();
-  }, [user, userProfile, fetchBreakInfo]);
+  }, [user, userProfile, fetchBreakInfo, breaksOnlyView]);
 
   // Refetch when the app comes back from background. iOS Safari / home-screen PWAs freeze JS
   // timers while suspended and restore the page from memory instead of reloading it, so the
@@ -683,14 +709,14 @@ export default function ShiftDashboard({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  if (loading) {
+  // Own-shift loading/error must not block the team breaks list (audit #23).
+  if (!breaksOnlyView && loading && teamView === 'shifts') {
     return (
       <div
         className="w-full mb-4 min-h-[min(22rem,55vh)] rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50/95 to-white/90 p-3 shadow-sm sm:p-4"
         aria-busy="true"
-        aria-label="Loading breaks"
+        aria-label="Loading shifts"
       >
-        {/* Match filter-bar-segmented + list height to reduce CLS when data arrives */}
         <div className="mb-4 grid grid-cols-4 gap-1.5 sm:gap-2">
           {[0, 1, 2, 3].map((i) => (
             <div
@@ -699,25 +725,12 @@ export default function ShiftDashboard({
             />
           ))}
         </div>
-        <div className="mb-3 h-20 rounded-2xl border border-dashed border-slate-200/70 bg-white/40 animate-pulse" />
         <div className="space-y-3">
           <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-4 animate-pulse">
             <div className="mb-3 h-4 w-2/3 rounded bg-slate-200/80" />
             <div className="h-3 w-1/2 rounded bg-slate-200/60" />
           </div>
-          <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-4 animate-pulse">
-            <div className="mb-3 h-4 w-1/2 rounded bg-slate-200/80" />
-            <div className="h-3 w-2/3 rounded bg-slate-200/60" />
-          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full mb-4 bg-red-50 rounded-lg border border-red-200 p-4">
-        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -898,6 +911,34 @@ export default function ShiftDashboard({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Own-shift error — shifts tab only; breaks list has its own team error + Retry */}
+        {!breaksOnlyView && error && teamView === 'shifts' && (
+          <div className="mb-4 px-4">
+            <div className="w-full bg-red-50 rounded-lg border border-red-200 p-4 text-center">
+              <p className="text-red-600 text-sm">{error}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  fetchTodaysShift();
+                }}
+                className="mt-3 btn-secondary px-4 py-2 text-sm font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
+        {attendanceWarning && teamView === 'breaks' && (
+          <div className="mb-3 px-4">
+            <p className="text-amber-800 text-sm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {attendanceWarning}
+            </p>
           </div>
         )}
 
@@ -1113,7 +1154,7 @@ export default function ShiftDashboard({
                   const filterEmpty = !teamLoading && !teamError && filteredBreaks.length === 0;
 
                   const renderBreakCard = ({ breakItem, window }, options = {}) => {
-                    const { isActiveList = false, index = 0 } = options;
+                    const { isActiveList = false } = options;
                     const endTime = calculateEndTime(breakItem.break_start_time, breakItem.break_duration_minutes);
                     const isMe = breakItem.user_id === user?.id;
                     const isActive = nowMinutes >= window.start && nowMinutes < window.end;
@@ -1139,10 +1180,12 @@ export default function ShiftDashboard({
                     return (
                       <motion.div
                         key={breakItem.id}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 25, delay: index * 0.04 }}
+                        layout={false}
+                        initial={false}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.15 }}
                         className={cardClasses}
+                        data-break-active={isActive ? 'true' : 'false'}
                       >
                         <div className="flex justify-between items-start gap-2">
                           <p className="text-sm font-medium text-charcoal">
@@ -1210,7 +1253,7 @@ export default function ShiftDashboard({
                         </div>
                       ) : null}
                       <div className="space-y-3">
-                        {displayBreaks.map((entry, idx) => renderBreakCard(entry, { isActiveList: true, index: idx }))}
+                        {displayBreaks.map((entry) => renderBreakCard(entry, { isActiveList: true }))}
                       </div>
                     </div>
                   );

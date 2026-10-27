@@ -175,16 +175,7 @@ class BreakWindowLogic {
   }) {
     final todayYmd = toYmd(now);
     final nightAnchor = nightStartYmd(now);
-    final nightMorning = toYmd(
-      DateTime.parse(nightAnchor).add(const Duration(days: 1)),
-    );
     final inNightWindow = now.hour >= nightStartHour || now.hour < dayStartHour;
-    final anchorHasEarlyMorning = breaks.any(
-      (item) =>
-          item.shift == BreakShift.night &&
-          item.dateYmd == nightAnchor &&
-          _minutes(item.startTime) < dayStartHour * 60,
-    );
 
     final entries = <VisibleBreak>[];
     for (final item in breaks) {
@@ -202,14 +193,12 @@ class BreakWindowLogic {
       if (item.shift == BreakShift.day || item.shift == BreakShift.afternoon) {
         included = !inNightWindow && item.dateYmd == todayYmd;
       } else if (item.dateYmd == nightAnchor) {
+        // Only the open night cycle. Do not pull next night's early-morning
+        // rows dated on the morning calendar day while this window is open.
         included = true;
         if (startMinutes < dayStartHour * 60) {
           wallDate = wallDate.add(const Duration(days: 1));
         }
-      } else if (item.dateYmd == nightMorning &&
-          startMinutes < dayStartHour * 60 &&
-          !anchorHasEarlyMorning) {
-        included = true;
       }
       if (!included) continue;
 

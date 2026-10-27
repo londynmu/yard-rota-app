@@ -6,8 +6,11 @@ import { STATUS_CONFIG, isDefectAwaitingRepair } from '../components/Admin/PreCh
 import { getStatusOptions } from '../utils/defectStatus';
 import PrecheckSignedImage from '../components/PreCheck/PrecheckSignedImage';
 import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
+import { useToast } from '../components/ui/ToastContext';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 const VMU_FILTERS_KEY = 'vmu_filters';
+const RESOLVED_FETCH_LIMIT = 200;
 
 const FIELD_LABELS = {
   repair_status: 'Status',
@@ -17,6 +20,21 @@ const FIELD_LABELS = {
 };
 
 const SKIP_LOG_FIELDS = new Set(['resolved_at', 'resolved_by']);
+
+const DAMAGES_SELECT = `
+  *,
+  resolved_profile:resolved_by(first_name, last_name),
+  precheck_items(item_name),
+  precheck_submissions!inner(
+    id,
+    check_date,
+    check_time,
+    created_at,
+    tug_id,
+    profiles:user_id(first_name, last_name),
+    tugs(id, tug_number, display_name)
+  )
+`;
 
 function formatRelativeTime(dateStr) {
   if (!dateStr) return '';
@@ -55,8 +73,18 @@ function loadPersistedFilters() {
   return { tug: '', status: '', search: '' };
 }
 
+function enhanceDamages(rows, checkItemLabels) {
+  return (rows || []).map(damage => ({
+    ...damage,
+    check_item_label: damage.precheck_items?.item_name
+      ? checkItemLabels[damage.precheck_items.item_name]
+      : null,
+  }));
+}
+
 export default function VmuPage() {
   const { user, sessionProfile } = useAuth();
+  const toast = useToast();
 
   // ─── Data ───
   const [damages, setDamages] = useState([]);
@@ -77,66 +105,80 @@ export default function VmuPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [showAllPhotos, setShowAllPhotos] = useState({});
 
-  // ─── Editing state for inline fields ───
-
-  // ─── Activity logs ───
+  // ─── Activity logs (loaded per expanded card only) ───
   const [activityLogs, setActivityLogs] = useState({});
   const [confirmationsByDamage, setConfirmationsByDamage] = useState({});
+  const [fixedConfirmationsByDamage, setFixedConfirmationsByDamage] = useState({});
   const [activityLoading, setActivityLoading] = useState({});
+
+  // ─── Resolve confirmation ───
+  const [resolveConfirm, setResolveConfirm] = useState(null);
 
   // ─── Persist filters ───
   useEffect(() => {
     localStorage.setItem(VMU_FILTERS_KEY, JSON.stringify(filters));
   }, [filters]);
 
-  // ─── Fetch data ───
+  // ─── Fetch data: open defects first, then recent resolved ───
   const fetchData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [damagesRes, tugsRes, checkItemsRes] = await Promise.all([
-        supabase
-          .from('precheck_damages')
-          .select(`
-            *,
-            resolved_profile:resolved_by(first_name, last_name),
-            precheck_items(item_name),
-            precheck_submissions!inner(
-              id,
-              check_date,
-              check_time,
-              created_at,
-              tug_id,
-              profiles:user_id(first_name, last_name),
-              tugs(id, tug_number, display_name)
-            )
-          `)
-          .neq('source', 'remarks')
-          .order('created_at', { ascending: false }),
+      const statusFilter = filters.status;
+
+      const [tugsRes, checkItemsRes] = await Promise.all([
         supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
         supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
       ]);
-
-      if (damagesRes.error) throw damagesRes.error;
       if (tugsRes.error) throw tugsRes.error;
       if (checkItemsRes.error) throw checkItemsRes.error;
 
-      // Create a map of item_key to label for check items
       const checkItemLabels = {};
       (checkItemsRes.data || []).forEach(item => {
         checkItemLabels[item.item_key] = item.label;
       });
 
-      // Enhance damages data with labels
-      const enhancedDamages = (damagesRes.data || []).map(damage => ({
-        ...damage,
-        check_item_label: damage.precheck_items?.item_name 
-          ? checkItemLabels[damage.precheck_items.item_name] 
-          : null
-      }));
+      let openRows = [];
+      let resolvedRows = [];
 
-      setDamages(enhancedDamages);
+      if (!statusFilter || statusFilter !== 'resolved') {
+        let openQuery = supabase
+          .from('precheck_damages')
+          .select(DAMAGES_SELECT)
+          .neq('source', 'remarks')
+          .neq('repair_status', 'resolved')
+          .order('created_at', { ascending: false });
+        if (statusFilter) {
+          openQuery = openQuery.eq('repair_status', statusFilter);
+        }
+        const openRes = await openQuery;
+        if (openRes.error) throw openRes.error;
+        openRows = openRes.data || [];
+      }
+
+      if (!statusFilter || statusFilter === 'resolved') {
+        const resolvedRes = await supabase
+          .from('precheck_damages')
+          .select(DAMAGES_SELECT)
+          .neq('source', 'remarks')
+          .eq('repair_status', 'resolved')
+          .order('created_at', { ascending: false })
+          .limit(RESOLVED_FETCH_LIMIT);
+        if (resolvedRes.error) throw resolvedRes.error;
+        resolvedRows = resolvedRes.data || [];
+      }
+
+      const merged = [...openRows, ...resolvedRows];
+      const byId = new Map();
+      merged.forEach((row) => {
+        if (!byId.has(row.id)) byId.set(row.id, row);
+      });
+
+      setDamages(enhanceDamages([...byId.values()], checkItemLabels));
       setTugs(tugsRes.data || []);
+      setActivityLogs({});
+      setConfirmationsByDamage({});
+      setFixedConfirmationsByDamage({});
       setLoadError(null);
     } catch (err) {
       console.error('[VmuPage] Fetch error:', err);
@@ -144,11 +186,11 @@ export default function VmuPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters.status]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ─── Filter damages ───
+  // ─── Filter damages (client-side tug/search; status partly server-side) ───
   const filteredDamages = useMemo(() => {
     let result = damages;
 
@@ -203,7 +245,7 @@ export default function VmuPage() {
         }
       }
 
-      // 3. Log changes AFTER successful DB update (fire-and-forget)
+      // 3. Log changes AFTER successful DB update — await and fail visibly
       if (currentDamage && user?.id) {
         const logEntries = [];
         for (const [field, newVal] of Object.entries(updates)) {
@@ -221,12 +263,11 @@ export default function VmuPage() {
           }
         }
         if (logEntries.length > 0) {
-          // Fire-and-forget insert + optimistic cache update
-          supabase.from('defect_activity_log').insert(logEntries).then(() => {
-            // Don't block on this - just log errors
-          }).catch(err => console.error('[VmuPage] Activity log error:', err));
+          const { error: logError } = await supabase
+            .from('defect_activity_log')
+            .insert(logEntries);
+          if (logError) throw logError;
 
-          // Optimistic update of activity log cache
           const optimisticEntries = logEntries.map(entry => ({
             ...entry,
             id: crypto.randomUUID(),
@@ -244,12 +285,13 @@ export default function VmuPage() {
       }
     } catch (err) {
       console.error('[VmuPage] Update error:', err);
+      toast.error('Could not update defect. Try again.');
       fetchData(); // revert on error
     }
   };
 
   // ─── Status change handler ───
-  const handleStatusChange = (damageId, newStatus) => {
+  const applyStatusChange = (damageId, newStatus) => {
     const updates = { repair_status: newStatus };
     if (newStatus === 'resolved') {
       updates.resolved_at = new Date().toISOString();
@@ -261,6 +303,14 @@ export default function VmuPage() {
     updateDamageField(damageId, updates);
   };
 
+  const handleStatusChange = (damageId, newStatus) => {
+    if (newStatus === 'resolved') {
+      setResolveConfirm({ damageId, newStatus });
+      return;
+    }
+    applyStatusChange(damageId, newStatus);
+  };
+
   // ─── Save inline field ───
   const saveField = (damageId, field, value) => {
     updateDamageField(damageId, { [field]: value || null });
@@ -269,10 +319,16 @@ export default function VmuPage() {
   // ─── Fetch activity log + confirmations when defect card expands ───
   const fetchActivityLog = useCallback(async (damageId) => {
     if (!damageId) return;
-    if (activityLogs[damageId] !== undefined && confirmationsByDamage[damageId] !== undefined) return; // already cached
+    if (
+      activityLogs[damageId] !== undefined
+      && confirmationsByDamage[damageId] !== undefined
+      && fixedConfirmationsByDamage[damageId] !== undefined
+    ) {
+      return;
+    }
     setActivityLoading(prev => ({ ...prev, [damageId]: true }));
     try {
-      const [logRes, confRes] = await Promise.all([
+      const [logRes, confRes, fixedRes] = await Promise.all([
         supabase
           .from('defect_activity_log')
           .select('*, profiles:user_id(first_name, last_name)')
@@ -284,71 +340,34 @@ export default function VmuPage() {
           .select('id, created_at, profiles:user_id(first_name, last_name)')
           .eq('damage_id', damageId)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('precheck_damage_fixed_confirmations')
+          .select('id, created_at, profiles:user_id(first_name, last_name)')
+          .eq('damage_id', damageId)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (logRes.error) throw logRes.error;
       if (confRes.error) throw confRes.error;
+      if (fixedRes.error) throw fixedRes.error;
       setActivityLogs(prev => ({ ...prev, [damageId]: logRes.data || [] }));
       setConfirmationsByDamage(prev => ({ ...prev, [damageId]: confRes.data || [] }));
+      setFixedConfirmationsByDamage(prev => ({ ...prev, [damageId]: fixedRes.data || [] }));
     } catch (err) {
       console.error('[VmuPage] Activity/confirmations fetch error:', err);
       setActivityLogs(prev => ({ ...prev, [damageId]: prev[damageId] ?? [] }));
       setConfirmationsByDamage(prev => ({ ...prev, [damageId]: prev[damageId] ?? [] }));
+      setFixedConfirmationsByDamage(prev => ({ ...prev, [damageId]: prev[damageId] ?? [] }));
     } finally {
       setActivityLoading(prev => ({ ...prev, [damageId]: false }));
     }
-  }, [activityLogs, confirmationsByDamage]);
+  }, [activityLogs, confirmationsByDamage, fixedConfirmationsByDamage]);
 
   useEffect(() => {
     if (expandedDefectId) {
       fetchActivityLog(expandedDefectId);
     }
   }, [expandedDefectId, fetchActivityLog]);
-
-  // ─── Fetch activity logs for all damages on page load (for closed cards) ───
-  useEffect(() => {
-    if (!damages.length) return;
-    const damageIds = damages.map(d => d.id);
-    if (damageIds.length === 0) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const [logRes, confRes] = await Promise.all([
-          supabase
-            .from('defect_activity_log')
-            .select('*, profiles:user_id(first_name, last_name)')
-            .in('damage_id', damageIds)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('precheck_damage_confirmations')
-            .select('id, damage_id, created_at, profiles:user_id(first_name, last_name)')
-            .in('damage_id', damageIds)
-            .order('created_at', { ascending: false }),
-        ]);
-
-        if (cancelled) return;
-        if (logRes.error || confRes.error) return;
-
-        const logsByDamage = {};
-        (logRes.data || []).forEach(row => {
-          if (!logsByDamage[row.damage_id]) logsByDamage[row.damage_id] = [];
-          logsByDamage[row.damage_id].push(row);
-        });
-        const confByDamage = {};
-        (confRes.data || []).forEach(row => {
-          if (!confByDamage[row.damage_id]) confByDamage[row.damage_id] = [];
-          confByDamage[row.damage_id].push(row);
-        });
-
-        setActivityLogs(prev => ({ ...prev, ...logsByDamage }));
-        setConfirmationsByDamage(prev => ({ ...prev, ...confByDamage }));
-      } catch (err) {
-        if (!cancelled) console.error('[VmuPage] Bulk activity fetch error:', err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [damages]);
 
   // ─── Tug grouping for Tug View ───
   const tugGroups = useMemo(() => {
@@ -398,24 +417,36 @@ export default function VmuPage() {
     return `${day} ${month} ${year} at ${h}:${m}`;
   };
 
-  const getLastActivityEntryShort = (d) => {
+  const mergeActivityEntries = (d) => {
     const initialEntry = {
       type: 'initial_report',
       created_at: d.precheck_submissions?.created_at || d.created_at,
       profiles: d.precheck_submissions?.profiles,
+      id: `initial-${d.id}`,
     };
     const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({
       type: 'confirmation',
       created_at: c.created_at,
       profiles: c.profiles,
+      id: c.id,
+    }));
+    const fixedConfirmations = (fixedConfirmationsByDamage[d.id] || []).map(c => ({
+      type: 'fixed_confirmation',
+      created_at: c.created_at,
+      profiles: c.profiles,
+      id: `fixed-${c.id}`,
     }));
     const activityEntries = (activityLogs[d.id] || []).map(e => ({
       ...e,
       type: e.action_type,
     }));
-    const merged = [initialEntry, ...confirmations, ...activityEntries]
+    return [initialEntry, ...confirmations, ...fixedConfirmations, ...activityEntries]
       .filter(e => e.created_at)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  };
+
+  const getLastActivityEntryShort = (d) => {
+    const merged = mergeActivityEntries(d);
     const latest = merged[0];
     if (!latest) {
       const name = getReporterName(d);
@@ -426,6 +457,7 @@ export default function VmuPage() {
       : 'Unknown';
     if (latest.type === 'initial_report') return `${name} reported`;
     if (latest.type === 'confirmation') return `${name} confirmed still exists`;
+    if (latest.type === 'fixed_confirmation') return `${name} confirmed fixed`;
     if (latest.type === 'status_change') {
       const newVal = formatFieldValue('repair_status', latest.new_value);
       return `${name} → ${newVal || 'status'}`;
@@ -434,15 +466,7 @@ export default function VmuPage() {
   };
 
   const getLastChangeTimestamp = (d) => {
-    const initialEntry = {
-      type: 'initial_report',
-      created_at: d.precheck_submissions?.created_at || d.created_at,
-    };
-    const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({ created_at: c.created_at }));
-    const activityEntries = (activityLogs[d.id] || []).map(e => ({ created_at: e.created_at }));
-    const merged = [initialEntry, ...confirmations, ...activityEntries]
-      .filter(e => e.created_at)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const merged = mergeActivityEntries(d);
     const latest = merged[0];
     return latest?.created_at || d.updated_at || d.resolved_at || d.created_at;
   };
@@ -611,24 +635,7 @@ export default function VmuPage() {
                 );
               }
 
-              const initialEntry = {
-                type: 'initial_report',
-                created_at: d.precheck_submissions?.created_at || d.created_at,
-                id: `initial-${d.id}`,
-                profiles: d.precheck_submissions?.profiles,
-              };
-              const confirmations = (confirmationsByDamage[d.id] || []).map(c => ({
-                type: 'confirmation',
-                id: c.id,
-                created_at: c.created_at,
-                profiles: c.profiles,
-              }));
-              const activityEntries = (activityLogs[d.id] || []).map(e => ({
-                ...e,
-                type: e.action_type,
-              }));
-              const merged = [initialEntry, ...confirmations, ...activityEntries]
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const merged = mergeActivityEntries(d);
 
               return (
                 <div className="max-h-[360px] overflow-y-auto pr-2">
@@ -647,6 +654,8 @@ export default function VmuPage() {
                         description = <>reported this defect on {dateFormatted}</>;
                       } else if (entry.type === 'confirmation') {
                         description = <>reported that the problem still exists on {dateFormatted}</>;
+                      } else if (entry.type === 'fixed_confirmation') {
+                        description = <>confirmed this defect has been fixed on {dateFormatted}</>;
                       } else if (entry.type === 'status_change') {
                         const oldDisplay = formatFieldValue(entry.field_name, entry.old_value);
                         const newDisplay = formatFieldValue(entry.field_name, entry.new_value);
@@ -837,6 +846,20 @@ export default function VmuPage() {
         </div>
       )}
       </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(resolveConfirm)}
+        onClose={() => setResolveConfirm(null)}
+        onConfirm={() => {
+          if (resolveConfirm) {
+            applyStatusChange(resolveConfirm.damageId, resolveConfirm.newStatus);
+          }
+        }}
+        title="Mark as resolved?"
+        message="This will close the defect. You can reopen it later if needed."
+        confirmText="Mark resolved"
+        cancelText="Cancel"
+      />
 
       {/* ─── Lightbox ─── */}
       {lightboxUrl && createPortal(

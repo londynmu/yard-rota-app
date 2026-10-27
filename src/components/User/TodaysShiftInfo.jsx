@@ -3,7 +3,10 @@ import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
+import {
+  getAbsentShiftKeysForDates,
+  isBreakAbsent,
+} from '../../utils/attendanceHelpers';
 
 // Component to show breaks when user has no shift today
 function NoShiftWithBreaksView() {
@@ -78,9 +81,11 @@ function NoShiftWithBreaksView() {
           throw allBreaksError;
         }
 
-        // Exclude users marked absent (no show / sick / late) on this date
-        const absentUserIds = await getAbsentUserIdsForDates(supabase, [today]);
-        const breaksFiltered = (allBreaks || []).filter(b => !absentUserIds.has(b.user_id));
+        // Exclude absences matching same person + date + shift type only
+        const absentKeys = await getAbsentShiftKeysForDates(supabase, [today]);
+        const breaksFiltered = (allBreaks || []).filter(
+          (b) => !isBreakAbsent({ ...b, date: today }, absentKeys)
+        );
 
         console.log('[NoShiftWithBreaksView] Fetched breaks:', allBreaks);
 

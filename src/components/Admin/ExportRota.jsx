@@ -120,10 +120,10 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       
       if (scheduleError) throw scheduleError;
 
-      // Get all profiles in one query to minimize API calls
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email, agency_id');
+      // email is not selectable on profiles for clients — admin RPC only
+      const { data: profilesData, error: profilesError } = await supabase.rpc(
+        'get_admin_profiles_with_emails',
+      );
 
       if (profilesError) throw profilesError;
 

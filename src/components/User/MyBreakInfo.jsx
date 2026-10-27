@@ -3,7 +3,10 @@ import React from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import { format } from 'date-fns';
-import { getAbsentUserIdsForDates } from '../../utils/attendanceHelpers';
+import {
+  getAbsentShiftKeysForDates,
+  isBreakAbsent,
+} from '../../utils/attendanceHelpers';
 
 // Helper to calculate end time
 const calculateEndTime = (startTime, durationMinutes) => {
@@ -101,9 +104,11 @@ export default function MyBreakInfo() {
 
         if (allBreaksError) throw allBreaksError;
 
-        // Exclude users marked absent (no show / sick / late) on this date
-        const absentUserIds = await getAbsentUserIdsForDates(supabase, [today]);
-        const breaksFiltered = (allBreaks || []).filter(b => !absentUserIds.has(b.user_id));
+        // Exclude absences matching same person + date + shift type only
+        const absentKeys = await getAbsentShiftKeysForDates(supabase, [today]);
+        const breaksFiltered = (allBreaks || []).filter(
+          (b) => !isBreakAbsent({ ...b, date: today }, absentKeys)
+        );
 
         if (breaksFiltered.length > 0) {
           // Separate my breaks from team breaks

@@ -478,11 +478,36 @@ bool isPreCheckItemHandled({
     final defectId = key.split('::')[1];
     return draft.markedResolvedDamageIds.contains(defectId);
   });
+  if (!allDefectsHandled) {
+    return false;
+  }
   final newState = draft.itemStates['${item.key}::new'];
-  final newDefectComplete =
-      newState?.status == PreCheckItemStatus.repairNeeded &&
-      newState!.notes.trim().isNotEmpty;
-  return allDefectsHandled || newDefectComplete;
+  if (newState?.status == PreCheckItemStatus.repairNeeded) {
+    return newState!.notes.trim().isNotEmpty;
+  }
+  return true;
+}
+
+/// Same-problem ids + optional new defect for a multi-defect check item.
+({List<String> sameProblemDamageIds, PreCheckItemState? newDefect})
+collectMultiDefectActions({
+  required PreCheckItemDefinition item,
+  required PreCheckDraft draft,
+  required List<PreCheckKnownDefect> defects,
+}) {
+  final sameProblemDamageIds = <String>[];
+  for (final defect in defects) {
+    final key = '${item.key}::${defect.id}';
+    final state = draft.itemStates[key];
+    if (state?.status == PreCheckItemStatus.repairNeeded &&
+        state?.linkedDamageId != null) {
+      sameProblemDamageIds.add(state!.linkedDamageId!);
+    }
+  }
+  final newState = draft.itemStates['${item.key}::new'];
+  final newDefect =
+      newState?.status == PreCheckItemStatus.repairNeeded ? newState : null;
+  return (sameProblemDamageIds: sameProblemDamageIds, newDefect: newDefect);
 }
 
 PreCheckValidationResult validatePreCheckDraft({

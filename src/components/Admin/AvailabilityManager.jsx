@@ -48,10 +48,7 @@ export default function AvailabilityManager() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        // Pobieramy profile bezpośrednio - pomijamy próbę użycia RPC
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*');
+        const { data, error } = await supabase.rpc('get_admin_profiles_with_emails');
           
         if (error) throw error;
         

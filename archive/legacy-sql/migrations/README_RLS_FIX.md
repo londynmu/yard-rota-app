@@ -1,5 +1,9 @@
 # RLS & Database Performance Fix - Step by Step
 
+> **ARCHIVED — DO NOT RUN ON PRODUCTION.**  
+> These scripts are historical. Live schema changes go only through `supabase/migrations/`.  
+> See `archive/legacy-sql/README.md`.
+
 ## Problem
 Supabase linter wykrył:
 - 64 ostrzeżenia `auth_rls_initplan` (WARN) ✅ NAPRAWIONE

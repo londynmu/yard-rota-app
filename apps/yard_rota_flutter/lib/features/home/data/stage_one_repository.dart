@@ -120,14 +120,15 @@ class StageOneRepository {
 
     final rotaRows = await _client
         .from('scheduled_rota')
-        .select('id,user_id,date,location')
+        .select('id,user_id,date,location,shift_type')
         .inFilter('date', dates)
         .inFilter('user_id', userIds);
     final rotaIds = rotaRows
         .map((row) => row['id']?.toString())
         .whereType<String>()
         .toList();
-    final absentUserIds = <String>{};
+    // Keys: userId|date|shiftType — hide break only when absence matches all three.
+    final absentKeys = <String>{};
     if (rotaIds.isNotEmpty) {
       final attendanceRows = await _client
           .from('attendance')
@@ -140,7 +141,11 @@ class StageOneRepository {
       for (final row in rotaRows) {
         if (absentRotaIds.contains(row['id']?.toString())) {
           final userId = row['user_id']?.toString();
-          if (userId != null) absentUserIds.add(userId);
+          final date = row['date']?.toString();
+          final shift = row['shift_type']?.toString();
+          if (userId != null && date != null && shift != null) {
+            absentKeys.add('$userId|$date|$shift');
+          }
         }
       }
     }
@@ -157,7 +162,13 @@ class StageOneRepository {
 
     return rawBreaks
         .whereType<Map<String, dynamic>>()
-        .where((row) => !absentUserIds.contains(row['user_id']?.toString()))
+        .where((row) {
+          final userId = row['user_id']?.toString();
+          final date = row['date']?.toString();
+          final shift = row['shift_type']?.toString();
+          if (userId == null || date == null || shift == null) return true;
+          return !absentKeys.contains('$userId|$date|$shift');
+        })
         .map(
           (row) => mapScheduledBreak(
             row,

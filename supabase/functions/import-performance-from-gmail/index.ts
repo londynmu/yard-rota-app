@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { google } from "npm:googleapis@133";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireAdminOrCron } from "../_shared/requireAdminOrCron.ts";
 
 const GMAIL_CLIENT_ID = Deno.env.get("GMAIL_CLIENT_ID")!;
 const GMAIL_CLIENT_SECRET = Deno.env.get("GMAIL_CLIENT_SECRET")!;
@@ -28,17 +29,51 @@ function timeToSeconds(t: string): number {
 
 function secondsToTime(s: number): string {
   if (s <= 0) return "0:00";
-  const m = Math.floor(s / 60);
-  const sec = Math.round(s % 60);
+  // Match manual CSV import: round total seconds then split (avoid 1:60)
+  const total = Math.round(s);
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-function getReportDateFromEmail(internalDate: string): string {
-  const date = new Date(parseInt(internalDate, 10));
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/** Prefer Generation Time / report date in Europe/London; fall back to internalDate. */
+function getReportDateFromEmail(
+  internalDate: string,
+  headers: { name?: string | null; value?: string | null }[] = [],
+  csvContent = "",
+): string {
+  const londonParts = (d: Date) => {
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = fmt.formatToParts(d);
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    const day = parts.find((p) => p.type === "day")?.value;
+    return `${y}-${m}-${day}`;
+  };
+
+  const genHeader = headers.find((h) =>
+    (h.name || "").toLowerCase().includes("generation time") ||
+    (h.name || "").toLowerCase() === "date"
+  );
+  if (genHeader?.value) {
+    const parsed = new Date(genHeader.value);
+    if (!Number.isNaN(parsed.getTime())) return londonParts(parsed);
+  }
+
+  const genMatch = csvContent.match(
+    /Generation\s*Time\s*[:,]?\s*([0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}|[0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{2,4})/i,
+  );
+  if (genMatch?.[1]) {
+    const parsed = new Date(genMatch[1]);
+    if (!Number.isNaN(parsed.getTime())) return londonParts(parsed);
+  }
+
+  return londonParts(new Date(parseInt(internalDate, 10)));
 }
 
 interface ParsedRow {
@@ -195,24 +230,37 @@ function aggregateShiftData(rows: ParsedRow[]): AggregatedRow[] {
     }
   }
   
-  // Calculate weighted averages
+  // Calculate weighted averages (round like manual csvImportHelper)
   for (const v of map.values()) {
-    v.avgTimeToCollect = v.numberOfMoves ? secondsToTime(v.totalCollectSeconds / v.numberOfMoves) : "0:00";
-    v.avgTimeToTravel = v.numberOfMoves ? secondsToTime(v.totalTravelSeconds / v.numberOfMoves) : "0:00";
-    
+    const avgCollect = v.numberOfMoves
+      ? Math.round(v.totalCollectSeconds / v.numberOfMoves)
+      : 0;
+    const avgTravel = v.numberOfMoves
+      ? Math.round(v.totalTravelSeconds / v.numberOfMoves)
+      : 0;
+    v.avgTimeToCollect = secondsToTime(avgCollect);
+    v.avgTimeToTravel = secondsToTime(avgTravel);
+
     if (v.shiftCount > 1) {
       console.log(`  ✅ ${v.yardSystemId}: Aggregated ${v.shiftCount} shifts → ${v.numberOfMoves} total moves`);
     }
   }
-  
+
   console.log(`✅ Aggregation complete: ${rows.length} entries → ${map.size} unique shunters`);
   return [...map.values()];
 }
 
-serve(async () => {
+serve(async (req) => {
   try {
-    console.log("🚀 Starting performance import from Gmail...");
-    
+    const gate = await requireAdminOrCron(req);
+    if (!gate.ok) {
+      return new Response(JSON.stringify({ error: gate.error }), {
+        status: gate.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    console.log(`🚀 Starting performance import from Gmail (mode=${gate.mode})...`);
+
     const listRes = await gmail.users.messages.list({
       userId: "me",
       labelIds: [GMAIL_FILTER_LABEL_ID],
@@ -226,58 +274,23 @@ serve(async () => {
     }
 
     console.log(`📧 Found ${messages.length} messages to process`);
-    
-    const results: { messageId: string; status: string; date?: string; imported?: number }[] = [];
-    
-    // Track dates already imported in this run to handle duplicate emails
+
+    const results: { messageId: string; status: string; date?: string; imported?: number; skipped?: number }[] = [];
     const importedDatesThisRun = new Set<string>();
 
     for (const msg of messages) {
       const msgId = msg.id!;
       console.log(`\n📨 Processing message ${msgId}...`);
-      
+
       const fullMsg = await gmail.users.messages.get({ userId: "me", id: msgId });
-      
-      // Skip if already has Processed label
+
       if (fullMsg.data.labelIds?.includes(GMAIL_PROCESSED_LABEL_ID)) {
         console.log(`⏭️ Already processed, skipping`);
         results.push({ messageId: msgId, status: "already_processed" });
         continue;
       }
 
-      const reportDate = getReportDateFromEmail(fullMsg.data.internalDate!);
-      console.log(`📅 Report date: ${reportDate}`);
-
-      // CHECK 1: Did we already import this date in this run? (handles duplicate emails)
-      if (importedDatesThisRun.has(reportDate)) {
-        console.log(`⚠️ Date ${reportDate} already imported in this run, marking as processed`);
-        await gmail.users.messages.modify({
-          userId: "me",
-          id: msgId,
-          requestBody: { addLabelIds: [GMAIL_PROCESSED_LABEL_ID] },
-        });
-        results.push({ messageId: msgId, status: "duplicate_skipped", date: reportDate });
-        continue;
-      }
-
-      // CHECK 2: Is there already data for this date in the database?
-      const { count } = await supabase
-        .from("shunter_performance")
-        .select("*", { count: "exact", head: true })
-        .eq("report_date", reportDate);
-
-      if (count && count > 0) {
-        console.log(`⚠️ Data for ${reportDate} already exists in database (${count} records), marking as processed`);
-        await gmail.users.messages.modify({
-          userId: "me",
-          id: msgId,
-          requestBody: { addLabelIds: [GMAIL_PROCESSED_LABEL_ID] },
-        });
-        results.push({ messageId: msgId, status: "date_already_in_db", date: reportDate });
-        continue;
-      }
-
-      // Find CSV attachment
+      // Find CSV attachment first (needed for date + import)
       const parts = fullMsg.data.payload?.parts || [];
       let csvContent = "";
       for (const part of parts) {
@@ -299,14 +312,24 @@ serve(async () => {
         continue;
       }
 
-      // Parse CSV (NOW PARSES ALL SECTIONS!)
+      const reportDate = getReportDateFromEmail(
+        fullMsg.data.internalDate!,
+        fullMsg.data.payload?.headers || [],
+        csvContent,
+      );
+      console.log(`📅 Report date: ${reportDate}`);
+
+      if (importedDatesThisRun.has(reportDate)) {
+        console.log(`⚠️ Date ${reportDate} already imported in this run — leave unprocessed for retry visibility`);
+        results.push({ messageId: msgId, status: "duplicate_in_run", date: reportDate });
+        continue;
+      }
+
+      // Parse / aggregate
       let rows = parseShunterCSV(csvContent);
-      
       rows = dedupeIdenticalEntries(rows);
-      
       const aggregated = aggregateShiftData(rows);
 
-      // Get profiles with yard_system_id
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, yard_system_id")
@@ -318,10 +341,10 @@ serve(async () => {
       }
       console.log(`👥 Found ${profileMap.size} profiles with yard_system_id`);
 
-      // Import data
       let importedCount = 0;
       let skippedCount = 0;
-      
+      let failedCount = 0;
+
       for (const row of aggregated) {
         const userId = profileMap.get(row.yardSystemId);
         if (!userId) {
@@ -341,30 +364,52 @@ serve(async () => {
             full_name_from_report: row.fullName,
             yard_system_id_from_report: row.yardSystemId,
           },
-          { onConflict: "user_id,report_date" }
+          { onConflict: "user_id,report_date" },
         );
-        
+
         if (!error) {
           importedCount++;
-          const shiftsInfo = row.shiftCount > 1 ? ` (${row.shiftCount} shifts)` : '';
+          const shiftsInfo = row.shiftCount > 1 ? ` (${row.shiftCount} shifts)` : "";
           console.log(`  ✅ ${row.yardSystemId}: ${row.numberOfMoves} moves${shiftsInfo}`);
         } else {
+          failedCount++;
           console.error(`  ❌ Error importing ${row.yardSystemId}:`, error);
         }
       }
 
-      // Mark this date as imported in this run
+      // Only mark processed when at least one row saved and no write failures
+      if (importedCount === 0 || failedCount > 0) {
+        console.log(
+          `⏸️ Not marking processed (imported=${importedCount}, failed=${failedCount}, skipped=${skippedCount})`,
+        );
+        results.push({
+          messageId: msgId,
+          status: failedCount > 0 ? "partial_failure" : "nothing_imported",
+          date: reportDate,
+          imported: importedCount,
+          skipped: skippedCount,
+        });
+        continue;
+      }
+
       importedDatesThisRun.add(reportDate);
 
-      // Mark email as processed
       await gmail.users.messages.modify({
         userId: "me",
         id: msgId,
         requestBody: { addLabelIds: [GMAIL_PROCESSED_LABEL_ID] },
       });
 
-      console.log(`✅ Successfully imported ${importedCount} records for date ${reportDate} (${skippedCount} skipped - no profile)`);
-      results.push({ messageId: msgId, status: "imported", date: reportDate, imported: importedCount });
+      console.log(
+        `✅ Successfully imported ${importedCount} records for date ${reportDate} (${skippedCount} skipped - no profile)`,
+      );
+      results.push({
+        messageId: msgId,
+        status: "imported",
+        date: reportDate,
+        imported: importedCount,
+        skipped: skippedCount,
+      });
     }
 
     console.log("\n🎉 Import complete!");

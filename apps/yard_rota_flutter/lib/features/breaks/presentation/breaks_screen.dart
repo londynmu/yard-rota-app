@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/network/models.dart';
@@ -44,7 +46,7 @@ class BreaksPanel extends StatefulWidget {
   State<BreaksPanel> createState() => _BreaksPanelState();
 }
 
-class _BreaksPanelState extends State<BreaksPanel> {
+class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
   List<ScheduledBreak> _breaks = const <ScheduledBreak>[];
   List<String> _locations = const <String>[];
 
@@ -55,11 +57,54 @@ class _BreaksPanelState extends State<BreaksPanel> {
   bool _filtersInitialized = false;
   bool _loading = true;
   Object? _error;
+  DateTime _now = DateTime.now();
+  String _windowKey = '';
+  Timer? _minuteTimer;
+
+  static String _epochKey(DateTime now) {
+    final inNight =
+        now.hour >= BreakWindowLogic.nightStartHour ||
+        now.hour < BreakWindowLogic.dayStartHour;
+    return '${inNight ? 'night' : 'day'}:${BreakWindowLogic.nightStartYmd(now)}';
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _now = DateTime.now();
+    _windowKey = _epochKey(_now);
     _load();
+    _minuteTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      final nextKey = _epochKey(now);
+      setState(() => _now = now);
+      if (nextKey != _windowKey) {
+        _windowKey = nextKey;
+        _load();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _minuteTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final now = DateTime.now();
+      final nextKey = _epochKey(now);
+      setState(() => _now = now);
+      if (nextKey != _windowKey) {
+        _windowKey = nextKey;
+      }
+      _load();
+    }
   }
 
   @override
@@ -182,7 +227,7 @@ class _BreaksPanelState extends State<BreaksPanel> {
 
     final visible = BreakWindowLogic.visibleBreaks(
       breaks: _breaks,
-      now: DateTime.now(),
+      now: _now,
       filters: _filters,
     );
 
