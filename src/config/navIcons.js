@@ -88,6 +88,7 @@ export const mainNavConfig = [
 export const transportManagerNavConfig = [
   { path: '/transport-dashboard', label: 'Home', shortLabel: 'Home', Icon: Home, colorClass: colors.primary },
   { path: '/transport-dashboard/rota', label: 'Rota', shortLabel: 'Rota', Icon: CalendarFold, colorClass: colors.info },
+  { path: '/transport-dashboard/breaks', label: 'Breaks', shortLabel: 'Breaks', Icon: Timer, colorClass: colors.warning },
   { path: '/vmu', label: 'Fleet', shortLabel: 'Fleet', Icon: Truck, colorClass: colors.slate },
   { path: '/vmu/prechecks', label: 'Checks', shortLabel: 'Checks', Icon: ListChecks, colorClass: colors.success },
 ];

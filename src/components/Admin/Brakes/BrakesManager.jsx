@@ -18,7 +18,7 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 
 const ALL_LOCATIONS_VALUE = 'all';
 
-const BrakesManager = () => {
+const BrakesManager = ({ readOnly = false }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [currentUser, setCurrentUser] = useState(null);
@@ -35,6 +35,10 @@ const BrakesManager = () => {
   });
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() => {
+    if (readOnly) {
+      const tmLoc = localStorage.getItem('tm_dashboard_location');
+      if (tmLoc) return tmLoc;
+    }
     const savedLocation = localStorage.getItem('brakes_selected_location');
     return savedLocation || ALL_LOCATIONS_VALUE;
   });
@@ -109,13 +113,20 @@ const BrakesManager = () => {
         setLocations(fetchedLocations);
 
         // Ensure selectedLocation is a valid active location; default to Rugby or first
-        const hasSelected = fetchedLocations.some(loc => loc.name === selectedLocation);
-        if (!hasSelected || selectedLocation === ALL_LOCATIONS_VALUE) {
+        const tmPreferred = readOnly ? localStorage.getItem('tm_dashboard_location') : null;
+        const preferred =
+          (tmPreferred && fetchedLocations.some((loc) => loc.name === tmPreferred) && tmPreferred) ||
+          (fetchedLocations.some((loc) => loc.name === selectedLocation) && selectedLocation) ||
+          null;
+        const hasSelected = preferred && preferred !== ALL_LOCATIONS_VALUE;
+        if (!hasSelected) {
           const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
           if (defaultLoc) {
             setSelectedLocation(defaultLoc);
-            localStorage.setItem('brakes_selected_location', defaultLoc);
+            if (!readOnly) localStorage.setItem('brakes_selected_location', defaultLoc);
           }
+        } else if (preferred !== selectedLocation) {
+          setSelectedLocation(preferred);
         }
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -124,7 +135,7 @@ const BrakesManager = () => {
     };
 
     loadLocations();
-  }, [selectedLocation, toast]);
+  }, [selectedLocation, toast, readOnly]);
 
   // Convert time to minutes for break preference sorting (00:00-05:59 treated as night continuation)
   const timeToMinutes = (timeStr) => {
@@ -1332,6 +1343,7 @@ const BrakesManager = () => {
 
   // Staff assignment handlers
   const handleSlotClick = (slot) => {
+    if (readOnly) return;
     setSelectedSlot(slot);
     setStaffModalOpen(true);
   };
@@ -1370,8 +1382,10 @@ const BrakesManager = () => {
   }, [selectedShift]);
   
   useEffect(() => {
+    if (!selectedLocation || selectedLocation === ALL_LOCATIONS_VALUE) return;
     localStorage.setItem('brakes_selected_location', selectedLocation);
-  }, [selectedLocation]);
+    if (readOnly) localStorage.setItem('tm_dashboard_location', selectedLocation);
+  }, [selectedLocation, readOnly]);
 
   // Initialize calendar month when date modal opens
   useEffect(() => {
@@ -1767,13 +1781,14 @@ const BrakesManager = () => {
                     onSlotClick={handleSlotClick}
                     onDeleteClick={handleDeleteCustomSlot}
                     onRemoveStaffClick={requestRemoveStaff}
-                    isAdmin={isAdmin}
+                    isAdmin={isAdmin && !readOnly}
+                    readOnly={readOnly}
                     currentUserId={currentUser?.id ?? null}
                   />
                 ))}
                 
                 {/* Add Slot Card - Only for admins and only in last group */}
-                {isAdmin && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
+                {isAdmin && !readOnly && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
                   <div 
                     onClick={() => setAddSlotModalOpen(true)}
                     className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100 hover:shadow-lg"
@@ -1791,8 +1806,8 @@ const BrakesManager = () => {
         )}
       </div>
 
-      {/* Modals */}
-      {staffModalOpen && selectedSlot && (
+      {/* Modals — hidden in read-only (TM) mode */}
+      {!readOnly && staffModalOpen && selectedSlot && (
         <StaffSelectionModal 
           isOpen={staffModalOpen}
           onClose={() => setStaffModalOpen(false)}
@@ -1809,7 +1824,7 @@ const BrakesManager = () => {
         />
       )}
       
-      {addSlotModalOpen && (
+      {!readOnly && addSlotModalOpen && (
         <AddSlotModal 
           isOpen={addSlotModalOpen}
           onClose={() => setAddSlotModalOpen(false)}
@@ -2271,7 +2286,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
 };
 
 // Slot Card Component to display a break slot
-const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, isAdmin }) => {
+const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveStaffClick, isAdmin, readOnly = false }) => {
   // Format start time to remove seconds (HH:MM:SS -> HH:MM)
   const formatStartTime = () => {
     try {
@@ -2347,7 +2362,9 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
 
   // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
   // Dark Modern Premium - białe karty z szaro-czarnymi i pomarańczowymi akcentami
-  const cardClasses = `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
+  const cardClasses = readOnly
+    ? `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`
+    : `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
   const timeClasses = "font-bold text-lg md:text-base text-gray-900";
   const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
   const badgeClasses = "inline-flex items-center gap-1 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full border text-sm md:text-xs font-semibold";
@@ -2377,6 +2394,7 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
   // const gridClasses = "grid grid-cols-1 gap-6 md:gap-7";
 
   const handleCardClick = (e) => {
+    if (readOnly) return;
     // Prevent opening the modal if the click was on a remove button or delete button
     if (e.target.closest('.remove-staff-button') || e.target.closest('.delete-slot-button')) {
       return;
@@ -2534,7 +2552,12 @@ SlotCard.propTypes = {
   onDeleteClick: PropTypes.func.isRequired,
   onRemoveStaffClick: PropTypes.func.isRequired,
   isAdmin: PropTypes.bool.isRequired,
+  readOnly: PropTypes.bool,
   currentUserId: PropTypes.string
+};
+
+BrakesManager.propTypes = {
+  readOnly: PropTypes.bool,
 };
 
 export default BrakesManager; 
