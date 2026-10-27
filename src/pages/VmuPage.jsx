@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { STATUS_CONFIG, isDefectAwaitingRepair } from '../components/Admin/PreCheck/PreCheckList';
 import { getStatusOptions } from '../utils/defectStatus';
+import PrecheckSignedImage from '../components/PreCheck/PrecheckSignedImage';
+import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 
@@ -541,10 +543,17 @@ export default function VmuPage() {
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setLightboxUrl(url)}
+                          onClick={async () => {
+                            try {
+                              const signed = await createPrecheckSignedUrl(supabase, url);
+                              setLightboxUrl(signed || url);
+                            } catch {
+                              setLightboxUrl(url);
+                            }
+                          }}
                           className="aspect-square rounded overflow-hidden bg-slate-100 cursor-pointer hover:opacity-85 transition-opacity"
                         >
-                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <PrecheckSignedImage url={url} className="w-full h-full object-cover" />
                         </button>
                       ))}
                       {!showAllPhotos[d.id] && d.image_urls.length > 4 && (

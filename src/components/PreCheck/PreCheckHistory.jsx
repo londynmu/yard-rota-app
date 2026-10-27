@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
+import PrecheckSignedImage from './PrecheckSignedImage';
 
 export default function PreCheckHistory() {
   const { user } = useAuth();
@@ -205,9 +206,12 @@ export default function PreCheckHistory() {
                             {damage.image_urls?.length > 0 && (
                               <div className="flex gap-2 mt-2">
                                 {damage.image_urls.map((url, idx) => (
-                                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                                    <img src={url} alt="" className="w-full h-full object-cover" />
-                                  </a>
+                                  <PrecheckSignedImage
+                                    key={idx}
+                                    url={url}
+                                    asLink
+                                    className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
+                                  />
                                 ))}
                               </div>
                             )}
@@ -227,9 +231,12 @@ export default function PreCheckHistory() {
                           {remarksImages.length > 0 && (
                             <div className="flex gap-2 mt-2">
                               {remarksImages.map((url, idx) => (
-                                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                                  <img src={url} alt="" className="w-full h-full object-cover" />
-                                </a>
+                                <PrecheckSignedImage
+                                  key={idx}
+                                  url={url}
+                                  asLink
+                                  className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
+                                />
                               ))}
                             </div>
                           )}

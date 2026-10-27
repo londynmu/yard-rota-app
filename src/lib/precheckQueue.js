@@ -1,6 +1,7 @@
 import { openDB } from 'idb';
 import { retryWithBackoff, runWithConcurrency, isLikelyNetworkError } from './uploadRetry';
 import { normalizeItemDamageActions } from '../utils/precheckMultiDefect';
+import { buildPrecheckImagePath } from '../utils/precheckImageUrl';
 
 const DB_NAME = 'precheck-queue';
 const STORE_NAME = 'precheck_jobs';
@@ -127,6 +128,11 @@ export const getPrecheckQueueStatus = async (userId) => {
 };
 
 const uploadImages = async (supabase, submissionId, images, options = {}) => {
+  const userId = options.userId;
+  if (!userId) {
+    throw new Error('userId is required to upload precheck images');
+  }
+
   const allEntries = (images || []).filter(img => (img?.blob instanceof Blob) || img?.url);
   if (allEntries.length === 0) return [];
 
@@ -138,7 +144,7 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
   const concurrency = options.concurrency || DEFAULT_UPLOAD_CONCURRENCY;
   const urls = await runWithConcurrency(entries, concurrency, async (img) => {
     const ext = getFileExt(img.name, img.type);
-    const filePath = `damages/${submissionId}/${img.id}.${ext}`;
+    const filePath = buildPrecheckImagePath(userId, 'damages', submissionId, `${img.id}.${ext}`);
 
     await retryWithBackoff(async () => {
       const { error: uploadError } = await supabase.storage
@@ -147,15 +153,26 @@ const uploadImages = async (supabase, submissionId, images, options = {}) => {
       if (uploadError) throw uploadError;
     }, options.retryOptions);
 
+    // Persist the public-form URL (or path-equivalent) so display code can
+    // extract the object key and createSignedUrl after the bucket is private.
     const { data: { publicUrl } } = supabase.storage
       .from('precheck-images')
       .getPublicUrl(filePath);
 
+    if (!publicUrl) {
+      throw new Error('Failed to resolve uploaded image URL');
+    }
+
     return publicUrl;
   });
 
-  return [...preUploaded, ...urls.filter(Boolean)];
+  if (urls.some((u) => !u)) {
+    throw new Error('One or more image uploads failed');
+  }
+
+  return [...preUploaded, ...urls];
 };
+
 
 const insertSameProblemConfirmation = async (supabase, {
   damageId,
@@ -251,6 +268,7 @@ const ensureRemarksDamage = async (supabase, submissionId, payload) => {
     supabase,
     submissionId,
     payload.remarksImages,
+    { userId: payload.userId },
   );
   const { error: remarksError } = await supabase
     .from('precheck_damages')
@@ -308,7 +326,12 @@ const ensureItemDamagesAndConfirmations = async (supabase, submissionId, payload
       if ((existingNew || []).some((row) => row.description === desc)) continue;
     }
 
-    const imageUrls = await uploadImages(supabase, submissionId, newDefect.images);
+    const imageUrls = await uploadImages(
+      supabase,
+      submissionId,
+      newDefect.images,
+      { userId: payload.userId },
+    );
     const { error: damageError } = await supabase
       .from('precheck_damages')
       .insert({
@@ -386,7 +409,12 @@ const completeDuringShiftDamage = async (submissionId, payload, supabase) => {
   if (dReadErr) throw dReadErr;
   if (existingDamages?.length) return { id: submissionId };
 
-  const imageUrls = await uploadImages(supabase, submissionId, payload.images);
+  const imageUrls = await uploadImages(
+    supabase,
+    submissionId,
+    payload.images,
+    { userId: payload.userId },
+  );
   const { error: damageError } = await supabase
     .from('precheck_damages')
     .insert({

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/AuthContext';
 import PropTypes from 'prop-types';
+import PrecheckSignedImage from '../../PreCheck/PrecheckSignedImage';
 
 export default function PreCheckDetail({ submissionId, onBack }) {
   const { user } = useAuth();
@@ -236,9 +237,13 @@ export default function PreCheckDetail({ submissionId, onBack }) {
                   {damage.image_urls?.length > 0 && (
                     <div className="flex gap-2 mb-3 flex-wrap">
                       {damage.image_urls.map((url, idx) => (
-                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                          <img src={url} alt={`Damage ${idx + 1}`} className="w-full h-full object-cover" />
-                        </a>
+                        <PrecheckSignedImage
+                          key={idx}
+                          url={url}
+                          alt={`Damage ${idx + 1}`}
+                          asLink
+                          className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
+                        />
                       ))}
                     </div>
                   )}
@@ -285,9 +290,13 @@ export default function PreCheckDetail({ submissionId, onBack }) {
           {remarksImages.length > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
               {remarksImages.map((url, idx) => (
-                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                  <img src={url} alt={`Remarks ${idx + 1}`} className="w-full h-full object-cover" />
-                </a>
+                <PrecheckSignedImage
+                  key={idx}
+                  url={url}
+                  alt={`Remarks ${idx + 1}`}
+                  asLink
+                  className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
+                />
               ))}
             </div>
           )}

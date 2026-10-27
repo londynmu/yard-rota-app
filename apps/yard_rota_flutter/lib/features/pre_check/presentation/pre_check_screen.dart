@@ -13,6 +13,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/precheck_signed_image.dart';
 import '../data/pre_check_repository.dart';
 import '../domain/pre_check_models.dart';
 
@@ -1057,16 +1058,14 @@ class _CheckItemCardState extends State<_CheckItemCard> {
           ),
           if (defect.imageUrls.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            ClipRRect(
+            PrecheckSignedImage(
+              url: defect.imageUrls.first,
+              fit: BoxFit.cover,
+              height: AppPreCheckCard.knownDefectImageHeight,
+              width: double.infinity,
               borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Image.network(
-                defect.imageUrls.first,
-                fit: BoxFit.cover,
-                height: AppPreCheckCard.knownDefectImageHeight,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox.shrink(),
-              ),
+              errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox.shrink(),
             ),
           ],
           if (footnote != null) ...[

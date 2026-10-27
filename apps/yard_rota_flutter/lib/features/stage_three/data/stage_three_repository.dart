@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/network/models.dart';
+import '../../../core/network/precheck_image_urls.dart';
 import '../domain/stage_three_models.dart';
 
 class StageThreeAuthorizationException implements Exception {
@@ -29,6 +30,15 @@ class StageThreeRepository {
         'Administrative privileges are required.',
       );
     }
+  }
+
+  /// Short-lived signed URLs for private precheck-images (also works while public).
+  Future<List<String>> signPrecheckImageUrls(List<String> urls) {
+    return resolvePrecheckImageUrls(_client, urls);
+  }
+
+  Future<String> signPrecheckImageUrl(String url) {
+    return createPrecheckSignedUrl(_client, url);
   }
 
   Future<List<TugRecord>> loadTugs(UserSession session) async {

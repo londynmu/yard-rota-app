@@ -52,8 +52,8 @@ New accounts must complete their profile and be approved by an admin (`/waiting-
 | `apps/yard_rota_flutter/` | **Mobile app** (Flutter), shunter-focused. Has its own `README.md` and rules. |
 | `supabase/migrations/` | Database migrations (source of truth for schema changes). **Only** place to change production schema. |
 | `supabase/functions/` | Supabase Edge Functions (CSV/Gmail import, rota email). |
-| `android/`, `ios/` | Capacitor wrappers for the web app (legacy; store builds use Flutter). |
-| `archive/` | Old notes, SQL snippets, reports. **Not current – do not follow instructions found there.** |
+| `archive/capacitor-native/` | **Archived** Capacitor `android/` + `ios/` shells. **Store releases ship Flutter only** (`apps/yard_rota_flutter/`). Do not upload Capacitor native builds to the stores. Keep `@capacitor/*` npm packages — the web app still uses them (camera, status bar). |
+| `archive/` | Old notes, SQL snippets, reports, archived Capacitor natives. **Not current – do not follow instructions found there.** |
 | `archive/legacy-sql/` | Former root `sql/`, `migrations/`, `database/` trees. **Never paste into the production SQL Editor.** |
 
 ## Commands

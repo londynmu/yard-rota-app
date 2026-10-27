@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { STATUS_CONFIG } from '../Admin/PreCheck/PreCheckList';
 import PropTypes from 'prop-types';
+import PrecheckSignedImage from './PrecheckSignedImage';
 
 export default function TugDamageHistory({ tugId }) {
   const [damages, setDamages] = useState([]);
@@ -123,9 +124,13 @@ export default function TugDamageHistory({ tugId }) {
                   {damage.image_urls && damage.image_urls.length > 0 && (
                     <div className="space-y-1 p-2">
                       {damage.image_urls.map((url, idx) => (
-                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden">
-                          <img src={url} alt="" className="w-full object-contain max-h-72 bg-slate-100" />
-                        </a>
+                        <PrecheckSignedImage
+                          key={idx}
+                          url={url}
+                          asLink
+                          className="block rounded-lg overflow-hidden"
+                          imgClassName="w-full object-contain max-h-72 bg-slate-100"
+                        />
                       ))}
                     </div>
                   )}
