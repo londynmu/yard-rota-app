@@ -34,6 +34,7 @@ const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/Pr
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
 const TransportManagerHome = lazyWithRetry(() => import('../pages/TransportManagerHome'));
 const TransportManagerRota = lazyWithRetry(() => import('../pages/TransportManagerRota'));
+const TransportManagerBreaks = lazyWithRetry(() => import('../pages/TransportManagerBreaks'));
 
 const InductionGuidePage = lazyWithRetry(() => import('../pages/InductionGuidePage'));
 const PreCheckReminder = lazyWithRetry(() => import('./PreCheck/PreCheckReminder'));
@@ -360,6 +361,9 @@ export default function HomePage() {
                   {path === '/transport-dashboard/rota' && (
                     <span className="md:hidden font-semibold text-slate-800">Rota</span>
                   )}
+                  {path === '/transport-dashboard/breaks' && (
+                    <span className="md:hidden font-semibold text-slate-800">Breaks</span>
+                  )}
                   <DesktopNavAppIcon homePath="/transport-dashboard" />
 
                   <nav className="hidden md:flex space-x-2 flex-shrink-0">
@@ -656,6 +660,14 @@ export default function HomePage() {
               element={
                 <ProtectedTransportManagerRoute>
                   <TransportManagerRota />
+                </ProtectedTransportManagerRoute>
+              }
+            />
+            <Route
+              path="/transport-dashboard/breaks"
+              element={
+                <ProtectedTransportManagerRoute>
+                  <TransportManagerBreaks />
                 </ProtectedTransportManagerRoute>
               }
             />
