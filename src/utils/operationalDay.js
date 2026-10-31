@@ -38,3 +38,43 @@ export function getNightStartYmd(now = new Date()) {
 export function getNightMorningYmd(now = new Date()) {
   return format(addDays(new Date(`${getNightStartYmd(now)}T12:00:00`), 1), 'yyyy-MM-dd');
 }
+
+/**
+ * Suggested Manage Breaks date + shift for the active operational window.
+ * - 07:00–17:00 → Day + today
+ * - ≥17:00 → Night + today
+ * - <07:00 → Night + yesterday (open night cycle)
+ */
+export function getSuggestedBreakContext(now = new Date()) {
+  const hour = now.getHours();
+  if (hour < DAY_WINDOW_START_HOUR) {
+    return { date: format(subDays(now, 1), 'yyyy-MM-dd'), shift: 'Night' };
+  }
+  if (hour >= NIGHT_WINDOW_START_HOUR) {
+    return { date: toLocalYmd(now), shift: 'Night' };
+  }
+  return { date: toLocalYmd(now), shift: 'Day' };
+}
+
+/**
+ * Correct stale Manage Breaks localStorage date/shift for the active window.
+ * Day window: force today; Night → Day; keep Afternoon if user chose it.
+ * Night window: use suggested when saved context is not the open night cycle.
+ */
+export function resolveBreakManagerContext(savedDate, savedShift, now = new Date()) {
+  const suggested = getSuggestedBreakContext(now);
+  const hour = now.getHours();
+  const inDayWindow =
+    hour >= DAY_WINDOW_START_HOUR && hour < NIGHT_WINDOW_START_HOUR;
+
+  if (inDayWindow) {
+    const shift = savedShift === 'Afternoon' ? 'Afternoon' : 'Day';
+    return { date: suggested.date, shift };
+  }
+
+  if (savedShift === 'Night' && savedDate === suggested.date) {
+    return { date: savedDate, shift: 'Night' };
+  }
+
+  return suggested;
+}

@@ -245,7 +245,14 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 1200));
     await _signInAsShunter(tester);
 
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    // GridView shows the visible month only; go back when yesterday is prior month.
+    if (yesterday.month != today.month || yesterday.year != today.year) {
+      await tester.tap(find.byTooltip('Previous month'));
+      await tester.pumpAndSettle();
+    }
     final yesterdayCell = find.descendant(
       of: find.byType(GridView).first,
       matching: find.text('${yesterday.day}'),
@@ -267,7 +274,15 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 1200));
     await _signInAsShunter(tester);
 
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    // GridView shows the visible month only; advance when tomorrow is next month
+    // (e.g. Oct 31 → Nov 1 would otherwise match Oct 1).
+    if (tomorrow.month != today.month || tomorrow.year != today.year) {
+      await tester.tap(find.byTooltip('Next month'));
+      await tester.pumpAndSettle();
+    }
     final tomorrowCell = find.descendant(
       of: find.byType(GridView).first,
       matching: find.text('${tomorrow.day}'),
