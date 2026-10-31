@@ -3,7 +3,9 @@ import {
   DAY_WINDOW_START_HOUR,
   getEffectiveTodayYmd,
   getNightStartYmd,
+  getSuggestedBreakContext,
   isInNightWindow,
+  resolveBreakManagerContext,
 } from './operationalDay';
 
 function at(ymd, hour, minute = 0) {
@@ -42,5 +44,70 @@ describe('operationalDay 07:00 threshold', () => {
     expect(getEffectiveTodayYmd(now)).toBe('2026-08-09');
     expect(getNightStartYmd(now)).toBe('2026-08-09');
     expect(isInNightWindow(now)).toBe(true);
+  });
+});
+
+describe('getSuggestedBreakContext', () => {
+  it('02:00 → Night + yesterday', () => {
+    expect(getSuggestedBreakContext(at('2026-08-09', 2, 0))).toEqual({
+      date: '2026-08-08',
+      shift: 'Night',
+    });
+  });
+
+  it('08:00 → Day + today', () => {
+    expect(getSuggestedBreakContext(at('2026-08-09', 8, 0))).toEqual({
+      date: '2026-08-09',
+      shift: 'Day',
+    });
+  });
+
+  it('14:00 → Day + today', () => {
+    expect(getSuggestedBreakContext(at('2026-08-09', 14, 0))).toEqual({
+      date: '2026-08-09',
+      shift: 'Day',
+    });
+  });
+
+  it('18:00 → Night + today', () => {
+    expect(getSuggestedBreakContext(at('2026-08-09', 18, 0))).toEqual({
+      date: '2026-08-09',
+      shift: 'Night',
+    });
+  });
+});
+
+describe('resolveBreakManagerContext with sticky Night+yesterday', () => {
+  const stickyDate = '2026-08-08';
+  const stickyShift = 'Night';
+
+  it('02:00 keeps open night cycle (Night + yesterday)', () => {
+    expect(
+      resolveBreakManagerContext(stickyDate, stickyShift, at('2026-08-09', 2, 0))
+    ).toEqual({ date: '2026-08-08', shift: 'Night' });
+  });
+
+  it('08:00 corrects to Day + today', () => {
+    expect(
+      resolveBreakManagerContext(stickyDate, stickyShift, at('2026-08-09', 8, 0))
+    ).toEqual({ date: '2026-08-09', shift: 'Day' });
+  });
+
+  it('14:00 corrects to Day + today', () => {
+    expect(
+      resolveBreakManagerContext(stickyDate, stickyShift, at('2026-08-09', 14, 0))
+    ).toEqual({ date: '2026-08-09', shift: 'Day' });
+  });
+
+  it('18:00 corrects to Night + today', () => {
+    expect(
+      resolveBreakManagerContext(stickyDate, stickyShift, at('2026-08-09', 18, 0))
+    ).toEqual({ date: '2026-08-09', shift: 'Night' });
+  });
+
+  it('14:00 keeps Afternoon when user chose it in day window', () => {
+    expect(
+      resolveBreakManagerContext('2026-08-08', 'Afternoon', at('2026-08-09', 14, 0))
+    ).toEqual({ date: '2026-08-09', shift: 'Afternoon' });
   });
 });

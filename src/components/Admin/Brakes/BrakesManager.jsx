@@ -8,7 +8,7 @@ import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
-import { toLocalYmd } from '../../../utils/operationalDay';
+import { resolveBreakManagerContext } from '../../../utils/operationalDay';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
@@ -18,21 +18,31 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 
 const ALL_LOCATIONS_VALUE = 'all';
 
+/** Read saved Manage Breaks date/shift and correct stale Night+yesterday in the day window. */
+function readInitialBreakContext() {
+  const savedDate = localStorage.getItem('brakes_selected_date');
+  const savedShift = localStorage.getItem('brakes_selected_shift');
+  const resolved = resolveBreakManagerContext(savedDate, savedShift);
+  if (resolved.date !== savedDate) {
+    localStorage.setItem('brakes_selected_date', resolved.date);
+  }
+  if (resolved.shift !== savedShift) {
+    localStorage.setItem('brakes_selected_shift', resolved.shift);
+  }
+  return resolved;
+}
+
 const BrakesManager = ({ readOnly = false }) => {
   const { user } = useAuth();
   const toast = useToast();
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const savedDate = localStorage.getItem('brakes_selected_date');
-    return savedDate || toLocalYmd();
-  });
-  
-  const [selectedShift, setSelectedShift] = useState(() => {
-    const savedShift = localStorage.getItem('brakes_selected_shift');
-    return savedShift || 'Day';
-  });
+
+  // Date initializer corrects stale LS first; shift reads the resolved value.
+  const [selectedDate, setSelectedDate] = useState(() => readInitialBreakContext().date);
+  const [selectedShift, setSelectedShift] = useState(
+    () => localStorage.getItem('brakes_selected_shift') || 'Day'
+  );
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() => {
     if (readOnly) {
@@ -73,18 +83,20 @@ const BrakesManager = ({ readOnly = false }) => {
     checkUserRole();
   }, [user]);
 
-  // Auto-navigate to today's date when entering Breaks page
+  // Correct stale date/shift for the active window (e.g. Night+yesterday at 14:00 → Day+today)
   useEffect(() => {
-    const today = toLocalYmd();
-    const lastVisitedBreaksPage = localStorage.getItem('brakes_last_visited');
-    const currentVisit = Date.now().toString();
-    
-    // If this is a new visit to breaks page (different day or first time), set today's date
-    if (!lastVisitedBreaksPage || 
-        (lastVisitedBreaksPage && new Date(parseInt(lastVisitedBreaksPage)).toDateString() !== new Date().toDateString())) {
-      setSelectedDate(today);
-      localStorage.setItem('brakes_last_visited', currentVisit);
+    const savedDate = localStorage.getItem('brakes_selected_date');
+    const savedShift = localStorage.getItem('brakes_selected_shift');
+    const resolved = resolveBreakManagerContext(savedDate, savedShift);
+
+    if (resolved.date !== savedDate || resolved.shift !== savedShift) {
+      setSelectedDate(resolved.date);
+      setSelectedShift(resolved.shift);
+      localStorage.setItem('brakes_selected_date', resolved.date);
+      localStorage.setItem('brakes_selected_shift', resolved.shift);
     }
+
+    localStorage.setItem('brakes_last_visited', Date.now().toString());
   }, []); // Run only once when component mounts
 
   // Fetch active locations for filtering
