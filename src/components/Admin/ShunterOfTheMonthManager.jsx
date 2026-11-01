@@ -10,6 +10,7 @@ import {
   deleteAwardById,
 } from '../../utils/shunterAwardsApi';
 import {
+  buildCollectiveShunterAwardEmail,
   formatEmailForClipboard,
   groupShunterAwardsByAgency,
 } from '../../utils/shunterAwardEmails';
@@ -128,6 +129,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [historyYear, setHistoryYear] = useState('all');
+  const [agencyDraftsOpen, setAgencyDraftsOpen] = useState(false);
   const [pickerPeriod, setPickerPeriod] = useState(null);
   const [userSearch, setUserSearch] = useState('');
   const [reminderDismissed, setReminderDismissed] = useState(() =>
@@ -279,7 +281,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     return Boolean(entry?.dayId && entry?.nightId);
   }, [historyByMonth, selectedMonthKey]);
 
-  const emailGroups = useMemo(() => {
+  const monthAwardRows = useMemo(() => {
     if (!selectedComplete) return [];
     const entry = historyByMonth.get(selectedMonthKey);
     if (!entry) return [];
@@ -310,8 +312,21 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
         userId: entry.nightUserId,
       });
     }
-    return groupShunterAwardsByAgency(awards, selectedMonthKey);
+    return awards;
   }, [selectedComplete, historyByMonth, selectedMonthKey]);
+
+  const collectiveEmail = useMemo(() => {
+    if (!monthAwardRows.length) return null;
+    return buildCollectiveShunterAwardEmail({
+      monthKey: selectedMonthKey,
+      winners: monthAwardRows,
+    });
+  }, [monthAwardRows, selectedMonthKey]);
+
+  const emailGroups = useMemo(
+    () => groupShunterAwardsByAgency(monthAwardRows, selectedMonthKey),
+    [monthAwardRows, selectedMonthKey]
+  );
 
   const handleSave = async (period) => {
     const userId = monthWinners[period];
@@ -432,6 +447,17 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     } catch (err) {
       console.error(err);
       toast.error('Could not copy email');
+    }
+  };
+
+  const copyCollectiveAnnouncement = async () => {
+    if (!collectiveEmail) return;
+    try {
+      await navigator.clipboard.writeText(formatEmailForClipboard(collectiveEmail));
+      toast.success('Announcement copied to clipboard');
+    } catch (err) {
+      console.error(err);
+      toast.error('Could not copy announcement');
     }
   };
 
@@ -615,67 +641,107 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
         </div>
       </div>
 
-      {/* Prepare agency emails */}
-      {selectedComplete && (
+      {/* Copy announcement + optional agency drafts */}
+      {selectedComplete && collectiveEmail && (
         <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
           <div className="px-3 py-2 border-b border-red-200/60 bg-red-50">
-            <h2 className="text-sm font-semibold text-red-800">Prepare agency emails</h2>
+            <h2 className="text-sm font-semibold text-red-800">Copy announcement</h2>
             <p className="text-[11px] text-red-800/80 mt-0.5">
-              Opens a draft in your mail app — nothing is sent automatically.
+              Copy and paste into your group mailbox — nothing is sent automatically.
             </p>
           </div>
-          <div className="p-3 bg-yellow-50/50 space-y-2">
-            {emailGroups.length === 0 ? (
-              <p className="text-xs text-gray-500">No winners to email.</p>
-            ) : (
-              emailGroups.map((group) => (
-                <div
-                  key={group.key}
-                  className={`rounded-xl border bg-white p-3 shadow-sm ${
-                    group.hasEmail ? 'border-blue-200' : 'border-amber-300'
-                  }`}
+          <div className="p-3 bg-yellow-50/50 space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+              <p className="text-xs font-semibold text-charcoal">
+                Subject: {collectiveEmail.subject}
+              </p>
+              <pre className="whitespace-pre-wrap text-xs text-charcoal font-sans leading-relaxed">
+                {collectiveEmail.body}
+              </pre>
+              <button
+                type="button"
+                className={outlineBtn}
+                onClick={copyCollectiveAnnouncement}
+              >
+                Copy
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setAgencyDraftsOpen((prev) => !prev)}
+                className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
+              >
+                <span className="text-xs font-semibold text-charcoal">
+                  Agency drafts (optional)
+                </span>
+                <svg
+                  className={`w-3.5 h-3.5 text-gray-500 transition-transform ${agencyDraftsOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-charcoal">{group.agencyName}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        {group.hasEmail
-                          ? group.emails.join(', ')
-                          : 'No email on file — copy the message manually'}
-                      </p>
-                      <ul className="mt-1.5 space-y-0.5">
-                        {group.winners.map((w) => (
-                          <li key={`${w.period}-${w.userId}`} className="text-xs text-charcoal">
-                            <span className="font-medium">
-                              {w.period === 'day' ? 'Day' : 'Night'}:
-                            </span>{' '}
-                            {w.fullName}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0">
-                      {group.hasEmail && (
-                        <button
-                          type="button"
-                          className={outlineBtn}
-                          onClick={() => openEmailDraft(group)}
-                        >
-                          Open email draft
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className={outlineBtn}
-                        onClick={() => copyEmailDraft(group)}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {agencyDraftsOpen && (
+                <div className="border-t border-slate-100 p-3 space-y-2">
+                  {emailGroups.length === 0 ? (
+                    <p className="text-xs text-gray-500">No agency drafts.</p>
+                  ) : (
+                    emailGroups.map((group) => (
+                      <div
+                        key={group.key}
+                        className={`rounded-xl border bg-white p-3 shadow-sm ${
+                          group.hasEmail ? 'border-blue-200' : 'border-amber-300'
+                        }`}
                       >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-charcoal">{group.agencyName}</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              {group.hasEmail
+                                ? group.emails.join(', ')
+                                : 'No email on file — copy the message manually'}
+                            </p>
+                            <ul className="mt-1.5 space-y-0.5">
+                              {group.winners.map((w) => (
+                                <li key={`${w.period}-${w.userId}`} className="text-xs text-charcoal">
+                                  <span className="font-medium">
+                                    {w.period === 'day' ? 'Day' : 'Night'}:
+                                  </span>{' '}
+                                  {w.fullName}
+                                  {w.agencyName ? ` (${w.agencyName})` : ''}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0">
+                            {group.hasEmail && (
+                              <button
+                                type="button"
+                                className={outlineBtn}
+                                onClick={() => openEmailDraft(group)}
+                              >
+                                Open email draft
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className={outlineBtn}
+                              onClick={() => copyEmailDraft(group)}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

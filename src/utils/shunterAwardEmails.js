@@ -33,7 +33,7 @@ export function winnerDisplayName(winner) {
 }
 
 /**
- * @param {{ period: 'day' | 'night' }} winner
+ * @param {'day' | 'night' | string} period
  * @returns {string}
  */
 export function periodLabel(period) {
@@ -41,39 +41,81 @@ export function periodLabel(period) {
 }
 
 /**
- * Build subject + body for one agency (or orphan) draft.
- * @param {{ monthKey: string, winners: Array<{ period: string, firstName?: string, lastName?: string, fullName?: string, amount?: number }> }} args
+ * @param {{ agencyName?: string | null }} winner
+ * @returns {string}
+ */
+export function agencyDisplayName(winner) {
+  const name = winner?.agencyName;
+  if (name == null || String(name).trim() === '') return 'No agency';
+  return String(name).trim();
+}
+
+/**
+ * @param {{ period: string, firstName?: string, lastName?: string, fullName?: string, agencyName?: string | null, amount?: number }} winner
+ * @returns {string}
+ */
+export function formatWinnerLine(winner) {
+  const name = winnerDisplayName(winner);
+  const agency = agencyDisplayName(winner);
+  const amount = Number(winner?.amount) > 0 ? Number(winner.amount) : 50;
+  return `- ${periodLabel(winner?.period)}: ${name} (${agency}) – £${amount}`;
+}
+
+function sortWinnersByPeriod(winners) {
+  const orderPeriod = (p) => (p === 'day' ? 0 : 1);
+  return [...(winners || [])].sort(
+    (a, b) => orderPeriod(a.period) - orderPeriod(b.period)
+  );
+}
+
+/**
+ * Collective announcement for the group mailbox (copy-paste).
+ * @param {{ monthKey: string, winners: Array<object> }} args
  * @returns {{ subject: string, body: string }}
  */
-export function buildShunterAwardEmail({ monthKey, winners }) {
+export function buildCollectiveShunterAwardEmail({ monthKey, winners }) {
   const monthLabel = getMonthLongLabel(monthKey) || monthKey || 'this month';
   const subject = `Shunter of the Month – ${monthLabel}`;
-
-  const lines = (winners || []).map((w) => {
-    const name = winnerDisplayName(w);
-    const amount = Number(w.amount) > 0 ? Number(w.amount) : 50;
-    return `- ${periodLabel(w.period)}: ${name} (£${amount})`;
-  });
+  const lines = sortWinnersByPeriod(winners).map(formatWinnerLine);
 
   const body = [
-    `Hello,`,
+    `Hello all,`,
     ``,
-    `Please find the Shunter of the Month winners for ${monthLabel}:`,
+    `For ${monthLabel}, Shunter of the Month is:`,
     ``,
     ...lines,
     ``,
-    `Could you please arrange recognition / payment according to our agreement with your agency?`,
-    ``,
-    `Thank you,`,
-    `Yard operations`,
+    `Thank you`,
   ].join('\n');
 
   return { subject, body };
 }
 
 /**
- * Group monthly award rows by agency for mailto drafts.
- * Orphans (no agency / no email) are separate groups with hasEmail=false.
+ * Per-agency draft (optional). Same winner lines; no recognition wording.
+ * @param {{ monthKey: string, winners: Array<object> }} args
+ * @returns {{ subject: string, body: string }}
+ */
+export function buildShunterAwardEmail({ monthKey, winners }) {
+  const monthLabel = getMonthLongLabel(monthKey) || monthKey || 'this month';
+  const subject = `Shunter of the Month – ${monthLabel}`;
+  const lines = sortWinnersByPeriod(winners).map(formatWinnerLine);
+
+  const body = [
+    `Hello,`,
+    ``,
+    `For ${monthLabel}, Shunter of the Month is:`,
+    ``,
+    ...lines,
+    ``,
+    `Thank you`,
+  ].join('\n');
+
+  return { subject, body };
+}
+
+/**
+ * Group monthly award rows by agency for optional per-agency mailto drafts.
  *
  * @param {Array<{
  *   period: string,
@@ -86,19 +128,6 @@ export function buildShunterAwardEmail({ monthKey, winners }) {
  *   userId?: string,
  * }>} awards
  * @param {string} monthKey
- * @returns {Array<{
- *   key: string,
- *   agencyId: string | null,
- *   agencyName: string,
- *   agencyEmail: string | null,
- *   emails: string[],
- *   hasEmail: boolean,
- *   winners: Array<object>,
- *   subject: string,
- *   body: string,
- *   mailtoHref: string | null,
- *   mailtoTooLong: boolean,
- * }>}
  */
 export function groupShunterAwardsByAgency(awards, monthKey) {
   const groups = new Map();
@@ -108,7 +137,6 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
     const emails = parseAgencyEmails(row.agencyEmail);
     const hasAgency = Boolean(row.agencyId);
     const hasEmail = emails.length > 0;
-    // One draft per agency; orphans without agency share one bucket; agency without email stays with that agency
     const key = hasAgency ? `agency:${row.agencyId}` : 'orphan:no-agency';
 
     if (!groups.has(key)) {
@@ -126,7 +154,6 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
     }
 
     const group = groups.get(key);
-    // Prefer non-empty email if later row has it
     if (!group.hasEmail && hasEmail) {
       group.emails = emails;
       group.hasEmail = true;
@@ -141,16 +168,15 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
       firstName: row.firstName,
       lastName: row.lastName,
       fullName: winnerDisplayName(row),
+      agencyName: row.agencyName || null,
       amount: row.amount,
       userId: row.userId,
     });
   });
 
-  const orderPeriod = (p) => (p === 'day' ? 0 : 1);
-
   return Array.from(groups.values())
     .map((group) => {
-      group.winners.sort((a, b) => orderPeriod(a.period) - orderPeriod(b.period));
+      group.winners = sortWinnersByPeriod(group.winners);
       const { subject, body } = buildShunterAwardEmail({
         monthKey,
         winners: group.winners,
@@ -170,7 +196,6 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
       };
     })
     .sort((a, b) => {
-      // Agencies with email first, then by name
       if (a.hasEmail !== b.hasEmail) return a.hasEmail ? -1 : 1;
       return String(a.agencyName).localeCompare(String(b.agencyName));
     });
