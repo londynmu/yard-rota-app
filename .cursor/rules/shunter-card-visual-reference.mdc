@@ -105,11 +105,11 @@ Use this when improving admin page or any card/section that should match the mai
 
 ---
 
-## 9. Do not use (from old admin Shunter manager)
+## 9. Admin vs user-facing Shunter card
 
 - Avoid `rounded-xl border border-red-200 bg-yellow-50/80` for the **main/user-facing** Shunter card (that one uses gradient header + white card).
-- **Admin sections** (e.g. Settings, Shunter of the Month Manager) **do** use red header + yellow container: card `border-red-200 bg-yellow-50/80`, header `bg-red-50 border-b border-red-200/60`, title `text-red-800`, content `bg-yellow-50/50 border-t border-red-100`.
-- Avoid red header `bg-red-50` only on the **user-facing** Shunter card; prefer the slate / soft blue gradient header there (`from-slate-50 via-rota-page-bg-via to-slate-50`).
+- **Admin sections** (Settings, Shunter of the Month Manager, Locations, Agencies, etc.) use the shared Admin chrome in `src/index.css`: `admin-section-card`, `admin-section-header`, `admin-section-title`, `admin-section-body`, `admin-btn`, `admin-chip`, `admin-modal-*`. Do **not** use red header + yellow body.
+- Avoid red header `bg-red-50` on the **user-facing** Shunter card; prefer the slate / soft blue gradient header there (`from-slate-50 via-rota-page-bg-via to-slate-50`).
 
 ---
 
@@ -123,5 +123,4 @@ Use this when improving admin page or any card/section that should match the mai
 - [ ] Text: `text-charcoal` for names, `text-xs`/`text-sm` for labels
 - [ ] Responsive: `flex-col` + `md:flex-row` where needed
 - [ ] Primary actions elsewhere may use `btn-primary` / `btn-secondary` from `index.css` (availability dialog pattern); this card header is a toggle, not a filled CTA
-- [ ] Admin sections: red header + yellow container (card `border-red-200 bg-yellow-50/80`, header `bg-red-50`, title `text-red-800`, content `bg-yellow-50/50`).
-- [ ] **Inner cards on yellow background:** use `bg-white` with colored border (e.g. `border-amber-200`, `border-blue-200`) so they contrast; do not use yellow/amber tints (e.g. `bg-amber-50`) on yellow container – they become invisible.
+- [ ] Admin sections: `admin-section-*` / `admin-btn` / `admin-chip` / `admin-modal-*` (white card, gray header — not red/yellow).

@@ -15,9 +15,6 @@ import {
   groupShunterAwardsByAgency,
 } from '../../utils/shunterAwardEmails';
 
-const outlineBtn =
-  'px-3 py-1.5 text-xs font-semibold rounded-md border border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50';
-
 const getCurrentMonthKey = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -469,13 +466,13 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     return (
       <div
         key={period}
-        className="rounded-xl border border-amber-200 bg-white p-3 shadow-sm flex flex-col gap-2"
+        className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm flex flex-col gap-2"
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold text-charcoal">{label}</p>
           <button
             type="button"
-            className={outlineBtn}
+            className="admin-btn"
             onClick={() => {
               setPickerPeriod(isPickerOpen ? null : period);
               setUserSearch('');
@@ -503,7 +500,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
               placeholder="Search by name or agency..."
-              className="w-full bg-white border-b border-slate-200 px-2.5 py-2 text-xs text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="admin-input rounded-none border-0 border-b border-gray-200 text-xs focus:ring-0"
             />
             <div className="max-h-[180px] overflow-y-auto divide-y divide-slate-100">
               {filteredUserList.length === 0 ? (
@@ -564,7 +561,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
             type="button"
             onClick={() => handleSave(period)}
             disabled={!monthWinners[period] || saving}
-            className={`${outlineBtn} w-full`}
+            className="admin-btn w-full"
           >
             Save {period === 'day' ? 'Day' : 'Night'}
           </button>
@@ -576,11 +573,11 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="rounded-xl border border-gray-200 p-3">
+        <div className="admin-section-card p-3">
           <div className="h-5 w-40 bg-slate-200 rounded mb-2" />
           <div className="h-3 w-24 bg-slate-100 rounded" />
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50/20 p-3">
+        <div className="admin-section-card p-3">
           <div className="h-5 w-48 bg-slate-200 rounded mb-3" />
           <div className="h-8 bg-slate-200 rounded mb-2" />
           <div className="h-6 w-full bg-slate-100 rounded" />
@@ -601,21 +598,21 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
               {getMonthLabel(calendarMonthKey)} still needs Day and/or Night winners.
             </p>
           </div>
-          <button type="button" onClick={handleDismissReminder} className={outlineBtn}>
+          <button type="button" onClick={handleDismissReminder} className="admin-btn">
             Dismiss for this month
           </button>
         </div>
       )}
 
       {/* Month workspace */}
-      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden flex flex-col">
-        <div className="px-3 py-2 border-b border-red-200/60 bg-red-50 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-red-800">Month workspace</h2>
+      <div className="admin-section-card flex flex-col">
+        <div className="admin-section-header justify-between gap-2">
+          <h2 className="admin-section-title">Month workspace</h2>
           <div className="flex items-center gap-1">
             <button
               type="button"
               aria-label="Previous month"
-              className={outlineBtn}
+              className="admin-btn"
               onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, -1))}
             >
               ‹
@@ -626,14 +623,14 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
             <button
               type="button"
               aria-label="Next month"
-              className={outlineBtn}
+              className="admin-btn"
               onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, 1))}
             >
               ›
             </button>
           </div>
         </div>
-        <div className="p-3 bg-yellow-50/50">
+        <div className="admin-section-body">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {renderSlot('day')}
             {renderSlot('night')}
@@ -643,15 +640,15 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
 
       {/* Copy announcement + optional agency drafts */}
       {selectedComplete && collectiveEmail && (
-        <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
-          <div className="px-3 py-2 border-b border-red-200/60 bg-red-50">
-            <h2 className="text-sm font-semibold text-red-800">Copy announcement</h2>
-            <p className="text-[11px] text-red-800/80 mt-0.5">
+        <div className="admin-section-card">
+          <div className="admin-section-header flex-col items-start gap-0.5 !min-h-0 py-2">
+            <h2 className="admin-section-title">Copy announcement</h2>
+            <p className="text-[11px] text-gray-600">
               Copy and paste into your group mailbox — nothing is sent automatically.
             </p>
           </div>
-          <div className="p-3 bg-yellow-50/50 space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+          <div className="admin-section-body space-y-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-2">
               <p className="text-xs font-semibold text-charcoal">
                 Subject: {collectiveEmail.subject}
               </p>
@@ -660,14 +657,14 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
               </pre>
               <button
                 type="button"
-                className={outlineBtn}
+                className="admin-btn"
                 onClick={copyCollectiveAnnouncement}
               >
                 Copy
               </button>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
               <button
                 type="button"
                 onClick={() => setAgencyDraftsOpen((prev) => !prev)}
@@ -694,7 +691,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                       <div
                         key={group.key}
                         className={`rounded-xl border bg-white p-3 shadow-sm ${
-                          group.hasEmail ? 'border-blue-200' : 'border-amber-300'
+                          group.hasEmail ? 'border-gray-200' : 'border-amber-200'
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
@@ -721,7 +718,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                             {group.hasEmail && (
                               <button
                                 type="button"
-                                className={outlineBtn}
+                                className="admin-btn"
                                 onClick={() => openEmailDraft(group)}
                               >
                                 Open email draft
@@ -729,7 +726,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                             )}
                             <button
                               type="button"
-                              className={outlineBtn}
+                              className="admin-btn"
                               onClick={() => copyEmailDraft(group)}
                             >
                               Copy
@@ -747,20 +744,20 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
       )}
 
       {/* History */}
-      <div className="rounded-xl border border-red-200 bg-yellow-50/80 shadow-sm overflow-hidden">
+      <div className="admin-section-card">
         <button
           type="button"
           onClick={() => setHistoryOpen((prev) => !prev)}
-          className="w-full px-3 py-2 flex items-center justify-between bg-red-50 hover:bg-red-100/70 transition-colors"
+          className="admin-section-header w-full justify-between hover:bg-gray-100 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold text-red-800">Full history</p>
+            <p className="admin-section-title">Full history</p>
             {history.length > 0 && (
-              <span className="text-[10px] text-red-800/70">({history.length} months)</span>
+              <span className="text-[10px] text-gray-500">({history.length} months)</span>
             )}
           </div>
           <svg
-            className={`w-3.5 h-3.5 text-red-700 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+            className={`w-3.5 h-3.5 text-gray-500 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -769,17 +766,13 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
           </svg>
         </button>
         {historyOpen && (
-          <div className="border-t border-red-100 p-2 bg-yellow-50/50 space-y-2">
+          <div className="admin-section-body space-y-2 !p-2">
             {historyYears.length > 0 && (
               <div className="flex flex-wrap gap-1.5 px-1">
                 <button
                   type="button"
                   onClick={() => setHistoryYear('all')}
-                  className={`px-2 py-1 text-[11px] font-semibold rounded-md border ${
-                    historyYear === 'all'
-                      ? 'bg-white border-charcoal text-charcoal'
-                      : 'bg-white/70 border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
+                  className={`admin-chip ${historyYear === 'all' ? 'admin-chip-active' : ''}`}
                 >
                   All
                 </button>
@@ -788,11 +781,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                     key={year}
                     type="button"
                     onClick={() => setHistoryYear(year)}
-                    className={`px-2 py-1 text-[11px] font-semibold rounded-md border ${
-                      historyYear === year
-                        ? 'bg-white border-charcoal text-charcoal'
-                        : 'bg-white/70 border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
+                    className={`admin-chip ${historyYear === year ? 'admin-chip-active' : ''}`}
                   >
                     {year}
                   </button>
@@ -808,7 +797,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                   const complete = row.dayId && row.nightId;
                   const isSelected = row.monthKey === selectedMonthKey;
                   const cardStyle = complete
-                    ? 'border border-green-200 bg-white'
+                    ? 'border border-gray-200 bg-white'
                     : 'border border-amber-200 bg-white';
                   return (
                     <div
@@ -823,7 +812,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                         }
                       }}
                       className={`rounded-lg px-2.5 py-1.5 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${cardStyle} ${
-                        isSelected ? 'ring-2 ring-red-300' : ''
+                        isSelected ? 'ring-2 ring-charcoal/30' : ''
                       }`}
                     >
                       <span className="text-xs font-semibold text-charcoal md:w-24 flex-shrink-0">

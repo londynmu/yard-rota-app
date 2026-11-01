@@ -207,7 +207,7 @@ export default function TugManager() {
       {/* Toolbar: fixed h-8 (32px) for all elements – same as VMU search bar height */}
       <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
+          <div className="admin-seg-track flex-shrink-0">
             {[
               { id: 'tugs', label: 'Tugs' },
               { id: 'tablets', label: 'Tablets' },
@@ -216,10 +216,8 @@ export default function TugManager() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`h-7 px-3 text-xs font-medium rounded-md transition-all flex items-center ${
-                  activeTab === tab.id
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-500 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeTab === tab.id ? 'admin-seg-item-active' : ''
                 }`}
               >
                 {tab.label}
@@ -231,7 +229,7 @@ export default function TugManager() {
           <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={printAllQRCodes}
-              className="h-8 px-2 md:px-4 text-xs font-medium bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4 !font-medium"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -240,7 +238,7 @@ export default function TugManager() {
             </button>
             <button
               onClick={() => { setShowForm(true); setEditingTug(null); setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' }); }}
-              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -253,7 +251,7 @@ export default function TugManager() {
           <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={() => setShowTabletForm(true)}
-              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -270,72 +268,74 @@ export default function TugManager() {
         <div className="space-y-4 -mt-px">
       {/* Add New form (only when adding, not editing) */}
       {showForm && !editingTug && (
-        <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
-          <h3 className="font-semibold text-charcoal">Add New Tug</h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tug Number *</label>
-              <input
-                type="text"
-                value={formData.tug_number}
-                onChange={(e) => setFormData(prev => ({ ...prev, tug_number: e.target.value }))}
-                placeholder="e.g. 06925"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-              />
+        <div className="admin-section-card">
+          <div className="admin-section-body space-y-4">
+            <h3 className="font-semibold text-charcoal">Add New Tug</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Tug Number *</label>
+                <input
+                  type="text"
+                  value={formData.tug_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, tug_number: e.target.value }))}
+                  placeholder="e.g. 06925"
+                  className="admin-input"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={formData.display_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
+                  placeholder="e.g. 069 or TUG-A"
+                  className="admin-input"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Short label shown on cards. Leave empty to auto-generate.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                <select
+                  value={formData.location_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, location_id: e.target.value }))}
+                  className="admin-input"
+                >
+                  <option value="">-- No location --</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                  className="admin-input"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Display Name</label>
-              <input
-                type="text"
-                value={formData.display_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
-                placeholder="e.g. 069 or TUG-A"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-              />
-              <p className="text-[10px] text-gray-400 mt-1">Short label shown on cards. Leave empty to auto-generate.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
-              <select
-                value={formData.location_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, location_id: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-              >
-                <option value="">-- No location --</option>
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="maintenance">Maintenance</option>
-              </select>
-            </div>
-          </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Add Tug'}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setEditingTug(null); }}
-              className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="admin-btn"
+              >
+                {saving ? 'Saving...' : 'Add Tug'}
+              </button>
+              <button
+                onClick={() => { setShowForm(false); setEditingTug(null); }}
+                className="admin-btn-muted"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -345,7 +345,7 @@ export default function TugManager() {
         {filteredTugs.map(tug => (
           <div
             key={tug.id}
-            className="rounded-xl border border-red-200 bg-red-50/50 overflow-hidden shadow-sm"
+            className="admin-section-card"
           >
             <div className="px-4 py-3 flex flex-nowrap items-center gap-1 sm:grid sm:grid-cols-4 sm:gap-3 min-h-[52px]">
               <span className="flex items-center gap-1 min-w-0 flex-1 sm:col-span-1 sm:flex-initial">
@@ -366,25 +366,25 @@ export default function TugManager() {
               <div className="flex items-center justify-end gap-0.5 flex-shrink-0">
                 <button
                   onClick={() => setShowQR(showQR === tug.id ? null : tug.id)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="admin-icon-btn"
                   title="Show QR Code"
                 >
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
                 </button>
                 <button
                   onClick={() => handleEdit(tug)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="admin-icon-btn"
                   title="Edit"
                 >
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
                 <button
                   onClick={() => handleDelete(tug)}
-                  className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                  className="admin-icon-btn hover:bg-red-50"
                   title="Delete"
                 >
                   <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -410,13 +410,13 @@ export default function TugManager() {
                 <div className="flex gap-2 justify-center mt-3">
                   <button
                     onClick={() => downloadQR(tug)}
-                    className="h-8 px-4 text-xs font-medium bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    className="admin-btn !font-medium"
                   >
                     Download PNG
                   </button>
                   <button
                     onClick={() => handleRegenerateQR(tug)}
-                    className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="admin-btn-muted"
                   >
                     Regenerate QR
                   </button>
@@ -426,7 +426,7 @@ export default function TugManager() {
 
             {/* Inline edit form */}
             {editingTug?.id === tug.id && (
-              <div className="border-t border-charcoal/20 p-4 bg-slate-50 space-y-3">
+              <div className="border-t border-gray-200 admin-section-body space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Tug Number *</label>
@@ -434,7 +434,7 @@ export default function TugManager() {
                       type="text"
                       value={formData.tug_number}
                       onChange={(e) => setFormData(prev => ({ ...prev, tug_number: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                     />
                   </div>
                   <div>
@@ -444,7 +444,7 @@ export default function TugManager() {
                       value={formData.display_name}
                       onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
                       placeholder="e.g. 069"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                     />
                   </div>
                   <div>
@@ -452,7 +452,7 @@ export default function TugManager() {
                     <select
                       value={formData.location_id}
                       onChange={(e) => setFormData(prev => ({ ...prev, location_id: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                     >
                       <option value="">-- No location --</option>
                       {locations.map(loc => (
@@ -465,7 +465,7 @@ export default function TugManager() {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
@@ -477,13 +477,13 @@ export default function TugManager() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="admin-btn"
                   >
                     {saving ? 'Saving...' : 'Update'}
                   </button>
                   <button
                     onClick={() => { setEditingTug(null); setShowForm(false); }}
-                    className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="admin-btn-muted"
                   >
                     Cancel
                   </button>

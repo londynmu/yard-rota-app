@@ -177,7 +177,7 @@ export default function SettingsManager() {
       {/* Toolbar – same as Tug Management: one line, tabs left, overflow-x-auto */}
       <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
+          <div className="admin-seg-track flex-shrink-0">
             {[
               { id: 'locations', label: 'Locations' },
               { id: 'agencies', label: 'Agencies' },
@@ -188,10 +188,8 @@ export default function SettingsManager() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveSection(tab.id)}
-                className={`h-7 px-3 text-xs font-medium rounded-md transition-all flex items-center ${
-                  activeSection === tab.id
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-500 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeSection === tab.id ? 'admin-seg-item-active' : ''
                 }`}
               >
                 {tab.label}
@@ -203,7 +201,7 @@ export default function SettingsManager() {
           <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={() => setShowAddLocationForm(true)}
-              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -216,7 +214,7 @@ export default function SettingsManager() {
           <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
             <button
               onClick={() => setShowAddAgencyForm(true)}
-              className="h-8 px-2 md:px-4 text-xs font-semibold bg-white text-charcoal rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-1.5 border border-gray-200"
+              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -242,11 +240,11 @@ export default function SettingsManager() {
           />
         )}
         {activeSection === 'home-page' && (
-          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
-            <div className="px-3 py-2 min-h-[44px] bg-gray-50 border-b border-gray-200 flex items-center">
-              <h3 className="text-sm font-semibold text-charcoal">Home page</h3>
+          <div className="admin-section-card">
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">Home page</h3>
             </div>
-            <div className="p-3 bg-yellow-50/50">
+            <div className="admin-section-body">
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="show-manage-breaks-toggle" className="text-sm text-charcoal font-medium">
                   Show &quot;Manage my breaks&quot; button on home page
@@ -274,11 +272,11 @@ export default function SettingsManager() {
           </div>
         )}
         {activeSection === 'rota' && (
-          <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden bg-white">
-            <div className="px-3 py-2 min-h-[44px] bg-gray-50 border-b border-gray-200 flex items-center">
-              <h3 className="text-sm font-semibold text-charcoal">Rota</h3>
+          <div className="admin-section-card">
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">Rota</h3>
             </div>
-            <div className="p-3 space-y-4 bg-yellow-50/50">
+            <div className="admin-section-body space-y-4">
               <p className="text-xs text-gray-600 leading-relaxed">
                 When enforcement is on, the database blocks assigning a shift (including self-serve
                 claims) if it would create more consecutive calendar days with at least one shift
@@ -322,7 +320,7 @@ export default function SettingsManager() {
                     onChange={(e) => setMaxConsecutiveWorkDaysStr(e.target.value)}
                     onBlur={saveMaxConsecutiveWorkDays}
                     disabled={rotaSettingsLoading || rotaSettingsSaving}
-                    className="w-full sm:max-w-[120px] rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-charcoal bg-white disabled:opacity-50"
+                    className="admin-input sm:max-w-[120px] disabled:opacity-50"
                   />
                 </div>
                 <p className="text-xs text-gray-600 sm:pb-1">
