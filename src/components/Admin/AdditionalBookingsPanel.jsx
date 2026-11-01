@@ -26,8 +26,7 @@ import {
   weekStartIso,
 } from '../../utils/rotaWeekBaseline';
 
-const outlineBtn =
-  'px-4 py-2 rounded-lg border-2 border-rota-text-primary bg-white text-rota-text-primary hover:bg-rota-day-other-bg-from transition-colors text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50';
+const outlineBtn = 'admin-btn';
 
 function flattenPeopleShifts(people) {
   return people.flatMap((person) =>
@@ -300,7 +299,7 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
       {baseline && (
         <button
           type="button"
-          className="px-4 py-2 rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors text-sm font-medium"
+          className="admin-btn-danger"
           onClick={() =>
             setConfirm({
               title: 'Reset baseline for this week',

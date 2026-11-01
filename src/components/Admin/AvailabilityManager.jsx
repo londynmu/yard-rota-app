@@ -297,7 +297,8 @@ export default function AvailabilityManager() {
 
   if (isLoading && users.length === 0) {
     return (
-      <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200 animate-pulse">
+      <div className="admin-section-card animate-pulse">
+      <div className="admin-section-body">
         {/* Navigation skeleton */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -326,18 +327,19 @@ export default function AvailabilityManager() {
           ))}
         </div>
       </div>
+      </div>
     );
   }
 
   return (
-    <div className="bg-white shadow-sm rounded-xl p-4 border border-gray-200 w-full max-w-full overflow-hidden"
-    >
+    <div className="admin-section-card w-full max-w-full overflow-hidden">
+      <div className="admin-section-body">
       <div className="flex flex-col gap-4 mb-4">
         {/* Navigation Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
-              className="text-charcoal bg-gray-100 hover:bg-gray-200 rounded-lg p-2"
+              className="admin-btn !px-2"
               onClick={goToPreviousWeek}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -350,7 +352,7 @@ export default function AvailabilityManager() {
             </h2>
             
             <button
-              className="text-charcoal bg-gray-100 hover:bg-gray-200 rounded-lg p-2"
+              className="admin-btn !px-2"
               onClick={goToNextWeek}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -369,13 +371,13 @@ export default function AvailabilityManager() {
               placeholder="Search by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent"
+              className="admin-input"
             />
           </div>
           
           {/* Shift Filter */}
           <select
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent"
+            className="admin-chip !justify-start"
             value={sortBy}
             onChange={handleSortChange}
           >
@@ -490,6 +492,7 @@ export default function AvailabilityManager() {
           onClose={closeModal}
         />
       )}
+      </div>
     </div>
   );
 } 

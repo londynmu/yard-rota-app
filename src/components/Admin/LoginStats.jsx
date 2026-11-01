@@ -132,15 +132,17 @@ const LoginStats = () => {
     return (
       <div className="space-y-3">
         <p className="text-sm font-semibold text-charcoal">Activity</p>
-        <div className="p-4 bg-white rounded-xl border border-gray-200 text-center">
-          <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={() => fetchAllData()}
-            className="px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors text-sm font-semibold"
-          >
-            Retry
-          </button>
+        <div className="admin-section-card">
+          <div className="admin-section-body text-center">
+            <h3 className="text-lg font-semibold mb-2 text-charcoal">Error</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => fetchAllData()}
+              className="admin-btn"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -259,32 +261,26 @@ const LoginStats = () => {
     <div className="space-y-3">
       {/* Header – compact tabs */}
       <div className="flex items-center">
-        <div className="flex rounded border border-gray-300 p-0.5 bg-gray-100">
+        <div className="admin-seg-track">
               <button
-                className={`py-0.5 px-2 text-[10px] font-semibold rounded transition-colors ${
-                  activeTab === 'activity-logs'
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-600 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeTab === 'activity-logs' ? 'admin-seg-item-active' : ''
                 }`}
                 onClick={() => setActiveTab('activity-logs')}
               >
                 Logs
               </button>
               <button
-                className={`py-0.5 px-2 text-[10px] font-semibold rounded transition-colors ${
-                  activeTab === 'user-summary'
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-600 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeTab === 'user-summary' ? 'admin-seg-item-active' : ''
                 }`}
                 onClick={() => setActiveTab('user-summary')}
               >
                 Summary
               </button>
               <button
-                className={`py-0.5 px-2 text-[10px] font-semibold rounded transition-colors ${
-                  activeTab === 'rota-breaks'
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-600 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeTab === 'rota-breaks' ? 'admin-seg-item-active' : ''
                 }`}
                 onClick={() => setActiveTab('rota-breaks')}
               >
@@ -313,23 +309,23 @@ const LoginStats = () => {
               }, {});
 
               const userGroups = Object.values(groupedLogs);
-              const BORDER_COLORS = ['border-amber-200', 'border-blue-200', 'border-emerald-200', 'border-purple-200'];
 
               if (userGroups.length === 0) {
                 return (
-                  <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
-                    <p className="text-gray-500">No activity logs found for the selected time period.</p>
+                  <div className="admin-section-card">
+                    <div className="admin-section-body text-center py-8">
+                      <p className="text-gray-500">No activity logs found for the selected time period.</p>
+                    </div>
                   </div>
                 );
               }
 
-              return userGroups.map((userGroup, idx) => {
+              return userGroups.map((userGroup) => {
                 const isExpanded = expandedUsers.has(userGroup.user_id);
                 const latestActivity = userGroup.logs[0];
-                const borderClass = BORDER_COLORS[idx % BORDER_COLORS.length];
 
                 return (
-                  <div key={userGroup.user_id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${borderClass}`}>
+                  <div key={userGroup.user_id} className="admin-section-card">
                     {/* User Header - Clickable */}
                     <button
                       onClick={() => {
@@ -417,7 +413,7 @@ const LoginStats = () => {
             <select
               value={systemActivityDaysBack}
               onChange={(e) => setSystemActivityDaysBack(Number(e.target.value))}
-              className="rounded border border-gray-300 px-2 py-1 text-xs text-charcoal bg-white"
+              className="admin-chip !h-7 !px-2"
             >
               <option value={1}>1</option>
               <option value={3}>3</option>
@@ -429,7 +425,7 @@ const LoginStats = () => {
             <select
               value={systemActivityEntityFilter}
               onChange={(e) => setSystemActivityEntityFilter(e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1 text-xs text-charcoal bg-white"
+              className="admin-chip !h-7 !px-2"
             >
               <option value="">All</option>
               <option value="rota">Rota</option>
@@ -437,26 +433,32 @@ const LoginStats = () => {
             </select>
           </div>
           {systemActivityLoading ? (
-            <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
-              <p className="text-gray-500">Loading...</p>
+            <div className="admin-section-card">
+              <div className="admin-section-body text-center py-8">
+                <p className="text-gray-500">Loading...</p>
+              </div>
             </div>
           ) : systemActivityError ? (
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
-              <p className="text-red-600 text-sm">{systemActivityError}</p>
-              <button
-                type="button"
-                onClick={() => fetchSystemActivity()}
-                className="mt-2 px-3 py-1 rounded border border-charcoal text-xs font-medium text-charcoal hover:bg-gray-50"
-              >
-                Retry
-              </button>
+            <div className="admin-section-card">
+              <div className="admin-section-body text-center">
+                <p className="text-red-600 text-sm">{systemActivityError}</p>
+                <button
+                  type="button"
+                  onClick={() => fetchSystemActivity()}
+                  className="admin-btn mt-2"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           ) : systemActivityLogs.length === 0 ? (
-            <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
-              <p className="text-gray-500">No Rota & Breaks activity for the selected period.</p>
+            <div className="admin-section-card">
+              <div className="admin-section-body text-center py-8">
+                <p className="text-gray-500">No Rota & Breaks activity for the selected period.</p>
+              </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-emerald-200">
+            <div className="admin-section-card">
               <div className="max-h-[480px] overflow-y-auto">
                 <table className="min-w-0 w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0">
@@ -508,46 +510,47 @@ const LoginStats = () => {
       {activeTab === 'user-summary' && (
         <div className="space-y-3">
           {(() => {
-            const BORDER_COLORS = ['border-amber-200', 'border-blue-200', 'border-emerald-200', 'border-purple-200'];
-
             if (activitySummary.length === 0) {
               return (
-                <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm text-center">
-                  <p className="text-gray-500">No users found for the selected time period.</p>
+                <div className="admin-section-card">
+                  <div className="admin-section-body text-center py-8">
+                    <p className="text-gray-500">No users found for the selected time period.</p>
+                  </div>
                 </div>
               );
             }
 
-            return activitySummary.map((user, idx) => {
-              const borderClass = BORDER_COLORS[idx % BORDER_COLORS.length];
+            return activitySummary.map((user) => {
               return (
                 <div
                   key={user.user_id}
-                  className={`bg-white rounded-xl border shadow-sm p-4 ${borderClass}`}
+                  className="admin-section-card"
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-charcoal">
-                        {user.first_name} {user.last_name}
+                  <div className="admin-section-body">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-charcoal">
+                          {user.first_name} {user.last_name}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Last: {formatDateForDisplay(user.last_activity)}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        Last: {formatDateForDisplay(user.last_activity)}
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="admin-chip !h-auto !py-0.5">
+                          {user.total_page_views} views
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {user.unique_pages_visited} unique pages
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <span className="border-2 border-charcoal rounded-md px-2 py-0.5 text-xs font-medium text-charcoal bg-white">
-                        {user.total_page_views} views
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {user.unique_pages_visited} unique pages
-                      </span>
-                    </div>
+                    {user.most_visited_page && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        <span className="text-gray-500">Most visited:</span> {user.most_visited_page}
+                      </div>
+                    )}
                   </div>
-                  {user.most_visited_page && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      <span className="text-gray-500">Most visited:</span> {user.most_visited_page}
-                    </div>
-                  )}
                 </div>
               );
             });

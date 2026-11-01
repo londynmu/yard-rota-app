@@ -210,7 +210,7 @@ export default function AttendancePage({ users = [] }) {
         <button
           type="button"
           onClick={() => openAddModal(null)}
-          className="px-4 py-2 rounded-lg bg-charcoal text-white text-sm font-medium hover:bg-black"
+          className="admin-btn"
         >
           Add violation
         </button>
@@ -220,8 +220,9 @@ export default function AttendancePage({ users = [] }) {
         {grouped.map((row) => (
           <div
             key={row.user_id}
-            className="bg-white rounded-xl border-2 border-gray-200 p-4 shadow-sm"
+            className="admin-section-card"
           >
+            <div className="admin-section-body">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="font-bold text-charcoal">
                 {row.profile?.first_name || ''} {row.profile?.last_name || ''}
@@ -255,7 +256,7 @@ export default function AttendancePage({ users = [] }) {
                 <button
                   type="button"
                   onClick={() => openAddModal(row.user_id)}
-                  className="px-3 py-1 rounded-lg bg-charcoal text-white text-xs font-medium hover:bg-black"
+                  className="admin-btn"
                 >
                   Add violation
                 </button>
@@ -303,6 +304,7 @@ export default function AttendancePage({ users = [] }) {
                 </ul>
               </div>
             )}
+            </div>
           </div>
         ))}
       </div>
