@@ -22,8 +22,9 @@ const dateToMonthKey = (dateStr) => {
   }
 };
 
-// Get all awards in a month range (inclusive), joined with basic profile info
-export async function getMonthlyAwards({ fromMonth, toMonth }) {
+// Get all awards in a month range (inclusive), joined with profile + agency.
+// Omit fromMonth/toMonth to load full history.
+export async function getMonthlyAwards({ fromMonth, toMonth } = {}) {
   const fromDate = monthKeyToDate(fromMonth);
   const toDate = monthKeyToDate(toMonth);
 
@@ -39,7 +40,13 @@ export async function getMonthlyAwards({ fromMonth, toMonth }) {
         awarded_at,
         profiles:user_id (
           first_name,
-          last_name
+          last_name,
+          agency_id,
+          agencies (
+            id,
+            name,
+            email
+          )
         )
       `
     )
@@ -59,16 +66,22 @@ export async function getMonthlyAwards({ fromMonth, toMonth }) {
     throw error;
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    awardMonth: dateToMonthKey(row.award_month),
-    period: row.period, // 'day' | 'night'
-    amount: row.amount,
-    awardedAt: row.awarded_at,
-    firstName: row.profiles?.first_name || '',
-    lastName: row.profiles?.last_name || '',
-  }));
+  return (data || []).map((row) => {
+    const agency = row.profiles?.agencies;
+    return {
+      id: row.id,
+      userId: row.user_id,
+      awardMonth: dateToMonthKey(row.award_month),
+      period: row.period, // 'day' | 'night'
+      amount: row.amount,
+      awardedAt: row.awarded_at,
+      firstName: row.profiles?.first_name || '',
+      lastName: row.profiles?.last_name || '',
+      agencyId: row.profiles?.agency_id || agency?.id || null,
+      agencyName: agency?.name || null,
+      agencyEmail: agency?.email || null,
+    };
+  });
 }
 
 // Upsert a single award for given month + period
@@ -176,7 +189,13 @@ export async function getCurrentMonthAwards(currentDate = new Date()) {
         awarded_at,
         profiles:user_id (
           first_name,
-          last_name
+          last_name,
+          agency_id,
+          agencies (
+            id,
+            name,
+            email
+          )
         )
       `
     )
@@ -187,16 +206,22 @@ export async function getCurrentMonthAwards(currentDate = new Date()) {
     throw error;
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    awardMonth: dateToMonthKey(row.award_month),
-    period: row.period,
-    amount: row.amount,
-    awardedAt: row.awarded_at,
-    firstName: row.profiles?.first_name || '',
-    lastName: row.profiles?.last_name || '',
-  }));
+  return (data || []).map((row) => {
+    const agency = row.profiles?.agencies;
+    return {
+      id: row.id,
+      userId: row.user_id,
+      awardMonth: dateToMonthKey(row.award_month),
+      period: row.period,
+      amount: row.amount,
+      awardedAt: row.awarded_at,
+      firstName: row.profiles?.first_name || '',
+      lastName: row.profiles?.last_name || '',
+      agencyId: row.profiles?.agency_id || agency?.id || null,
+      agencyName: agency?.name || null,
+      agencyEmail: agency?.email || null,
+    };
+  });
 }
 
 // Delete a single award by id

@@ -23,6 +23,8 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_VISIBLE = 4;
 
   useEffect(() => {
     const load = async () => {
@@ -33,12 +35,7 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
         const month = now.getMonth() + 1;
         const currentKey = `${year}-${String(month).padStart(2, '0')}`;
 
-        const previousStart = new Date(year, month - 3, 1);
-        const fromKey = `${previousStart.getFullYear()}-${String(
-          previousStart.getMonth() + 1
-        ).padStart(2, '0')}`;
         const history = await getMonthlyAwards({
-          fromMonth: fromKey,
           toMonth: currentKey,
         });
 
@@ -63,7 +60,7 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
           a.monthKey < b.monthKey ? 1 : -1
         );
 
-        setRows(sorted.slice(0, 4));
+        setRows(sorted);
       } catch (err) {
         console.error('[ShunterOfTheMonthCard] load error:', err);
         setRows([]);
@@ -74,6 +71,9 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
 
     load();
   }, []);
+
+  const visibleRows = showAll ? rows : rows.slice(0, INITIAL_VISIBLE);
+  const hasMore = rows.length > INITIAL_VISIBLE;
 
   if (loading) {
     if (isRow) {
@@ -137,7 +137,7 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
           className="overflow-hidden"
         >
           <div className={embedded ? 'pt-1 space-y-1' : 'p-2 space-y-2'}>
-            {rows.map((row, index) => {
+            {visibleRows.map((row, index) => {
               const hasWinners = row.day || row.night;
               const bgGradient = bgGradients[index % bgGradients.length];
               const textColor = textColors[index % textColors.length];
@@ -168,6 +168,15 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
                 </motion.div>
               );
             })}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={() => setShowAll((prev) => !prev)}
+                className={`${embedded ? 'text-[11px]' : 'text-xs'} w-full py-1.5 font-semibold text-blue-700 hover:text-blue-800`}
+              >
+                {showAll ? 'Show less' : 'Show more'}
+              </button>
+            )}
           </div>
         </motion.div>
       )}
@@ -218,7 +227,7 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
               className="overflow-hidden"
             >
               <ul className="mx-3 mb-2.5 divide-y divide-slate-100 rounded-xl border border-slate-200/60 bg-slate-50/60">
-                {rows.map((row, index) => {
+                {visibleRows.map((row, index) => {
                   const names = [row.day, row.night].filter(Boolean);
                   return (
                     <li key={row.monthKey} className="flex items-center gap-3 px-3 py-2">
@@ -237,6 +246,17 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
                     </li>
                   );
                 })}
+                {hasMore && (
+                  <li className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAll((prev) => !prev)}
+                      className="w-full text-xs font-semibold text-blue-700 hover:text-blue-800"
+                    >
+                      {showAll ? 'Show less' : 'Show more'}
+                    </button>
+                  </li>
+                )}
               </ul>
             </motion.div>
           )}
@@ -315,7 +335,7 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
               className="border-t border-slate-100 overflow-hidden"
             >
               <div className="p-2 space-y-2">
-                {rows.map((row, index) => {
+                {visibleRows.map((row, index) => {
                   const hasWinners = row.day || row.night;
                   const bgGradient = bgGradients[index % bgGradients.length];
                   const textColor = textColors[index % textColors.length];
@@ -346,6 +366,15 @@ function ShunterOfTheMonthCard({ embedded = false, variant = 'card' }) {
                     </motion.div>
                   );
                 })}
+                {hasMore && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll((prev) => !prev)}
+                    className="w-full py-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800"
+                  >
+                    {showAll ? 'Show less' : 'Show more'}
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
