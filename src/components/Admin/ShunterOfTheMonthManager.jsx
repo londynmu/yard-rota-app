@@ -101,6 +101,22 @@ const winnersFromHistoryEntry = (entry) => ({
   night: entry?.nightUserId || null,
 });
 
+/**
+ * Merge local workspace pick with saved history for one period.
+ * - History has a value + local differs → keep dirty unsaved replacement
+ * - History cleared + local was the previous saved id → clear (delete path)
+ * - History cleared + local is some other unsaved pick → keep
+ */
+const mergePeriodWinner = (localId, savedId, prevSavedId) => {
+  if (savedId != null) {
+    if (localId != null && localId !== savedId) return localId;
+    return savedId;
+  }
+  if (localId == null) return null;
+  if (prevSavedId != null && localId === prevSavedId) return null;
+  return localId;
+};
+
 export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   const toast = useToast();
   const calendarMonthKey = useMemo(() => getCurrentMonthKey(), []);
@@ -155,6 +171,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   }, [toast]);
 
   const prevSelectedMonthRef = useRef(null);
+  const prevSavedWinnersRef = useRef(emptyWinners());
 
   useEffect(() => {
     const entry = historyByMonth.get(selectedMonthKey);
@@ -164,22 +181,20 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
 
     if (monthChanged) {
       setMonthWinners(fromHistory);
+      prevSavedWinnersRef.current = fromHistory;
       setPickerPeriod(null);
       setUserSearch('');
       return;
     }
 
-    // Same month, history refreshed (save/delete/load): keep dirty unsaved picks
+    // Same month, history refreshed (save/delete/load):
+    // keep dirty unsaved replacements; clear slot when that saved winner was deleted
+    const prevSaved = prevSavedWinnersRef.current;
     setMonthWinners((prev) => ({
-      day:
-        prev.day != null && prev.day !== fromHistory.day
-          ? prev.day
-          : fromHistory.day,
-      night:
-        prev.night != null && prev.night !== fromHistory.night
-          ? prev.night
-          : fromHistory.night,
+      day: mergePeriodWinner(prev.day, fromHistory.day, prevSaved.day),
+      night: mergePeriodWinner(prev.night, fromHistory.night, prevSaved.night),
     }));
+    prevSavedWinnersRef.current = fromHistory;
   }, [selectedMonthKey, historyByMonth]);
 
   const sortedUsers = useMemo(() => {
