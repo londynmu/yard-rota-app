@@ -234,7 +234,7 @@ export default function InductionGuideManager() {
     return (
       <div className="max-w-5xl mx-auto p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={backToList} className="btn-secondary btn-modern text-sm">
+          <button type="button" onClick={backToList} className="admin-btn-muted">
             Back to list
           </button>
           <span className="text-sm text-slate-500">
@@ -242,14 +242,15 @@ export default function InductionGuideManager() {
           </span>
         </div>
 
-        <div className="card-modern p-4 md:p-6 space-y-4">
+        <div className="admin-section-card">
+          <div className="admin-section-body space-y-4">
           <div>
             <label className="block text-sm font-medium text-charcoal mb-1">Title</label>
             <input
               type="text"
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-charcoal focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              className="admin-input"
               placeholder="e.g. Site facilities"
             />
           </div>
@@ -280,14 +281,14 @@ export default function InductionGuideManager() {
                   type="button"
                   disabled={uploading}
                   onClick={() => fileInputRef.current?.click()}
-                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                  className="admin-btn-muted"
                 >
                   {uploading ? 'Uploading…' : 'Insert image'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPreview((p) => !p)}
-                  className="btn-secondary btn-modern text-xs py-1.5 px-3"
+                  className="admin-btn-muted"
                 >
                   {showPreview ? 'Hide preview' : 'Show preview'}
                 </button>
@@ -325,22 +326,23 @@ export default function InductionGuideManager() {
               type="button"
               onClick={save}
               disabled={saving}
-              className="btn-primary btn-modern text-sm disabled:opacity-50"
+              className="admin-btn disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" onClick={backToList} className="btn-secondary btn-modern text-sm">
+            <button type="button" onClick={backToList} className="admin-btn-muted">
               Cancel
             </button>
             {editingId && editingId !== 'new' && (
               <button
                 type="button"
                 onClick={() => setDeleteTarget(editingId)}
-                className="ml-auto btn-modern text-sm border-2 border-rose-300 text-rose-700 hover:bg-rose-50"
+                className="ml-auto admin-btn-danger"
               >
                 Delete section
               </button>
             )}
+          </div>
           </div>
         </div>
 
@@ -361,7 +363,7 @@ export default function InductionGuideManager() {
     <div className="max-w-5xl mx-auto p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-charcoal">Yard induction guide</h2>
-        <button type="button" onClick={openCreate} className="btn-primary btn-modern text-sm">
+        <button type="button" onClick={openCreate} className="admin-btn">
           Add section
         </button>
       </div>
@@ -372,11 +374,11 @@ export default function InductionGuideManager() {
       </p>
 
       {sections.length === 0 ? (
-        <div className="card-modern p-8 text-center text-slate-600 text-sm">No sections yet. Add one to get started.</div>
+        <div className="admin-section-card admin-section-body text-center text-slate-600 text-sm">No sections yet. Add one to get started.</div>
       ) : (
         <ul className="space-y-3">
           {sections.map((s, i) => (
-            <li key={s.id} className="card-modern p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <li key={s.id} className="admin-section-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-charcoal truncate">{s.title}</p>
                 <p className="text-xs text-slate-500">
@@ -393,7 +395,7 @@ export default function InductionGuideManager() {
                   type="button"
                   onClick={() => move(s.id, 'up')}
                   disabled={i === 0}
-                  className="btn-secondary btn-modern text-xs py-1 px-2 disabled:opacity-40"
+                  className="admin-btn-muted disabled:opacity-40"
                   title="Move up"
                 >
                   Up
@@ -402,18 +404,18 @@ export default function InductionGuideManager() {
                   type="button"
                   onClick={() => move(s.id, 'down')}
                   disabled={i === sections.length - 1}
-                  className="btn-secondary btn-modern text-xs py-1 px-2 disabled:opacity-40"
+                  className="admin-btn-muted disabled:opacity-40"
                   title="Move down"
                 >
                   Down
                 </button>
-                <button type="button" onClick={() => openEdit(s)} className="btn-secondary btn-modern text-xs py-1 px-3">
+                <button type="button" onClick={() => openEdit(s)} className="admin-btn-muted">
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeleteTarget(s.id)}
-                  className="btn-modern text-xs py-1 px-3 border-2 border-rose-200 text-rose-700 hover:bg-rose-50"
+                  className="admin-btn-danger"
                 >
                   Delete
                 </button>

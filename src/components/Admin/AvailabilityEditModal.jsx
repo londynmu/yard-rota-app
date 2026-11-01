@@ -60,12 +60,12 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto border border-gray-200"
+        className="admin-modal-panel mx-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-start mb-5">
+        <div className="admin-modal-header flex justify-between items-start">
           <div className="flex-1 pr-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">
+            <h2 className="text-sm font-semibold text-charcoal mb-1">
               Edit Availability
             </h2>
             <p className="text-gray-600 text-sm font-medium">
@@ -79,7 +79,7 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
           </div>
           <button
             type="button"
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-full transition-colors flex-shrink-0"
+            className="admin-icon-btn flex-shrink-0"
             onClick={onClose}
             aria-label="Close"
           >
@@ -89,7 +89,7 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
           </button>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="p-4">
           <div className="mb-5">
             <label className="block text-gray-700 font-semibold mb-3 text-sm">
               Availability Status
@@ -133,7 +133,7 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
             </div>
           </div>
           
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="block text-gray-700 font-semibold mb-2 text-sm" htmlFor="comment">
               Comments (optional)
             </label>
@@ -141,23 +141,23 @@ export default function AvailabilityEditModal({ date, user, initialData, onSave,
               id="comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent text-gray-900 placeholder-gray-400 resize-none"
+              className="admin-input resize-none"
               rows="3"
               placeholder="Add any notes about this day..."
             ></textarea>
           </div>
           
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="admin-modal-footer !px-0 !pb-0 !border-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-colors"
+              className="admin-btn-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-charcoal text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-md"
+              className="admin-btn"
             >
               Save
             </button>

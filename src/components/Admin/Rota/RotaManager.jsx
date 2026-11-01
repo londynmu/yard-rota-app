@@ -1363,7 +1363,7 @@ const RotaManager = ({ user }) => {
             <select
               value={selectedLocation || (locations[0]?.name ?? '')}
               onChange={(e) => handleLocationTabClick(e.target.value)}
-              className="h-9 flex-1 min-w-0 truncate px-2.5 text-sm font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring cursor-pointer sm:h-10 sm:px-4 lg:flex-none lg:min-w-[120px]"
+              className="admin-chip h-9 flex-1 min-w-0 truncate !justify-start cursor-pointer sm:h-10 lg:flex-none lg:min-w-[120px]"
               aria-label="Select location"
             >
               {locations.map((location) => (
@@ -1374,7 +1374,7 @@ const RotaManager = ({ user }) => {
             </select>
 
             <div
-              className="flex h-9 shrink-0 items-center rounded-lg border-2 border-rota-input-border bg-rota-toolbar-bg p-0.5 sm:h-10"
+              className="admin-seg-track shrink-0 !h-9 sm:!h-10"
               role="group"
               aria-label="Select view"
             >
@@ -1384,10 +1384,8 @@ const RotaManager = ({ user }) => {
                   type="button"
                   onClick={() => setViewMode(mode)}
                   aria-pressed={viewMode === mode}
-                  className={`h-full rounded-md px-3 text-sm font-semibold capitalize transition-colors ${
-                    viewMode === mode
-                      ? 'bg-rota-modal-bg text-rota-text-primary shadow-sm'
-                      : 'text-rota-text-muted hover:text-rota-text-primary'
+                  className={`admin-seg-item capitalize !h-full ${
+                    viewMode === mode ? 'admin-seg-item-active' : ''
                   }`}
                 >
                   {mode}
@@ -1470,7 +1468,7 @@ const RotaManager = ({ user }) => {
               <button
                 type="button"
                 onClick={goToCurrentWeek}
-                className="h-9 shrink-0 px-2 text-xs font-semibold rounded-lg border-2 border-rota-input-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg whitespace-nowrap sm:h-10 sm:px-3 sm:text-sm"
+                className="admin-chip shrink-0 whitespace-nowrap"
               >
                 Current week
               </button>
@@ -1481,7 +1479,7 @@ const RotaManager = ({ user }) => {
           <div className="flex shrink-0 items-center gap-1.5 lg:justify-end lg:gap-2">
             <button
               onClick={handleCopyFromPreviousWeek}
-              className="h-9 w-9 flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all text-sm font-semibold sm:h-10 sm:w-auto sm:px-3"
+              className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-auto sm:!px-3 gap-1.5"
               title="Copy last week"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -1493,7 +1491,7 @@ const RotaManager = ({ user }) => {
             
             <button
               onClick={openTemplateModal}
-              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all sm:h-10 sm:w-10"
+              className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10"
               title="Templates"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1502,7 +1500,7 @@ const RotaManager = ({ user }) => {
               </svg>
             </button>
             
-            <div className="relative h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-rota-modal-bg text-rota-text-primary border-2 border-rota-input-border hover:border-rota-input-focus-border transition-all sm:h-10 sm:w-10">
+            <div className="relative admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10">
               <ExportRotaButton
                 iconOnly={true}
                 weekStart={getWeekStart(currentDate)}

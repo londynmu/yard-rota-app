@@ -98,12 +98,12 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-      <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
-        <div className="flex items-center justify-between border-b border-rota-modal-border px-5 py-4">
-          <h3 className="text-xl font-semibold text-rota-text-primary">Templates</h3>
+      <div className="admin-modal-panel mx-auto !max-w-xl">
+        <div className="admin-modal-header flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-charcoal">Templates</h3>
           <button 
             onClick={onClose}
-            className="text-rota-text-muted transition hover:text-rota-text-primary"
+            className="admin-icon-btn"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -203,17 +203,17 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                     ))}
                   </div>
                   
-                  <div className="flex justify-end gap-2">
+                  <div className="admin-modal-footer !px-0 !border-0 !bg-transparent">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-md border-2 border-rota-btn-outline-border px-4 py-2 text-rota-btn-outline-text hover:bg-rota-day-other-bg-from"
+                      className="admin-btn-muted"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-md border-2 border-rota-text-primary bg-rota-modal-bg px-4 py-2 text-rota-text-primary transition hover:bg-rota-day-other-bg-from disabled:cursor-not-allowed disabled:opacity-50"
+                      className="admin-btn"
                       disabled={!selectedTemplateId}
                     >
                       Apply Template
@@ -238,22 +238,22 @@ const TemplateModal = ({ onClose, onSaveTemplate, onApplyTemplate, currentDate }
                     value={newTemplateName}
                     onChange={(e) => setNewTemplateName(e.target.value)}
                     placeholder="e.g., Standard NRC Day Shift"
-                    className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
+                    className="admin-input"
                     required
                   />
                 </div>
                 
-                <div className="flex justify-end gap-2">
+                <div className="admin-modal-footer !px-0 !border-0 !bg-transparent">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
+                    className="admin-btn-muted"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    className="admin-btn"
                     disabled={!newTemplateName.trim()}
                   >
                     Save Template

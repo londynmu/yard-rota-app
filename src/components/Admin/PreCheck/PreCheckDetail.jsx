@@ -119,58 +119,64 @@ export default function PreCheckDetail({ submissionId, onBack }) {
       </button>
 
       {/* Header card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <h2 className="text-lg font-bold text-charcoal">
-              {submission.tugs?.display_name || submission.tugs?.tug_number}
-            </h2>
-            {submission.tugs?.display_name && (
-              <p className="text-sm text-gray-500">{submission.tugs.tug_number}</p>
-            )}
-            <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
-              <span>{userName}</span>
-              <span>•</span>
-              <span>{new Date(submission.check_date).toLocaleDateString('en-GB')}</span>
-              <span>•</span>
-              <span>{new Date(submission.check_time || submission.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-              {submission.tugs?.locations?.name && (
-                <>
-                  <span>•</span>
-                  <span>{submission.tugs.locations.name}</span>
-                </>
+      <div className="admin-section-card">
+        <div className="admin-section-body !p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-charcoal">
+                {submission.tugs?.display_name || submission.tugs?.tug_number}
+              </h2>
+              {submission.tugs?.display_name && (
+                <p className="text-sm text-gray-500">{submission.tugs.tug_number}</p>
               )}
+              <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                <span>{userName}</span>
+                <span>•</span>
+                <span>{new Date(submission.check_date).toLocaleDateString('en-GB')}</span>
+                <span>•</span>
+                <span>{new Date(submission.check_time || submission.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                {submission.tugs?.locations?.name && (
+                  <>
+                    <span>•</span>
+                    <span>{submission.tugs.locations.name}</span>
+                  </>
+                )}
+              </div>
             </div>
+            <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+              submission.check_type === 'pre_shift' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+            }`}>
+              {submission.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
+            </span>
           </div>
-          <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
-            submission.check_type === 'pre_shift' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
-          }`}>
-            {submission.check_type === 'pre_shift' ? 'Pre-Shift' : 'During Shift'}
-          </span>
         </div>
       </div>
 
       {/* Perform items */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <h3 className="font-semibold text-charcoal text-sm mb-3">Perform the Following</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {performItems.map(item => (
-            <div key={item.id} className="flex items-center gap-2 py-1.5 text-sm">
-              <span className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </span>
-              <span className="text-gray-700 capitalize">{checkItemLabels[item.item_name] ?? item.item_name.replace(/_/g, ' ')}</span>
-            </div>
-          ))}
+      <div className="admin-section-card">
+        <div className="admin-section-header">
+          <h3 className="admin-section-title">Perform the Following</h3>
+        </div>
+        <div className="admin-section-body">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            {performItems.map(item => (
+              <div key={item.id} className="flex items-center gap-2 py-1.5 text-sm">
+                <span className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
+                <span className="text-gray-700 capitalize">{checkItemLabels[item.item_name] ?? item.item_name.replace(/_/g, ' ')}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Check items */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-charcoal text-sm">Check Items</h3>
+      <div className="admin-section-card">
+        <div className="admin-section-header justify-between">
+          <h3 className="admin-section-title">Check Items</h3>
           {repairItems.length > 0 ? (
             <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
               {repairItems.length} repair(s) needed
@@ -179,7 +185,7 @@ export default function PreCheckDetail({ submissionId, onBack }) {
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">All OK</span>
           )}
         </div>
-        <div className="space-y-1">
+        <div className="admin-section-body space-y-1">
           {checkItems.map(item => (
             <div key={item.id} className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-sm ${
               item.status === 'repair_needed' ? 'bg-red-50' : ''
@@ -202,9 +208,11 @@ export default function PreCheckDetail({ submissionId, onBack }) {
 
       {/* Damages (excluding remarks — shown separately below) */}
       {realDamages.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <h3 className="font-semibold text-charcoal text-sm mb-3">Damage Reports</h3>
-          <div className="space-y-3">
+        <div className="admin-section-card">
+          <div className="admin-section-header">
+            <h3 className="admin-section-title">Damage Reports</h3>
+          </div>
+          <div className="admin-section-body space-y-3">
             {realDamages.map(damage => {
               const resolvedBy = damage.resolved_profile
                 ? `${damage.resolved_profile.first_name || ''} ${damage.resolved_profile.last_name || ''}`.trim()
@@ -282,24 +290,28 @@ export default function PreCheckDetail({ submissionId, onBack }) {
 
       {/* Remarks */}
       {(submission.remarks || remarksImages.length > 0) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <h3 className="font-semibold text-charcoal text-sm mb-2">Remarks</h3>
-          {submission.remarks && (
-            <p className="text-sm text-gray-700">{submission.remarks}</p>
-          )}
-          {remarksImages.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {remarksImages.map((url, idx) => (
-                <PrecheckSignedImage
-                  key={idx}
-                  url={url}
-                  alt={`Remarks ${idx + 1}`}
-                  asLink
-                  className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
-                />
-              ))}
-            </div>
-          )}
+        <div className="admin-section-card">
+          <div className="admin-section-header">
+            <h3 className="admin-section-title">Remarks</h3>
+          </div>
+          <div className="admin-section-body">
+            {submission.remarks && (
+              <p className="text-sm text-gray-700">{submission.remarks}</p>
+            )}
+            {remarksImages.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {remarksImages.map((url, idx) => (
+                  <PrecheckSignedImage
+                    key={idx}
+                    url={url}
+                    alt={`Remarks ${idx + 1}`}
+                    asLink
+                    className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
