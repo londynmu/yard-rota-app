@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCollectiveShunterAwardEmail,
   buildShunterAwardEmail,
+  formatWinnerLine,
   getMonthLongLabel,
   groupShunterAwardsByAgency,
   periodLabel,
@@ -33,20 +35,71 @@ describe('winnerDisplayName / periodLabel', () => {
   });
 });
 
-describe('buildShunterAwardEmail', () => {
-  it('builds subject and body with amounts', () => {
-    const { subject, body } = buildShunterAwardEmail({
+describe('formatWinnerLine', () => {
+  it('includes agency and amount', () => {
+    expect(
+      formatWinnerLine({
+        period: 'day',
+        fullName: 'Day Winner',
+        agencyName: 'Alpha Staff',
+        amount: 50,
+      })
+    ).toBe('- Day: Day Winner (Alpha Staff) – £50');
+  });
+
+  it('uses No agency when missing', () => {
+    expect(
+      formatWinnerLine({ period: 'night', fullName: 'Night Winner', amount: 50 })
+    ).toBe('- Night / Afternoon: Night Winner (No agency) – £50');
+  });
+});
+
+describe('buildCollectiveShunterAwardEmail', () => {
+  it('builds Hello all announcement with agencies and no recognition text', () => {
+    const { subject, body } = buildCollectiveShunterAwardEmail({
       monthKey: '2026-11',
       winners: [
-        { period: 'day', fullName: 'Day Winner', amount: 50 },
-        { period: 'night', firstName: 'Night', lastName: 'Winner', amount: 50 },
+        {
+          period: 'day',
+          fullName: 'Day Winner',
+          agencyName: 'Alpha Staff',
+          amount: 50,
+        },
+        {
+          period: 'night',
+          firstName: 'Night',
+          lastName: 'Winner',
+          agencyName: 'Beta Crew',
+          amount: 50,
+        },
       ],
     });
 
     expect(subject).toBe('Shunter of the Month – November 2026');
-    expect(body).toContain('Day: Day Winner (£50)');
-    expect(body).toContain('Night / Afternoon: Night Winner (£50)');
-    expect(body).toContain('according to our agreement');
+    expect(body).toContain('Hello all,');
+    expect(body).toContain('For November 2026, Shunter of the Month is:');
+    expect(body).toContain('- Day: Day Winner (Alpha Staff) – £50');
+    expect(body).toContain('- Night / Afternoon: Night Winner (Beta Crew) – £50');
+    expect(body).toContain('Thank you');
+    expect(body).not.toContain('recognition');
+    expect(body).not.toContain('Yard operations');
+  });
+});
+
+describe('buildShunterAwardEmail', () => {
+  it('builds per-agency body with agency lines and no recognition', () => {
+    const { subject, body } = buildShunterAwardEmail({
+      monthKey: '2026-11',
+      winners: [
+        { period: 'day', fullName: 'Day Winner', agencyName: 'Alpha Staff', amount: 50 },
+      ],
+    });
+
+    expect(subject).toBe('Shunter of the Month – November 2026');
+    expect(body).toContain('Hello,');
+    expect(body).toContain('- Day: Day Winner (Alpha Staff) – £50');
+    expect(body).not.toContain('recognition');
+    expect(body).not.toContain('according to our agreement');
   });
 });
 
@@ -110,7 +163,10 @@ describe('groupShunterAwardsByAgency', () => {
     expect(groups[0].emails).toEqual(['alpha@example.com', 'ops@alpha.com']);
     expect(groups[0].winners).toHaveLength(2);
     expect(groups[0].winners[0].period).toBe('day');
+    expect(groups[0].winners[0].agencyName).toBe('Alpha Staff');
     expect(groups[0].subject).toContain('November 2026');
+    expect(groups[0].body).toContain('(Alpha Staff)');
+    expect(groups[0].body).not.toContain('recognition');
     expect(groups[0].mailtoHref).toMatch(/^mailto:/);
     expect(groups[0].mailtoTooLong).toBe(false);
   });
