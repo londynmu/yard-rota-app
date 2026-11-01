@@ -259,6 +259,9 @@ const PerformanceImport = () => {
             dateFormat="dd/MM/yyyy"
             maxDate={new Date()}
             className="admin-input w-full md:w-64"
+            // Portal out of admin-section-card (overflow-hidden) so the calendar is not clipped
+            portalId="root"
+            popperClassName="react-datepicker-popper z-[80]"
           />
           <p className="text-xs text-gray-500 mt-1">
             Select the date this report covers (defaults to yesterday)
