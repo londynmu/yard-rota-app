@@ -62,7 +62,7 @@ const UserApprovalPage = () => {
         <p className="text-gray-600">{error}</p>
         <button
           onClick={reload}
-          className="mt-4 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+          className="admin-btn-danger mt-4"
         >
           Retry
         </button>
@@ -72,8 +72,8 @@ const UserApprovalPage = () => {
 
   // When embedded in AdminPage, don't use the full screen container
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
-      <div className="p-4 sm:p-6 border-b border-gray-200">
+    <div className="admin-section-card">
+      <div className="admin-section-header !h-auto !block py-3 sm:py-4 px-4 sm:px-6">
         <h2 className="text-xl font-bold text-charcoal">Pending User Approvals</h2>
         <p className="text-gray-600 text-sm mt-1">
           Review and approve new user registrations
@@ -158,13 +158,13 @@ const UserApprovalPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button
                       onClick={() => handleApprove(user.id)}
-                      className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded-lg text-white transition-colors"
+                      className="admin-btn"
                     >
                       Approve
                     </button>
                     <button
                       onClick={() => setUserToReject(user)}
-                      className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-white transition-colors"
+                      className="admin-btn-danger"
                     >
                       Reject
                     </button>

@@ -609,8 +609,8 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const capacityPercentage = (localAssignedCount / slot.capacity) * 100;
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-      <div className="flex h-[90vh] w-full max-w-[95vw] md:max-w-6xl max-h-[95vh] flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
-        <div className="border-b border-rota-modal-border bg-gradient-to-r from-rota-day-other-bg-from to-rota-modal-bg">
+      <div className="admin-modal-panel !max-w-[95vw] md:!max-w-6xl flex h-[90vh] max-h-[95vh] w-full flex-col !rounded-xl">
+        <div className="admin-modal-header !p-0">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -678,7 +678,7 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           </div>
 
           {isTaskSectionExpanded && (
-            <div className="border-t border-rota-modal-border bg-blue-50/30 px-5 py-3">
+            <div className="border-t border-gray-200 bg-white px-5 py-3">
               <div className="relative">
                 <label htmlFor="task-input" className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-rota-text-primary">
                   <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -926,10 +926,10 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
           )}
         </div>
 
-        <div className="flex justify-end border-t border-rota-modal-border bg-rota-day-other-bg-from px-5 py-3">
+        <div className="admin-modal-footer">
           <button
             onClick={onClose}
-            className="rounded-full border-2 border-rota-text-primary px-6 py-2 text-sm font-medium text-rota-text-primary bg-rota-modal-bg hover:bg-rota-day-other-bg-from"
+            className="admin-btn"
           >
             Done
           </button>

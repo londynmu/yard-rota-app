@@ -1417,10 +1417,10 @@ const BrakesManager = ({ readOnly = false }) => {
       {/* Modals for pickers */}
       {showDateModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
-              <h3 className="text-lg font-bold text-white">Select Date</h3>
-              <button onClick={() => setShowDateModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+            <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-charcoal">Select Date</h3>
+              <button type="button" onClick={() => setShowDateModal(false)} className="admin-btn">
                 Done
               </button>
             </div>
@@ -1653,10 +1653,10 @@ const BrakesManager = ({ readOnly = false }) => {
 
       {showLocationModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
-              <h3 className="text-lg font-bold text-white">Select Location</h3>
-              <button onClick={() => setShowLocationModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+            <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-charcoal">Select Location</h3>
+              <button type="button" onClick={() => setShowLocationModal(false)} className="admin-btn">
                 Done
               </button>
             </div>
@@ -1664,11 +1664,12 @@ const BrakesManager = ({ readOnly = false }) => {
               {locations.map(loc => (
                 <button
                   key={loc.id}
+                  type="button"
                   onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
-                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  className={`w-full px-4 py-3 rounded-lg text-sm font-semibold border border-gray-200 text-charcoal transition-colors ${
                     selectedLocation === loc.name
-                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
-                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                      ? 'bg-gray-100'
+                      : 'bg-white hover:bg-gray-50'
                   }`}
                 >
                   {loc.name}
@@ -1682,10 +1683,10 @@ const BrakesManager = ({ readOnly = false }) => {
 
       {showShiftModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="bg-white rounded-3xl md:rounded-xl border-2 border-gray-400 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex items-center justify-between z-10">
-              <h3 className="text-lg font-bold text-white">Select Shift</h3>
-              <button onClick={() => setShowShiftModal(false)} className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+            <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-charcoal">Select Shift</h3>
+              <button type="button" onClick={() => setShowShiftModal(false)} className="admin-btn">
                 Done
               </button>
             </div>
@@ -1693,11 +1694,12 @@ const BrakesManager = ({ readOnly = false }) => {
               {['Day','Afternoon','Night'].map(shift => (
                 <button
                   key={shift}
+                  type="button"
                   onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
-                  className={`w-full px-4 py-3 rounded-lg font-semibold border-2 transition-colors ${
+                  className={`w-full px-4 py-3 rounded-lg text-sm font-semibold border border-gray-200 text-charcoal transition-colors ${
                     selectedShift === shift
-                      ? 'bg-orange-600 text-white border-orange-700 hover:bg-orange-700'
-                      : 'text-charcoal hover:bg-gray-100 border-gray-300'
+                      ? 'bg-gray-100'
+                      : 'bg-white hover:bg-gray-50'
                   }`}
                 >
                   {shift}
@@ -1719,28 +1721,31 @@ const BrakesManager = ({ readOnly = false }) => {
         <div className="mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
           {/* Row 1: 3 filter pills - on mobile equal width across screen, on md+ inline */}
           <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-1">
-            {/* Date pill - pastelowy niebieski */}
+            {/* Date pill */}
             <button
+              type="button"
               onClick={() => { 
                 setShowDateModal(true); 
                 setShowLocationModal(false); 
                 setShowShiftModal(false);
               }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-blue-50 text-blue-700 text-sm md:text-base font-medium border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+              className={`admin-chip w-full md:w-auto min-w-0 ${showDateModal ? 'admin-chip-active' : ''}`}
             >
               📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
             </button>
-            {/* Location pill - pastelowy zielony */}
+            {/* Location pill */}
             <button
+              type="button"
               onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-green-50 text-green-700 text-sm md:text-base font-medium border border-green-200 hover:bg-green-100 hover:border-green-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+              className={`admin-chip w-full md:w-auto min-w-0 ${showLocationModal ? 'admin-chip-active' : ''}`}
             >
               📍 {selectedLocation || 'Hub'}
             </button>
-            {/* Shift pill - pastelowy fioletowy */}
+            {/* Shift pill */}
             <button
+              type="button"
               onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className="flex items-center justify-center px-3 py-1 md:px-4 rounded-full bg-purple-50 text-purple-700 text-sm md:text-base font-medium border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg w-full md:w-auto min-w-0"
+              className={`admin-chip w-full md:w-auto min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
             >
               🌙 {selectedShift}
             </button>
@@ -1752,7 +1757,7 @@ const BrakesManager = ({ readOnly = false }) => {
               type="button"
               onClick={handleCopyAsPicture}
               disabled={isExporting || isLoading}
-              className="flex items-center justify-center w-full md:w-auto px-4 py-1 rounded-full bg-orange-50 text-orange-700 text-sm md:text-base font-medium border border-orange-200 hover:bg-orange-100 hover:border-orange-300 transition-all whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-60"
+              className="admin-chip w-full md:w-auto"
             >
               {isExporting ? '…' : 'Copy as picture'}
             </button>
@@ -1958,13 +1963,13 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-3xl md:rounded-lg shadow-xl border-2 border-gray-400 w-full max-w-md lg:max-w-5xl h-[90vh] md:h-[85vh] max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden"
+        className="admin-modal-panel relative text-charcoal max-w-md lg:max-w-5xl h-[90vh] md:h-[85vh] max-h-[90vh] md:max-h-[85vh] flex flex-col"
       >
         {/* Header - Sticky */}
-        <div className="sticky top-0 bg-black px-3 py-3 md:px-5 md:py-4 border-b border-gray-900 flex-shrink-0 z-10">
+        <div className="admin-modal-header sticky top-0 flex-shrink-0 z-10">
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-2 flex-wrap flex-1">
-              <span className="font-bold text-white text-xl md:text-2xl">{slot.start_time} - {
+              <span className="font-bold text-charcoal text-xl md:text-2xl">{slot.start_time} - {
                 // Calculate end time
                 (() => {
                   try {
@@ -1987,6 +1992,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
               </span>
             </div>
             <button 
+              type="button"
               onClick={() => {
                 if (!isAllLocation) {
                   // Save silently in background without blocking modal close
@@ -1996,11 +2002,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                 onClose();
               }}
               disabled={isAllLocation}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex-shrink-0 ${
-                isAllLocation 
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                  : 'bg-white text-black hover:bg-gray-100'
-              }`}
+              className="admin-btn flex-shrink-0"
               title={isAllLocation ? 'Select a specific location to save changes' : 'Save and close'}
             >
               Done
@@ -2138,15 +2140,16 @@ const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
       <div 
         ref={modalRef}
-        className="relative bg-white text-charcoal rounded-3xl md:rounded-2xl shadow-2xl border-2 border-gray-400 w-full md:max-w-sm overflow-hidden max-h-[90vh] flex flex-col"
+        className="admin-modal-panel relative text-charcoal max-w-sm max-h-[90vh] flex flex-col"
       >
         {/* Header - Sticky */}
-        <div className="sticky top-0 bg-black px-5 py-4 border-b border-gray-900 flex-shrink-0 z-10">
+        <div className="admin-modal-header sticky top-0 flex-shrink-0 z-10">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white">Create Custom Slot</h3>
+            <h3 className="text-sm font-semibold text-charcoal">Create Custom Slot</h3>
             <button 
+              type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white text-black text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              className="admin-btn"
             >
               Done
             </button>
@@ -2288,7 +2291,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div className="pt-1">
           <button
             type="submit"
-            className="w-full px-4 py-3.5 bg-black text-white text-base font-bold rounded-lg hover:bg-gray-900 transition-colors shadow-lg"
+            className="admin-btn w-full"
           >
             Add Custom Slot
           </button>

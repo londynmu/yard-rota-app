@@ -198,45 +198,47 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
     <div className="space-y-4">
       {/* Add new location – only when opened from toolbar "+ Add" (same style as Tug Management) */}
       {showAddForm && (
-        <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
-          <h3 className="font-semibold text-charcoal">Add new location</h3>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-location">
-                Location name *
-              </label>
-              <input
-                type="text"
-                id="new-location"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newLocation.trim()) {
-                    e.preventDefault();
-                    handleAddLocation();
-                  }
-                }}
-                placeholder="Enter location name"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-                disabled={loading}
-                ref={newLocationInputRef}
-              />
+        <div className="admin-section-card">
+          <div className="admin-section-body space-y-4">
+            <h3 className="font-semibold text-charcoal">Add new location</h3>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-location">
+                  Location name *
+                </label>
+                <input
+                  type="text"
+                  id="new-location"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newLocation.trim()) {
+                      e.preventDefault();
+                      handleAddLocation();
+                    }
+                  }}
+                  placeholder="Enter location name"
+                  className="admin-input"
+                  disabled={loading}
+                  ref={newLocationInputRef}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleAddLocation}
+                disabled={loading || !newLocation.trim()}
+                className="admin-btn shrink-0"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm && setShowAddForm(false)}
+                className="admin-btn-muted"
+              >
+                Cancel
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleAddLocation}
-              disabled={loading || !newLocation.trim()}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddForm && setShowAddForm(false)}
-              className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
@@ -254,7 +256,7 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
           locations.map((location) => (
             <div
               key={location.id}
-              className={`rounded-xl border border-red-200 bg-red-50/50 overflow-hidden shadow-sm ${
+              className={`admin-section-card ${
                 !location.is_active ? 'opacity-60' : ''
               }`}
             >
@@ -265,7 +267,7 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
                       type="text"
                       value={editLocationName}
                       onChange={(e) => setEditLocationName(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm text-charcoal bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                       disabled={loading}
                     />
                   </div>
@@ -281,18 +283,18 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
                       <button
                         onClick={() => updateLocation(location.id)}
                         disabled={loading}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="admin-icon-btn"
                         aria-label="Save location"
                         title="Save"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </button>
                       <button
                         onClick={cancelEditing}
                         disabled={loading}
-                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                        className="admin-icon-btn hover:bg-red-50"
                         aria-label="Cancel"
                         title="Cancel"
                       >
@@ -306,18 +308,18 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
                       <button
                         onClick={() => startEditing(location)}
                         disabled={loading}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="admin-icon-btn"
                         aria-label="Edit"
                         title="Edit"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
                       <button
                         onClick={() => confirmToggleLocationStatus(location.id, location.name, location.is_active)}
                         disabled={loading}
-                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                        className="admin-icon-btn hover:bg-red-50"
                         aria-label={location.is_active ? 'Deactivate' : 'Activate'}
                         title={location.is_active ? 'Deactivate' : 'Activate'}
                       >
@@ -334,7 +336,7 @@ export default function LocationManager({ showAddForm = false, setShowAddForm })
                       <button
                         onClick={() => confirmDeleteLocation(location.id, location.name)}
                         disabled={loading}
-                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                        className="admin-icon-btn hover:bg-red-50"
                         aria-label="Delete"
                         title="Delete"
                       >

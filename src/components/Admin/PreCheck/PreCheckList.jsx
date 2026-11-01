@@ -533,15 +533,15 @@ export default function PreCheckList({ readOnly = false }) {
       <div
         key={sub.id}
         id={`precheck-card-${sub.id}`}
-        className={`rounded-xl border shadow-sm transition-shadow overflow-hidden ${
-          hasDefect ? 'border-red-200' : 'border-green-200'
+        className={`admin-section-card transition-shadow ${
+          hasDefect ? '!border-red-200' : '!border-green-200'
         } ${isExpanded ? 'shadow-md relative z-10' : ''}`}
       >
         {/* Card header – same height when closed (min-h-[52px]) like VMU/Tugs */}
         <button
           type="button"
           onClick={() => toggleCard(sub.id)}
-          className={`w-full px-4 py-3 min-h-[52px] text-left cursor-pointer rounded-t-xl ${
+          className={`w-full px-4 py-3 min-h-[52px] text-left cursor-pointer ${
             hasDefect ? 'bg-red-50' : 'bg-green-50'
           } hover:opacity-95 transition-opacity flex flex-col justify-center`}
         >
@@ -616,7 +616,7 @@ export default function PreCheckList({ readOnly = false }) {
                   e.stopPropagation();
                   handlePrintCheck(sub);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors"
+                className="admin-btn gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -768,14 +768,14 @@ export default function PreCheckList({ readOnly = false }) {
           value={filters.search}
           onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
           placeholder="Search by tug name, number, user name, date..."
-          className="w-full md:flex-1 md:min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 px-4 md:px-3 text-sm md:text-xs font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
+          className="admin-input w-full md:flex-1 md:min-w-0 !text-xs font-medium shadow-sm"
           aria-label="Search"
         />
         <div className="grid grid-cols-3 gap-2 md:contents">
           <select
             value={filters.tug}
             onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 md:min-w-[8rem] appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+            className="admin-chip w-full min-w-0 !justify-start md:w-auto md:flex-shrink-0 md:min-w-[8rem] appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center] pl-3 pr-8"
             style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
             aria-label="Filter by tug"
           >
@@ -787,7 +787,7 @@ export default function PreCheckList({ readOnly = false }) {
           <select
             value={filters.checkType}
             onChange={(e) => setFilters(prev => ({ ...prev, checkType: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+            className="admin-chip w-full min-w-0 !justify-start md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center] pl-3 pr-8"
             style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
             aria-label="Type"
           >
@@ -798,7 +798,7 @@ export default function PreCheckList({ readOnly = false }) {
           <select
             value={faultsFilter}
             onChange={(e) => handleFaultsFilterChange(e.target.value)}
-            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+            className="admin-chip w-full min-w-0 !justify-start md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center] pl-3 pr-8"
             style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
             aria-label="Faults filter"
           >
@@ -811,7 +811,7 @@ export default function PreCheckList({ readOnly = false }) {
           onClick={openPrintPackModal}
           disabled={!filters.tug}
           title={filters.tug ? 'Print audit pack for selected tug' : 'Select a tug to print an audit pack'}
-          className="w-full md:w-auto md:flex-shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium rounded-xl md:rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+          className="admin-btn w-full md:w-auto md:flex-shrink-0 gap-1.5"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -892,7 +892,7 @@ export default function PreCheckList({ readOnly = false }) {
                   type="date"
                   value={packDates.from}
                   onChange={(e) => setPackDates((prev) => ({ ...prev, from: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                  className="admin-input"
                 />
               </label>
               <label className="block">
@@ -901,7 +901,7 @@ export default function PreCheckList({ readOnly = false }) {
                   type="date"
                   value={packDates.to}
                   onChange={(e) => setPackDates((prev) => ({ ...prev, to: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                  className="admin-input"
                 />
               </label>
             </div>
@@ -910,7 +910,7 @@ export default function PreCheckList({ readOnly = false }) {
               <select
                 value={packCheckType}
                 onChange={(e) => setPackCheckType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-charcoal bg-white focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                className="admin-input"
               >
                 <option value="">All types</option>
                 <option value="pre_shift">Pre-Shift</option>
@@ -923,7 +923,7 @@ export default function PreCheckList({ readOnly = false }) {
               type="button"
               onClick={() => setShowPrintPackModal(false)}
               disabled={packPrinting}
-              className="px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors order-2 sm:order-1 disabled:opacity-50"
+              className="admin-btn-muted order-2 sm:order-1"
             >
               Cancel
             </button>
@@ -931,7 +931,7 @@ export default function PreCheckList({ readOnly = false }) {
               type="button"
               onClick={handlePrintPack}
               disabled={packPrinting}
-              className="px-4 py-2 rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors order-1 sm:order-2 disabled:opacity-50"
+              className="admin-btn order-1 sm:order-2"
             >
               {packPrinting ? 'Loading…' : 'Print'}
             </button>

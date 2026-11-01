@@ -9,12 +9,12 @@ const UserNoteModal = ({ note, employee, date, onClose, onConfirm }) => {
 
   return createPortal(
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-      <div className="mx-4 w-full max-w-md overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
-        <div className="flex items-center justify-between border-b border-rota-modal-border px-5 py-4">
-          <h3 className="text-xl font-semibold text-rota-text-primary">User Note</h3>
+      <div className="admin-modal-panel mx-4">
+        <div className="admin-modal-header flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-charcoal">User Note</h3>
           <button 
             onClick={onClose}
-            className="text-rota-text-muted transition hover:text-rota-text-primary"
+            className="admin-icon-btn"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -37,27 +37,27 @@ const UserNoteModal = ({ note, employee, date, onClose, onConfirm }) => {
             </div>
           </div>
           
-          <div className="rounded-lg border border-rota-modal-border bg-rota-day-other-bg-from p-4">
-            <p className="whitespace-pre-wrap text-sm text-rota-text-primary">{note}</p>
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="whitespace-pre-wrap text-sm text-charcoal">{note}</p>
           </div>
           
-          <div className="rounded-lg border border-rota-modal-border bg-rota-day-other-bg-from p-3">
-            <p className="text-sm text-rota-text-muted">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-sm text-gray-600">
               This note may indicate availability constraints or special circumstances. Please consider it before assigning the employee to this shift.
             </p>
           </div>
         </div>
         
-        <div className="flex justify-end gap-3 border-t border-rota-modal-border bg-rota-day-other-bg-from px-5 py-3">
+        <div className="admin-modal-footer">
           <button
             onClick={onClose}
-            className="rounded-md border-2 border-rota-btn-outline-border px-4 py-2 text-rota-btn-outline-text hover:bg-rota-day-other-bg-from"
+            className="admin-btn-muted"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-md border-2 border-rota-text-primary bg-rota-modal-bg px-4 py-2 text-rota-text-primary hover:bg-rota-day-other-bg-from"
+            className="admin-btn"
           >
             Assign Anyway
           </button>

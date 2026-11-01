@@ -279,9 +279,9 @@ export default function CheckItemManager() {
       return (
         <div
           key={item.id}
-          className="rounded-xl border border-blue-200 bg-blue-50 shadow-sm overflow-hidden"
+          className="admin-section-card"
         >
-          <div className="p-4 space-y-3">
+          <div className="admin-section-body space-y-3">
             <div className="flex flex-col gap-3">
               <div>
                 <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Label</label>
@@ -297,7 +297,7 @@ export default function CheckItemManager() {
                   ref={(el) => {
                     if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
+                  className="admin-input resize-none overflow-hidden min-h-[2.25rem]"
                 />
               </div>
               <div>
@@ -315,7 +315,7 @@ export default function CheckItemManager() {
                     if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
                   }}
                   placeholder="Description shown to user..."
-                  className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm resize-none overflow-hidden min-h-[2.25rem]"
+                  className="admin-input resize-none overflow-hidden min-h-[2.25rem]"
                 />
               </div>
             </div>
@@ -323,18 +323,18 @@ export default function CheckItemManager() {
               <button
                 type="button"
                 onClick={() => deleteItem(item)}
-                className="px-3 py-1.5 text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50"
+                className="admin-btn-danger"
               >
                 Delete
               </button>
-              <button type="button" onClick={cancelEdit} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+              <button type="button" onClick={cancelEdit} className="admin-btn-muted">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={saveEdit}
                 disabled={saving}
-                className="px-3 py-1.5 text-xs font-medium bg-charcoal text-white rounded-lg hover:bg-black disabled:opacity-50 h-8"
+                className="admin-btn"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -347,10 +347,8 @@ export default function CheckItemManager() {
     return (
       <div
         key={item.id}
-        className={`rounded-xl border shadow-sm overflow-hidden transition-all min-h-[52px] ${
-          item.is_active
-            ? 'border-green-200 bg-green-50'
-            : 'border-gray-200 bg-gray-50 opacity-60'
+        className={`admin-section-card transition-all min-h-[52px] ${
+          item.is_active ? '' : 'opacity-60'
         }`}
       >
         <div className="px-4 py-3 flex items-center gap-2">
@@ -401,7 +399,7 @@ export default function CheckItemManager() {
           <button
             type="button"
             onClick={() => startEdit(item)}
-            className="p-1.5 text-gray-400 hover:text-charcoal border border-transparent hover:border-gray-200 rounded"
+            className="admin-icon-btn"
             title="Edit"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,8 +426,8 @@ export default function CheckItemManager() {
     }
 
     return (
-      <div className="rounded-xl border border-green-200 bg-green-50 shadow-sm overflow-hidden">
-        <div className="p-4 space-y-3">
+      <div className="admin-section-card">
+        <div className="admin-section-body space-y-3">
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="block text-[10px] font-medium text-gray-500 mb-0.5">Key (unique)</label>
@@ -438,7 +436,7 @@ export default function CheckItemManager() {
                 value={addForm.item_key}
                 onChange={(e) => setAddForm(prev => ({ ...prev, item_key: e.target.value }))}
                 placeholder="e.g. horn"
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm font-mono"
+                className="admin-input font-mono"
               />
             </div>
             <div>
@@ -448,7 +446,7 @@ export default function CheckItemManager() {
                 value={addForm.label}
                 onChange={(e) => setAddForm(prev => ({ ...prev, label: e.target.value }))}
                 placeholder="e.g. Horn"
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                className="admin-input"
               />
             </div>
             <div>
@@ -458,19 +456,19 @@ export default function CheckItemManager() {
                 value={addForm.tooltip}
                 onChange={(e) => setAddForm(prev => ({ ...prev, tooltip: e.target.value }))}
                 placeholder="Check horn works..."
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm"
+                className="admin-input"
               />
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={cancelAdd} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+            <button type="button" onClick={cancelAdd} className="admin-btn-muted">
               Cancel
             </button>
             <button
               type="button"
               onClick={saveAdd}
               disabled={saving}
-              className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 h-8"
+              className="admin-btn"
             >
               {saving ? 'Adding...' : 'Add Item'}
             </button>
@@ -511,7 +509,7 @@ export default function CheckItemManager() {
       {/* Toolbar – same as Tug Management / Settings */}
       <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
         <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 h-8 flex-shrink-0">
+          <div className="admin-seg-track flex-shrink-0">
             {[
               { id: 'form-options', label: 'Form options' },
               { id: 'checks', label: 'Checks' },
@@ -520,10 +518,8 @@ export default function CheckItemManager() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`h-7 px-3 text-xs font-medium rounded-md transition-all flex items-center ${
-                  activeTab === tab.id
-                    ? 'bg-white text-charcoal shadow-sm'
-                    : 'text-gray-500 hover:text-charcoal'
+                className={`admin-seg-item ${
+                  activeTab === tab.id ? 'admin-seg-item-active' : ''
                 }`}
               >
                 {tab.label}
@@ -537,7 +533,7 @@ export default function CheckItemManager() {
       <div className="space-y-4 -mt-px">
         {activeTab === 'form-options' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+            <div className="admin-section-card flex items-center justify-between min-h-[52px] px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">Pre-Shift remarks block</p>
                 <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shows/hides the Remarks section in Pre-Shift form.</p>
@@ -561,7 +557,7 @@ export default function CheckItemManager() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+            <div className="admin-section-card flex items-center justify-between min-h-[52px] px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">During Shift damage report</p>
                 <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shows/hides Report Damage flow in During Shift.</p>
@@ -585,7 +581,7 @@ export default function CheckItemManager() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 shadow-sm overflow-hidden min-h-[52px] px-4 py-3">
+            <div className="admin-section-card flex items-center justify-between min-h-[52px] px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-charcoal">Defect resolve confirmations</p>
                 <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">Shunter must mark defect as &quot;Fixed?&quot; this many times (on submit) before it is marked resolved. VMU/admin resolve immediately.</p>
@@ -603,7 +599,7 @@ export default function CheckItemManager() {
                     saveDefectResolveConfirmations(v);
                   }}
                   disabled={settingsLoading || settingsSaving}
-                  className="w-14 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center"
+                  className="admin-input w-14 text-center"
                 />
               </div>
             </div>

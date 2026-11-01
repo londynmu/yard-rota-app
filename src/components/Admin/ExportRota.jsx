@@ -815,7 +815,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
               }}
               dateFormat="dd/MM/yyyy"
               filterDate={isSaturday}
-              className="w-full rounded-md border border-gray-300 bg-white p-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
+              className="admin-input"
               wrapperClassName="w-full"
               showIcon
               calendarIconClassname="text-charcoal cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
@@ -850,7 +850,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             <button
               onClick={fetchRotaForWeek}
               disabled={fetchingData}
-              className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+              className="admin-btn"
             >
               {fetchingData ? <span className="animate-pulse">Loading data...</span> : 'Fetch Schedule Data'}
             </button>
@@ -865,13 +865,13 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => generateCSV()}
-            className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
+            className="admin-btn"
           >
             Download CSV
           </button>
           <button
             onClick={() => generatePDF()}
-            className="rounded-md border border-gray-200 bg-white px-4 py-2 text-charcoal transition hover:bg-gray-100"
+            className="admin-btn"
           >
             Download PDF
           </button>
@@ -934,7 +934,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           <button
             onClick={confirmSend}
             disabled={loading || selectedAgencies.length === 0}
-            className="w-full rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+            className="admin-btn w-full"
           >
             {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
           </button>
@@ -946,7 +946,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         {step > 1 ? (
           <button
             onClick={() => setStep(step - 1)}
-            className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
+            className="admin-btn-muted"
           >
             Back
           </button>
@@ -956,7 +956,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           <button
             onClick={() => setStep(step + 1)}
             disabled={isNextDisabled()}
-            className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+            className="admin-btn"
           >
             Next
           </button>
@@ -1016,13 +1016,13 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button 
                 onClick={cancelSend} 
-                className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
+                className="admin-btn-muted"
               >
                 Cancel
               </button>
               <button 
                 onClick={sendToAgencies} 
-                className="rounded-md bg-black px-4 py-2 text-white transition hover:bg-gray-800"
+                className="admin-btn"
               >
                 Yes, I&apos;m 100% Sure - Send Now
               </button>
@@ -1044,7 +1044,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button 
                 onClick={() => setShowDownloadModal(false)} 
-                className="rounded-md border border-gray-300 px-4 py-2 text-charcoal hover:bg-gray-100"
+                className="admin-btn-muted"
               >
                 Cancel
               </button>
@@ -1080,7 +1080,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                     alert('Failed to download file. Please try again.');
                   }
                 }}
-                className="rounded-md bg-black px-4 py-2 text-center text-white transition hover:bg-gray-800"
+                className="admin-btn text-center"
               >
                 Download {downloadInfo.type}
               </button>

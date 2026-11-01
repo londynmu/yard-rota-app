@@ -46,24 +46,25 @@ const colors = {
   gold: 'text-amber-500',
 };
 
-/** Admin sidebar + Quick Actions */
+/** Admin sidebar + Quick Actions — mono slate icons (active state is white in AdminPage) */
 export function getAdminMenuItems(pendingApprovals = 0, { shunterIncomplete = false } = {}) {
+  const adminIcon = colors.slate;
   return [
-    { id: 'dashboard', label: 'Dashboard', Icon: Gauge, colorClass: colors.primary, description: 'Overview & Quick Stats' },
-    { id: 'users', label: 'Users', Icon: Users2, colorClass: colors.secondary, description: 'Manage users' },
-    { id: 'approvals', label: 'Approvals', Icon: CircleCheck, colorClass: colors.success, description: 'Pending approvals' },
-    { id: 'availability', label: 'Availability', Icon: CalendarClock, colorClass: colors.info, description: 'User availability' },
-    { id: 'rota-planner', label: 'Rota Planner', Icon: CalendarFold, colorClass: colors.accent, description: 'Plan work schedules' },
-    { id: 'breaks', label: 'Breaks', Icon: Timer, colorClass: colors.warning, description: 'Manage employee breaks' },
-    { id: 'attendance', label: 'Black list', Icon: UserMinus, colorClass: colors.danger, description: 'Attendance & disciplinary notes' },
-    { id: 'performance', label: 'Performance', Icon: BarChart2, colorClass: colors.violet, description: 'Import performance data' },
-    { id: 'stats', label: 'Activity', Icon: LineChart, colorClass: colors.sky, description: 'User activity logs & summary' },
-    { id: 'tugs', label: 'Tugs', Icon: Truck, colorClass: colors.primary, description: 'Manage tug fleet & QR codes' },
-    { id: 'prechecks', label: 'PreChecks', Icon: CheckSquare, colorClass: colors.success, description: 'Tug inspection reports' },
-    { id: 'check-items', label: 'Check Items', Icon: ListTodo, colorClass: colors.info, description: 'Manage checklist & tooltips' },
-    { id: 'induction-guide', label: 'Yard induction guide', Icon: BookOpen, colorClass: colors.accent, description: 'New shunter guide content & images' },
-    { id: 'shunter-month', label: 'Shunter of the Month', Icon: Medal, colorClass: colors.gold, description: 'Monthly Day & Night awards' },
-    { id: 'settings', label: 'Settings', Icon: Cog, colorClass: colors.slate, description: 'Locations & Agencies' },
+    { id: 'dashboard', label: 'Dashboard', Icon: Gauge, colorClass: adminIcon, description: 'Overview & Quick Stats' },
+    { id: 'users', label: 'Users', Icon: Users2, colorClass: adminIcon, description: 'Manage users' },
+    { id: 'approvals', label: 'Approvals', Icon: CircleCheck, colorClass: adminIcon, description: 'Pending approvals' },
+    { id: 'availability', label: 'Availability', Icon: CalendarClock, colorClass: adminIcon, description: 'User availability' },
+    { id: 'rota-planner', label: 'Rota Planner', Icon: CalendarFold, colorClass: adminIcon, description: 'Plan work schedules' },
+    { id: 'breaks', label: 'Breaks', Icon: Timer, colorClass: adminIcon, description: 'Manage employee breaks' },
+    { id: 'attendance', label: 'Black list', Icon: UserMinus, colorClass: adminIcon, description: 'Attendance & disciplinary notes' },
+    { id: 'performance', label: 'Performance', Icon: BarChart2, colorClass: adminIcon, description: 'Import performance data' },
+    { id: 'stats', label: 'Activity', Icon: LineChart, colorClass: adminIcon, description: 'User activity logs & summary' },
+    { id: 'tugs', label: 'Tugs', Icon: Truck, colorClass: adminIcon, description: 'Manage tug fleet & QR codes' },
+    { id: 'prechecks', label: 'PreChecks', Icon: CheckSquare, colorClass: adminIcon, description: 'Tug inspection reports' },
+    { id: 'check-items', label: 'Check Items', Icon: ListTodo, colorClass: adminIcon, description: 'Manage checklist & tooltips' },
+    { id: 'induction-guide', label: 'Yard induction guide', Icon: BookOpen, colorClass: adminIcon, description: 'New shunter guide content & images' },
+    { id: 'shunter-month', label: 'Shunter of the Month', Icon: Medal, colorClass: adminIcon, description: 'Monthly Day & Night awards' },
+    { id: 'settings', label: 'Settings', Icon: Cog, colorClass: adminIcon, description: 'Locations & Agencies' },
   ].map((item) => {
     let badge;
     if (item.id === 'approvals') badge = pendingApprovals;

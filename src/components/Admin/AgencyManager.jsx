@@ -306,99 +306,101 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
     <div className="space-y-4">
       {/* Add new agency – only when opened from toolbar "+ Add Agency" */}
       {showAddForm && (
-        <div className="bg-white rounded-xl border-2 border-charcoal p-5 shadow-sm space-y-4">
-          <h3 className="font-semibold text-charcoal">Add new agency</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-name">Agency name *</label>
-              <input
-                type="text"
-                id="new-agency-name"
-                name="name"
-                value={newAgency.name}
-                onChange={handleInputChange}
-                placeholder="Enter agency name"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-                disabled={loading}
-                ref={newAgencyInputRef}
-                required
-              />
+        <div className="admin-section-card">
+          <div className="admin-section-body space-y-4">
+            <h3 className="font-semibold text-charcoal">Add new agency</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-name">Agency name *</label>
+                <input
+                  type="text"
+                  id="new-agency-name"
+                  name="name"
+                  value={newAgency.name}
+                  onChange={handleInputChange}
+                  placeholder="Enter agency name"
+                  className="admin-input"
+                  disabled={loading}
+                  ref={newAgencyInputRef}
+                  required
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-email">Email</label>
+                <textarea
+                  id="new-agency-email"
+                  name="email"
+                  value={newAgency.email}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    resizeEmailTextarea(e.target);
+                  }}
+                  placeholder="Enter agency email"
+                  rows={1}
+                  className="admin-input min-h-[2.5rem] resize-none overflow-hidden align-top"
+                  style={{ scrollMarginTop: '80px' }}
+                  disabled={loading}
+                  ref={newAgencyEmailRef}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-contact">Contact person</label>
+                <input
+                  type="text"
+                  id="new-agency-contact"
+                  name="contact_person"
+                  value={newAgency.contact_person}
+                  onChange={handleInputChange}
+                  placeholder="Enter contact person name"
+                  className="admin-input"
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-phone">Phone number</label>
+                <input
+                  type="text"
+                  id="new-agency-phone"
+                  name="phone_number"
+                  value={newAgency.phone_number}
+                  onChange={handleInputChange}
+                  placeholder="Enter phone number"
+                  className="admin-input"
+                  disabled={loading}
+                />
+              </div>
             </div>
-            <div className="min-w-0">
-              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-email">Email</label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-notes">Notes</label>
               <textarea
-                id="new-agency-email"
-                name="email"
-                value={newAgency.email}
-                onChange={(e) => {
-                  handleInputChange(e);
-                  resizeEmailTextarea(e.target);
-                }}
-                placeholder="Enter agency email"
-                rows={1}
-                className="w-full min-h-[2.5rem] px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal resize-none overflow-hidden align-top"
-                style={{ scrollMarginTop: '80px' }}
-                disabled={loading}
-                ref={newAgencyEmailRef}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-contact">Contact person</label>
-              <input
-                type="text"
-                id="new-agency-contact"
-                name="contact_person"
-                value={newAgency.contact_person}
+                id="new-agency-notes"
+                name="notes"
+                value={newAgency.notes}
                 onChange={handleInputChange}
-                placeholder="Enter contact person name"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                placeholder="Enter additional notes"
+                rows={3}
+                className="admin-input"
                 disabled={loading}
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-phone">Phone number</label>
-              <input
-                type="text"
-                id="new-agency-phone"
-                name="phone_number"
-                value={newAgency.phone_number}
-                onChange={handleInputChange}
-                placeholder="Enter phone number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleAddAgency}
+                disabled={loading || !newAgency.name.trim()}
+                className="admin-btn"
+              >
+                {loading ? 'Adding…' : 'Add agency'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm && setShowAddForm(false)}
                 disabled={loading}
-              />
+                className="admin-btn-muted"
+              >
+                Cancel
+              </button>
             </div>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-agency-notes">Notes</label>
-            <textarea
-              id="new-agency-notes"
-              name="notes"
-              value={newAgency.notes}
-              onChange={handleInputChange}
-              placeholder="Enter additional notes"
-              rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg text-charcoal placeholder:text-gray-400 focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
-              disabled={loading}
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleAddAgency}
-              disabled={loading || !newAgency.name.trim()}
-              className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Adding…' : 'Add agency'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddForm && setShowAddForm(false)}
-              disabled={loading}
-              className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}
@@ -416,10 +418,10 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
           agencies.map((agency) => (
             <div
               key={agency.id}
-              className={`rounded-xl border border-red-200 bg-red-50/50 shadow-sm ${editAgencyId === agency.id ? 'overflow-visible' : 'overflow-hidden'} ${!agency.is_active ? 'opacity-60' : ''}`}
+              className={`admin-section-card ${editAgencyId === agency.id ? '!overflow-visible' : ''} ${!agency.is_active ? 'opacity-60' : ''}`}
             >
               {editAgencyId === agency.id ? (
-                <div className="p-4 bg-slate-50 space-y-3 border-t border-charcoal/20 overflow-visible">
+                <div className="admin-section-body space-y-3 overflow-visible">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Agency name *</label>
@@ -428,7 +430,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                         name="name"
                         value={editAgencyData.name}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                        className="admin-input"
                         disabled={loading}
                       />
                     </div>
@@ -442,7 +444,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                           resizeEmailTextarea(e.target);
                         }}
                         rows={1}
-                        className="w-full min-h-[2.5rem] px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal resize-none overflow-hidden align-top"
+                        className="admin-input min-h-[2.5rem] resize-none overflow-hidden align-top"
                         style={{ scrollMarginTop: '80px' }}
                         disabled={loading}
                         ref={editAgencyEmailRef}
@@ -455,7 +457,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                         name="contact_person"
                         value={editAgencyData.contact_person}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                        className="admin-input"
                         disabled={loading}
                       />
                     </div>
@@ -466,7 +468,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                         name="phone_number"
                         value={editAgencyData.phone_number}
                         onChange={handleEditInputChange}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                        className="admin-input"
                         disabled={loading}
                       />
                     </div>
@@ -478,7 +480,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       value={editAgencyData.notes}
                       onChange={handleEditInputChange}
                       rows={2}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-charcoal/30 focus:border-charcoal"
+                      className="admin-input"
                       disabled={loading}
                     />
                   </div>
@@ -487,7 +489,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       type="button"
                       onClick={() => updateAgency(agency.id)}
                       disabled={loading}
-                      className="h-8 px-4 text-xs font-semibold bg-white text-charcoal rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                      className="admin-btn"
                     >
                       Save
                     </button>
@@ -495,7 +497,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       type="button"
                       onClick={cancelEditing}
                       disabled={loading}
-                      className="h-8 px-4 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="admin-btn-muted"
                     >
                       Cancel
                     </button>
@@ -512,11 +514,11 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       type="button"
                       onClick={() => startEditing(agency)}
                       disabled={loading}
-                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="admin-icon-btn"
                       aria-label="Edit"
                       title="Edit"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
@@ -524,7 +526,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       type="button"
                       onClick={() => confirmToggleAgencyStatus(agency.id, agency.name, agency.is_active)}
                       disabled={loading}
-                      className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                      className="admin-icon-btn hover:bg-red-50"
                       aria-label={agency.is_active ? 'Deactivate' : 'Activate'}
                       title={agency.is_active ? 'Deactivate' : 'Activate'}
                     >
@@ -542,7 +544,7 @@ export default function AgencyManager({ showAddForm = false, setShowAddForm }) {
                       type="button"
                       onClick={() => confirmDeleteAgency(agency.id, agency.name)}
                       disabled={loading}
-                      className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                      className="admin-icon-btn hover:bg-red-50"
                       aria-label="Delete"
                       title="Delete"
                     >

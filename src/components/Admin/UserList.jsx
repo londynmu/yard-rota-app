@@ -38,7 +38,7 @@ const Modal = ({ isOpen, onClose, children }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto border border-gray-100"
+        className="admin-modal-panel mx-auto max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -140,17 +140,20 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
     onClose();
   };
   
+  const chipClass = (active) =>
+    `admin-chip cursor-pointer w-full ${active ? 'admin-chip-active' : ''}`;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="bg-white px-5 py-4 border-b border-gray-200 sticky top-0 z-10">
+      <div className="admin-modal-header sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-charcoal">
+          <h3 className="text-sm font-semibold text-charcoal">
             Filter and sort
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-full transition-colors"
+            className="admin-icon-btn"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,16 +163,12 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
       </div>
       
-      <div className="px-5 py-4">
+      <div className="px-4 py-4">
         {/* Shift Filter */}
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Filter by Shift</h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              shiftFilter === 'all' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(shiftFilter === 'all')}>
               <input
                 type="radio"
                 name="shiftFilter"
@@ -181,11 +180,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>All</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              shiftFilter === 'day' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(shiftFilter === 'day')}>
               <input
                 type="radio"
                 name="shiftFilter"
@@ -197,11 +192,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Day</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              shiftFilter === 'afternoon' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(shiftFilter === 'afternoon')}>
               <input
                 type="radio"
                 name="shiftFilter"
@@ -213,11 +204,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Afternoon</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              shiftFilter === 'night' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(shiftFilter === 'night')}>
               <input
                 type="radio"
                 name="shiftFilter"
@@ -235,11 +222,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Sort By</h4>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              sortBy === 'name' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(sortBy === 'name')}>
               <input
                 type="radio"
                 name="sortBy"
@@ -251,11 +234,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Last Name</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              sortBy === 'score' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={chipClass(sortBy === 'score')}>
               <input
                 type="radio"
                 name="sortBy"
@@ -272,12 +251,8 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         {/* Sort Order */}
         <div className="mb-5">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Order</h4>
-          <div className="grid grid-cols-2 gap-2">
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              sortOrder === 'asc' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+          <div className="admin-seg-track w-full grid grid-cols-2 !h-auto p-0.5">
+            <label className={`admin-seg-item cursor-pointer w-full ${sortOrder === 'asc' ? 'admin-seg-item-active' : ''}`}>
               <input
                 type="radio"
                 name="sortOrder"
@@ -289,11 +264,7 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
               <span>Ascending</span>
             </label>
             
-            <label className={`flex items-center justify-center py-2 px-3 border-2 rounded-lg cursor-pointer transition-colors text-sm ${
-              sortOrder === 'desc' 
-              ? 'border-charcoal bg-white text-charcoal' 
-              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}>
+            <label className={`admin-seg-item cursor-pointer w-full ${sortOrder === 'desc' ? 'admin-seg-item-active' : ''}`}>
               <input
                 type="radio"
                 name="sortOrder"
@@ -308,18 +279,18 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
         </div>
       </div>
       
-      <div className="bg-white px-5 py-3 flex justify-between gap-3 border-t border-gray-200">
+      <div className="admin-modal-footer !justify-between">
         <button
           type="button"
           onClick={handleReset}
-          className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          className="admin-btn-muted flex-1"
         >
           Reset
         </button>
         <button
           type="button"
           onClick={handleApplyFilters}
-          className="flex-1 px-4 py-2 text-sm rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors"
+          className="admin-btn flex-1"
         >
           Apply
         </button>
@@ -600,7 +571,7 @@ export default function UserList({ users, onRefresh }) {
   // Delete Modal Content
   const deleteModalContent = (
     <>
-            <div className="bg-white px-5 py-4 border-b border-gray-200 sticky top-0 z-10">
+            <div className="admin-modal-header sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="flex-shrink-0">
@@ -608,7 +579,7 @@ export default function UserList({ users, onRefresh }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-red-800">
+                  <h3 className="text-sm font-semibold text-red-800">
                     Delete user
                   </h3>
                 </div>
@@ -618,7 +589,7 @@ export default function UserList({ users, onRefresh }) {
               e.stopPropagation();
               closeDeleteModal();
             }}
-                  className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-full transition-colors"
+                  className="admin-icon-btn"
                   aria-label="Close"
                 >
                   <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -627,7 +598,7 @@ export default function UserList({ users, onRefresh }) {
                 </button>
               </div>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-4 py-4">
               {confirmationStep === 1 ? (
                 <div>
                   <p className="text-gray-700 mb-3 text-sm">
@@ -654,17 +625,17 @@ export default function UserList({ users, onRefresh }) {
                     type="text"
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-charcoal focus:ring-2 focus:ring-charcoal/20 text-gray-900 text-sm"
+                    className="admin-input"
                     placeholder="Type 'delete' to confirm"
                   />
                 </div>
               )}
             </div>
-            <div className="bg-white px-5 py-3 flex gap-3 border-t border-gray-200">
+            <div className="admin-modal-footer !justify-stretch gap-3">
               <button
           type="button"
           onClick={closeDeleteModal}
-                className="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="admin-btn flex-1"
               >
                 Cancel
               </button>
@@ -672,7 +643,7 @@ export default function UserList({ users, onRefresh }) {
                 <button
             type="button"
                   onClick={handleFirstConfirmation}
-                  className="flex-1 px-4 py-2 text-sm rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors font-medium"
+                  className="admin-btn-danger flex-1"
                 >
                   Continue
                 </button>
@@ -681,11 +652,7 @@ export default function UserList({ users, onRefresh }) {
             type="button"
                   onClick={handleDeleteUser}
                   disabled={confirmationInput.toLowerCase() !== 'delete'}
-                  className={`flex-1 px-4 py-2 text-sm rounded-lg font-medium focus:outline-none transition-colors border-2 ${
-                    confirmationInput.toLowerCase() === 'delete'
-                      ? 'border-red-500 bg-white text-red-600 hover:bg-red-50'
-                      : 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
-                  }`}
+                  className="admin-btn-danger flex-1"
                 >
                   Delete User
                 </button>
@@ -704,7 +671,7 @@ export default function UserList({ users, onRefresh }) {
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 md:py-1.5 text-sm border border-gray-200 rounded-xl md:rounded-lg bg-white text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+            className="admin-input pl-9"
           />
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
@@ -715,31 +682,31 @@ export default function UserList({ users, onRefresh }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowFilterModal(true)}
+          className="admin-btn shrink-0"
+        >
+          Filter
+        </button>
       </div>
 
-      {/* One card per user – colored like VMU, expandable */}
+      {/* One card per user – white admin section cards, expandable */}
       <div className="space-y-3">
         {filteredUsers.map((user) => {
           const isExpanded = expandedUserId === user.id;
-          const isActive = user.is_active !== false;
-          const cardStyle = isActive
-            ? 'border border-green-200 bg-green-50/50'
-            : 'border border-amber-200 bg-amber-50/50';
-          const headerStyle = isActive
-            ? 'bg-green-50 hover:bg-green-100/80'
-            : 'bg-amber-50 hover:bg-amber-100/80';
 
           return (
             <div
               key={user.id}
-              className={`rounded-xl overflow-hidden shadow-sm transition-shadow ${cardStyle} ${isExpanded ? 'shadow-md' : ''}`}
+              className={`admin-section-card transition-shadow ${isExpanded ? 'shadow-md' : ''}`}
             >
               {/* Header: clickable row (avatar, name, activity) */}
-              <div className={`flex items-center gap-2 ${headerStyle} transition-opacity`}>
+              <div className="flex items-center gap-2 bg-white hover:bg-gray-50 transition-colors">
                 <button
                   type="button"
                   onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
-                  className={`flex-1 min-w-0 px-4 py-3 text-left flex items-center gap-3 ${headerStyle} transition-opacity`}
+                  className="flex-1 min-w-0 px-4 py-3 text-left flex items-center gap-3 bg-transparent hover:bg-gray-50 transition-colors"
                 >
                   {/* Avatar */}
                   <div className="flex-shrink-0 h-10 w-10 relative">
@@ -779,7 +746,7 @@ export default function UserList({ users, onRefresh }) {
                           value={user.role || ''}
                           onChange={(e) => handleRoleChange(user, e.target.value)}
                           disabled={roleUpdatingUserId === user.id}
-                          className="px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal disabled:opacity-60"
+                          className="admin-input !w-auto disabled:opacity-60"
                         >
                           <option value="">User</option>
                           <option value="admin">Admin</option>
@@ -808,14 +775,14 @@ export default function UserList({ users, onRefresh }) {
                     <button
                       type="submit"
                       form="user-edit-inline-form"
-                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-charcoal bg-white text-charcoal hover:bg-gray-50 transition-colors text-center"
+                      className="admin-btn flex-1 min-w-0 md:flex-none text-center"
                     >
                       Save changes
                     </button>
                     <button
                       type="button"
                       onClick={() => { setAddViolationUserId(user.id); setAddViolationOpen(true); }}
-                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors text-center"
+                      className="admin-btn flex-1 min-w-0 md:flex-none text-center"
                     >
                       Add violation
                     </button>
@@ -823,7 +790,7 @@ export default function UserList({ users, onRefresh }) {
                       type="button"
                       onClick={() => openDeleteModal(user)}
                       disabled={processingUser === user.id}
-                      className="flex-1 min-w-0 md:flex-none px-2 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded-lg border-2 border-red-500 bg-white text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 text-center"
+                      className="admin-btn-danger flex-1 min-w-0 md:flex-none text-center"
                     >
                       {processingUser === user.id ? 'Deleting…' : 'Delete'}
                     </button>
@@ -859,10 +826,10 @@ export default function UserList({ users, onRefresh }) {
       {/* Info Modal */}
       {infoModalOpen && (
         <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
-            <div className="bg-red-50 px-5 py-4 border-b border-red-200/60">
-              <h3 className="text-lg font-semibold text-red-800">User information</h3>
+            <div className="admin-modal-header">
+              <h3 className="admin-section-title">User information</h3>
             </div>
-            <div className="px-5 py-5">
+            <div className="px-4 py-4">
               {infoUser && (
                 <div className="space-y-3">
                   <div className="flex items-start">
@@ -911,7 +878,7 @@ export default function UserList({ users, onRefresh }) {
                 </div>
               )}
               <div className="text-right mt-5 pt-4 border-t border-gray-200">
-                <button onClick={closeInfoModal} className="px-5 py-2.5 rounded-lg border-2 border-charcoal bg-white text-charcoal font-semibold hover:bg-gray-50 transition-colors">Close</button>
+                <button onClick={closeInfoModal} className="admin-btn">Close</button>
               </div>
             </div>
         </Modal>

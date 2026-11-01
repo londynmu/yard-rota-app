@@ -43,6 +43,7 @@ Use these class names instead of re-pasting long Tailwind strings:
 | `badge-success` / `badge-warning` / `badge-danger` / `badge-info` | Status chips |
 | **`filter-bar-segmented`** | Row of **equal-width** segments (grid `grid-cols-4`): location + Day + Aft + Night pattern |
 | **`page-content-inner`** | Standard centered content column |
+| **`admin-section-*` / `admin-btn` / `admin-chip` / `admin-modal-*`** | **Admin panel only** — white/gray chrome (Settings pattern). Prefer these over blue `btn-primary` inside `/admin`. |
 
 ## Segmented filter bar (location + filters)
 
