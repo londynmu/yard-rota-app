@@ -224,7 +224,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-offwhite flex animate-pulse">
         {/* Sidebar skeleton */}
-        <aside className="w-16 md:w-64 bg-slate-700 border-r border-slate-600 flex-shrink-0">
+        <aside className="w-16 md:w-64 bg-white border-r border-gray-200 flex-shrink-0">
           <div className="p-4 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-2">
@@ -304,14 +304,14 @@ export default function AdminPage() {
               className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-5 hover:shadow-xl hover:border-slate-300/80 transition-all duration-300 text-left group"
             >
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl group-hover:from-blue-50 group-hover:to-indigo-50 transition-colors duration-300 flex items-center justify-center group-hover:scale-105">
+                <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl group-hover:bg-slate-50 transition-colors duration-300 flex items-center justify-center">
                   <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="large" animate={true} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-charcoal group-hover:text-charcoal">
                     {item.label}
                     {item.badge > 0 && (
-                      <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
+                      <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-charcoal rounded-full">
                         {item.badge}
                       </span>
                     )}
@@ -425,14 +425,14 @@ export default function AdminPage() {
                   <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn ml-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
                     {item.label}
                     {item.badge > 0 && (
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-orange-600 rounded-full">
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-charcoal rounded-full">
                         {item.badge}
                       </span>
                     )}
                   </div>
                 )}
                 {!(sidebarHovered || mobileSidebarOpen) && item.badge > 0 && (
-                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-orange-600 rounded-full border border-white"></span>
+                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-charcoal rounded-full border border-white"></span>
                 )}
               </button>
             );
