@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 import { useToast } from '../ui/ToastContext';
@@ -154,11 +154,32 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     };
   }, [toast]);
 
+  const prevSelectedMonthRef = useRef(null);
+
   useEffect(() => {
     const entry = historyByMonth.get(selectedMonthKey);
-    setMonthWinners(entry ? winnersFromHistoryEntry(entry) : emptyWinners());
-    setPickerPeriod(null);
-    setUserSearch('');
+    const fromHistory = entry ? winnersFromHistoryEntry(entry) : emptyWinners();
+    const monthChanged = prevSelectedMonthRef.current !== selectedMonthKey;
+    prevSelectedMonthRef.current = selectedMonthKey;
+
+    if (monthChanged) {
+      setMonthWinners(fromHistory);
+      setPickerPeriod(null);
+      setUserSearch('');
+      return;
+    }
+
+    // Same month, history refreshed (save/delete/load): keep dirty unsaved picks
+    setMonthWinners((prev) => ({
+      day:
+        prev.day != null && prev.day !== fromHistory.day
+          ? prev.day
+          : fromHistory.day,
+      night:
+        prev.night != null && prev.night !== fromHistory.night
+          ? prev.night
+          : fromHistory.night,
+    }));
   }, [selectedMonthKey, historyByMonth]);
 
   const sortedUsers = useMemo(() => {
@@ -221,7 +242,13 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
       const name = user
         ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown'
         : fromHistoryName || null;
-      const agency = user?.agency_name || fromHistoryAgency || null;
+      // Selected user: their agency only (null if none). Do not fall back to the
+      // previous saved winner's agency when a different user is picked.
+      const agency = user
+        ? user.agency_name || null
+        : userId
+          ? fromHistoryAgency || null
+          : null;
       return { userId, name, agency };
     },
     [monthWinners, historyByMonth, selectedMonthKey, resolveUser]
