@@ -18,6 +18,7 @@ import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
 import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
 import AttendancePage from './AttendancePage';
 import InductionGuideManager from '../components/Admin/InductionGuideManager';
+import { getCurrentMonthAwards } from '../utils/shunterAwardsApi';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -124,33 +125,24 @@ export default function AdminPage() {
     }
   }, [activeSection]);
 
-  // --- Monthly Shunter reminder banner ---
-  const [showShunterReminder, setShowShunterReminder] = useState(false);
+  // Sidebar badge when current month is missing Day or Night award
+  const [shunterIncomplete, setShunterIncomplete] = useState(false);
+
+  const refreshShunterIncomplete = async () => {
+    try {
+      const awards = await getCurrentMonthAwards();
+      const hasDay = awards.some((row) => row.period === 'day' && row.userId);
+      const hasNight = awards.some((row) => row.period === 'night' && row.userId);
+      setShunterIncomplete(!(hasDay && hasNight));
+    } catch (err) {
+      console.error('[AdminPage] refreshShunterIncomplete error:', err);
+    }
+  };
 
   useEffect(() => {
     if (pageLoading) return;
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const monthKey = `${year}-${month}`;
-    const storageKey = `shunterReminderDismissed-${monthKey}`;
-    const dismissed = localStorage.getItem(storageKey) === 'true';
-
-    if (!dismissed) {
-      setShowShunterReminder(true);
-    }
+    refreshShunterIncomplete();
   }, [pageLoading]);
-
-  const handleDismissShunterReminder = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const monthKey = `${year}-${month}`;
-    const storageKey = `shunterReminderDismissed-${monthKey}`;
-    localStorage.setItem(storageKey, 'true');
-    setShowShunterReminder(false);
-  };
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
@@ -296,7 +288,7 @@ export default function AdminPage() {
     );
   }
 
-  const menuItems = getAdminMenuItems(pendingApprovals);
+  const menuItems = getAdminMenuItems(pendingApprovals, { shunterIncomplete });
 
   // Dashboard Component - pokazywany jako główny widok
   const DashboardView = () => (
@@ -360,7 +352,12 @@ export default function AdminPage() {
       case 'check-items':
         return <CheckItemManager />;
       case 'shunter-month':
-        return <ShunterOfTheMonthManager users={users} />;
+        return (
+          <ShunterOfTheMonthManager
+            users={users}
+            onAwardsChange={refreshShunterIncomplete}
+          />
+        );
       case 'settings':
         return <SettingsManager />;
       case 'performance':
@@ -455,35 +452,6 @@ export default function AdminPage() {
       {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
       <main ref={mainContentRef} className="min-h-screen overflow-y-auto md:ml-20">
         <div className="p-4 md:p-6 lg:p-8">
-          {showShunterReminder && (
-            <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-charcoal">
-                  Time to pick your Shunter of the Month
-                </p>
-                <p className="text-xs text-gray-600 mt-1">
-                  One Day and one Night shunter for the whole company. Open the &quot;Shunter of the Month&quot; section to choose winners.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveSection('shunter-month')}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-black text-white hover:bg-gray-900"
-                >
-                  Go to Shunter of the Month
-                </button>
-                <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="h-3 w-3 rounded border-gray-300 text-black focus:ring-black"
-                    onChange={handleDismissShunterReminder}
-                  />
-                  <span>Don&apos;t remind me again this month</span>
-                </label>
-              </div>
-            </div>
-          )}
           {renderContent()}
         </div>
       </main>

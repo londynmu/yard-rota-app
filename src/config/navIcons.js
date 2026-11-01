@@ -47,7 +47,7 @@ const colors = {
 };
 
 /** Admin sidebar + Quick Actions */
-export function getAdminMenuItems(pendingApprovals = 0) {
+export function getAdminMenuItems(pendingApprovals = 0, { shunterIncomplete = false } = {}) {
   return [
     { id: 'dashboard', label: 'Dashboard', Icon: Gauge, colorClass: colors.primary, description: 'Overview & Quick Stats' },
     { id: 'users', label: 'Users', Icon: Users2, colorClass: colors.secondary, description: 'Manage users' },
@@ -64,10 +64,12 @@ export function getAdminMenuItems(pendingApprovals = 0) {
     { id: 'induction-guide', label: 'Yard induction guide', Icon: BookOpen, colorClass: colors.accent, description: 'New shunter guide content & images' },
     { id: 'shunter-month', label: 'Shunter of the Month', Icon: Medal, colorClass: colors.gold, description: 'Monthly Day & Night awards' },
     { id: 'settings', label: 'Settings', Icon: Cog, colorClass: colors.slate, description: 'Locations & Agencies' },
-  ].map((item) => ({
-    ...item,
-    badge: item.id === 'approvals' ? pendingApprovals : undefined,
-  }));
+  ].map((item) => {
+    let badge;
+    if (item.id === 'approvals') badge = pendingApprovals;
+    else if (item.id === 'shunter-month' && shunterIncomplete) badge = 1;
+    return { ...item, badge };
+  });
 }
 
 /** Main app nav links */
