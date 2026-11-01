@@ -228,8 +228,8 @@ export default function AdminPage() {
           <div className="p-4 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-2">
-                <div className="w-8 h-8 bg-slate-600 rounded-lg" />
-                <div className="hidden md:block h-4 bg-slate-600 rounded flex-1" />
+                <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+                <div className="hidden md:block h-4 bg-slate-200 rounded flex-1" />
               </div>
             ))}
           </div>
