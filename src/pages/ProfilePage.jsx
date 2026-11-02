@@ -245,24 +245,43 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     fetchAttendance();
   }, [user?.id, supabaseClient, simplifiedView]);
 
-  // Admin notes (shunter_violations) — user must always see their own rows on My record
+  // Admin notes (shunter_violations) — load on mount; optional refresh when opening
+  // My record. Never clear existing notes on error; ignore stale responses.
+  const notesFetchGenRef = React.useRef(0);
+  const notesLoadedRef = React.useRef(false);
+
   useEffect(() => {
     if (!user?.id || !supabaseClient || simplifiedView) return;
+
     const fetchNotes = async () => {
+      const gen = ++notesFetchGenRef.current;
       try {
         const { data: violData, error: violErr } = await supabaseClient
           .from('shunter_violations')
           .select('id, body, category, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
+        if (gen !== notesFetchGenRef.current) return;
         if (violErr) throw violErr;
         setViolations(violData || []);
+        notesLoadedRef.current = true;
       } catch (err) {
+        if (gen !== notesFetchGenRef.current) return;
         console.error('Error fetching notes:', err);
-        setViolations([]);
+        // Keep previously loaded notes so My record does not flash empty
       }
     };
-    fetchNotes();
+
+    // Initial load
+    if (!notesLoadedRef.current) {
+      fetchNotes();
+      return;
+    }
+
+    // Refresh only when entering My record (not on every toggle back to details)
+    if (profileTab === 'record') {
+      fetchNotes();
+    }
   }, [user?.id, supabaseClient, simplifiedView, profileTab]);
 
   const handleRetry = () => {
