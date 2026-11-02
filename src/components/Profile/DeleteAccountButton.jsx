@@ -15,13 +15,15 @@ const OUTLINE_BUTTON =
   'px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors';
 const DESTRUCTIVE_BUTTON =
   'px-4 py-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg transition-colors';
+const LINK_BUTTON =
+  'text-sm text-gray-500 hover:text-red-600 underline-offset-2 hover:underline bg-transparent border-0 p-0 font-medium transition-colors';
 
 /**
  * Self-service account deletion. The account is anonymised server-side by
  * `delete_own_account`, which requires a sign-in within the last 10 minutes,
  * so the password is re-checked first.
  */
-export default function DeleteAccountButton({ className = '' }) {
+export default function DeleteAccountButton({ className = '', variant = 'destructive' }) {
   const { user, signOut } = useAuth();
   const toast = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -89,7 +91,11 @@ export default function DeleteAccountButton({ className = '' }) {
 
   return (
     <>
-      <button type="button" onClick={() => setIsOpen(true)} className={`${DESTRUCTIVE_BUTTON} ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className={`${variant === 'link' ? LINK_BUTTON : DESTRUCTIVE_BUTTON} ${className}`}
+      >
         Delete account
       </button>
 
@@ -132,4 +138,5 @@ export default function DeleteAccountButton({ className = '' }) {
 
 DeleteAccountButton.propTypes = {
   className: PropTypes.string,
+  variant: PropTypes.oneOf(['destructive', 'link']),
 };
