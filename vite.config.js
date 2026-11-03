@@ -115,8 +115,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const siteUrl = siteUrlFromEnv(env)
   // Source maps are uploaded to Sentry and then deleted, so they are never served publicly.
+  // Netlify only: production context. Deploy Preview / branch deploy skip upload (faster preview builds).
   const uploadSourceMaps = Boolean(
-    env.SENTRY_AUTH_TOKEN && env.SENTRY_ORG && env.SENTRY_PROJECT && env.VITE_SENTRY_DSN
+    env.CONTEXT === 'production' &&
+      env.SENTRY_AUTH_TOKEN &&
+      env.SENTRY_ORG &&
+      env.SENTRY_PROJECT &&
+      env.VITE_SENTRY_DSN
   )
   return {
   define: {
@@ -203,6 +208,7 @@ export default defineConfig(({ mode }) => {
   ],
   base: '/',
   build: {
+    reportCompressedSize: false,
     sourcemap: uploadSourceMaps ? 'hidden' : false,
     rollupOptions: {
       output: {
