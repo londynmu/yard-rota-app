@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 
 /**
  * QR Code Scanner overlay component.
@@ -37,6 +36,9 @@ export default function QRScanner({ onScan, onClose }) {
       if (!scannerRef.current || cancelled) return;
 
       try {
+        const { Html5Qrcode } = await import('html5-qrcode');
+        if (cancelled || !mountedRef.current) return;
+
         const scanner = new Html5Qrcode('qr-reader');
         html5QrRef.current = scanner;
 
