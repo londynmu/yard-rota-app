@@ -338,6 +338,10 @@ export default function HomePage() {
                               decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
+                              onError={() => {
+                                setAvatarLoaded(false);
+                                setAvatarUrl('');
+                              }}
                             />
                           )}
                           {(!avatarUrl || !avatarLoaded) && (
@@ -402,6 +406,10 @@ export default function HomePage() {
                               decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
+                              onError={() => {
+                                setAvatarLoaded(false);
+                                setAvatarUrl('');
+                              }}
                             />
                           )}
                           {(!avatarUrl || !avatarLoaded) && (
@@ -453,6 +461,10 @@ export default function HomePage() {
                               decoding="async"
                               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                               onLoad={() => setAvatarLoaded(true)}
+                              onError={() => {
+                                setAvatarLoaded(false);
+                                setAvatarUrl('');
+                              }}
                             />
                           )}
                           {(!avatarUrl || !avatarLoaded) && (
@@ -528,6 +540,10 @@ export default function HomePage() {
                           decoding="async"
                           className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
                           onLoad={() => setAvatarLoaded(true)}
+                          onError={() => {
+                            setAvatarLoaded(false);
+                            setAvatarUrl('');
+                          }}
                         />
                       )}
                       {(!avatarUrl || !avatarLoaded) && (

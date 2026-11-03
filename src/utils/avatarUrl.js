@@ -1,17 +1,23 @@
 /**
- * Fixes legacy avatar URLs where the object key used a redundant `avatars/` prefix
- * inside the `avatars` or `user-avatars` bucket (double path segment in public URL).
+ * Normalize avatar public URLs.
+ *
+ * Nested keys inside the `avatars` bucket (`avatars/file.jpg`) produce a public
+ * URL with a double path segment (`…/object/public/avatars/avatars/file.jpg`).
+ * That double segment is correct — do not strip it.
+ *
+ * Legacy `user-avatars` uploads sometimes stored an extra `avatars/` prefix;
+ * collapse that bucket's double segment only.
  */
 export function normalizeAvatarStorageUrl(url) {
   if (url == null || url === '') return url;
   let u = String(url).trim();
-  u = u.replace(/\/avatars\/avatars\//g, '/avatars/');
   u = u.replace(/\/user-avatars\/avatars\//g, '/user-avatars/');
   return u;
 }
 
 /**
  * Parse Supabase Storage public URL into bucket + object path for `.remove()`.
+ * Nested avatars keys stay as `objectPath: "avatars/…"`.
  */
 export function parseAvatarStorageRef(url) {
   if (!url || typeof url !== 'string') return null;
