@@ -44,6 +44,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   const [violations, setViolations] = useState([]);
   const [profileTab, setProfileTab] = useState('details');
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarImageFailed, setAvatarImageFailed] = useState(false);
 
   useEffect(() => {
     const handlePreferredStartSaved = (event) => {
@@ -557,6 +558,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     };
   }, [avatarPreview]);
 
+  useEffect(() => {
+    setAvatarImageFailed(false);
+  }, [avatarPreview, avatarUrl]);
+
   // Handle name input with automatic capitalization
   const handleFirstNameChange = (e) => {
     const value = e.target.value;
@@ -631,8 +636,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         className={`${sizeClass} rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:opacity-90 transition-opacity shrink-0`}
         title="Change profile photo"
       >
-        {displayAvatar ? (
-          <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover" />
+        {displayAvatar && !avatarImageFailed ? (
+          <img
+            src={displayAvatar}
+            alt="Profile"
+            className="w-full h-full object-cover"
+            onError={() => setAvatarImageFailed(true)}
+          />
         ) : (
           <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -701,7 +711,11 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                     <span className="hidden md:inline">Click photo to change</span>
                     {' · '}Optional, max 7MB
                   </p>
-                  {avatar && <p className="text-xs text-charcoal mt-1 font-medium">Selected: {avatar.name}</p>}
+                  {avatar && (
+                    <p className="text-xs text-charcoal mt-1 font-medium">
+                      Selected: {avatar.name}. Save profile to apply.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -906,7 +920,11 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               <span className="md:hidden">Tap photo to change</span>
               <span className="hidden md:inline">Click photo to change</span>
             </p>
-            {avatar && <p className="text-xs text-charcoal mt-1 font-medium">Selected: {avatar.name}</p>}
+            {avatar && (
+              <p className="text-xs text-charcoal mt-1 font-medium">
+                Selected: {avatar.name}. Save profile to apply.
+              </p>
+            )}
           </div>
         </div>
 
