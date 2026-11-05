@@ -8,7 +8,7 @@ import { ToastProvider } from './components/ui/ToastContext'
 import { registerSW } from 'virtual:pwa-register'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
-import { safeAutoReload } from './lib/reloadGuard'
+import { reloadForServerVersion, safeAutoReload, willAutoReload } from './lib/reloadGuard'
 import { initMonitoring } from './lib/monitoring'
 
 void initMonitoring()
@@ -30,17 +30,15 @@ if (Capacitor.getPlatform() !== 'web') {
   setupStatusBar()
 }
 
-/** Check for newer deploy (web/PWA only). If newer, reload. Deferred so it does not block first paint / LCP. */
+/** Check for newer deploy (web/PWA only). One reload per server version, never during a pre-check. */
 async function ensureLatestVersion() {
   if (Capacitor.getPlatform() !== 'web') return
   try {
     const res = await fetch(`/version.json?_=${Date.now()}`, { cache: 'no-store' })
     if (!res.ok) return
     const data = await res.json()
-    if (data.version && data.version !== __BUILD_TIMESTAMP__) {
-      safeAutoReload('main.ensureLatestVersion')
-      return
-    }
+    if (!data.version) return
+    await reloadForServerVersion(data.version, __BUILD_TIMESTAMP__, 'main.ensureLatestVersion')
   } catch {
     // Offline or network error – render current bundle
   }
@@ -106,11 +104,12 @@ if ('serviceWorker' in navigator) {
     })
   })
 
-  // Auto-reload when new SW takes control (works with skipWaiting + clientsClaim)
-  // Show full-screen "Reloading…" overlay before reload to avoid jarring jump
+  // Auto-reload when new SW takes control (works with skipWaiting + clientsClaim).
+  // The overlay appears only when a reload will actually run, so a blocked
+  // refresh does not flash over the pre-check screen.
   let refreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return
+    if (refreshing || !willAutoReload()) return
     refreshing = true
     const overlay = document.createElement('div')
     overlay.setAttribute('role', 'alert')
@@ -133,6 +132,7 @@ if ('serviceWorker' in navigator) {
         const didReload = safeAutoReload('main.controllerChange')
         if (!didReload) {
           overlay.remove()
+          refreshing = false
         }
       })
     })
