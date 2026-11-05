@@ -43,6 +43,8 @@ export default function AdminPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const mainContentRef = useRef(null);
   const prevSectionRef = useRef(activeSection);
+  // Deep-link from Black list → Users Violations tab
+  const [usersFocus, setUsersFocus] = useState(null);
 
   // Aktualizuj tytuł strony w top barze + powiadom header (mobile)
   useEffect(() => {
@@ -143,6 +145,13 @@ export default function AdminPage() {
     if (pageLoading) return;
     refreshShunterIncomplete();
   }, [pageLoading]);
+
+  const openUserViolations = (userId) => {
+    if (!userId) return;
+    setUsersFocus({ userId, tab: 'violations' });
+    setActiveSection('users');
+    setMobileSidebarOpen(false);
+  };
 
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
@@ -336,7 +345,15 @@ export default function AdminPage() {
       case 'dashboard':
         return <DashboardView />;
       case 'users':
-        return <UserList users={users} onRefresh={fetchUsers} />;
+        return (
+          <UserList
+            users={users}
+            onRefresh={fetchUsers}
+            focusUserId={usersFocus?.userId}
+            focusTab={usersFocus?.tab}
+            onFocusConsumed={() => setUsersFocus(null)}
+          />
+        );
       case 'approvals':
         return <UserApprovalPage />;
       case 'availability':
@@ -346,7 +363,12 @@ export default function AdminPage() {
       case 'breaks':
         return <BrakesManager />;
       case 'attendance':
-        return <AttendancePage users={users} />;
+        return (
+          <AttendancePage
+            users={users}
+            onOpenUserViolations={openUserViolations}
+          />
+        );
       case 'tugs':
         return <TugManager />;
       case 'prechecks':
