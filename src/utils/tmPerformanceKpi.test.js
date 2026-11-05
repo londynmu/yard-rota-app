@@ -119,4 +119,32 @@ describe('aggregateYesterdayPerformance', () => {
     expect(result.worst.moves).toBe(0);
     expect(result.best.moves).toBe(3);
   });
+
+  test('excludes profiles with show_on_reports false from totals and best/worst', () => {
+    const result = aggregateYesterdayPerformance([
+      {
+        user_id: 'hidden',
+        number_of_moves: 100,
+        profiles: {
+          first_name: 'Hidden',
+          last_name: 'User',
+          show_on_reports: false,
+        },
+      },
+      {
+        user_id: 'a',
+        number_of_moves: 40,
+        profiles: { first_name: 'Ann', last_name: 'Best', show_on_reports: true },
+      },
+      {
+        user_id: 'b',
+        number_of_moves: 12,
+        profiles: { first_name: 'Bob', last_name: 'Low' },
+      },
+    ]);
+
+    expect(result.totalMoves).toBe(52);
+    expect(result.best).toEqual({ userId: 'a', name: 'Ann Best', moves: 40 });
+    expect(result.worst).toEqual({ userId: 'b', name: 'Bob Low', moves: 12 });
+  });
 });

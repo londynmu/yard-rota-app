@@ -18,6 +18,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   const [yardSystemId, setYardSystemId] = useState('');
   const [shiftPreference, setShiftPreference] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [showOnReports, setShowOnReports] = useState(true);
   const [performanceScore, setPerformanceScore] = useState(50);
   const [avatar, setAvatar] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -95,6 +96,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       setYardSystemId(user.yard_system_id || '');
       setShiftPreference(user.shift_preference || '');
       setIsActive(user.is_active !== false); // Default to true if not set
+      setShowOnReports(user.show_on_reports !== false); // Default to true if not set
       setPerformanceScore(user.performance_score || 50);
       setAvatarUrl(normalizeAvatarStorageUrl(user.avatar_url) || null);
       setCustomStartTime(user.custom_start_time || '');
@@ -202,6 +204,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         yard_system_id: yardSystemId.trim().toUpperCase() || null,
         shift_preference: shiftPreference,
         is_active: isActive,
+        show_on_reports: showOnReports,
         performance_score: parseInt(performanceScore, 10),
         updated_at: new Date().toISOString(),
         // Rota Planner fields
@@ -259,7 +262,18 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       onClose();
     } catch (error) {
       console.error('Error updating user profile:', error);
-      toast.error('Failed to update profile: ' + error.message);
+      const message = String(error?.message || '');
+      if (message.includes('Cannot change yard_system_id')) {
+        toast.error(
+          'Cannot change Yard System ID. Only an active admin can update this field. If you are an admin, check that your account is Active.'
+        );
+      } else if (message.includes('Cannot change show_on_reports')) {
+        toast.error(
+          'Cannot change Show on reports. Only an active admin can update this field.'
+        );
+      } else {
+        toast.error('Failed to update profile: ' + message);
+      }
     } finally {
       setLoading(false);
     }
@@ -307,6 +321,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                     type="button"
                     role="switch"
                     aria-checked={isActive}
+                    id="admin-edit-isActive"
                     onClick={() => !loading && setIsActive(!isActive)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       isActive ? 'bg-green-500' : 'bg-gray-300'
@@ -318,6 +333,32 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                       }`}
                     />
                   </button>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="admin-edit-showOnReports" className="text-sm text-gray-600">
+                      Show on reports
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={showOnReports}
+                      id="admin-edit-showOnReports"
+                      onClick={() => !loading && setShowOnReports(!showOnReports)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showOnReports ? 'bg-green-500' : 'bg-gray-300'
+                      } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                          showOnReports ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-500 max-w-[11rem] text-right leading-snug">
+                    When off, moves are still imported but hidden from leaderboards and charts.
+                  </p>
                 </div>
               </div>
             </div>
@@ -333,24 +374,45 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
                       <label htmlFor="admin-edit-firstName" className="text-charcoal font-medium text-sm">
                         First Name
                       </label>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-gray-600">Active</span>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={isActive}
-                          id="admin-edit-isActive-inline"
-                          onClick={() => !loading && setIsActive(!isActive)}
-                          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                            isActive ? 'bg-green-500' : 'bg-gray-300'
-                          } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
-                          <span
-                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-                              isActive ? 'translate-x-4' : 'translate-x-0.5'
-                            }`}
-                          />
-                        </button>
+                      <div className="flex items-center gap-3 flex-shrink-0 flex-wrap justify-end">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600">Active</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isActive}
+                            id="admin-edit-isActive-inline"
+                            onClick={() => !loading && setIsActive(!isActive)}
+                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                              isActive ? 'bg-green-500' : 'bg-gray-300'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                                isActive ? 'translate-x-4' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600">Show on reports</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={showOnReports}
+                            id="admin-edit-showOnReports-inline"
+                            onClick={() => !loading && setShowOnReports(!showOnReports)}
+                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                              showOnReports ? 'bg-green-500' : 'bg-gray-300'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+                                showOnReports ? 'translate-x-4' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <input

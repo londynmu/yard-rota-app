@@ -176,7 +176,8 @@ export default function TransportManagerHome() {
         report_date,
         profiles:user_id (
           first_name,
-          last_name
+          last_name,
+          show_on_reports
         )
       `)
       .eq('report_date', reportDateForYesterday);

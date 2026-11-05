@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { format as formatDate, subDays, startOfMonth } from 'date-fns';
 import PropTypes from 'prop-types';
+import { isShownOnReports } from '../../utils/performanceVisibility';
 
 const PerformanceStats = ({ period = 'month' }) => {
   const { user } = useAuth();
@@ -90,10 +91,16 @@ const PerformanceStats = ({ period = 'month' }) => {
         ? secondsToTime(Math.round(totalTravelSeconds / totalMoves))
         : '0:00';
 
-      // Fetch user's rank
+      // Fetch user's rank (exclude show_on_reports=false from the pool)
       const { data: allPerformance, error: rankError } = await supabase
         .from('shunter_performance')
-        .select('user_id, number_of_moves')
+        .select(`
+          user_id,
+          number_of_moves,
+          profiles:user_id (
+            show_on_reports
+          )
+        `)
         .gte('report_date', startDate)
         .lte('report_date', endDate);
 
@@ -102,6 +109,7 @@ const PerformanceStats = ({ period = 'month' }) => {
       // Aggregate by user
       const userTotals = {};
       (allPerformance || []).forEach(record => {
+        if (!record.user_id || !isShownOnReports(record.profiles)) return;
         if (!userTotals[record.user_id]) {
           userTotals[record.user_id] = 0;
         }
