@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { isChunkLoadError } from './chunkLoadError';
 
 /**
  * Wrapper for React.lazy that adds retry logic for failed chunk loads
@@ -11,11 +12,8 @@ export const lazyWithRetry = (componentImport, retries = 2, delay = 1000) => {
   return lazy(() => {
     const retryImport = (attemptsLeft) => {
       return componentImport().catch((error) => {
-        const errorString = error.toString().toLowerCase();
         const isChunkError =
-          errorString.includes('loading chunk') ||
-          errorString.includes('dynamically imported module') ||
-          errorString.includes('failed to fetch');
+          isChunkLoadError(error) || String(error).toLowerCase().includes('failed to fetch');
 
         if (attemptsLeft > 0 && isChunkError) {
           console.log(`[lazyWithRetry] Chunk load failed, retrying... (${attemptsLeft} attempts left)`);
