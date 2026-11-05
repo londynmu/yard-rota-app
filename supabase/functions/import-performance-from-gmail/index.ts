@@ -1,4 +1,7 @@
-// FIXED VERSION - Naprawiony parser CSV do obsługi wszystkich sekcji shifts
+// Gmail performance import (deployed as function slug `gmail-import`).
+// - CSV parser handles ALL Day/Afternoon/Night sections
+// - Lists unprocessed only (filter label minus PROCESSED) so old mail does not hide new reports
+// - Always applies YMS/PROCESSED after successful import (and same-day duplicates in-run)
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { google } from "npm:googleapis@133";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -261,10 +264,27 @@ serve(async (req) => {
     }
     console.log(`🚀 Starting performance import from Gmail (mode=${gate.mode})...`);
 
+    // Prefer unprocessed only (YMS/REPORTS minus YMS/PROCESSED) so already-labelled
+    // mail does not consume maxResults and hide a new morning report.
+    const [filterLabelRes, processedLabelRes] = await Promise.all([
+      gmail.users.labels.get({ userId: "me", id: GMAIL_FILTER_LABEL_ID }),
+      gmail.users.labels.get({ userId: "me", id: GMAIL_PROCESSED_LABEL_ID }),
+    ]);
+    const filterLabelName = filterLabelRes.data.name;
+    const processedLabelName = processedLabelRes.data.name;
+    if (!filterLabelName || !processedLabelName) {
+      throw new Error("Could not resolve Gmail filter/processed label names from IDs");
+    }
+
+    // Quote names so nested labels like YMS/REPORTS survive Gmail q parsing.
+    const unprocessedQuery =
+      `label:"${filterLabelName}" -label:"${processedLabelName}"`;
+    const listMaxResults = 25;
+
     const listRes = await gmail.users.messages.list({
       userId: "me",
-      labelIds: [GMAIL_FILTER_LABEL_ID],
-      maxResults: 10,
+      q: unprocessedQuery,
+      maxResults: listMaxResults,
     });
 
     const messages = listRes.data.messages || [];
@@ -273,10 +293,21 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: "No new reports to process" }), { status: 200 });
     }
 
-    console.log(`📧 Found ${messages.length} messages to process`);
+    console.log(
+      `📧 Found ${messages.length} unprocessed message(s) (q=${unprocessedQuery}, max=${listMaxResults})`,
+    );
 
     const results: { messageId: string; status: string; date?: string; imported?: number; skipped?: number }[] = [];
     const importedDatesThisRun = new Set<string>();
+
+    /** Always apply YMS/PROCESSED after we are done with a message (success or same-day duplicate). */
+    async function markProcessed(messageId: string): Promise<void> {
+      await gmail.users.messages.modify({
+        userId: "me",
+        id: messageId,
+        requestBody: { addLabelIds: [GMAIL_PROCESSED_LABEL_ID] },
+      });
+    }
 
     for (const msg of messages) {
       const msgId = msg.id!;
@@ -284,6 +315,7 @@ serve(async (req) => {
 
       const fullMsg = await gmail.users.messages.get({ userId: "me", id: msgId });
 
+      // Defence in depth: list query should already exclude PROCESSED, but skip if present.
       if (fullMsg.data.labelIds?.includes(GMAIL_PROCESSED_LABEL_ID)) {
         console.log(`⏭️ Already processed, skipping`);
         results.push({ messageId: msgId, status: "already_processed" });
@@ -319,8 +351,13 @@ serve(async (req) => {
       );
       console.log(`📅 Report date: ${reportDate}`);
 
+      // Same calendar day already imported this run: do not re-upsert, but always
+      // apply YMS/PROCESSED so the second mail does not stay unlabeled / clog later runs.
       if (importedDatesThisRun.has(reportDate)) {
-        console.log(`⚠️ Date ${reportDate} already imported in this run — leave unprocessed for retry visibility`);
+        console.log(
+          `⚠️ Date ${reportDate} already imported in this run — marking processed (no re-import)`,
+        );
+        await markProcessed(msgId);
         results.push({ messageId: msgId, status: "duplicate_in_run", date: reportDate });
         continue;
       }
@@ -394,11 +431,7 @@ serve(async (req) => {
 
       importedDatesThisRun.add(reportDate);
 
-      await gmail.users.messages.modify({
-        userId: "me",
-        id: msgId,
-        requestBody: { addLabelIds: [GMAIL_PROCESSED_LABEL_ID] },
-      });
+      await markProcessed(msgId);
 
       console.log(
         `✅ Successfully imported ${importedCount} records for date ${reportDate} (${skippedCount} skipped - no profile)`,
