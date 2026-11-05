@@ -155,6 +155,7 @@ export default function AdminPage() {
           ...row,
           performance_score: row.performance_score ?? 50,
           is_active: row.is_active !== false,
+          show_on_reports: row.show_on_reports !== false,
           agency_name: row.agency_name ?? null
         }));
         // If RPC does not return role (e.g. migration not applied), fetch from profiles
@@ -173,7 +174,7 @@ export default function AdminPage() {
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(
-          'id, first_name, last_name, role, account_status, is_active, performance_score, agency_id, avatar_url, shift_preference, preferred_location, yard_system_id, deleted_at, agencies(id, name)',
+          'id, first_name, last_name, role, account_status, is_active, show_on_reports, performance_score, agency_id, avatar_url, shift_preference, preferred_location, yard_system_id, deleted_at, agencies(id, name)',
         )
         .is('deleted_at', null);
 
@@ -187,6 +188,7 @@ export default function AdminPage() {
         ...profile,
         performance_score: profile.performance_score ?? 50,
         is_active: profile.is_active !== false,
+        show_on_reports: profile.show_on_reports !== false,
         agency_name: profile.agencies?.name ?? null
       }));
 

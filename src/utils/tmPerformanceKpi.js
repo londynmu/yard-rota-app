@@ -3,8 +3,10 @@
  * actual_date mirrors PerformanceLeaderboard: report_date minus one calendar day.
  */
 
+import { isShownOnReports } from './performanceVisibility';
+
 /**
- * @typedef {{ user_id?: string|null, number_of_moves?: number|null, first_name?: string|null, last_name?: string|null, profiles?: { first_name?: string|null, last_name?: string|null }|null }} PerformanceRow
+ * @typedef {{ user_id?: string|null, number_of_moves?: number|null, first_name?: string|null, last_name?: string|null, show_on_reports?: boolean|null, profiles?: { first_name?: string|null, last_name?: string|null, show_on_reports?: boolean|null }|null }} PerformanceRow
  */
 
 /**
@@ -36,6 +38,7 @@ export function aggregateYesterdayPerformance(records) {
   for (const row of records || []) {
     const userId = row?.user_id;
     if (!userId) continue;
+    if (!isShownOnReports(row?.profiles ?? row)) continue;
     const moves = Number(row.number_of_moves) || 0;
     const existing = byUser.get(userId);
     if (existing) {

@@ -10,6 +10,7 @@ import { useToast } from '../components/ui/ToastContext';
 import { useNotifications } from '../lib/NotificationContext';
 import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { filterShownOnReports, isShownOnReports } from '../utils/performanceVisibility';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -241,7 +242,7 @@ const PerformanceLeaderboard = () => {
               last_name,
               yard_system_id,
               shift_preference,
-              is_active
+              show_on_reports
             )
           `);
 
@@ -294,17 +295,19 @@ const PerformanceLeaderboard = () => {
           (record) => record.actual_date === actualDateFilter
         );
       }
+      // Hide show_on_reports=false from leaderboard list AND chart/raw totals
+      normalizedPerformance = filterShownOnReports(normalizedPerformance);
       setRawPerformance(normalizedPerformance);
 
       // Aggregate data by user
       const userStats = {};
       
       normalizedPerformance.forEach(record => {
-        // Validate record data and skip inactive users
+        // Validate record data and skip profiles hidden from reports
         if (!record.profiles || !record.profiles.yard_system_id || !record.user_id) {
           return;
         }
-        if (record.profiles.is_active === false) {
+        if (!isShownOnReports(record.profiles)) {
           return;
         }
 
