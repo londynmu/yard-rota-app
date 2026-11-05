@@ -418,9 +418,12 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
   }, [confirmationStep]);
 
-  // Deep-link from Black list: expand user + Violations tab
+  // Deep-link from Black list: expand user + Violations tab.
+  // Reset shift filter + search so a filtered list cannot hide the target card.
   useEffect(() => {
     if (!focusUserId) return;
+    setFilters((prev) => ({ ...prev, shift: 'all' }));
+    setSearchQuery('');
     setExpandedUserId(focusUserId);
     setUserPanel(focusTab === 'violations' ? 'violations' : 'details');
     setFormDirty(false);

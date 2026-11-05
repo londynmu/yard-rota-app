@@ -55,7 +55,10 @@ function snapshotFromUser(user) {
     isActive: user?.is_active !== false,
     showOnReports: user?.show_on_reports !== false,
     performanceScore: String(user?.performance_score || 50),
-    preferredStartTime: formatPreferredStartTime(user?.preferred_start_time),
+    // Prefer preferred_start_time; fall back to custom so a lone custom value is shown
+    preferredStartTime: formatPreferredStartTime(
+      user?.preferred_start_time || user?.custom_start_time
+    ),
     preferredLocation: user?.preferred_location || '',
     additionalLocations: Array.isArray(user?.additional_locations)
       ? [...user.additional_locations].sort()
