@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
 import { useAdminStatus } from '../../hooks/useAdminStatus';
 import UserEditForm from './UserEditForm';
-import AddViolationModal from './AddViolationModal';
+import UserViolationsPanel from './UserViolationsPanel';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 
@@ -114,6 +115,14 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
   const [shiftFilter, setShiftFilter] = useState(filters.shift || 'all');
   const [sortBy, setSortBy] = useState(filters.sortBy || 'name');
   const [sortOrder, setSortOrder] = useState(filters.sortOrder || 'asc');
+
+  // Keep draft controls in sync with applied filters (e.g. deep-link reset to shift=all)
+  useEffect(() => {
+    if (!isOpen) return;
+    setShiftFilter(filters.shift || 'all');
+    setSortBy(filters.sortBy || 'name');
+    setSortOrder(filters.sortOrder || 'asc');
+  }, [isOpen, filters.shift, filters.sortBy, filters.sortOrder]);
   
   const handleApplyFilters = () => {
     onApplyFilters({
@@ -312,7 +321,7 @@ FilterModal.propTypes = {
   onResetAllFilters: PropTypes.func.isRequired,
 };
 
-export default function UserList({ users, onRefresh }) {
+export default function UserList({ users, onRefresh, focusUserId, focusTab, onFocusConsumed }) {
   const [processingUser, setProcessingUser] = useState(null);
   const [error, setError] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -342,12 +351,14 @@ export default function UserList({ users, onRefresh }) {
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoUser, setInfoUser] = useState(null);
   const [lastLogin, setLastLogin] = useState(null);
-  
-  // Add violation modal (from UserList)
-  const [addViolationOpen, setAddViolationOpen] = useState(false);
-  const [addViolationUserId, setAddViolationUserId] = useState(null);
-  // Expanded user card (one at a time, like VMU)
+
+  // Expanded user card (one at a time) + Details | Violations tabs
   const [expandedUserId, setExpandedUserId] = useState(null);
+  const [userPanel, setUserPanel] = useState('details');
+  const [formDirty, setFormDirty] = useState(false);
+  const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
+  const pendingNavRef = useRef(null); // { type: 'collapse' | 'expand' | 'tab', userId?, tab? }
+  const [violationCountByUser, setViolationCountByUser] = useState({});
   // Role update in progress (for dropdown loading state)
   const [roleUpdatingUserId, setRoleUpdatingUserId] = useState(null);
   const toast = useToast();
@@ -414,6 +425,64 @@ export default function UserList({ users, onRefresh }) {
       }, 100);
     }
   }, [confirmationStep]);
+
+  // Deep-link from Black list: expand user + Violations tab.
+  // Reset shift filter + search so a filtered list cannot hide the target card.
+  useEffect(() => {
+    if (!focusUserId) return;
+    setFilters((prev) => ({ ...prev, shift: 'all' }));
+    setSearchQuery('');
+    setExpandedUserId(focusUserId);
+    setUserPanel(focusTab === 'violations' ? 'violations' : 'details');
+    setFormDirty(false);
+    onFocusConsumed?.();
+  }, [focusUserId, focusTab, onFocusConsumed]);
+
+  const applyPendingNav = () => {
+    const pending = pendingNavRef.current;
+    pendingNavRef.current = null;
+    setFormDirty(false);
+    if (!pending) return;
+    if (pending.type === 'collapse') {
+      setExpandedUserId(null);
+      setUserPanel('details');
+    } else if (pending.type === 'expand') {
+      setExpandedUserId(pending.userId);
+      setUserPanel(pending.tab || 'details');
+    } else if (pending.type === 'tab') {
+      setUserPanel(pending.tab);
+    }
+  };
+
+  const requestExpandToggle = (userId) => {
+    const isSame = expandedUserId === userId;
+    if (formDirty && expandedUserId) {
+      pendingNavRef.current = isSame
+        ? { type: 'collapse' }
+        : { type: 'expand', userId, tab: 'details' };
+      setUnsavedDialogOpen(true);
+      return;
+    }
+    if (isSame) {
+      setExpandedUserId(null);
+      setUserPanel('details');
+      setFormDirty(false);
+    } else {
+      setExpandedUserId(userId);
+      setUserPanel('details');
+      setFormDirty(false);
+    }
+  };
+
+  const requestPanelChange = (nextTab) => {
+    if (nextTab === userPanel) return;
+    if (formDirty && userPanel === 'details') {
+      pendingNavRef.current = { type: 'tab', tab: nextTab };
+      setUnsavedDialogOpen(true);
+      return;
+    }
+    setUserPanel(nextTab);
+  };
   
   const openDeleteModal = (user) => {
     setUserToDelete(user);
@@ -705,7 +774,7 @@ export default function UserList({ users, onRefresh }) {
               <div className="flex items-center gap-2 bg-white hover:bg-gray-50 transition-colors">
                 <button
                   type="button"
-                  onClick={() => setExpandedUserId(prev => (prev === user.id ? null : user.id))}
+                  onClick={() => requestExpandToggle(user.id)}
                   className="flex-1 min-w-0 px-4 py-3 text-left flex items-center gap-3 bg-transparent hover:bg-gray-50 transition-colors"
                 >
                   {/* Avatar */}
@@ -734,10 +803,10 @@ export default function UserList({ users, onRefresh }) {
                 </button>
               </div>
 
-              {/* Expanded content – role inside card + Edit form + actions */}
+              {/* Expanded content – role, Details | Violations tabs, form or panel */}
               {isExpanded && (
                 <>
-                  <div className="border-t border-gray-200 bg-white px-4 py-3">
+                  <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-3">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-sm font-semibold text-gray-600">Role</span>
                       {isAdmin ? (
@@ -759,42 +828,84 @@ export default function UserList({ users, onRefresh }) {
                         </span>
                       )}
                     </div>
+                    <div className="admin-seg-track w-full grid grid-cols-2 !h-auto p-0.5 md:w-auto md:inline-grid md:!h-8">
+                      <button
+                        type="button"
+                        onClick={() => requestPanelChange('details')}
+                        className={`admin-seg-item w-full !h-9 md:!h-7 ${
+                          userPanel === 'details' ? 'admin-seg-item-active' : ''
+                        }`}
+                      >
+                        Details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requestPanelChange('violations')}
+                        className={`admin-seg-item w-full !h-9 md:!h-7 ${
+                          userPanel === 'violations' ? 'admin-seg-item-active' : ''
+                        }`}
+                      >
+                        Violations
+                        {typeof violationCountByUser[user.id] === 'number' &&
+                          violationCountByUser[user.id] > 0 && (
+                          <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-[10px] font-bold rounded-full bg-gray-200 text-charcoal">
+                            {violationCountByUser[user.id]}
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className="border-t border-gray-200 bg-white">
-                    <UserEditForm
-                      user={user}
-                      inline
-                      onClose={() => setExpandedUserId(null)}
-                      onSuccess={(updates) => {
-                        handleRefresh();
-                        if (updates && updates.id === user.id) setExpandedUserId(null);
-                      }}
-                    />
-                  </div>
-                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-nowrap gap-2 sm:gap-3 items-stretch w-full md:justify-end md:items-center">
-                    <button
-                      type="submit"
-                      form="user-edit-inline-form"
-                      className="admin-btn flex-1 min-w-0 md:flex-none text-center"
-                    >
-                      Save changes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setAddViolationUserId(user.id); setAddViolationOpen(true); }}
-                      className="admin-btn flex-1 min-w-0 md:flex-none text-center"
-                    >
-                      Add violation
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openDeleteModal(user)}
-                      disabled={processingUser === user.id}
-                      className="admin-btn-danger flex-1 min-w-0 md:flex-none text-center"
-                    >
-                      {processingUser === user.id ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </div>
+                  {userPanel === 'details' ? (
+                    <>
+                      <div className="border-t border-gray-200 bg-white">
+                        <UserEditForm
+                          user={user}
+                          inline
+                          onDirtyChange={setFormDirty}
+                          onClose={() => {
+                            setExpandedUserId(null);
+                            setUserPanel('details');
+                            setFormDirty(false);
+                          }}
+                          onSuccess={(updates) => {
+                            handleRefresh();
+                            if (updates && updates.id === user.id) {
+                              setExpandedUserId(null);
+                              setUserPanel('details');
+                              setFormDirty(false);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-nowrap gap-2 sm:gap-3 items-stretch w-full md:justify-end md:items-center">
+                        <button
+                          type="submit"
+                          form="user-edit-inline-form"
+                          className="admin-btn flex-1 min-w-0 md:flex-none text-center"
+                        >
+                          Save changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openDeleteModal(user)}
+                          disabled={processingUser === user.id}
+                          className="admin-btn-danger flex-1 min-w-0 md:flex-none text-center"
+                        >
+                          {processingUser === user.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="border-t border-gray-200 bg-white">
+                      <UserViolationsPanel
+                        userId={user.id}
+                        users={users}
+                        onCountChange={(count) => {
+                          setViolationCountByUser((prev) => ({ ...prev, [user.id]: count }));
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -884,21 +995,28 @@ export default function UserList({ users, onRefresh }) {
         </Modal>
       )}
       
-      <AddViolationModal
-        open={addViolationOpen}
+      <ConfirmDialog
+        isOpen={unsavedDialogOpen}
         onClose={() => {
-          setAddViolationOpen(false);
-          setAddViolationUserId(null);
+          setUnsavedDialogOpen(false);
+          pendingNavRef.current = null;
         }}
-        initialUserId={addViolationUserId}
-        users={users}
+        onConfirm={applyPendingNav}
+        title="Unsaved changes"
+        message="You have unsaved changes. Discard them?"
+        confirmText="Discard"
+        cancelText="Keep editing"
+        isDestructive
+        overlayClassName="z-[10001]"
       />
     </>
   );
 }
 
-// Add propTypes for UserList
 UserList.propTypes = {
   users: PropTypes.arrayOf(PropTypes.object).isRequired,
   onRefresh: PropTypes.func.isRequired,
+  focusUserId: PropTypes.string,
+  focusTab: PropTypes.oneOf(['details', 'violations']),
+  onFocusConsumed: PropTypes.func,
 };

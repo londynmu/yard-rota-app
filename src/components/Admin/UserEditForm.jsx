@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import React from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
@@ -6,13 +6,96 @@ import { useToast } from '../../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 import { formatPreferredStartTime, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
 
-// Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
   if (!string) return '';
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-export default function UserEditForm({ user, onClose, onSuccess, inline }) {
+const inputClass = (hasError) =>
+  `admin-input ${hasError ? '!border-red-400' : ''}`;
+
+const ToggleSwitch = ({ id, checked, onChange, disabled, label }) => (
+  <div className="flex items-center gap-2">
+    <label htmlFor={id} className="text-xs text-gray-600 whitespace-nowrap">
+      {label}
+    </label>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      id={id}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+        checked ? 'bg-charcoal' : 'bg-gray-300'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
+          checked ? 'translate-x-4' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  </div>
+);
+
+ToggleSwitch.propTypes = {
+  id: PropTypes.string.isRequired,
+  checked: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  label: PropTypes.string.isRequired,
+};
+
+function snapshotFromUser(user) {
+  return {
+    firstName: user?.first_name || '',
+    lastName: user?.last_name || '',
+    yardSystemId: user?.yard_system_id || '',
+    shiftPreference: user?.shift_preference || '',
+    isActive: user?.is_active !== false,
+    showOnReports: user?.show_on_reports !== false,
+    performanceScore: String(user?.performance_score || 50),
+    // Prefer preferred_start_time; fall back to custom so a lone custom value is shown
+    preferredStartTime: formatPreferredStartTime(
+      user?.preferred_start_time || user?.custom_start_time
+    ),
+    preferredLocation: user?.preferred_location || '',
+    additionalLocations: Array.isArray(user?.additional_locations)
+      ? [...user.additional_locations].sort()
+      : [],
+    agencyId: user?.agency_id || null,
+  };
+}
+
+function currentSnapshot({
+  firstName,
+  lastName,
+  yardSystemId,
+  shiftPreference,
+  isActive,
+  showOnReports,
+  performanceScore,
+  preferredStartTime,
+  preferredLocation,
+  additionalLocations,
+  agencyId,
+}) {
+  return {
+    firstName,
+    lastName,
+    yardSystemId,
+    shiftPreference,
+    isActive,
+    showOnReports,
+    performanceScore: String(performanceScore),
+    preferredStartTime,
+    preferredLocation,
+    additionalLocations: [...additionalLocations].sort(),
+    agencyId,
+  };
+}
+
+export default function UserEditForm({ user, onClose, onSuccess, inline, onDirtyChange }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [yardSystemId, setYardSystemId] = useState('');
@@ -24,18 +107,15 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
-  
-  // Rota Planner fields
-  const [customStartTime, setCustomStartTime] = useState('');
+
   const [preferredStartTime, setPreferredStartTime] = useState('');
   const [preferredLocation, setPreferredLocation] = useState('');
   const [additionalLocations, setAdditionalLocations] = useState([]);
   const [locations, setLocations] = useState([]);
-  
-  // Agency field
+
   const [agencies, setAgencies] = useState([]);
   const [agencyId, setAgencyId] = useState(null);
-  
+
   const [formErrors, setFormErrors] = useState({
     firstName: '',
     lastName: '',
@@ -46,8 +126,10 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
   });
 
   const modalRef = useRef(null);
+  const baselineRef = useRef(null);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
 
-  // Load available locations
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -55,7 +137,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
           .from('locations')
           .select('*')
           .eq('is_active', true);
-          
+
         if (error) throw error;
         setLocations(data || []);
       } catch (error) {
@@ -63,11 +145,10 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         toast.error('Error loading locations: ' + error.message);
       }
     };
-    
+
     fetchLocations();
   }, [toast]);
-  
-  // Load available agencies
+
   useEffect(() => {
     const fetchAgencies = async () => {
       try {
@@ -76,7 +157,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
           .select('*')
           .eq('is_active', true)
           .order('name');
-          
+
         if (error) throw error;
         setAgencies(data || []);
       } catch (error) {
@@ -84,32 +165,71 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         toast.error('Error loading agencies: ' + error.message);
       }
     };
-    
+
     fetchAgencies();
   }, [toast]);
 
-  // Load user data when the component mounts
   useEffect(() => {
     if (user) {
-      setFirstName(user.first_name || '');
-      setLastName(user.last_name || '');
-      setYardSystemId(user.yard_system_id || '');
-      setShiftPreference(user.shift_preference || '');
-      setIsActive(user.is_active !== false); // Default to true if not set
-      setShowOnReports(user.show_on_reports !== false); // Default to true if not set
+      const snap = snapshotFromUser(user);
+      setFirstName(snap.firstName);
+      setLastName(snap.lastName);
+      setYardSystemId(snap.yardSystemId);
+      setShiftPreference(snap.shiftPreference);
+      setIsActive(snap.isActive);
+      setShowOnReports(snap.showOnReports);
       setPerformanceScore(user.performance_score || 50);
       setAvatarUrl(normalizeAvatarStorageUrl(user.avatar_url) || null);
-      setCustomStartTime(user.custom_start_time || '');
-      setPreferredStartTime(formatPreferredStartTime(user.preferred_start_time));
-      setPreferredLocation(user.preferred_location || '');
+      setAvatar(null);
+      setPreferredStartTime(snap.preferredStartTime);
+      setPreferredLocation(snap.preferredLocation);
       setAdditionalLocations(
         Array.isArray(user.additional_locations) ? user.additional_locations : []
       );
-      setAgencyId(user.agency_id || null);
+      setAgencyId(snap.agencyId);
+      baselineRef.current = snap;
+      onDirtyChangeRef.current?.(false);
     }
   }, [user]);
 
-  // Handle avatar selection
+  const reportDirty = useCallback(() => {
+    if (!baselineRef.current) return;
+    const current = currentSnapshot({
+      firstName,
+      lastName,
+      yardSystemId,
+      shiftPreference,
+      isActive,
+      showOnReports,
+      performanceScore,
+      preferredStartTime,
+      preferredLocation,
+      additionalLocations,
+      agencyId,
+    });
+    const dirty =
+      Boolean(avatar) ||
+      JSON.stringify(current) !== JSON.stringify(baselineRef.current);
+    onDirtyChangeRef.current?.(dirty);
+  }, [
+    firstName,
+    lastName,
+    yardSystemId,
+    shiftPreference,
+    isActive,
+    showOnReports,
+    performanceScore,
+    preferredStartTime,
+    preferredLocation,
+    additionalLocations,
+    agencyId,
+    avatar,
+  ]);
+
+  useEffect(() => {
+    reportDirty();
+  }, [reportDirty]);
+
   const handleAvatarChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -117,13 +237,12 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         toast.error('Image is too large. Maximum size is 5MB.');
         return;
       }
-      
+
       setAvatar(file);
       setAvatarUrl(URL.createObjectURL(file));
     }
   };
 
-  // Form validation
   const validateForm = async () => {
     let isValid = true;
     const errors = {
@@ -134,31 +253,27 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       performanceScore: '',
       timeRange: ''
     };
-    
-    // Basic validation
+
     if (!firstName.trim()) {
       errors.firstName = 'First name is required';
       isValid = false;
     }
-    
+
     if (!lastName.trim()) {
       errors.lastName = 'Last name is required';
       isValid = false;
     }
-    
-    // Validate Yard System ID if provided
+
     if (yardSystemId.trim()) {
       const trimmedId = yardSystemId.trim().toUpperCase();
-      
-      // Check if it's changed from original
+
       if (trimmedId !== (user.yard_system_id || '').toUpperCase()) {
-        // Check for uniqueness
         const { data, error } = await supabase
           .from('profiles')
           .select('id')
           .eq('yard_system_id', trimmedId)
           .neq('id', user.id);
-        
+
         if (error) {
           console.error('Error checking yard_system_id uniqueness:', error);
           errors.yardSystemId = 'Error validating Yard System ID';
@@ -169,34 +284,33 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         }
       }
     }
-    
+
     if (!shiftPreference) {
       errors.shiftPreference = 'Shift preference is required';
       isValid = false;
     }
-    
+
     if (performanceScore < 1 || performanceScore > 99) {
       errors.performanceScore = 'Performance score must be between 1 and 99';
       isValid = false;
     }
-    
+
     setFormErrors(errors);
     return isValid;
   };
 
-  // Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const isFormValid = await validateForm();
     if (!isFormValid) {
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
-      // Update user profile info
+      const startValue = preferredStartTime || null;
       const updates = {
         id: user.id,
         first_name: capitalizeFirstLetter(firstName.trim()),
@@ -207,18 +321,16 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
         show_on_reports: showOnReports,
         performance_score: parseInt(performanceScore, 10),
         updated_at: new Date().toISOString(),
-        // Rota Planner fields
-        custom_start_time: customStartTime || null,
-        preferred_start_time: preferredStartTime || null,
+        // Preferred start drives both columns so AssignModal / prompts stay in sync
+        custom_start_time: startValue,
+        preferred_start_time: startValue,
         preferred_location: preferredLocation || null,
         additional_locations: additionalLocations.filter(
           (name) => name && name !== preferredLocation
         ),
-        // Agency field
         agency_id: agencyId
       };
-      
-      // Upload avatar if there's a new one
+
       if (avatar) {
         const fileExt = avatar.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
@@ -228,34 +340,46 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
           .storage
           .from('user-avatars')
           .upload(filePath, avatar, { upsert: true });
-          
+
         if (uploadError) {
           throw uploadError;
         }
-        
-        // Get the public URL
+
         const { data: { publicUrl } } = supabase
           .storage
           .from('user-avatars')
           .getPublicUrl(filePath);
-          
+
         updates.avatar_url = publicUrl;
       }
-      
-      // Update the profile record (no .select() — email/notes columns are
-      // not SELECT-able for clients after profiles column revoke).
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
-        
+
       if (updateError) {
         throw updateError;
       }
-      
+
       toast.success('Profile updated successfully!');
-      
-      // Call the success callback and close the form
+
+      baselineRef.current = currentSnapshot({
+        firstName: updates.first_name,
+        lastName: updates.last_name,
+        yardSystemId: updates.yard_system_id || '',
+        shiftPreference: updates.shift_preference,
+        isActive: updates.is_active,
+        showOnReports: updates.show_on_reports,
+        performanceScore: updates.performance_score,
+        preferredStartTime: preferredStartTime || '',
+        preferredLocation: updates.preferred_location || '',
+        additionalLocations: updates.additional_locations || [],
+        agencyId: updates.agency_id,
+      });
+      setAvatar(null);
+      onDirtyChangeRef.current?.(false);
+
       if (onSuccess) {
         onSuccess(updates);
       }
@@ -278,437 +402,299 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
       setLoading(false);
     }
   };
-  
-  // Cleanup function for closing modal (or collapsing card when inline)
+
   const handleClose = () => {
     if (!inline) document.body.style.overflow = 'auto';
     onClose();
   };
-  
+
   const formContent = (
     <form id={inline ? 'user-edit-inline-form' : undefined} onSubmit={handleSubmit}>
-      <div className={inline ? 'p-4' : 'px-5 py-4'}>
-        {/* Avatar & Active Status – only in modal (not inline) */}
+      <div className={inline ? 'p-4 max-w-3xl space-y-2' : 'px-5 py-4 space-y-3'}>
         {!inline && (
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <svg className="w-7 h-7 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                </div>
-                <label className="flex items-center px-3 py-1.5 text-sm bg-white cursor-pointer rounded-lg border-2 border-gray-300 text-charcoal font-medium hover:bg-gray-50 transition-colors">
-                  <span>Upload</span>
-                  <input
-                    id="admin-edit-avatar"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarChange}
-                    className="sr-only"
-                  />
-                </label>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <svg className="w-7 h-7 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                  </svg>
+                )}
               </div>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <label htmlFor="admin-edit-isActive" className="text-sm text-gray-600">
-                    Active
-                  </label>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isActive}
-                    id="admin-edit-isActive"
-                    onClick={() => !loading && setIsActive(!isActive)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      isActive ? 'bg-green-500' : 'bg-gray-300'
-                    } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                        isActive ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="admin-edit-showOnReports" className="text-sm text-gray-600">
-                      Show on reports
-                    </label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showOnReports}
-                      id="admin-edit-showOnReports"
-                      onClick={() => !loading && setShowOnReports(!showOnReports)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        showOnReports ? 'bg-green-500' : 'bg-gray-300'
-                      } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                          showOnReports ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-gray-500 max-w-[11rem] text-right leading-snug">
-                    When off, moves are still imported but hidden from leaderboards and charts.
-                  </p>
-                </div>
+              <label className="admin-btn cursor-pointer">
+                <span>Upload</span>
+                <input
+                  id="admin-edit-avatar"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="sr-only"
+                />
+              </label>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <ToggleSwitch
+                id="admin-edit-isActive"
+                label="Active"
+                checked={isActive}
+                onChange={setIsActive}
+                disabled={loading}
+              />
+              <div className="flex flex-col items-end gap-1">
+                <ToggleSwitch
+                  id="admin-edit-showOnReports"
+                  label="Show on reports"
+                  checked={showOnReports}
+                  onChange={setShowOnReports}
+                  disabled={loading}
+                />
+                <p className="text-[11px] text-gray-500 max-w-[11rem] text-right leading-snug">
+                  When off, moves are still imported but hidden from leaderboards and charts.
+                </p>
               </div>
             </div>
-        )}
-            
-            {/* Basic Info */}
-            <div className="space-y-3">
-              {/* First Name & Last Name – inline: First name + Active in one row; modal: side by side */}
-              {inline ? (
-                <>
-                  <div>
-                    <div className="flex items-center justify-between gap-3 mb-1.5">
-                      <label htmlFor="admin-edit-firstName" className="text-charcoal font-medium text-sm">
-                        First Name
-                      </label>
-                      <div className="flex items-center gap-3 flex-shrink-0 flex-wrap justify-end">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600">Active</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={isActive}
-                            id="admin-edit-isActive-inline"
-                            onClick={() => !loading && setIsActive(!isActive)}
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                              isActive ? 'bg-green-500' : 'bg-gray-300'
-                            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            <span
-                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-                                isActive ? 'translate-x-4' : 'translate-x-0.5'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600">Show on reports</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showOnReports}
-                            id="admin-edit-showOnReports-inline"
-                            onClick={() => !loading && setShowOnReports(!showOnReports)}
-                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                              showOnReports ? 'bg-green-500' : 'bg-gray-300'
-                            } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            <span
-                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-                                showOnReports ? 'translate-x-4' : 'translate-x-0.5'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <input
-                      id="admin-edit-firstName"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                        formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
-                      }`}
-                      placeholder="First name"
-                      disabled={loading}
-                    />
-                    {formErrors.firstName && (
-                      <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                      Last Name
-                    </label>
-                    <input
-                      id="admin-edit-lastName"
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                        formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
-                      }`}
-                      placeholder="Last name"
-                      disabled={loading}
-                    />
-                    {formErrors.lastName && (
-                      <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
-                    )}
-                  </div>
-                </>
-              ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  First Name
-                </label>
-                <input
-                  id="admin-edit-firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                    formErrors.firstName ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  placeholder="First name"
-                  disabled={loading}
-                />
-                {formErrors.firstName && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Last Name
-                </label>
-                <input
-                  id="admin-edit-lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                    formErrors.lastName ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  placeholder="Last name"
-                  disabled={loading}
-                />
-                {formErrors.lastName && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
-                )}
-                </div>
-              </div>
-              )}
-              
-              {/* Yard System ID, Shift Preference, Agency - side by side on desktop */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Yard System ID
-                </label>
-                <input
-                  id="admin-edit-yardSystemId"
-                  type="text"
-                  value={yardSystemId}
-                  onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
-                  style={{ textTransform: 'uppercase' }}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                    formErrors.yardSystemId ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                    placeholder="E.G., AG10"
-                  disabled={loading}
-                />
-                {formErrors.yardSystemId && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Shift
-                </label>
-                <select
-                  id="admin-edit-shiftPreference"
-                  value={shiftPreference}
-                  onChange={(e) => setShiftPreference(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                    formErrors.shiftPreference ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  disabled={loading}
-                >
-                    <option value="">Select</option>
-                  <option value="day">Day</option>
-                  <option value="night">Night</option>
-                  <option value="afternoon">Afternoon</option>
-                </select>
-                {formErrors.shiftPreference && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1.5 text-sm">
-                  Agency
-                </label>
-                <select
-                  id="admin-edit-agency"
-                  value={agencyId || ''}
-                  onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
-                  disabled={loading}
-                >
-                    <option value="">None</option>
-                  {agencies.map(agency => (
-                    <option key={agency.id} value={agency.id}>{agency.name}</option>
-                  ))}
-                </select>
-                </div>
-              </div>
-              
-              {/* Performance Score, Start Time, Location - side by side on desktop */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Score (1-99)
-                </label>
-                <input
-                  id="admin-edit-performanceScore"
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={performanceScore}
-                  onChange={(e) => setPerformanceScore(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-white border rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal ${
-                    formErrors.performanceScore ? 'border-red-400/70' : 'border-gray-300'
-                  }`}
-                  disabled={loading}
-                />
-                {formErrors.performanceScore && (
-                  <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
-                )}
-              </div>
-              
-                <div>
-                  <label htmlFor="admin-edit-startTime" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Start Time
-                  </label>
-                  <select
-                    id="admin-edit-startTime"
-                    value={customStartTime ? customStartTime.slice(0, 5) : ''}
-                    onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
-                    disabled={loading}
-                  >
-                    <option value="">No preference</option>
-                    {QUARTER_HOUR_TIMES.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="admin-edit-preferredStart" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Preferred start
-                  </label>
-                  <select
-                    id="admin-edit-preferredStart"
-                    value={preferredStartTime}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setPreferredStartTime(next);
-                      setCustomStartTime(next);
-                    }}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
-                    disabled={loading}
-                  >
-                    <option value="">Not answered</option>
-                    {QUARTER_HOUR_TIMES.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-1.5 text-sm">
-                    Location
-                  </label>
-                  <select
-                    id="admin-edit-location"
-                    value={preferredLocation || ''}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      setPreferredLocation(next);
-                      setAdditionalLocations((current) => current.filter((name) => name !== next));
-                    }}
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg text-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
-                    disabled={loading}
-                  >
-                    <option value="">No preference</option>
-                    {locations.map(location => (
-                      <option key={location.id} value={location.name}>{location.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-3">
-                  <p className="block text-charcoal font-medium mb-1.5 text-sm">Also works at</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    {locations
-                      .filter((location) => location.name !== preferredLocation)
-                      .map((location) => {
-                        const checked = additionalLocations.includes(location.name);
-                        return (
-                          <label key={location.id} className="inline-flex items-center gap-2 text-sm text-charcoal">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={loading}
-                              onChange={() => {
-                                setAdditionalLocations((current) => (
-                                  checked
-                                    ? current.filter((name) => name !== location.name)
-                                    : [...current, location.name]
-                                ));
-                              }}
-                            />
-                            {location.name}
-                          </label>
-                        );
-                      })}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Shows this person as available when planning those yards too.
-                  </p>
-                </div>
-              </div>
-              
-            </div>
-            
-            {/* Form Actions – only in modal (not inline; Save is in card footer) */}
-            {!inline && (
-              <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={loading}
-                  className="px-4 py-2 text-sm font-semibold rounded-lg border-2 border-gray-300 bg-white text-charcoal hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-colors ${
-                    loading
-                      ? 'border-gray-200 bg-white text-gray-400 cursor-not-allowed'
-                      : 'border-charcoal bg-white text-charcoal hover:bg-gray-50'
-                  }`}
-                >
-                  {loading ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            )}
           </div>
-        </form>
+        )}
+
+        {inline && (
+          <div className="flex items-center gap-4 flex-wrap pb-1">
+            <ToggleSwitch
+              id="admin-edit-isActive-inline"
+              label="Active"
+              checked={isActive}
+              onChange={setIsActive}
+              disabled={loading}
+            />
+            <ToggleSwitch
+              id="admin-edit-showOnReports-inline"
+              label="Show on reports"
+              checked={showOnReports}
+              onChange={setShowOnReports}
+              disabled={loading}
+            />
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1 text-sm">
+                First Name
+              </label>
+              <input
+                id="admin-edit-firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className={inputClass(Boolean(formErrors.firstName))}
+                placeholder="First name"
+                disabled={loading}
+              />
+              {formErrors.firstName && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1 text-sm">
+                Last Name
+              </label>
+              <input
+                id="admin-edit-lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className={inputClass(Boolean(formErrors.lastName))}
+                placeholder="Last name"
+                disabled={loading}
+              />
+              {formErrors.lastName && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div>
+              <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1 text-sm">
+                Yard System ID
+              </label>
+              <input
+                id="admin-edit-yardSystemId"
+                type="text"
+                value={yardSystemId}
+                onChange={(e) => setYardSystemId(e.target.value.toUpperCase())}
+                style={{ textTransform: 'uppercase' }}
+                className={inputClass(Boolean(formErrors.yardSystemId))}
+                placeholder="E.G., AG10"
+                disabled={loading}
+              />
+              {formErrors.yardSystemId && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1 text-sm">
+                Shift
+              </label>
+              <select
+                id="admin-edit-shiftPreference"
+                value={shiftPreference}
+                onChange={(e) => setShiftPreference(e.target.value)}
+                className={inputClass(Boolean(formErrors.shiftPreference))}
+                disabled={loading}
+              >
+                <option value="">Select</option>
+                <option value="day">Day</option>
+                <option value="night">Night</option>
+                <option value="afternoon">Afternoon</option>
+              </select>
+              {formErrors.shiftPreference && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1 text-sm">
+                Agency
+              </label>
+              <select
+                id="admin-edit-agency"
+                value={agencyId || ''}
+                onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
+                className="admin-input"
+                disabled={loading}
+              >
+                <option value="">None</option>
+                {agencies.map(agency => (
+                  <option key={agency.id} value={agency.id}>{agency.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div>
+              <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1 text-sm">
+                Score (1-99)
+              </label>
+              <input
+                id="admin-edit-performanceScore"
+                type="number"
+                min="1"
+                max="99"
+                value={performanceScore}
+                onChange={(e) => setPerformanceScore(e.target.value)}
+                className={inputClass(Boolean(formErrors.performanceScore))}
+                disabled={loading}
+              />
+              {formErrors.performanceScore && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="admin-edit-preferredStart" className="block text-charcoal font-medium mb-1 text-sm">
+                Preferred start
+              </label>
+              <select
+                id="admin-edit-preferredStart"
+                value={preferredStartTime}
+                onChange={(e) => setPreferredStartTime(e.target.value)}
+                className="admin-input"
+                disabled={loading}
+              >
+                <option value="">Not answered</option>
+                {QUARTER_HOUR_TIMES.map(time => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-1 text-sm">
+                Location
+              </label>
+              <select
+                id="admin-edit-location"
+                value={preferredLocation || ''}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPreferredLocation(next);
+                  setAdditionalLocations((current) => current.filter((name) => name !== next));
+                }}
+                className="admin-input"
+                disabled={loading}
+              >
+                <option value="">No preference</option>
+                {locations.map(location => (
+                  <option key={location.id} value={location.name}>{location.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-3">
+              <p className="block text-charcoal font-medium mb-1 text-sm">Also works at</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {locations
+                  .filter((location) => location.name !== preferredLocation)
+                  .map((location) => {
+                    const checked = additionalLocations.includes(location.name);
+                    return (
+                      <label key={location.id} className="inline-flex items-center gap-2 text-sm text-charcoal">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={loading}
+                          onChange={() => {
+                            setAdditionalLocations((current) => (
+                              checked
+                                ? current.filter((name) => name !== location.name)
+                                : [...current, location.name]
+                            ));
+                          }}
+                        />
+                        {location.name}
+                      </label>
+                    );
+                  })}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Shows this person as available when planning those yards too.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {!inline && (
+          <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              className="admin-btn disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="admin-btn disabled:opacity-50"
+            >
+              {loading ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        )}
+      </div>
+    </form>
   );
 
   if (inline) {
     return (
-      <div className="border-t border-gray-200 bg-yellow-50/80" ref={modalRef}>
+      <div className="bg-white" ref={modalRef}>
         {formContent}
       </div>
     );
@@ -730,20 +716,15 @@ export default function UserEditForm({ user, onClose, onSuccess, inline }) {
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-xl shadow-lg w-full max-w-md md:max-w-2xl mx-auto max-h-[90vh] overflow-y-auto border border-gray-200"
+        className="admin-modal-panel !max-w-md md:!max-w-2xl mx-auto max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-red-50 px-5 py-4 border-b border-red-200/60 sticky top-0 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-red-800">Edit user profile</h3>
-          </div>
+        <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
+          <h3 className="admin-section-title">Edit user profile</h3>
           <button
             type="button"
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors"
+            className="admin-icon-btn"
             aria-label="Close"
           >
             <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -761,5 +742,6 @@ UserEditForm.propTypes = {
   user: PropTypes.object.isRequired,
   onClose: PropTypes.func.isRequired,
   onSuccess: PropTypes.func.isRequired,
-  inline: PropTypes.bool
-}; 
+  inline: PropTypes.bool,
+  onDirtyChange: PropTypes.func,
+};
