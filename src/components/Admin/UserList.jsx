@@ -115,6 +115,14 @@ const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilte
   const [shiftFilter, setShiftFilter] = useState(filters.shift || 'all');
   const [sortBy, setSortBy] = useState(filters.sortBy || 'name');
   const [sortOrder, setSortOrder] = useState(filters.sortOrder || 'asc');
+
+  // Keep draft controls in sync with applied filters (e.g. deep-link reset to shift=all)
+  useEffect(() => {
+    if (!isOpen) return;
+    setShiftFilter(filters.shift || 'all');
+    setSortBy(filters.sortBy || 'name');
+    setSortOrder(filters.sortOrder || 'asc');
+  }, [isOpen, filters.shift, filters.sortBy, filters.sortOrder]);
   
   const handleApplyFilters = () => {
     onApplyFilters({
