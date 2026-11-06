@@ -1,5 +1,5 @@
-// Twilio status callback for PreCheck WhatsApp sends.
-// Validates X-Twilio-Signature, updates precheck_reminder_sends by MessageSid.
+// Twilio status callback for WhatsApp sends (PreCheck + rota ledgers).
+// Validates X-Twilio-Signature, updates matching ledger row by MessageSid.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { validateTwilioSignature } from "../_shared/twilioWhatsApp.ts";
@@ -14,6 +14,8 @@ const ALLOWED_STATUSES = new Set([
   "canceled",
   "accepted",
 ]);
+
+const LEDGER_TABLES = ["precheck_reminder_sends", "rota_whatsapp_sends"] as const;
 
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -65,19 +67,34 @@ serve(async (req) => {
     : "failed";
 
   const supabase = createClient(supabaseUrl, serviceKey);
-  const { error } = await supabase
-    .from("precheck_reminder_sends")
-    .update({
-      status,
-      error_code: errorCode,
-      error_message: errorMessage,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("provider_message_sid", messageSid);
+  const patch = {
+    status,
+    error_code: errorCode,
+    error_message: errorMessage,
+    updated_at: new Date().toISOString(),
+  };
 
-  if (error) {
-    console.error("[twilio-status] update failed", error);
-    return new Response("Update failed", { status: 500 });
+  let updated = false;
+  for (const table of LEDGER_TABLES) {
+    const { data, error } = await supabase
+      .from(table)
+      .update(patch)
+      .eq("provider_message_sid", messageSid)
+      .select("id");
+
+    if (error) {
+      console.error(`[twilio-status] ${table} update failed`, error);
+      return new Response("Update failed", { status: 500 });
+    }
+    if (data && data.length > 0) {
+      updated = true;
+      break;
+    }
+  }
+
+  if (!updated) {
+    // Unknown SID is not fatal — Twilio retries; acknowledge receipt.
+    console.warn("[twilio-status] no ledger row for sid", messageSid);
   }
 
   return new Response("ok", { status: 200 });

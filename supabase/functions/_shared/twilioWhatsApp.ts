@@ -8,20 +8,38 @@ export type TwilioMessagingConfig = {
   appBaseUrl: string;
 };
 
-export function loadTwilioMessagingConfig():
+export type TwilioContentSidKind =
+  | "precheck"
+  | "rota_shunter"
+  | "rota_ping";
+
+const CONTENT_SID_ENV: Record<TwilioContentSidKind, string> = {
+  precheck: "TWILIO_WHATSAPP_CONTENT_SID",
+  rota_shunter: "TWILIO_WHATSAPP_CONTENT_SID_ROTA_SHUNTER",
+  rota_ping: "TWILIO_WHATSAPP_CONTENT_SID_ROTA_PING",
+};
+
+/**
+ * Load Twilio credentials + one Content SID.
+ * Default kind keeps PreCheck reminders on TWILIO_WHATSAPP_CONTENT_SID.
+ */
+export function loadTwilioMessagingConfig(
+  kind: TwilioContentSidKind = "precheck",
+):
   | { ready: true; config: TwilioMessagingConfig }
   | { ready: false; missing: string[] } {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID") || "";
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN") || "";
   const whatsappFrom = Deno.env.get("TWILIO_WHATSAPP_FROM") || "";
-  const contentSid = Deno.env.get("TWILIO_WHATSAPP_CONTENT_SID") || "";
+  const contentSidEnv = CONTENT_SID_ENV[kind] || CONTENT_SID_ENV.precheck;
+  const contentSid = Deno.env.get(contentSidEnv) || "";
   const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "").replace(/\/$/, "");
 
   const missing: string[] = [];
   if (!accountSid) missing.push("TWILIO_ACCOUNT_SID");
   if (!authToken) missing.push("TWILIO_AUTH_TOKEN");
   if (!whatsappFrom) missing.push("TWILIO_WHATSAPP_FROM");
-  if (!contentSid) missing.push("TWILIO_WHATSAPP_CONTENT_SID");
+  if (!contentSid) missing.push(contentSidEnv);
   if (!appBaseUrl) missing.push("APP_BASE_URL");
 
   if (missing.length) return { ready: false, missing };
@@ -32,8 +50,8 @@ export function loadTwilioMessagingConfig():
   };
 }
 
-export function messagingReady(): boolean {
-  return loadTwilioMessagingConfig().ready;
+export function messagingReady(kind: TwilioContentSidKind = "precheck"): boolean {
+  return loadTwilioMessagingConfig(kind).ready;
 }
 
 export function buildPrecheckContentVariables(input: {
@@ -47,6 +65,40 @@ export function buildPrecheckContentVariables(input: {
   const link = `${input.appBaseUrl}/precheck`;
   // Content template vars {{1}} name, {{2}} shift window, {{3}} link
   return { "1": name, "2": window, "3": link };
+}
+
+/** Rota week summary to shunter: {{1}} name {{2}} week {{3}} shifts {{4}} location {{5}} creator */
+export function buildRotaShunterContentVariables(input: {
+  firstName: string;
+  weekRange: string;
+  shiftSummary: string;
+  locations: string;
+  creatorName: string;
+}): Record<string, string> {
+  const name = (input.firstName || "there").trim() || "there";
+  return {
+    "1": name,
+    "2": (input.weekRange || "").trim() || "this week",
+    "3": (input.shiftSummary || "").trim() || "see app",
+    "4": (input.locations || "").trim() || "yard",
+    "5": (input.creatorName || "").trim() || "Yard Rota",
+  };
+}
+
+/** Manual assignment ping: {{1}} name {{2}} shift {{3}} location {{4}} creator */
+export function buildRotaPingContentVariables(input: {
+  firstName: string;
+  shiftSummary: string;
+  location: string;
+  creatorName: string;
+}): Record<string, string> {
+  const name = (input.firstName || "there").trim() || "there";
+  return {
+    "1": name,
+    "2": (input.shiftSummary || "").trim() || "see app",
+    "3": (input.location || "").trim() || "yard",
+    "4": (input.creatorName || "").trim() || "Yard Rota",
+  };
 }
 
 export type TwilioSendResult =
