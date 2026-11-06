@@ -14,6 +14,7 @@ import {
   loadTwilioMessagingConfig,
   sendWhatsAppContentMessage,
 } from "../_shared/twilioWhatsApp.ts";
+import { canRetryCronSend } from "../_shared/precheckWhatsAppRetry.ts";
 
 const MAX_SENDS_PER_RUN = 30;
 
@@ -190,29 +191,111 @@ serve(async (req) => {
       ? forceIdempotencyKey(target.user_id, target.rota_id)
       : cronIdempotencyKey(target.user_id, target.rota_id);
 
-    const { data: ledgerRow, error: insertError } = await supabase
-      .from("precheck_reminder_sends")
-      .insert({
-        user_id: target.user_id,
-        rota_id: target.rota_id,
-        phone_e164: phone,
-        channel: "whatsapp",
-        status: "queued",
-        provider: "twilio",
-        idempotency_key: idempotencyKey,
-        trigger: isForce ? "admin_force" : "cron",
-        sent_by: isForce ? gate.userId || null : null,
-      })
-      .select("id")
-      .maybeSingle();
+    let ledgerId: string | null = null;
+    let attemptCount = 1;
 
-    if (insertError) {
-      // Unique violation = already sent for this cron key
+    if (!isForce) {
+      const { data: existing, error: existingError } = await supabase
+        .from("precheck_reminder_sends")
+        .select("id, status, updated_at, attempt_count")
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
+
+      if (existingError) {
+        results.push({
+          user_id: target.user_id,
+          rota_id: target.rota_id,
+          skipped: true,
+          reason: existingError.message,
+        });
+        continue;
+      }
+
+      if (existing) {
+        if (!canRetryCronSend(existing)) {
+          results.push({
+            user_id: target.user_id,
+            rota_id: target.rota_id,
+            skipped: true,
+            reason: "already_sent",
+          });
+          continue;
+        }
+
+        const nextAttempt = (Number(existing.attempt_count) > 0
+          ? Number(existing.attempt_count)
+          : 1) + 1;
+        // Claim only while still in a retryable status (avoids double-send races).
+        const { data: reused, error: reuseError } = await supabase
+          .from("precheck_reminder_sends")
+          .update({
+            status: "queued",
+            phone_e164: phone,
+            provider_message_sid: null,
+            error_code: null,
+            error_message: null,
+            attempt_count: nextAttempt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+          .in("status", ["failed", "undelivered", "canceled", "queued"])
+          .select("id, attempt_count")
+          .maybeSingle();
+
+        if (reuseError || !reused?.id) {
+          results.push({
+            user_id: target.user_id,
+            rota_id: target.rota_id,
+            skipped: true,
+            reason: reuseError?.message || "retry_claim_failed",
+          });
+          continue;
+        }
+
+        ledgerId = reused.id;
+        attemptCount = Number(reused.attempt_count) || nextAttempt;
+      }
+    }
+
+    if (!ledgerId) {
+      const { data: ledgerRow, error: insertError } = await supabase
+        .from("precheck_reminder_sends")
+        .insert({
+          user_id: target.user_id,
+          rota_id: target.rota_id,
+          phone_e164: phone,
+          channel: "whatsapp",
+          status: "queued",
+          provider: "twilio",
+          idempotency_key: idempotencyKey,
+          trigger: isForce ? "admin_force" : "cron",
+          sent_by: isForce ? gate.userId || null : null,
+          attempt_count: 1,
+        })
+        .select("id, attempt_count")
+        .maybeSingle();
+
+      if (insertError) {
+        // Race: another runner claimed the cron key — skip this tick.
+        results.push({
+          user_id: target.user_id,
+          rota_id: target.rota_id,
+          skipped: true,
+          reason: insertError.code === "23505" ? "already_sent" : insertError.message,
+        });
+        continue;
+      }
+
+      ledgerId = ledgerRow?.id || null;
+      attemptCount = Number(ledgerRow?.attempt_count) || 1;
+    }
+
+    if (!ledgerId) {
       results.push({
         user_id: target.user_id,
         rota_id: target.rota_id,
         skipped: true,
-        reason: insertError.code === "23505" ? "already_sent" : insertError.message,
+        reason: "ledger_missing",
       });
       continue;
     }
@@ -239,12 +322,13 @@ serve(async (req) => {
           error_message: send.errorMessage,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", ledgerRow?.id);
+        .eq("id", ledgerId);
       results.push({
         user_id: target.user_id,
         rota_id: target.rota_id,
         ok: false,
         error: send.errorMessage,
+        attempt_count: attemptCount,
       });
       continue;
     }
@@ -258,9 +342,11 @@ serve(async (req) => {
       .update({
         status: mappedStatus,
         provider_message_sid: send.sid,
+        error_code: null,
+        error_message: null,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", ledgerRow?.id);
+      .eq("id", ledgerId);
 
     results.push({
       user_id: target.user_id,
@@ -268,6 +354,7 @@ serve(async (req) => {
       ok: true,
       sid: send.sid,
       status: mappedStatus,
+      attempt_count: attemptCount,
     });
   }
 

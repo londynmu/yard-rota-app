@@ -4,7 +4,8 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 
 ## Owner checklist (Twilio / Meta)
 
-1. Apply migrations **only after owner approval** (PR A phone/opt-in, then PR B ledger/RPC).
+1. Migrations A/B applied on prod with **no** phone SELECT for anon/authenticated
+   (own-row read via `get_own_messaging_settings`; admins via `get_admin_profiles_with_emails`).
 2. In Supabase project `jkjvtvwedjiupxoibpld` → Edge Function secrets:
    - `TWILIO_ACCOUNT_SID`
    - `TWILIO_AUTH_TOKEN`
@@ -26,7 +27,9 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 7. Enable cron by uncommenting the job block in
    `supabase/migrations/20261106130000_precheck_reminder_sends.sql`
    (or schedule manually) once secrets + template work. Default: every 10 minutes;
-   targeting waits **30 minutes** after shift start; max **1** cron send per user+rota.
+   targeting waits **30 minutes** after shift start; at most one **successful**
+   cron send per user+rota. Failed Twilio attempts retry after **15 minutes**,
+   up to **5** attempts (same ledger row / idempotency key).
 
 ## App behaviour
 

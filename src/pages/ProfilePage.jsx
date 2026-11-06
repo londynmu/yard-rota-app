@@ -92,18 +92,27 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         throw new Error('You appear to be offline. Please check your internet connection.');
       }
       
-      const { data, error } = await supabaseClient
-        .from('profiles')
-        .select(
-          'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role, phone_e164, whatsapp_opt_in',
-        )
-        .eq('id', user.id)
-        .single();
-      
+      // phone_e164 / whatsapp_opt_in are not SELECT-granted on profiles
+      // (same pattern as email). Own-row read via SECURITY DEFINER RPC.
+      const [{ data, error }, { data: messagingRows, error: messagingError }] =
+        await Promise.all([
+          supabaseClient
+            .from('profiles')
+            .select(
+              'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role',
+            )
+            .eq('id', user.id)
+            .single(),
+          supabaseClient.rpc('get_own_messaging_settings'),
+        ]);
+
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
-      
+      if (messagingError) {
+        throw messagingError;
+      }
+
       if (data) {
         setFirstName(data.first_name || '');
         setLastName(data.last_name || '');
@@ -115,9 +124,13 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         );
         setPreferredLocation(data.preferred_location || '');
         setAgencyId(data.agency_id || null);
-        setPhoneE164(data.phone_e164 || '');
-        setWhatsappOptIn(Boolean(data.whatsapp_opt_in));
       }
+
+      const messaging = Array.isArray(messagingRows)
+        ? messagingRows[0]
+        : messagingRows;
+      setPhoneE164(messaging?.phone_e164 || '');
+      setWhatsappOptIn(Boolean(messaging?.whatsapp_opt_in));
     } catch (error) {
       console.error('Error fetching profile:', error);
       

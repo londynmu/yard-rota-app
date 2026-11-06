@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS public.precheck_reminder_sends (
   trigger text NOT NULL DEFAULT 'cron'
     CHECK (trigger IN ('cron', 'admin_force')),
   sent_by uuid REFERENCES public.profiles(id),
+  -- Twilio attempts for this idempotency key (cron retries reuse the row).
+  attempt_count integer NOT NULL DEFAULT 1
+    CHECK (attempt_count >= 1),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -175,10 +178,27 @@ AS $$
     b.shift_end,
     pr.phone_e164,
     COALESCE(pr.whatsapp_opt_in, false) AS whatsapp_opt_in,
+    -- Block only success / in-flight (recent queued) / exhausted or
+    -- still-in-backoff failures. Failed/undelivered after 15m backoff and
+    -- under 5 attempts remain retryable (Edge Function reuses the ledger row).
     EXISTS (
       SELECT 1
       FROM public.precheck_reminder_sends s
       WHERE s.idempotency_key = format('precheck-wa:%s:%s', b.user_id, b.rota_id)
+        AND (
+          s.status IN ('sent', 'delivered', 'read', 'accepted')
+          OR (
+            s.status = 'queued'
+            AND s.updated_at > (c.instant - interval '15 minutes')
+          )
+          OR (
+            s.status IN ('failed', 'undelivered', 'canceled')
+            AND (
+              COALESCE(s.attempt_count, 1) >= 5
+              OR s.updated_at > (c.instant - interval '15 minutes')
+            )
+          )
+        )
     ) AS already_sent
   FROM bounds b
   JOIN profiles pr ON pr.id = b.user_id
@@ -340,64 +360,64 @@ GRANT EXECUTE ON FUNCTION public.get_missing_precheck_reminders(timestamptz) TO 
 
 -- ---------------------------------------------------------------------------
 -- Cron template (DISABLED until Twilio secrets + Content SID are set).
--- Uncomment and run after Edge Function deploy + Vault secrets exist.
--- Pattern mirrors gmail-import-daily (service_role from Vault).
+-- Uncomment (remove leading --) and run after Edge Function deploy + Vault
+-- secrets exist. Pattern mirrors gmail-import-daily (service_role from Vault).
+-- NOTE: do NOT wrap this in /* */ — the cron schedule '*/10' would close the
+-- block comment early and break apply_migration.
 -- ---------------------------------------------------------------------------
-/*
-DO $$
-DECLARE
-  existing_id bigint;
-BEGIN
-  SELECT jobid INTO existing_id
-  FROM cron.job
-  WHERE jobname = 'precheck-whatsapp-reminders'
-  LIMIT 1;
-
-  IF existing_id IS NOT NULL THEN
-    PERFORM cron.alter_job(
-      existing_id,
-      schedule := '*/10 * * * *',
-      command := $cmd$
-  SELECT net.http_post(
-    url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/send-precheck-whatsapp-reminders',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || (
-        SELECT decrypted_secret
-        FROM vault.decrypted_secrets
-        WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
-        LIMIT 1
-      ),
-      'Content-Type', 'application/json'
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 60000
-  );
-  $cmd$,
-      active := false
-    );
-  ELSE
-    PERFORM cron.schedule(
-      'precheck-whatsapp-reminders',
-      '*/10 * * * *',
-      $cmd$
-  SELECT net.http_post(
-    url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/send-precheck-whatsapp-reminders',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || (
-        SELECT decrypted_secret
-        FROM vault.decrypted_secrets
-        WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
-        LIMIT 1
-      ),
-      'Content-Type', 'application/json'
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 60000
-  );
-  $cmd$
-    );
-    -- Leave inactive until soft-launch:
-    -- UPDATE cron.job SET active = false WHERE jobname = 'precheck-whatsapp-reminders';
-  END IF;
-END $$;
-*/
+-- DO $$
+-- DECLARE
+--   existing_id bigint;
+-- BEGIN
+--   SELECT jobid INTO existing_id
+--   FROM cron.job
+--   WHERE jobname = 'precheck-whatsapp-reminders'
+--   LIMIT 1;
+--
+--   IF existing_id IS NOT NULL THEN
+--     PERFORM cron.alter_job(
+--       existing_id,
+--       schedule := '*/10 * * * *',
+--       command := $cmd$
+--   SELECT net.http_post(
+--     url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/send-precheck-whatsapp-reminders',
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (
+--         SELECT decrypted_secret
+--         FROM vault.decrypted_secrets
+--         WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+--         LIMIT 1
+--       ),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 60000
+--   );
+--   $cmd$,
+--       active := false
+--     );
+--   ELSE
+--     PERFORM cron.schedule(
+--       'precheck-whatsapp-reminders',
+--       '*/10 * * * *',
+--       $cmd$
+--   SELECT net.http_post(
+--     url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/send-precheck-whatsapp-reminders',
+--     headers := jsonb_build_object(
+--       'Authorization', 'Bearer ' || (
+--         SELECT decrypted_secret
+--         FROM vault.decrypted_secrets
+--         WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+--         LIMIT 1
+--       ),
+--       'Content-Type', 'application/json'
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 60000
+--   );
+--   $cmd$
+--     );
+--     -- Leave inactive until soft-launch:
+--     -- UPDATE cron.job SET active = false WHERE jobname = 'precheck-whatsapp-reminders';
+--   END IF;
+-- END $$;

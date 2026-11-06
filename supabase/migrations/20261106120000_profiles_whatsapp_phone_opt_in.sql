@@ -26,14 +26,39 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_e164_unique
   ON public.profiles (phone_e164)
   WHERE phone_e164 IS NOT NULL;
 
--- Column-level SELECT (table SELECT was revoked in
--- 20261027053000_profiles_hide_sensitive_columns_fix).
-GRANT SELECT (
+-- Messaging columns follow the email pattern:
+-- profiles RLS SELECT is USING (true), so column-level SELECT for
+-- anon/authenticated would leak every user's phone. Do NOT grant SELECT.
+-- Clients may INSERT/UPDATE their own messaging fields; own-row read goes
+-- through get_own_messaging_settings(). Admins use get_admin_profiles_with_emails().
+REVOKE SELECT (
+  phone_e164,
+  whatsapp_opt_in,
+  whatsapp_opt_in_at,
+  whatsapp_opt_in_by
+) ON public.profiles FROM PUBLIC, anon, authenticated;
+
+GRANT INSERT (
   phone_e164,
   whatsapp_opt_in,
   whatsapp_opt_in_at,
   whatsapp_opt_in_by
 ) ON public.profiles TO anon, authenticated;
+
+GRANT UPDATE (
+  phone_e164,
+  whatsapp_opt_in,
+  whatsapp_opt_in_at,
+  whatsapp_opt_in_by
+) ON public.profiles TO anon, authenticated;
+
+-- Definer roles / Edge (service_role) need to read phones for send + admin RPCs.
+GRANT SELECT (
+  phone_e164,
+  whatsapp_opt_in,
+  whatsapp_opt_in_at,
+  whatsapp_opt_in_by
+) ON public.profiles TO postgres, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Privilege guard: allow own-row phone + opt-in; stamp opt-in audit;
@@ -285,6 +310,29 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_admin_profiles_with_emails() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_admin_profiles_with_emails() TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Own-row messaging read (no column SELECT on phone for authenticated)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_own_messaging_settings()
+RETURNS TABLE (
+  phone_e164 text,
+  whatsapp_opt_in boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT
+    p.phone_e164,
+    COALESCE(p.whatsapp_opt_in, false) AS whatsapp_opt_in
+  FROM public.profiles p
+  WHERE p.id = auth.uid();
+$$;
+
+REVOKE ALL ON FUNCTION public.get_own_messaging_settings() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_own_messaging_settings() TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Soft-delete: clear messaging fields
