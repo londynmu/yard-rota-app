@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
@@ -26,7 +27,7 @@ const ToggleSwitch = ({ id, checked, onChange, disabled, label }) => (
       id={id}
       onClick={() => !disabled && onChange(!checked)}
       className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-        checked ? 'bg-charcoal' : 'bg-gray-300'
+        checked ? 'bg-green-500' : 'bg-gray-300'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span
@@ -65,6 +66,29 @@ function snapshotFromUser(user) {
       : [],
     agencyId: user?.agency_id || null,
   };
+}
+
+function FormSection({ title, children }) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function FieldRow({ id, label, children }) {
+  const labelClass = 'pt-1.5 text-sm font-medium text-charcoal';
+  return (
+    <div className="grid grid-cols-[11rem_minmax(0,1fr)] items-start gap-x-4">
+      {id ? (
+        <label htmlFor={id} className={labelClass}>{label}</label>
+      ) : (
+        <p className={labelClass}>{label}</p>
+      )}
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
 }
 
 function currentSnapshot({
@@ -127,6 +151,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
 
   const modalRef = useRef(null);
   const baselineRef = useRef(null);
+  const [visibilityHost, setVisibilityHost] = useState(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
   onDirtyChangeRef.current = onDirtyChange;
 
@@ -229,6 +254,15 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
   useEffect(() => {
     reportDirty();
   }, [reportDirty]);
+
+  useLayoutEffect(() => {
+    if (!inline) {
+      setVisibilityHost(null);
+      return undefined;
+    }
+    setVisibilityHost(document.getElementById('admin-user-visibility-slot'));
+    return undefined;
+  }, [inline, user?.id]);
 
   const handleAvatarChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -410,31 +444,34 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
 
   const formContent = (
     <form id={inline ? 'user-edit-inline-form' : undefined} onSubmit={handleSubmit}>
-      <div className={inline ? 'p-4 max-w-3xl space-y-2' : 'px-5 py-4 space-y-3'}>
+      <div className={inline ? 'space-y-6' : 'px-5 py-4 space-y-6'}>
         {!inline && (
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <svg className="w-7 h-7 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
-                  </svg>
-                )}
-              </div>
-              <label className="admin-btn cursor-pointer">
-                <span>Upload</span>
-                <input
-                  id="admin-edit-avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="sr-only"
-                />
-              </label>
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <svg className="w-7 h-7 text-gray-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                </svg>
+              )}
             </div>
-            <div className="flex items-center gap-4 flex-wrap">
+            <label className="admin-btn cursor-pointer">
+              <span>Upload</span>
+              <input
+                id="admin-edit-avatar"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="sr-only"
+              />
+            </label>
+          </div>
+        )}
+
+        {!inline && (
+          <FormSection title="Visibility">
+            <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
               <ToggleSwitch
                 id="admin-edit-isActive"
                 label="Active"
@@ -442,7 +479,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 onChange={setIsActive}
                 disabled={loading}
               />
-              <div className="flex flex-col items-end gap-1">
+              <div>
                 <ToggleSwitch
                   id="admin-edit-showOnReports"
                   label="Show on reports"
@@ -450,39 +487,17 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   onChange={setShowOnReports}
                   disabled={loading}
                 />
-                <p className="text-[11px] text-gray-500 max-w-[11rem] text-right leading-snug">
+                <p className="mt-1 max-w-xs text-[11px] leading-snug text-gray-500">
                   When off, moves are still imported but hidden from leaderboards and charts.
                 </p>
               </div>
             </div>
-          </div>
+          </FormSection>
         )}
 
-        {inline && (
-          <div className="flex items-center gap-4 flex-wrap pb-1">
-            <ToggleSwitch
-              id="admin-edit-isActive-inline"
-              label="Active"
-              checked={isActive}
-              onChange={setIsActive}
-              disabled={loading}
-            />
-            <ToggleSwitch
-              id="admin-edit-showOnReports-inline"
-              label="Show on reports"
-              checked={showOnReports}
-              onChange={setShowOnReports}
-              disabled={loading}
-            />
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="admin-edit-firstName" className="block text-charcoal font-medium mb-1 text-sm">
-                First Name
-              </label>
+        <FormSection title="Personal details">
+          <div className="grid grid-cols-1 gap-3">
+            <FieldRow id="admin-edit-firstName" label="First Name">
               <input
                 id="admin-edit-firstName"
                 type="text"
@@ -495,12 +510,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.firstName && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="admin-edit-lastName" className="block text-charcoal font-medium mb-1 text-sm">
-                Last Name
-              </label>
+            </FieldRow>
+            <FieldRow id="admin-edit-lastName" label="Last Name">
               <input
                 id="admin-edit-lastName"
                 type="text"
@@ -513,14 +524,13 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.lastName && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
               )}
-            </div>
+            </FieldRow>
           </div>
+        </FormSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <div>
-              <label htmlFor="admin-edit-yardSystemId" className="block text-charcoal font-medium mb-1 text-sm">
-                Yard System ID
-              </label>
+        <FormSection title="Shift and yard">
+          <div className="grid grid-cols-1 gap-3">
+            <FieldRow id="admin-edit-yardSystemId" label="Yard System ID">
               <input
                 id="admin-edit-yardSystemId"
                 type="text"
@@ -534,12 +544,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.yardSystemId && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
               )}
-            </div>
+            </FieldRow>
 
-            <div>
-              <label htmlFor="admin-edit-shiftPreference" className="block text-charcoal font-medium mb-1 text-sm">
-                Shift
-              </label>
+            <FieldRow id="admin-edit-shiftPreference" label="Shift">
               <select
                 id="admin-edit-shiftPreference"
                 value={shiftPreference}
@@ -555,12 +562,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.shiftPreference && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
               )}
-            </div>
+            </FieldRow>
 
-            <div>
-              <label htmlFor="admin-edit-agency" className="block text-charcoal font-medium mb-1 text-sm">
-                Agency
-              </label>
+            <FieldRow id="admin-edit-agency" label="Agency">
               <select
                 id="admin-edit-agency"
                 value={agencyId || ''}
@@ -573,14 +577,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   <option key={agency.id} value={agency.id}>{agency.name}</option>
                 ))}
               </select>
-            </div>
-          </div>
+            </FieldRow>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <div>
-              <label htmlFor="admin-edit-performanceScore" className="block text-charcoal font-medium mb-1 text-sm">
-                Score (1-99)
-              </label>
+            <FieldRow id="admin-edit-performanceScore" label="Score (1-99)">
               <input
                 id="admin-edit-performanceScore"
                 type="number"
@@ -594,12 +593,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.performanceScore && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
               )}
-            </div>
+            </FieldRow>
 
-            <div>
-              <label htmlFor="admin-edit-preferredStart" className="block text-charcoal font-medium mb-1 text-sm">
-                Preferred start
-              </label>
+            <FieldRow id="admin-edit-preferredStart" label="Preferred start">
               <select
                 id="admin-edit-preferredStart"
                 value={preferredStartTime}
@@ -612,12 +608,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   <option key={time} value={time}>{time}</option>
                 ))}
               </select>
-            </div>
+            </FieldRow>
 
-            <div>
-              <label htmlFor="admin-edit-location" className="block text-charcoal font-medium mb-1 text-sm">
-                Location
-              </label>
+            <FieldRow id="admin-edit-location" label="Location">
               <select
                 id="admin-edit-location"
                 value={preferredLocation || ''}
@@ -634,11 +627,10 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   <option key={location.id} value={location.name}>{location.name}</option>
                 ))}
               </select>
-            </div>
+            </FieldRow>
 
-            <div className="md:col-span-3">
-              <p className="block text-charcoal font-medium mb-1 text-sm">Also works at</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <FieldRow label="Also works at">
+              <div className="flex flex-col gap-2 pt-1.5">
                 {locations
                   .filter((location) => location.name !== preferredLocation)
                   .map((location) => {
@@ -662,12 +654,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                     );
                   })}
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Shows this person as available when planning those yards too.
-              </p>
-            </div>
+            </FieldRow>
           </div>
-        </div>
+        </FormSection>
 
         {!inline && (
           <div className="mt-4 flex gap-2 justify-end border-t border-gray-200 pt-3">
@@ -692,9 +681,31 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
     </form>
   );
 
+  const headerToggles = (
+    <div className="flex items-center gap-4">
+      <ToggleSwitch
+        id="admin-edit-isActive-inline"
+        label="Active"
+        checked={isActive}
+        onChange={setIsActive}
+        disabled={loading}
+      />
+      <div title="When off, moves are still imported but hidden from leaderboards and charts.">
+        <ToggleSwitch
+          id="admin-edit-showOnReports-inline"
+          label="Show on reports"
+          checked={showOnReports}
+          onChange={setShowOnReports}
+          disabled={loading}
+        />
+      </div>
+    </div>
+  );
+
   if (inline) {
     return (
       <div className="bg-white" ref={modalRef}>
+        {visibilityHost ? createPortal(headerToggles, visibilityHost) : null}
         {formContent}
       </div>
     );

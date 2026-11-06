@@ -95,7 +95,7 @@ class AdminShellScreen extends StatelessWidget {
     AdminSection.preChecks => 'Admin PreChecks',
     AdminSection.fleet => 'Tugs and Tablets',
     AdminSection.checkItems => 'Check Items',
-    AdminSection.attendance => 'Black list',
+    AdminSection.attendance => 'Attendance',
     AdminSection.performance => 'Performance Import',
     AdminSection.activity => 'Activity',
     AdminSection.induction => 'Yard Induction',

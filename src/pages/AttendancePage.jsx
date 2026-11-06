@@ -2,19 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../lib/supabaseClient';
 import { format } from 'date-fns';
-import AddViolationModal from '../components/Admin/AddViolationModal';
 import { attendanceLabel } from '../utils/attendanceStatus';
 
 /**
- * Black list overview: users with attendance records and/or disciplinary notes.
+ * Attendance overview: users with attendance records and/or disciplinary notes.
  * Detail editing lives on Admin Users → Violations tab (deep-link via onOpenUserViolations).
  */
-export default function AttendancePage({ users = [], onOpenUserViolations }) {
+export default function AttendancePage({ onOpenUserViolations }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [grouped, setGrouped] = useState([]);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [addModalUserId, setAddModalUserId] = useState(null);
+  const [expandedUserId, setExpandedUserId] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -147,7 +145,7 @@ export default function AttendancePage({ users = [], onOpenUserViolations }) {
 
       setGrouped(list);
     } catch (e) {
-      console.error('Error fetching black list:', e);
+      console.error('Error fetching attendance:', e);
       setError(e.message || 'Failed to load data');
       setGrouped([]);
     } finally {
@@ -159,9 +157,8 @@ export default function AttendancePage({ users = [], onOpenUserViolations }) {
     fetchData();
   }, [fetchData]);
 
-  const openAddModal = (userId) => {
-    setAddModalUserId(userId ?? null);
-    setAddModalOpen(true);
+  const toggleRow = (userId) => {
+    setExpandedUserId((current) => (current === userId ? null : userId));
   };
 
   const openUser = (userId) => {
@@ -186,171 +183,124 @@ export default function AttendancePage({ users = [], onOpenUserViolations }) {
     );
   }
 
+  const pageIntro = (
+    <div>
+      <h2 className="text-lg font-semibold text-charcoal">Attendance</h2>
+      <p className="mt-0.5 text-sm text-gray-600">
+        Absences and disciplinary notes. Open a person to manage details on Users.
+      </p>
+    </div>
+  );
+
   if (grouped.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-charcoal">Black list</h2>
-            <p className="text-sm text-gray-600 mt-0.5">
-              No one on the black list.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openAddModal(null)}
-            className="admin-btn"
-          >
-            Add violation
-          </button>
-        </div>
-        <p className="text-sm text-gray-500">
-          Add attendance marks (no show, sick, late, other) from the rota or open a user on Users → Violations.
-        </p>
+        {pageIntro}
+        <p className="text-sm text-gray-500">No attendance records yet.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-charcoal">Black list</h2>
-          <p className="text-sm text-gray-600 mt-0.5">
-            Overview of attendance and disciplinary notes. Open a person to manage details on Users.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => openAddModal(null)}
-          className="admin-btn-muted"
-        >
-          Add violation
-        </button>
-      </div>
+      {pageIntro}
 
-      <div className="space-y-3">
-        {grouped.map((row) => (
-          <div
-            key={row.user_id}
-            className="admin-section-card"
-          >
-            <div className="admin-section-body">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <div className="space-y-2">
+        {grouped.map((row) => {
+          const expanded = expandedUserId === row.user_id;
+          const name = `${row.profile?.first_name || ''} ${row.profile?.last_name || ''}`.trim() || 'Unknown';
+          const records = [...(row.records || [])].sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+          );
+          return (
+            <div key={row.user_id} className="admin-section-card">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => toggleRow(row.user_id)}
+                  aria-expanded={expanded}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <span className="truncate font-semibold text-charcoal">{name}</span>
+                  <span className="ml-auto flex flex-wrap justify-end gap-2">
+                    {row.no_show > 0 && (
+                      <span className="admin-chip !h-7 cursor-default text-xs">No show: {row.no_show}</span>
+                    )}
+                    {row.sick > 0 && (
+                      <span className="admin-chip !h-7 cursor-default text-xs">Sick: {row.sick}</span>
+                    )}
+                    {row.late > 0 && (
+                      <span className="admin-chip !h-7 cursor-default text-xs">Late: {row.late}</span>
+                    )}
+                    {row.other > 0 && (
+                      <span className="admin-chip !h-7 cursor-default text-xs">Other: {row.other}</span>
+                    )}
+                    {(row.violations?.length || 0) > 0 && (
+                      <span className="admin-chip admin-chip-active !h-7 cursor-default text-xs">
+                        Violations: {row.violations.length}
+                      </span>
+                    )}
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => openUser(row.user_id)}
-                  className="font-bold text-charcoal text-left hover:underline"
+                  className="admin-btn shrink-0"
                 >
-                  {row.profile?.first_name || ''} {row.profile?.last_name || ''}
+                  Open
                 </button>
-                <div className="flex flex-wrap items-center gap-2">
-                  {row.no_show > 0 && (
-                    <span className="admin-chip !h-7 text-xs cursor-default">
-                      No show: {row.no_show}
-                    </span>
-                  )}
-                  {row.sick > 0 && (
-                    <span className="admin-chip !h-7 text-xs cursor-default">
-                      Sick: {row.sick}
-                    </span>
-                  )}
-                  {row.late > 0 && (
-                    <span className="admin-chip !h-7 text-xs cursor-default">
-                      Late: {row.late}
-                    </span>
-                  )}
-                  {row.other > 0 && (
-                    <span className="admin-chip !h-7 text-xs cursor-default">
-                      Other: {row.other}
-                    </span>
-                  )}
-                  {(row.violations?.length || 0) > 0 && (
-                    <span className="admin-chip admin-chip-active !h-7 text-xs cursor-default">
-                      Violations: {row.violations.length}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => openUser(row.user_id)}
-                    className="admin-btn"
-                  >
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openAddModal(row.user_id)}
-                    className="admin-btn-muted"
-                  >
-                    Add violation
-                  </button>
-                </div>
               </div>
 
-              {row.records && row.records.length > 0 && (
-                <div className="mb-3">
-                  <h4 className="text-xs font-semibold uppercase text-gray-500 mb-1">Attendance</h4>
-                  <ul className="text-sm text-gray-600 space-y-0.5">
-                    {row.records
-                      .sort((a, b) => new Date(b.date) - new Date(a.date))
-                      .slice(0, 20)
-                      .map((r, i) => (
-                        <li key={i}>
-                          {r.date ? format(new Date(r.date), 'd MMM yyyy') : '—'} —{' '}
-                          <span className="font-medium">{attendanceLabel(r.status) || r.status}</span>
-                          {r.note && <span className="text-gray-500"> — {r.note}</span>}
-                        </li>
-                      ))}
-                  </ul>
-                  {row.records.length > 20 && (
-                    <p className="text-xs text-gray-500 mt-1">+ {row.records.length - 20} more</p>
+              {expanded && (
+                <div className="space-y-3 border-t border-gray-200 px-4 py-3">
+                  {records.length > 0 && (
+                    <div>
+                      <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Attendance</h4>
+                      <ul className="space-y-0.5 text-sm text-gray-600">
+                        {records.slice(0, 20).map((record, index) => (
+                          <li key={`${record.date}-${record.status}-${index}`}>
+                            {record.date ? format(new Date(record.date), 'd MMM yyyy') : '—'} —{' '}
+                            <span className="font-medium">{attendanceLabel(record.status) || record.status}</span>
+                            {record.note && <span className="text-gray-500"> — {record.note}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                      {records.length > 20 && (
+                        <p className="mt-1 text-xs text-gray-500">+ {records.length - 20} more</p>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {row.violations && row.violations.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold uppercase text-gray-500 mb-1">Disciplinary notes</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {row.violations.slice(0, 5).map((v) => (
-                      <li key={v.id} className="flex flex-wrap gap-x-2">
-                        <span className="text-gray-500">
-                          {v.created_at ? format(new Date(v.created_at), 'd MMM yyyy') : '—'}
-                        </span>
-                        <span>{v.body}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {row.violations.length > 5 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      + {row.violations.length - 5} more — Open for full list
-                    </p>
+                  {row.violations && row.violations.length > 0 && (
+                    <div>
+                      <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Disciplinary notes</h4>
+                      <ul className="space-y-1 text-sm text-gray-600">
+                        {row.violations.slice(0, 5).map((violation) => (
+                          <li key={violation.id} className="flex flex-wrap gap-x-2">
+                            <span className="text-gray-500">
+                              {violation.created_at ? format(new Date(violation.created_at), 'd MMM yyyy') : '—'}
+                            </span>
+                            <span>{violation.body}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {row.violations.length > 5 && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          + {row.violations.length - 5} more — Open for the full list
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      <AddViolationModal
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        initialUserId={addModalUserId}
-        users={users}
-        onSuccess={fetchData}
-      />
     </div>
   );
 }
 
 AttendancePage.propTypes = {
-  users: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      first_name: PropTypes.string,
-      last_name: PropTypes.string,
-    })
-  ),
   onOpenUserViolations: PropTypes.func,
 };

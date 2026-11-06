@@ -10,6 +10,41 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 
+function roleLabel(role) {
+  if (role === 'admin') return 'Admin';
+  if (role === 'vmu') return 'VMU';
+  if (role === 'transport_manager') return 'Transport manager';
+  return 'User';
+}
+
+function UserAvatar({ user }) {
+  return (
+    <div className="relative h-10 w-10 flex-shrink-0">
+      {user.avatar_url ? (
+        <img
+          className="h-10 w-10 rounded-full object-cover"
+          src={normalizeAvatarStorageUrl(user.avatar_url) || user.avatar_url}
+          alt=""
+          width={40}
+          height={40}
+          decoding="async"
+        />
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+          <span className="text-sm font-semibold text-charcoal">
+            {user.first_name?.charAt(0) || '?'}
+          </span>
+        </div>
+      )}
+      <span
+        className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${
+          user.is_active === false ? 'bg-gray-300' : 'bg-green-500'
+        }`}
+      />
+    </div>
+  );
+}
+
 // Create a modal portal component
 const Modal = ({ isOpen, onClose, children }) => {
   useEffect(() => {
@@ -483,6 +518,25 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
     setUserPanel(nextTab);
   };
+
+  const requestExpandToggleRef = useRef(requestExpandToggle);
+  requestExpandToggleRef.current = requestExpandToggle;
+
+  useEffect(() => {
+    if (!expandedUserId) return undefined;
+    const onKey = (event) => {
+      if (event.key !== 'Escape') return;
+      if (showDeleteModal || unsavedDialogOpen) return;
+      requestExpandToggleRef.current?.(expandedUserId);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expandedUserId, showDeleteModal, unsavedDialogOpen]);
+
+  useEffect(() => {
+    if (!expandedUserId) return;
+    document.getElementById(`admin-user-row-${expandedUserId}`)?.scrollIntoView({ block: 'nearest' });
+  }, [expandedUserId, filteredUsers]);
   
   const openDeleteModal = (user) => {
     setUserToDelete(user);
@@ -548,6 +602,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
       if (onRefresh) {
         onRefresh();
       }
+
+      setExpandedUserId((current) => (current === userToDelete.id ? null : current));
+      setUserPanel('details');
+      setFormDirty(false);
       
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -730,10 +788,15 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     </>
   );
   
+  const selectedUser = users.find((user) => user.id === expandedUserId) || null;
+  const selectedViolationCount = selectedUser
+    ? violationCountByUser[selectedUser.id]
+    : 0;
+
   return (
-    <>
-      {/* Search – at the very top, no container */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap mb-4">
+    <div>
+    <div className="mr-auto flex h-[calc(100dvh-72px-2rem-4.75rem)] w-full max-w-lg flex-col md:h-[calc(100dvh-72px-3rem)] lg:h-[calc(100dvh-72px-4rem)]">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
         <div className="relative flex-1 min-w-0">
           <input
             type="text"
@@ -760,155 +823,31 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         </button>
       </div>
 
-      {/* One card per user – white admin section cards, expandable */}
-      <div className="space-y-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
         {filteredUsers.map((user) => {
-          const isExpanded = expandedUserId === user.id;
+          const isSelected = expandedUserId === user.id;
 
           return (
-            <div
+            <button
               key={user.id}
-              className={`admin-section-card transition-shadow ${isExpanded ? 'shadow-md' : ''}`}
+              id={`admin-user-row-${user.id}`}
+              type="button"
+              onClick={() => requestExpandToggle(user.id)}
+              aria-current={isSelected ? 'true' : undefined}
+              className={`admin-section-card flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+                isSelected ? 'ring-2 ring-charcoal/20' : ''
+              }`}
             >
-              {/* Header: clickable row (avatar, name, activity) */}
-              <div className="flex items-center gap-2 bg-white hover:bg-gray-50 transition-colors">
-                <button
-                  type="button"
-                  onClick={() => requestExpandToggle(user.id)}
-                  className="flex-1 min-w-0 px-4 py-3 text-left flex items-center gap-3 bg-transparent hover:bg-gray-50 transition-colors"
-                >
-                  {/* Avatar */}
-                  <div className="flex-shrink-0 h-10 w-10 relative">
-                    {user.avatar_url ? (
-                      <img className="h-10 w-10 rounded-full object-cover" src={normalizeAvatarStorageUrl(user.avatar_url) || user.avatar_url} alt="" width={40} height={40} decoding="async" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-white/80 flex items-center justify-center">
-                        <span className="text-charcoal text-sm font-semibold">
-                          {user.first_name?.charAt(0) || '?'}
-                        </span>
-                      </div>
-                    )}
-                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${user.is_active === false ? 'bg-gray-300' : 'bg-green-500'}`} />
-                  </div>
-
-                  {/* Name */}
-                  <span className="text-charcoal font-semibold text-sm truncate">
-                    {user.first_name || ''} {user.last_name || ''}
-                  </span>
-                  {user.last_activity_at && (
-                    <span className="text-gray-500 text-xs ml-auto flex-shrink-0">
-                      {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* Expanded content – role, Details | Violations tabs, form or panel */}
-              {isExpanded && (
-                <>
-                  <div className="border-t border-gray-200 bg-white px-4 py-3 space-y-3">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-600">Role</span>
-                      {isAdmin ? (
-                        <select
-                          aria-label={`Role for ${user.first_name || ''} ${user.last_name || ''}`}
-                          value={user.role || ''}
-                          onChange={(e) => handleRoleChange(user, e.target.value)}
-                          disabled={roleUpdatingUserId === user.id}
-                          className="admin-input !w-auto disabled:opacity-60"
-                        >
-                          <option value="">User</option>
-                          <option value="admin">Admin</option>
-                          <option value="vmu">VMU</option>
-                          <option value="transport_manager">Transport manager</option>
-                        </select>
-                      ) : (
-                        <span className="text-sm text-charcoal">
-                          {user.role === 'admin' ? 'Admin' : user.role === 'vmu' ? 'VMU' : user.role === 'transport_manager' ? 'Transport manager' : 'User'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="admin-seg-track w-full grid grid-cols-2 !h-auto p-0.5 md:w-auto md:inline-grid md:!h-8">
-                      <button
-                        type="button"
-                        onClick={() => requestPanelChange('details')}
-                        className={`admin-seg-item w-full !h-9 md:!h-7 ${
-                          userPanel === 'details' ? 'admin-seg-item-active' : ''
-                        }`}
-                      >
-                        Details
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => requestPanelChange('violations')}
-                        className={`admin-seg-item w-full !h-9 md:!h-7 ${
-                          userPanel === 'violations' ? 'admin-seg-item-active' : ''
-                        }`}
-                      >
-                        Violations
-                        {typeof violationCountByUser[user.id] === 'number' &&
-                          violationCountByUser[user.id] > 0 && (
-                          <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-[10px] font-bold rounded-full bg-gray-200 text-charcoal">
-                            {violationCountByUser[user.id]}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  {userPanel === 'details' ? (
-                    <>
-                      <div className="border-t border-gray-200 bg-white">
-                        <UserEditForm
-                          user={user}
-                          inline
-                          onDirtyChange={setFormDirty}
-                          onClose={() => {
-                            setExpandedUserId(null);
-                            setUserPanel('details');
-                            setFormDirty(false);
-                          }}
-                          onSuccess={(updates) => {
-                            handleRefresh();
-                            if (updates && updates.id === user.id) {
-                              setExpandedUserId(null);
-                              setUserPanel('details');
-                              setFormDirty(false);
-                            }
-                          }}
-                        />
-                      </div>
-                      <div className="border-t border-gray-100 bg-gray-50 px-4 py-2 flex flex-nowrap gap-2 sm:gap-3 items-stretch w-full md:justify-end md:items-center">
-                        <button
-                          type="submit"
-                          form="user-edit-inline-form"
-                          className="admin-btn flex-1 min-w-0 md:flex-none text-center"
-                        >
-                          Save changes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteModal(user)}
-                          disabled={processingUser === user.id}
-                          className="admin-btn-danger flex-1 min-w-0 md:flex-none text-center"
-                        >
-                          {processingUser === user.id ? 'Deleting…' : 'Delete'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="border-t border-gray-200 bg-white">
-                      <UserViolationsPanel
-                        userId={user.id}
-                        users={users}
-                        onCountChange={(count) => {
-                          setViolationCountByUser((prev) => ({ ...prev, [user.id]: count }));
-                        }}
-                      />
-                    </div>
-                  )}
-                </>
+              <UserAvatar user={user} />
+              <span className="min-w-0 truncate text-sm font-semibold text-charcoal">
+                {user.first_name || ''} {user.last_name || ''}
+              </span>
+              {user.last_activity_at && (
+                <span className="ml-auto flex-shrink-0 text-xs text-gray-500">
+                  {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
+                </span>
               )}
-            </div>
+            </button>
           );
         })}
 
@@ -1009,7 +948,112 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         isDestructive
         overlayClassName="z-[10001]"
       />
-    </>
+    </div>
+    {selectedUser && createPortal(
+      <div
+        className="fixed right-0 top-[72px] z-[60] flex h-[calc(100dvh-72px)] w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:left-[calc(5rem+2rem+32rem+0.75rem)] lg:w-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-user-drawer-title"
+      >
+        <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4">
+          <UserAvatar user={selectedUser} />
+          <h2 id="admin-user-drawer-title" className="min-w-0 flex-1 truncate text-base font-semibold text-charcoal">
+            {selectedUser.first_name || ''} {selectedUser.last_name || ''}
+          </h2>
+          {isAdmin ? (
+            <select
+              id="admin-user-role"
+              aria-label={`Role for ${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`}
+              value={selectedUser.role || ''}
+              onChange={(e) => handleRoleChange(selectedUser, e.target.value)}
+              disabled={roleUpdatingUserId === selectedUser.id}
+              className="admin-input !w-auto shrink-0 disabled:opacity-60"
+            >
+              <option value="">User</option>
+              <option value="admin">Admin</option>
+              <option value="vmu">VMU</option>
+              <option value="transport_manager">Transport manager</option>
+            </select>
+          ) : (
+            <span className="shrink-0 text-sm text-charcoal">{roleLabel(selectedUser.role)}</span>
+          )}
+        </div>
+
+        <div className="flex gap-5 border-b border-gray-200 px-5">
+          <button
+            type="button"
+            onClick={() => requestPanelChange('details')}
+            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+              userPanel === 'details' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
+            }`}
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={() => requestPanelChange('violations')}
+            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+              userPanel === 'violations' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
+            }`}
+          >
+            Violations
+            {typeof selectedViolationCount === 'number' && selectedViolationCount > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
+                {selectedViolationCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className={`border-b border-gray-200 px-5 py-3 ${userPanel === 'details' ? '' : 'hidden'}`}>
+          <div id="admin-user-visibility-slot" className="flex items-center" />
+        </div>
+
+        <div className={`min-h-0 flex-1 ${userPanel === 'violations' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
+          <div className={userPanel === 'details' ? 'px-5 py-5' : 'hidden'}>
+            <UserEditForm
+              key={selectedUser.id}
+              user={selectedUser}
+              inline
+              onDirtyChange={setFormDirty}
+              onClose={() => requestExpandToggle(selectedUser.id)}
+              onSuccess={() => {
+                handleRefresh();
+                setFormDirty(false);
+              }}
+            />
+          </div>
+          {userPanel === 'violations' && (
+            <UserViolationsPanel
+              userId={selectedUser.id}
+              users={users}
+              onCountChange={(count) => {
+                setViolationCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
+              }}
+            />
+          )}
+        </div>
+
+        {userPanel === 'details' && (
+          <div className="flex justify-end gap-2 border-t border-gray-200 bg-white px-5 py-3">
+            <button
+              type="button"
+              onClick={() => openDeleteModal(selectedUser)}
+              disabled={processingUser === selectedUser.id}
+              className="admin-btn-danger"
+            >
+              {processingUser === selectedUser.id ? 'Deleting…' : 'Delete user'}
+            </button>
+            <button type="submit" form="user-edit-inline-form" className="admin-btn">
+              Save changes
+            </button>
+          </div>
+        )}
+      </div>,
+      document.body
+    )}
+    </div>
   );
 }
 

@@ -111,19 +111,11 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
   }
 
   return (
-    <div className="p-4 space-y-5 max-w-3xl">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-gray-600">
-          Attendance marks and disciplinary notes for this person.
-        </p>
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          className="admin-btn"
-        >
-          Add violation
-        </button>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
+      <p className="text-sm text-gray-600">
+        Attendance marks and disciplinary notes for this person.
+      </p>
 
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
@@ -172,6 +164,17 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
             ))}
           </ul>
         )}
+      </div>
+      </div>
+
+      <div className="flex justify-end border-t border-gray-200 bg-white px-5 py-3">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="admin-btn"
+        >
+          Add violation
+        </button>
       </div>
 
       <AddViolationModal
