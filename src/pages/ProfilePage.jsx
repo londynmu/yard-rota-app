@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 import { useToast } from '../components/ui/ToastContext';
 import { format } from 'date-fns';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { normalizePhoneE164 } from '../utils/phoneE164';
 import { formatPreferredStartTime, PREFERRED_START_SAVED_EVENT } from '../utils/preferredStartTime';
 
 // Helper function to capitalize first letter
@@ -39,6 +40,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // Add agency state
   const [agencies, setAgencies] = useState([]);
   const [agencyId, setAgencyId] = useState(null);
+  // WhatsApp PreCheck reminders (messaging phone + consent)
+  const [phoneE164, setPhoneE164] = useState('');
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   // Attendance & notes (own records only)
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [violations, setViolations] = useState([]);
@@ -91,7 +95,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       const { data, error } = await supabaseClient
         .from('profiles')
         .select(
-          'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role',
+          'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role, phone_e164, whatsapp_opt_in',
         )
         .eq('id', user.id)
         .single();
@@ -111,6 +115,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         );
         setPreferredLocation(data.preferred_location || '');
         setAgencyId(data.agency_id || null);
+        setPhoneE164(data.phone_e164 || '');
+        setWhatsappOptIn(Boolean(data.whatsapp_opt_in));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -391,6 +397,29 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       const capitalizedFirstName = capitalizeFirstLetter(firstName);
       const capitalizedLastName = capitalizeFirstLetter(lastName);
       
+      let normalizedPhone = null;
+      try {
+        normalizedPhone = normalizePhoneE164(phoneE164);
+      } catch (phoneError) {
+        setFormErrors((prev) => ({
+          ...prev,
+          phoneE164: phoneError.message || 'Enter a valid phone number',
+        }));
+        toast.error(phoneError.message || 'Enter a valid phone number');
+        setLoading(false);
+        return;
+      }
+
+      if (whatsappOptIn && !normalizedPhone) {
+        setFormErrors((prev) => ({
+          ...prev,
+          phoneE164: 'Add a phone number to enable WhatsApp reminders',
+        }));
+        toast.error('Add a phone number to enable WhatsApp reminders');
+        setLoading(false);
+        return;
+      }
+
       // Create profile data object
       const profileData = {
         id: user.id,
@@ -404,6 +433,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         preferred_start_time: customStartTime || null,
         preferred_location: preferredLocation || null,
         agency_id: agencyId,
+        phone_e164: normalizedPhone,
+        whatsapp_opt_in: Boolean(whatsappOptIn && normalizedPhone),
       };
       
       // Only set account_status to pending_approval for first-time profile creation
@@ -1067,6 +1098,57 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                     ))}
                   </select>
                   {formErrors.agency && <p className="text-xs text-red-500 mt-0.5">{formErrors.agency}</p>}
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="phoneE164">
+                    Phone (WhatsApp)
+                  </label>
+                  <input
+                    id="phoneE164"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phoneE164}
+                    onChange={(e) => {
+                      setPhoneE164(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, phoneE164: '' }));
+                    }}
+                    placeholder="+447…"
+                    className={inputClass(!!formErrors.phoneE164)}
+                  />
+                  {formErrors.phoneE164 ? (
+                    <p className="text-xs text-red-500 mt-0.5">{formErrors.phoneE164}</p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Used for PreCheck WhatsApp reminders. UK numbers OK as 07… or +44…
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col justify-end">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-charcoal">WhatsApp reminders</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Operational PreCheck nudges only — not marketing. You can turn this off anytime.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={whatsappOptIn}
+                      id="whatsappOptIn"
+                      onClick={() => setWhatsappOptIn((v) => !v)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                        whatsappOptIn ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                          whatsappOptIn ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
 
