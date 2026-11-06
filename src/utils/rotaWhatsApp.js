@@ -108,10 +108,89 @@ export function formatRotaWeekRangeShort(weekStartIso) {
   return `${startLabel}–${endLabel}`;
 }
 
+/** Placeholder for empty Sat–Fri day slots in week template v2 (Meta forbids empty vars). */
+export const ROTA_WA_DAY_OFF = 'off';
+
+/** Fixed weekday labels for Sat→Fri week (matches yard_rota_week_shunter_v2 body). */
+export const ROTA_WA_WEEK_DAY_LABELS = Object.freeze([
+  'Sat',
+  'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+]);
+
+/**
+ * @param {string} weekStartIso yyyy-MM-dd Saturday
+ * @param {number} dayOffset 0..6
+ * @returns {string} yyyy-MM-dd
+ */
+export function rotaWeekDayIso(weekStartIso, dayOffset) {
+  const raw = String(weekStartIso || '').trim().slice(0, 10);
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate() + dayOffset);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Shift windows for one calendar day (am/pm). Multiple windows joined with ", ".
+ * @param {Array<{ start_time?: unknown, end_time?: unknown }>} dayShifts
+ * @returns {string}
+ */
+export function formatDayShiftWindows(dayShifts) {
+  const sorted = (dayShifts || []).slice().sort((a, b) =>
+    String(a.start_time || '').localeCompare(String(b.start_time || '')),
+  );
+  return sorted
+    .map((s) => {
+      const start = formatShiftTimeAmPm(s.start_time);
+      const end = formatShiftTimeAmPm(s.end_time);
+      if (start && end) return `${start}–${end}`;
+      return start || end || '';
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * Seven Sat→Fri values for week template vars {{4}}…{{10}}.
+ * Empty days are always `off` (never blank — Meta rejects empty Content Variables).
+ *
+ * @param {string} weekStartIso yyyy-MM-dd Saturday
+ * @param {Array<{ date?: unknown, start_time?: unknown, end_time?: unknown }>} shifts
+ * @returns {string[]} length 7
+ */
+export function buildShunterWeekDayVariables(weekStartIso, shifts) {
+  const byDate = new Map();
+  for (const shift of shifts || []) {
+    const date = String(shift?.date || '').trim().slice(0, 10);
+    if (!date) continue;
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date).push(shift);
+  }
+
+  const days = [];
+  for (let i = 0; i < 7; i += 1) {
+    const iso = rotaWeekDayIso(weekStartIso, i);
+    const windows = formatDayShiftWindows(byDate.get(iso) || []);
+    days.push(windows || ROTA_WA_DAY_OFF);
+  }
+  return days;
+}
+
 /**
  * Stacked per-day shift summary (no weekday names):
  * "21 December, 5pm–5pm"
  * Multiple days joined with " · ".
+ * Kept for assignment ping / short UI labels — not for week ContentVariables.
  *
  * @param {Array<{ date?: unknown, start_time?: unknown, end_time?: unknown }>} shifts
  * @returns {string}
@@ -127,25 +206,17 @@ export function formatShunterShiftSummary(shifts) {
 
   const dates = [...byDate.keys()].sort();
   const lines = dates.map((date) => {
-    const dayShifts = byDate.get(date).slice().sort((a, b) =>
-      String(a.start_time || '').localeCompare(String(b.start_time || '')),
-    );
-    const windows = dayShifts.map((s) => {
-      const start = formatShiftTimeAmPm(s.start_time);
-      const end = formatShiftTimeAmPm(s.end_time);
-      if (start && end) return `${start}–${end}`;
-      return start || end || '';
-    }).filter(Boolean);
+    const windows = formatDayShiftWindows(byDate.get(date) || []);
     const dateLabel = formatShiftDateLong(date);
-    if (!windows.length) return dateLabel;
-    return `${dateLabel}, ${windows.join(', ')}`;
+    if (!windows) return dateLabel;
+    return `${dateLabel}, ${windows}`;
   }).filter(Boolean);
 
   return lines.join(' · ');
 }
 
 /**
- * Unique location label for template {{4}}.
+ * Unique location label for week template {{3}} (and ping {{3}}).
  * @param {Array<{ location?: unknown }>} shifts
  * @returns {string}
  */

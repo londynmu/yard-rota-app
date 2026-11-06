@@ -13,6 +13,7 @@ import {
 import {
   adminResendIdempotencyKey,
   assignmentPingIdempotencyKey,
+  buildShunterWeekDayVariables,
   formatCreatorDisplayName,
   formatRotaWeekRangeShort,
   formatShunterLocations,
@@ -20,6 +21,7 @@ import {
   isBlockingStatus,
   isValidPhoneE164,
   ROTA_WA_RESEND_COOLDOWN_MS,
+  ROTA_WA_WEEK_DAY_LABELS,
   shunterWeekIdempotencyKey,
 } from "../_shared/rotaWhatsApp.ts";
 
@@ -69,6 +71,7 @@ type PreviewPerson = {
   label: string;
   can_force_resend: boolean;
   shift_summary?: string;
+  shift_days?: Array<{ label: string; value: string }>;
   locations?: string;
 };
 
@@ -466,6 +469,11 @@ serve(async (req) => {
       lastSentAt: blocking?.updated_at || null,
       now,
     });
+    const dayValues = buildShunterWeekDayVariables(weekStart, userSlots);
+    person.shift_days = ROTA_WA_WEEK_DAY_LABELS.map((label, index) => ({
+      label,
+      value: dayValues[index] || "off",
+    }));
     person.shift_summary = formatShunterShiftSummary(userSlots);
     person.locations = formatShunterLocations(userSlots);
     people.push(person);
@@ -582,8 +590,8 @@ serve(async (req) => {
       contentVariables: buildRotaShunterContentVariables({
         firstName: profile.first_name || "",
         weekRange,
-        shiftSummary: formatShunterShiftSummary(userSlots),
         locations: formatShunterLocations(userSlots),
+        dayValues: buildShunterWeekDayVariables(weekStart, userSlots),
         creatorName,
       }),
     });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adminResendIdempotencyKey,
   assignmentPingIdempotencyKey,
+  buildShunterWeekDayVariables,
   classifyRotaWhatsAppRecipient,
   filterReadyRecipientIds,
   formatCreatorDisplayName,
@@ -11,6 +12,7 @@ import {
   formatShunterLocations,
   formatShunterShiftSummary,
   isRotaWhatsAppBlockingStatus,
+  ROTA_WA_DAY_OFF,
   shunterWeekIdempotencyKey,
   summarizeRotaWhatsAppPreview,
 } from './rotaWhatsApp';
@@ -54,6 +56,30 @@ describe('rotaWhatsApp formatting', () => {
       { date: '2026-12-21', start_time: '17:00', end_time: '17:00' },
     ]);
     expect(summary).toBe('21 December, 5pm–5pm · 22 December, 5:45am–6pm');
+  });
+
+  it('builds Sat→Fri day variables with off for empty days', () => {
+    // Week Sat 2026-11-07 … Fri 2026-11-13
+    const days = buildShunterWeekDayVariables('2026-11-07', [
+      { date: '2026-11-07', start_time: '17:00', end_time: '17:00' }, // Sat
+      { date: '2026-11-09', start_time: '05:45', end_time: '18:00' }, // Mon
+      { date: '2026-11-09', start_time: '06:00', end_time: '14:00' }, // Mon second window
+    ]);
+    expect(days).toHaveLength(7);
+    expect(days[0]).toBe('5pm–5pm');
+    expect(days[1]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[2]).toBe('5:45am–6pm, 6am–2pm');
+    expect(days[3]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[4]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[5]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[6]).toBe(ROTA_WA_DAY_OFF);
+    expect(days.every((value) => value.length > 0)).toBe(true);
+  });
+
+  it('fills all off when there are no shifts in the week', () => {
+    expect(buildShunterWeekDayVariables('2026-11-07', [])).toEqual([
+      'off', 'off', 'off', 'off', 'off', 'off', 'off',
+    ]);
   });
 
   it('joins unique locations', () => {

@@ -371,32 +371,59 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
             Add people to the rota before sending
           </p>
         ) : (
-          <ul className="max-h-48 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
-            {people.map((person) => (
-              <li
-                key={person.user_id}
-                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
-              >
-                <span className="text-rota-text-primary font-medium">
-                  {personName(person)}
-                </span>
-                <span
-                  className={
-                    person.status === 'ready'
-                      ? 'text-emerald-700'
-                      : person.status === 'already_sent'
-                        ? 'text-rota-text-muted'
-                        : 'text-amber-700'
-                  }
+          <ul className="max-h-64 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+            {people.map((person) => {
+              const dayRows = Array.isArray(person.shift_days) && person.shift_days.length
+                ? person.shift_days
+                : null;
+              return (
+                <li
+                  key={person.user_id}
+                  className="space-y-1 px-3 py-2 text-sm"
                 >
-                  {person.status === 'ready'
-                    ? 'Ready'
-                    : person.status === 'already_sent'
-                      ? 'Already sent'
-                      : person.label}
-                </span>
-              </li>
-            ))}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-rota-text-primary font-medium">
+                      {personName(person)}
+                      {person.locations ? (
+                        <span className="ml-1 font-normal text-rota-text-muted">
+                          · {person.locations}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span
+                      className={
+                        person.status === 'ready'
+                          ? 'text-emerald-700'
+                          : person.status === 'already_sent'
+                            ? 'text-rota-text-muted'
+                            : 'text-amber-700'
+                      }
+                    >
+                      {person.status === 'ready'
+                        ? 'Ready'
+                        : person.status === 'already_sent'
+                          ? 'Already sent'
+                          : person.label}
+                    </span>
+                  </div>
+                  {dayRows ? (
+                    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-rota-text-muted sm:grid-cols-4">
+                      {dayRows.map((day) => (
+                        <li key={`${person.user_id}-${day.label}`}>
+                          <span className="font-medium text-rota-text-primary">
+                            {day.label}
+                          </span>
+                          {' '}
+                          {day.value}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : person.shift_summary ? (
+                    <p className="text-xs text-rota-text-muted">{person.shift_summary}</p>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
         {!emptyWeek && !loadingPreview && (

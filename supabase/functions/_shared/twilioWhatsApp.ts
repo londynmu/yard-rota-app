@@ -67,22 +67,31 @@ export function buildPrecheckContentVariables(input: {
   return { "1": name, "2": window, "3": link };
 }
 
-/** Rota week summary to shunter: {{1}} name {{2}} week {{3}} shifts {{4}} location {{5}} creator */
+/**
+ * Rota week summary v2 (`yard_rota_week_shunter_v2`):
+ * {{1}} name {{2}} week {{3}} location {{4}}…{{10}} Sat→Fri {{11}} creator
+ * Day values must never be empty (use `off`).
+ */
 export function buildRotaShunterContentVariables(input: {
   firstName: string;
   weekRange: string;
-  shiftSummary: string;
   locations: string;
+  dayValues: string[];
   creatorName: string;
 }): Record<string, string> {
   const name = (input.firstName || "there").trim() || "there";
-  return {
+  const days = Array.isArray(input.dayValues) ? input.dayValues : [];
+  const vars: Record<string, string> = {
     "1": name,
     "2": (input.weekRange || "").trim() || "this week",
-    "3": (input.shiftSummary || "").trim() || "see app",
-    "4": (input.locations || "").trim() || "yard",
-    "5": (input.creatorName || "").trim() || "Yard Rota",
+    "3": (input.locations || "").trim() || "yard",
+    "11": (input.creatorName || "").trim() || "Yard Rota",
   };
+  for (let i = 0; i < 7; i += 1) {
+    const value = String(days[i] || "").trim() || "off";
+    vars[String(i + 4)] = value;
+  }
+  return vars;
 }
 
 /** Manual assignment ping: {{1}} name {{2}} shift {{3}} location {{4}} creator */
