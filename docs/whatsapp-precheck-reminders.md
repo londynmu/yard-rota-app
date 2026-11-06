@@ -26,7 +26,9 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 7. Enable cron by uncommenting the job block in
    `supabase/migrations/20261106130000_precheck_reminder_sends.sql`
    (or schedule manually) once secrets + template work. Default: every 10 minutes;
-   targeting waits **30 minutes** after shift start; max **1** cron send per user+rota.
+   targeting waits **30 minutes** after shift start; at most one **successful**
+   cron send per user+rota. Failed Twilio attempts retry after **15 minutes**,
+   up to **5** attempts (same ledger row / idempotency key).
 
 ## App behaviour
 
