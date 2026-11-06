@@ -9,6 +9,7 @@ import PrecheckSignedImage from '../components/PreCheck/PrecheckSignedImage';
 import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 
 const VMU_FILTERS_KEY = 'vmu_filters';
@@ -69,7 +70,7 @@ function formatFieldValue(field, value) {
 
 function loadPersistedFilters() {
   try {
-    const raw = localStorage.getItem(VMU_FILTERS_KEY);
+    const raw = safeLocalStorage.getItem(VMU_FILTERS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
   return { tug: '', status: '', search: '' };
@@ -122,7 +123,7 @@ export default function VmuPage() {
 
   // ─── Persist filters ───
   useEffect(() => {
-    localStorage.setItem(VMU_FILTERS_KEY, JSON.stringify(filters));
+    safeLocalStorage.setItem(VMU_FILTERS_KEY, JSON.stringify(filters));
   }, [filters]);
 
   // ─── Fetch data: open defects first, then recent resolved ───

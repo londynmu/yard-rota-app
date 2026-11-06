@@ -17,6 +17,7 @@ import PhoneRequiredPrompt from './components/User/PhoneRequiredPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
 import { setMonitoringUser } from './lib/monitoring';
+import { safeLocalStorage } from './utils/safeStorage';
 
 const AUTH_HASH_WAIT_MS = 10000;
 const PRIVILEGED_ROLES = new Set(['admin', 'vmu', 'transport_manager']);
@@ -125,7 +126,7 @@ function AppContent() {
       if (isRecoveryLink() && location.pathname !== '/reset-password') {
         // Save the hash to localStorage before navigating
         if (window.location.hash && window.location.hash.includes('access_token')) {
-          localStorage.setItem('recoveryHash', window.location.hash);
+          safeLocalStorage.setItem('recoveryHash', window.location.hash);
         }
         
         // Use replace to avoid creating history entries
@@ -266,16 +267,16 @@ function AppContent() {
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {
     if (!user && location.pathname.startsWith('/precheck/tug/')) {
-      localStorage.setItem('redirect_after_login', location.pathname);
+      safeLocalStorage.setItem('redirect_after_login', location.pathname);
     }
   }, [user, location.pathname]);
 
   // After login, check for saved redirect
   useEffect(() => {
     if (user && isProfileComplete && isApproved) {
-      const redirectPath = localStorage.getItem('redirect_after_login');
+      const redirectPath = safeLocalStorage.getItem('redirect_after_login');
       if (redirectPath) {
-        localStorage.removeItem('redirect_after_login');
+        safeLocalStorage.removeItem('redirect_after_login');
         navigate(redirectPath, { replace: true });
       }
     }

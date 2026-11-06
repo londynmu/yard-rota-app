@@ -9,16 +9,44 @@ const QUEUE_EVENT = 'precheck-queue-update';
 const DEFAULT_UPLOAD_CONCURRENCY = 3;
 
 let processingPromise = null;
+let idbUnavailable = false;
+const memoryJobs = new Map();
 
-const getDb = async () => openDB(DB_NAME, 1, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      store.createIndex('userId', 'userId', { unique: false });
-      store.createIndex('status', 'status', { unique: false });
-    }
-  }
+/** In-memory stand-in when IndexedDB is blocked (same SecurityError class of issue). */
+const createMemoryDb = () => ({
+  async put(_store, value) {
+    memoryJobs.set(value.id, value);
+  },
+  async getAll() {
+    return Array.from(memoryJobs.values());
+  },
+  async delete(_store, id) {
+    memoryJobs.delete(id);
+  },
 });
+
+const getDb = async () => {
+  if (idbUnavailable) return createMemoryDb();
+  try {
+    if (typeof indexedDB === 'undefined') {
+      idbUnavailable = true;
+      return createMemoryDb();
+    }
+    return await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          store.createIndex('userId', 'userId', { unique: false });
+          store.createIndex('status', 'status', { unique: false });
+        }
+      },
+    });
+  } catch (err) {
+    console.warn('[precheckQueue] IndexedDB unavailable, using memory fallback:', err);
+    idbUnavailable = true;
+    return createMemoryDb();
+  }
+};
 
 const createId = () => {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();

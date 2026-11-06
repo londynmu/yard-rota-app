@@ -1,3 +1,4 @@
+import { safeLocalStorage } from '../utils/safeStorage';
 import React, { useState, useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
@@ -12,7 +13,7 @@ export default function PWAInstallPrompt() {
     }
 
     // Sprawdź czy użytkownik już odmówił instalacji
-    const userDeclined = localStorage.getItem('pwa-install-declined')
+    const userDeclined = safeLocalStorage.getItem('pwa-install-declined')
     if (userDeclined === 'true') {
       return
     }
@@ -66,7 +67,7 @@ export default function PWAInstallPrompt() {
 
   const handleDecline = () => {
     // Zapisz w localStorage że użytkownik odmówił
-    localStorage.setItem('pwa-install-declined', 'true')
+    safeLocalStorage.setItem('pwa-install-declined', 'true')
     setShowPrompt(false)
     setDeferredPrompt(null)
   }

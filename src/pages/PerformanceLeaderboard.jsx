@@ -11,6 +11,7 @@ import { useNotifications } from '../lib/NotificationContext';
 import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { filterShownOnReports, isShownOnReports } from '../utils/performanceVisibility';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -142,12 +143,12 @@ const PerformanceLeaderboard = () => {
     if (parseActualDateParam(new URLSearchParams(window.location.search).get('date'))) {
       return 'last_day';
     }
-    const stored = localStorage.getItem('performance_range');
+    const stored = safeLocalStorage.getItem('performance_range');
     // Validate stored value
     const validRanges = ['last_day', 'last_week', 'last_month', 'all'];
     if (stored && validRanges.includes(stored)) return stored;
     
-    const legacy = localStorage.getItem('performance_period');
+    const legacy = safeLocalStorage.getItem('performance_period');
     switch (legacy) {
       case 'today':
         return 'last_day';
@@ -167,7 +168,7 @@ const PerformanceLeaderboard = () => {
     if (parseActualDateParam(new URLSearchParams(window.location.search).get('date'))) {
       return 'moves';
     }
-    const stored = localStorage.getItem('performance_sort');
+    const stored = safeLocalStorage.getItem('performance_sort');
     const validSorts = ['moves', 'per_day'];
     return (stored && validSorts.includes(stored)) ? stored : 'moves';
   });
@@ -180,11 +181,11 @@ const PerformanceLeaderboard = () => {
 
   // Save preferences to localStorage
   useEffect(() => {
-    localStorage.setItem('performance_range', selectedRange);
+    safeLocalStorage.setItem('performance_range', selectedRange);
   }, [selectedRange]);
 
   useEffect(() => {
-    localStorage.setItem('performance_sort', sortOption);
+    safeLocalStorage.setItem('performance_sort', sortOption);
   }, [sortOption]);
 
   // Calculate date range based on selected range (rolling windows).

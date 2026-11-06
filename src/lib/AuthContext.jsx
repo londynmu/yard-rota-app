@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import PropTypes from 'prop-types';
 import { resetCalendarStaticCache } from '../utils/calendarStaticCache';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
 
 // Site URL for redirects - load from environment variables
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://shunters.net';
@@ -176,11 +177,11 @@ export function AuthProvider({ children }) {
       
       // 3. Clear only auth-related storage (preserve user preferences)
       // Remove Supabase auth token
-      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
-      localStorage.removeItem('recoveryHash');
+      safeLocalStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      safeLocalStorage.removeItem('recoveryHash');
       
       // Remove session tracking
-      sessionStorage.removeItem('page_tracking_session_id');
+      safeSessionStorage.removeItem('page_tracking_session_id');
       
       // 4. Add a slightly longer delay to ensure cleanup completes before redirect
       await new Promise(resolve => setTimeout(resolve, 200)); 
@@ -205,9 +206,9 @@ export function AuthProvider({ children }) {
       setUser(null);
       setSessionProfile(null);
       resetCalendarStaticCache();
-      localStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
-      localStorage.removeItem('recoveryHash');
-      sessionStorage.removeItem('page_tracking_session_id');
+      safeLocalStorage.removeItem('sb-jkjvtvwedjiupxoibpld-auth-token');
+      safeLocalStorage.removeItem('recoveryHash');
+      safeSessionStorage.removeItem('page_tracking_session_id');
       
       // Fallback redirect
       const isLocalhost = window.location.hostname === 'localhost' || 

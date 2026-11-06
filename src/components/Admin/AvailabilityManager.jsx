@@ -13,18 +13,19 @@ import {
 } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import AvailabilityEditModal from './AvailabilityEditModal';
+import { safeLocalStorage } from '../../utils/safeStorage';
 
 export default function AvailabilityManager() {
   const [currentDate, setCurrentDate] = useState(() => {
     // Try to get date from localStorage
-    const savedDate = localStorage.getItem('availability_manager_date');
+    const savedDate = safeLocalStorage.getItem('availability_manager_date');
     return savedDate ? new Date(savedDate) : new Date();
   });
   const [users, setUsers] = useState([]);
   const [sortedUsers, setSortedUsers] = useState([]);
   const [sortBy, setSortBy] = useState(() => {
     // Try to get sort filter from localStorage
-    return localStorage.getItem('availability_manager_sort') || 'all';
+    return safeLocalStorage.getItem('availability_manager_sort') || 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [availabilityData, setAvailabilityData] = useState({});
@@ -36,12 +37,12 @@ export default function AvailabilityManager() {
 
   // Save current date to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('availability_manager_date', currentDate.toISOString());
+    safeLocalStorage.setItem('availability_manager_date', currentDate.toISOString());
   }, [currentDate]);
   
   // Save sort preference to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('availability_manager_sort', sortBy);
+    safeLocalStorage.setItem('availability_manager_sort', sortBy);
   }, [sortBy]);
 
   // Fetch users

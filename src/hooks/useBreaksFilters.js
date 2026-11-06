@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { safeLocalStorage } from '../utils/safeStorage';
 import {
   fetchActiveLocationNamesCached,
   fetchShowManageBreaksCached,
@@ -11,7 +12,7 @@ const VALID_SHIFT_TYPES = ['day', 'afternoon', 'night'];
 
 const getInitialSelectedShifts = () => {
   try {
-    const savedValue = localStorage.getItem(CALENDAR_BREAKS_SHIFT_FILTERS_KEY);
+    const savedValue = safeLocalStorage.getItem(CALENDAR_BREAKS_SHIFT_FILTERS_KEY);
     if (!savedValue) return VALID_SHIFT_TYPES;
 
     const parsed = JSON.parse(savedValue);
@@ -32,7 +33,7 @@ const getInitialSelectedShifts = () => {
  */
 export function useBreaksFilters() {
   const [selectedLocation, setSelectedLocation] = useState(
-    () => localStorage.getItem(CALENDAR_BREAKS_LOCATION_KEY) || ''
+    () => safeLocalStorage.getItem(CALENDAR_BREAKS_LOCATION_KEY) || ''
   );
   const [availableLocations, setAvailableLocations] = useState([]);
   const [locationsLoaded, setLocationsLoaded] = useState(false);
@@ -101,15 +102,15 @@ export function useBreaksFilters() {
 
   useEffect(() => {
     if (selectedLocation) {
-      localStorage.setItem(CALENDAR_BREAKS_LOCATION_KEY, selectedLocation);
+      safeLocalStorage.setItem(CALENDAR_BREAKS_LOCATION_KEY, selectedLocation);
       return;
     }
 
-    localStorage.removeItem(CALENDAR_BREAKS_LOCATION_KEY);
+    safeLocalStorage.removeItem(CALENDAR_BREAKS_LOCATION_KEY);
   }, [selectedLocation]);
 
   useEffect(() => {
-    localStorage.setItem(
+    safeLocalStorage.setItem(
       CALENDAR_BREAKS_SHIFT_FILTERS_KEY,
       JSON.stringify(selectedShifts)
     );

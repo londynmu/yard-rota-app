@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { reportError } from '../lib/monitoring';
+import { safeSessionStorage } from '../utils/safeStorage';
 
 // Session storage key to track reload attempts and prevent infinite loops
 const CHUNK_ERROR_RELOAD_KEY = 'chunk_error_reload_timestamp';
@@ -34,10 +35,11 @@ const isChunkLoadError = (error) => {
 };
 
 /**
- * Check if we can safely reload the page (not in a reload loop)
+ * Check if we can safely reload the page (not in a reload loop).
+ * Uses safeSessionStorage so blocked storage never throws into the boundary.
  */
 const canReloadSafely = () => {
-  const lastReloadTime = sessionStorage.getItem(CHUNK_ERROR_RELOAD_KEY);
+  const lastReloadTime = safeSessionStorage.getItem(CHUNK_ERROR_RELOAD_KEY);
   
   if (!lastReloadTime) return true;
   
@@ -49,7 +51,7 @@ const canReloadSafely = () => {
  * Mark that we're about to reload due to chunk error
  */
 const markReloadAttempt = () => {
-  sessionStorage.setItem(CHUNK_ERROR_RELOAD_KEY, Date.now().toString());
+  safeSessionStorage.setItem(CHUNK_ERROR_RELOAD_KEY, Date.now().toString());
 };
 
 /**
@@ -110,7 +112,7 @@ class ErrorBoundary extends React.Component {
   
   handleReload = () => {
     // Clear the reload tracking so user can manually trigger reload
-    sessionStorage.removeItem(CHUNK_ERROR_RELOAD_KEY);
+    safeSessionStorage.removeItem(CHUNK_ERROR_RELOAD_KEY);
     window.location.reload();
   };
 

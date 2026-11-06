@@ -10,6 +10,7 @@ import {
 } from '../utils/tmLocationsWithStaff';
 import TmLocationPills from '../components/TransportManager/TmLocationPills';
 import { attendanceLabel } from '../utils/attendanceStatus';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const getWeekStart = (date) => {
   const day = date.getDay();
@@ -22,7 +23,7 @@ export default function TransportManagerRota() {
   const [selectedDate, setSelectedDate] = useState(() => getEffectiveTodayYmd());
   const [staffedLocations, setStaffedLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('tm_dashboard_location') || '' : ''
+    typeof window !== 'undefined' ? safeLocalStorage.getItem('tm_dashboard_location') || '' : ''
   );
   const [dailyRota, setDailyRota] = useState({});
   const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
@@ -41,7 +42,7 @@ export default function TransportManagerRota() {
     if (e) return;
     const staffed = locationsWithStaffToday(data || []);
     setStaffedLocations(staffed);
-    const saved = localStorage.getItem('tm_dashboard_location');
+    const saved = safeLocalStorage.getItem('tm_dashboard_location');
     const next = resolveTmLocationSelection(staffed, saved);
     if (next) setSelectedLocation(next);
   }, [todayYmd]);
@@ -101,7 +102,7 @@ export default function TransportManagerRota() {
 
   useEffect(() => {
     if (!selectedLocation) return;
-    localStorage.setItem('tm_dashboard_location', selectedLocation);
+    safeLocalStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation]);
 
   useEffect(() => {

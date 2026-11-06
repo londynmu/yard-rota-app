@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 // Production / preview builds must receive VITE_* from Netlify
 // (`netlify.toml` [build.environment] and/or Site env).
@@ -50,6 +51,8 @@ function createSupabaseClient() {
         persistSession: true,
         detectSessionInUrl: true,
         storageKey,
+        // Avoid SecurityError when Chrome Android blocks localStorage
+        storage: safeLocalStorage,
       },
       global: {
         headers: {

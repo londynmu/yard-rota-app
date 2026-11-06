@@ -19,6 +19,7 @@ import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
 import AttendancePage from './AttendancePage';
 import InductionGuideManager from '../components/Admin/InductionGuideManager';
 import { getCurrentMonthAwards } from '../utils/shunterAwardsApi';
+import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -29,7 +30,7 @@ export default function AdminPage() {
   const [error, setError] = useState(null);
   // Aktywna sekcja - zmiana na sidebar navigation
   const [activeSection, setActiveSection] = useState(() => {
-    const savedSection = localStorage.getItem('adminActiveSection');
+    const savedSection = safeLocalStorage.getItem('adminActiveSection');
     // Validate saved section
     const validSections = [
       'dashboard', 'users', 'approvals', 'availability', 
@@ -91,18 +92,18 @@ export default function AdminPage() {
 
   // Check if we need to migrate old rota tab
   useEffect(() => {
-    const savedTab = localStorage.getItem('adminActiveTab');
+    const savedTab = safeLocalStorage.getItem('adminActiveTab');
     if (savedTab === 'rota') {
       // Update to use new rota-planner section
-      localStorage.setItem('adminActiveSection', 'rota-planner');
-      localStorage.removeItem('adminActiveTab');
+      safeLocalStorage.setItem('adminActiveSection', 'rota-planner');
+      safeLocalStorage.removeItem('adminActiveTab');
       setActiveSection('rota-planner');
     }
   }, []);
 
   // Efekt do zapisywania aktywnej sekcji w localStorage
   useEffect(() => {
-    localStorage.setItem('adminActiveSection', activeSection);
+    safeLocalStorage.setItem('adminActiveSection', activeSection);
   }, [activeSection]);
 
   // Zapisz scroll Statistics przy wyjściu, przywróć przy wejściu
@@ -111,11 +112,11 @@ export default function AdminPage() {
     prevSectionRef.current = activeSection;
     if (prev === 'stats' && activeSection !== 'stats' && mainContentRef.current) {
       try {
-        sessionStorage.setItem('admin_stats_scroll', String(mainContentRef.current.scrollTop));
+        safeSessionStorage.setItem('admin_stats_scroll', String(mainContentRef.current.scrollTop));
       } catch (_) {}
     }
     if (activeSection === 'stats') {
-      const saved = sessionStorage.getItem('admin_stats_scroll');
+      const saved = safeSessionStorage.getItem('admin_stats_scroll');
       if (saved != null && mainContentRef.current) {
         const top = parseInt(saved, 10);
         if (!isNaN(top)) {

@@ -14,6 +14,7 @@ import { countPendingAdditionalPeople } from '../../../utils/rotaWeekBaseline';
 
 // Add date-fns for date manipulation
 import { format, addDays, subDays, parseISO, getWeek } from 'date-fns';
+import { safeLocalStorage } from '../../../utils/safeStorage';
 import {
   isConsecutiveWorkDaysDbError,
   parseMaxConsecutiveWorkDays,
@@ -39,12 +40,12 @@ const getWeekStart = (date) => {
 
 const RotaManager = ({ user }) => {
   const [viewMode, setViewMode] = useState(() => {
-    const saved = localStorage.getItem('rota_planner_view_mode');
+    const saved = safeLocalStorage.getItem('rota_planner_view_mode');
     return saved === 'week' ? 'week' : 'day';
   });
   const [currentDate, setCurrentDate] = useState(() => {
     // Get saved date from localStorage with proper default to today
-    const savedDate = localStorage.getItem('rota_planner_current_date');
+    const savedDate = safeLocalStorage.getItem('rota_planner_current_date');
     if (savedDate) {
       return savedDate;
     } else {
@@ -66,21 +67,21 @@ const RotaManager = ({ user }) => {
   const [modalError, setModalError] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(() => {
     // Próbujemy odczytać ostatnio wybraną lokalizację z localStorage
-    const savedLocation = localStorage.getItem('selected_rota_location_view');
+    const savedLocation = safeLocalStorage.getItem('selected_rota_location_view');
     return savedLocation || null; // Will be set to first location after loading
   });
 
   // Auto-navigate to today's date when entering Rota Planner page
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    const lastVisitedRotaPlanner = localStorage.getItem('rota_planner_last_visited');
+    const lastVisitedRotaPlanner = safeLocalStorage.getItem('rota_planner_last_visited');
     const currentVisit = Date.now().toString();
     
     // If this is a new visit to rota planner page (different day or first time), set today's date
     if (!lastVisitedRotaPlanner || 
         (lastVisitedRotaPlanner && new Date(parseInt(lastVisitedRotaPlanner)).toDateString() !== new Date().toDateString())) {
       setCurrentDate(today);
-      localStorage.setItem('rota_planner_last_visited', currentVisit);
+      safeLocalStorage.setItem('rota_planner_last_visited', currentVisit);
     }
   }, []); // Run only once when component mounts
   const [newSlot, setNewSlot] = useState({
@@ -99,12 +100,12 @@ const RotaManager = ({ user }) => {
 
   // Save current date to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('rota_planner_current_date', currentDate);
+    safeLocalStorage.setItem('rota_planner_current_date', currentDate);
   }, [currentDate]);
 
   // Save view mode to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('rota_planner_view_mode', viewMode);
+    safeLocalStorage.setItem('rota_planner_view_mode', viewMode);
   }, [viewMode]);
 
   useEffect(() => {
@@ -125,14 +126,14 @@ const RotaManager = ({ user }) => {
   // Save scroll position when user scrolls
   useEffect(() => {
     const saveScroll = () => {
-      localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+      safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     };
 
     window.addEventListener('scroll', saveScroll, { passive: true });
 
     // Robust scroll restoration function with retries
     const restoreScroll = () => {
-      const saved = localStorage.getItem('rota_planner_scroll_position');
+      const saved = safeLocalStorage.getItem('rota_planner_scroll_position');
       if (!saved) return;
       const target = parseInt(saved, 10);
       let attempts = 0;
@@ -156,7 +157,7 @@ const RotaManager = ({ user }) => {
     return () => {
       window.removeEventListener('scroll', saveScroll);
       // Save final scroll position when component unmounts
-      localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+      safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     };
   }, []);
 
@@ -174,7 +175,7 @@ const RotaManager = ({ user }) => {
         setLocations(data || []);
         
         // Get saved location from localStorage
-        const savedLocation = localStorage.getItem('preferred_rota_location');
+        const savedLocation = safeLocalStorage.getItem('preferred_rota_location');
         
         // Set default location - either saved preference or first available
         if (data && data.length > 0) {
@@ -192,7 +193,7 @@ const RotaManager = ({ user }) => {
           if (!selectedLocationValid && data.length > 0) {
             // Set to first location if the previously selected location is no longer active or null
             setSelectedLocation(data[0].name);
-            localStorage.setItem('selected_rota_location_view', data[0].name);
+            safeLocalStorage.setItem('selected_rota_location_view', data[0].name);
           }
         }
       } catch (error) {
@@ -275,7 +276,7 @@ const RotaManager = ({ user }) => {
         setSlots(mergedSlots);
 
         setTimeout(() => {
-          const savedScrollPosition = localStorage.getItem('rota_planner_scroll_position');
+          const savedScrollPosition = safeLocalStorage.getItem('rota_planner_scroll_position');
           if (savedScrollPosition) {
             window.scrollTo({
               top: parseInt(savedScrollPosition),
@@ -313,7 +314,7 @@ const RotaManager = ({ user }) => {
 
   const handleDateChange = (e) => {
     // Save current scroll position before changing date
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     setCurrentDate(e.target.value);
   };
 
@@ -349,7 +350,7 @@ const RotaManager = ({ user }) => {
       }
 
       // Save the selected location as preferred
-      localStorage.setItem('preferred_rota_location', newSlot.location);
+      safeLocalStorage.setItem('preferred_rota_location', newSlot.location);
 
       const { data, error } = await supabase
         .from('scheduled_rota')
@@ -1095,7 +1096,7 @@ const RotaManager = ({ user }) => {
 
   const goToPreviousDay = () => {
     // Save current scroll position before changing date
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const previousDay = addDays(currentDateObj, -1);
     setCurrentDate(format(previousDay, 'yyyy-MM-dd'));
@@ -1103,27 +1104,27 @@ const RotaManager = ({ user }) => {
 
   const goToNextDay = () => {
     // Save current scroll position before changing date
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const currentDateObj = parseISO(currentDate);
     const nextDay = addDays(currentDateObj, 1);
     setCurrentDate(format(nextDay, 'yyyy-MM-dd'));
   };
 
   const goToPreviousWeek = () => {
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const weekStartDate = getWeekStart(parseISO(currentDate));
     const prevWeekStart = addDays(weekStartDate, -7);
     setCurrentDate(format(prevWeekStart, 'yyyy-MM-dd'));
   };
 
   const goToCurrentWeek = () => {
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const weekStartDate = getWeekStart(new Date());
     setCurrentDate(format(weekStartDate, 'yyyy-MM-dd'));
   };
 
   const goToNextWeek = () => {
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const weekStartDate = getWeekStart(parseISO(currentDate));
     const nextWeekStart = addDays(weekStartDate, 7);
     setCurrentDate(format(nextWeekStart, 'yyyy-MM-dd'));
@@ -1141,9 +1142,9 @@ const RotaManager = ({ user }) => {
 
   const handleLocationTabClick = (location) => {
     // Save current scroll position before changing location
-    localStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     setSelectedLocation(location);
-    localStorage.setItem('selected_rota_location_view', location);
+    safeLocalStorage.setItem('selected_rota_location_view', location);
   };
 
   // Resetowanie błędu modalu przy otwieraniu/zamykaniu
@@ -1736,7 +1737,7 @@ const RotaManager = ({ user }) => {
                     value={newSlot.location}
                     onChange={(e) => {
                       setNewSlot({ ...newSlot, location: e.target.value });
-                      localStorage.setItem('preferred_rota_location', e.target.value);
+                      safeLocalStorage.setItem('preferred_rota_location', e.target.value);
                     }}
                     className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                   >
