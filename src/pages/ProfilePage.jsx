@@ -8,6 +8,24 @@ import { format } from 'date-fns';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { normalizePhoneE164 } from '../utils/phoneE164';
 import { formatPreferredStartTime, PREFERRED_START_SAVED_EVENT } from '../utils/preferredStartTime';
+import { reportError } from '../lib/monitoring';
+
+/** Safe profile columns only — never phone_e164 / whatsapp_opt_in (SELECT revoked). */
+const PROFILE_PAGE_SELECT_FIELDS =
+  'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role';
+
+function firstRpcRow(data) {
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function isMissingRpcError(error) {
+  const msg = error?.message || '';
+  return (
+    error?.code === 'PGRST202' ||
+    error?.code === '42883' ||
+    /could not find the function|function .* does not exist/i.test(msg)
+  );
+}
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -91,34 +109,53 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setIsOffline(true);
         throw new Error('You appear to be offline. Please check your internet connection.');
       }
-      
-      // phone_e164 / whatsapp_opt_in are not table-selectable (sensitive columns);
-      // load them via own-row SECURITY DEFINER RPC only.
-      const [profileResult, messagingResult] = await Promise.all([
-        supabaseClient
-          .from('profiles')
-          .select(
-            'id, first_name, last_name, shift_preference, avatar_url, preferred_start_time, custom_start_time, preferred_location, agency_id, account_status, profile_completed, role',
-          )
-          .eq('id', user.id)
-          .single(),
-        supabaseClient.rpc('get_own_whatsapp_messaging'),
-      ]);
 
-      const { data, error } = profileResult;
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      // Prefer one SECURITY DEFINER RPC (safe cols + messaging). Falls back when
+      // migration is not applied yet: table select of safe cols + messaging RPC.
+      // Never select phone_e164 / whatsapp_opt_in from the table (SELECT revoked).
+      let data = null;
+      let phone = '';
+      let optIn = false;
+
+      const pageRpc = await supabaseClient.rpc('get_own_profile_page');
+      if (!pageRpc.error) {
+        data = firstRpcRow(pageRpc.data) || null;
+        phone = data?.phone_e164 || '';
+        optIn = Boolean(data?.whatsapp_opt_in);
+      } else if (!isMissingRpcError(pageRpc.error)) {
+        throw pageRpc.error;
+      } else {
+        const [profileResult, messagingResult] = await Promise.all([
+          supabaseClient
+            .from('profiles')
+            .select(PROFILE_PAGE_SELECT_FIELDS)
+            .eq('id', user.id)
+            .single(),
+          supabaseClient.rpc('get_own_whatsapp_messaging'),
+        ]);
+
+        const { data: profileData, error } = profileResult;
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+        data = profileData;
+
+        // Soft-fail messaging: still show name / shift / etc. if phone RPC fails.
+        if (messagingResult.error) {
+          console.error('Error loading WhatsApp messaging settings:', messagingResult.error);
+          reportError(messagingResult.error, { source: 'ProfilePage.messaging' });
+        } else {
+          const messaging = firstRpcRow(messagingResult.data);
+          phone = messaging?.phone_e164 || '';
+          optIn = Boolean(messaging?.whatsapp_opt_in);
+        }
       }
-      if (messagingResult.error) {
-        throw messagingResult.error;
-      }
-      
+
       if (data) {
         setFirstName(data.first_name || '');
         setLastName(data.last_name || '');
         setShiftPreference(data.shift_preference || 'day');
         setAvatarUrl(normalizeAvatarStorageUrl(data.avatar_url) || '');
-        // Load Rota Planner fields
         setCustomStartTime(
           formatPreferredStartTime(data.preferred_start_time) || data.custom_start_time || ''
         );
@@ -126,13 +163,11 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         setAgencyId(data.agency_id || null);
       }
 
-      const messaging = Array.isArray(messagingResult.data)
-        ? messagingResult.data[0]
-        : messagingResult.data;
-      setPhoneE164(messaging?.phone_e164 || '');
-      setWhatsappOptIn(Boolean(messaging?.whatsapp_opt_in));
+      setPhoneE164(phone || '');
+      setWhatsappOptIn(optIn);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      reportError(error, { source: 'ProfilePage.fetchProfile' });
       
       // Handle connection errors
       if (!navigator.onLine || 
@@ -145,6 +180,12 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           type: 'error' 
         });
         toast.error('Unable to connect to server. Please check your internet connection and try again.');
+      } else if (/permission denied/i.test(error.message || '')) {
+        // Old cached / Capacitor clients often SELECT * or revoked phone columns.
+        const refreshHint =
+          'Failed to load profile data. Please force-refresh this page (or update the app) and try again.';
+        setMessage({ text: refreshHint, type: 'error' });
+        toast.error(refreshHint);
       } else {
         setMessage({ 
           text: 'Failed to load profile data: ' + (error.message || 'Unknown error'), 
