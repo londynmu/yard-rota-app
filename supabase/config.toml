@@ -28,3 +28,10 @@ verify_jwt = true
 
 [functions.send-rota-email]
 verify_jwt = true
+
+[functions.send-precheck-whatsapp-reminders]
+verify_jwt = true
+
+# Twilio posts status callbacks without a Supabase JWT; signature is verified in-function.
+[functions.twilio-whatsapp-status]
+verify_jwt = false
