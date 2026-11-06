@@ -7,7 +7,7 @@ import TimePicker from './TimePicker';
 import EditSlotModal from './EditSlotModal';
 import ExportRotaButton from '../ExportRotaButton';
 import TemplateModal from './TemplateModal';
-import RotaWhatsAppSendPanel from './RotaWhatsAppSendPanel';
+import RotaWhatsAppSendButton from './RotaWhatsAppSendButton';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../ui/ToastContext';
 import { countPendingAdditionalPeople } from '../../../utils/rotaWeekBaseline';
@@ -1515,11 +1515,15 @@ const RotaManager = ({ user }) => {
                 </span>
               )}
             </div>
+
+            <div className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10">
+              <RotaWhatsAppSendButton
+                weekStart={getWeekStart(parseISO(currentDate))}
+              />
+            </div>
           </div>
         </div>
       </div>
-
-      <RotaWhatsAppSendPanel weekStart={getWeekStart(parseISO(currentDate))} />
 
       <div className="space-y-4 md:space-y-8">
         {viewMode === 'day' ? (

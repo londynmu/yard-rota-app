@@ -8,7 +8,7 @@ Manual admin send after creating / editing a week in Rota Planner.
 - Migration: `supabase/migrations/20261106170000_rota_whatsapp_sends.sql` (apply only after owner approval)
 - Edge Function: `send-rota-whatsapp` (admin JWT)
 - Status webhook: `twilio-whatsapp-status` also updates `rota_whatsapp_sends` by MessageSid
-- UI: Admin → Rota Planner → **Send rota on WhatsApp**
+- UI: Admin → Rota Planner → WhatsApp icon beside Export → modal checklist (**Send to N selected**). No always-on panel. Already-notified people are disabled (no resend button). Optional **Notify one shift** stays at the bottom of the modal.
 
 ## Meta / Twilio Content Templates
 
@@ -96,7 +96,7 @@ npx supabase functions deploy twilio-whatsapp-status --project-ref jkjvtvwedjiup
 2. Create / submit **v2** week template with the Meta-safe body above; wait for **Approved**.
 3. Set `TWILIO_WHATSAPP_CONTENT_SID_ROTA_SHUNTER` to the new v2 SID (owner).
 4. Deploy `send-rota-whatsapp`.
-5. Admin → Rota Planner → preview (per-day Sat–Fri) → **Send to shunters** for 1–2 test people with phone + opt-in.
+5. Admin → Rota Planner → WhatsApp icon → search/select 1–2 ready people → **Send to N selected**.
 6. On the phone: each day on its own line (`Sat 5pm–5pm`, `Sun off`, …); trailing fixed line after “Sent by …”.
-7. Optional: **Notify this person** for a single assignment (ping template unchanged).
+7. Re-open the modal: those people show **Sent** (checkbox disabled). Optional: **Notify one shift** for a single assignment (ping template unchanged).
 8. Confirm status updates in Twilio and `rota_whatsapp_sends`.
