@@ -26,14 +26,64 @@ CREATE UNIQUE INDEX IF NOT EXISTS profiles_phone_e164_unique
   ON public.profiles (phone_e164)
   WHERE phone_e164 IS NOT NULL;
 
--- Column-level SELECT (table SELECT was revoked in
--- 20261027053000_profiles_hide_sensitive_columns_fix).
-GRANT SELECT (
+-- Messaging columns are sensitive (same pattern as email / notes_for_admin in
+-- 20261027053000_profiles_hide_sensitive_columns_fix): NOT in table-wide
+-- column SELECT grants for anon/authenticated. Own-row read via
+-- get_own_whatsapp_messaging(); admin list via get_admin_profiles_with_emails.
+REVOKE SELECT (
   phone_e164,
   whatsapp_opt_in,
   whatsapp_opt_in_at,
   whatsapp_opt_in_by
-) ON public.profiles TO anon, authenticated;
+) ON public.profiles FROM PUBLIC;
+REVOKE SELECT (
+  phone_e164,
+  whatsapp_opt_in,
+  whatsapp_opt_in_at,
+  whatsapp_opt_in_by
+) ON public.profiles FROM anon;
+REVOKE SELECT (
+  phone_e164,
+  whatsapp_opt_in,
+  whatsapp_opt_in_at,
+  whatsapp_opt_in_by
+) ON public.profiles FROM authenticated;
+
+-- Own-row UPDATE of phone + opt-in (audit columns stamped by privilege guard).
+GRANT UPDATE (phone_e164, whatsapp_opt_in) ON public.profiles TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Own-row messaging read (SECURITY DEFINER — never expose others' numbers)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_own_whatsapp_messaging()
+RETURNS TABLE (
+  phone_e164 text,
+  whatsapp_opt_in boolean
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  caller uuid := auth.uid();
+BEGIN
+  IF caller IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    p.phone_e164,
+    COALESCE(p.whatsapp_opt_in, false)
+  FROM public.profiles p
+  WHERE p.id = caller
+    AND p.deleted_at IS NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_own_whatsapp_messaging() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_own_whatsapp_messaging() TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Privilege guard: allow own-row phone + opt-in; stamp opt-in audit;

@@ -26,7 +26,9 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 7. Enable cron by uncommenting the job block in
    `supabase/migrations/20261106130000_precheck_reminder_sends.sql`
    (or schedule manually) once secrets + template work. Default: every 10 minutes;
-   targeting waits **30 minutes** after shift start; max **1** cron send per user+rota.
+   targeting waits **30 minutes** after shift start; at most one **successful**
+   cron send per user+rota. Failed Twilio attempts retry after **15 minutes**,
+   up to **5** attempts (same ledger row / idempotency key).
 
 ## App behaviour
 
@@ -34,3 +36,10 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 - Admins can edit the same fields on **Users**.
 - Without phone **or** opt-in, cron/force send skip that person.
 - Clipboard **Copy** on the missing-PreCheck list remains as backup.
+
+## Privacy
+
+- `phone_e164` / `whatsapp_opt_in*` are **not** granted for table-wide SELECT to `anon` / `authenticated` (same pattern as email).
+- Own-row read: RPC `get_own_whatsapp_messaging()` (SECURITY DEFINER, `auth.uid()` only).
+- Admin read: `get_admin_profiles_with_emails` (SECURITY DEFINER).
+- Own-row / admin UPDATE of phone + opt-in still goes through `profiles` + privilege guard.
