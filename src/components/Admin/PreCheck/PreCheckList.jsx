@@ -7,6 +7,7 @@ import Modal from '../../ui/Modal';
 import { printSingleCheck, printAuditPack } from '../../../lib/precheckPrint';
 import { getStatusOptions } from '../../../utils/defectStatus';
 import PrecheckSignedImage from '../../PreCheck/PrecheckSignedImage';
+import { safeLocalStorage } from '../../../utils/safeStorage';
 
 // ─── Shared status config for repair_status lifecycle ───
 export const STATUS_CONFIG = {
@@ -72,14 +73,14 @@ export default function PreCheckList({ readOnly = false }) {
   // ─── Faults filter (persisted in localStorage) ───
   const FAULTS_FILTER_KEY = 'precheck_faults_filter';
   const [faultsFilter, setFaultsFilter] = useState(
-    () => localStorage.getItem(FAULTS_FILTER_KEY) || ''
+    () => safeLocalStorage.getItem(FAULTS_FILTER_KEY) || ''
   );
   const handleFaultsFilterChange = (value) => {
     setFaultsFilter(value);
     if (value) {
-      localStorage.setItem(FAULTS_FILTER_KEY, value);
+      safeLocalStorage.setItem(FAULTS_FILTER_KEY, value);
     } else {
-      localStorage.removeItem(FAULTS_FILTER_KEY);
+      safeLocalStorage.removeItem(FAULTS_FILTER_KEY);
     }
   };
 

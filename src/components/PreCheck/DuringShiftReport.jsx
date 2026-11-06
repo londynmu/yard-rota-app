@@ -10,6 +10,7 @@ import {
   submitDuringShiftPayload,
 } from '../../lib/precheckQueue';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
+import { safeSessionStorage } from '../../utils/safeStorage';
 
 const FORM_STORAGE_KEY = 'precheck_during_shift_form';
 const FORM_SESSION_ID_KEY = 'precheck_during_shift_form_session_id';
@@ -17,7 +18,7 @@ const FORM_SESSION_ID_KEY = 'precheck_during_shift_form_session_id';
 const saveFormState = (data) => {
   try {
     // Can't serialize File objects, only save text fields
-    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
+    safeSessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify({
       description: data.description,
     }));
   } catch { /* ignore */ }
@@ -25,19 +26,19 @@ const saveFormState = (data) => {
 
 const loadFormState = () => {
   try {
-    const saved = sessionStorage.getItem(FORM_STORAGE_KEY);
+    const saved = safeSessionStorage.getItem(FORM_STORAGE_KEY);
     return saved ? JSON.parse(saved) : null;
   } catch { return null; }
 };
 
 const getOrCreateFormSessionId = () => {
   try {
-    const existing = sessionStorage.getItem(FORM_SESSION_ID_KEY);
+    const existing = safeSessionStorage.getItem(FORM_SESSION_ID_KEY);
     if (existing) return existing;
     const id = globalThis.crypto?.randomUUID
       ? globalThis.crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    sessionStorage.setItem(FORM_SESSION_ID_KEY, id);
+    safeSessionStorage.setItem(FORM_SESSION_ID_KEY, id);
     return id;
   } catch {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -45,8 +46,8 @@ const getOrCreateFormSessionId = () => {
 };
 
 const clearFormState = () => {
-  sessionStorage.removeItem(FORM_STORAGE_KEY);
-  sessionStorage.removeItem(FORM_SESSION_ID_KEY);
+  safeSessionStorage.removeItem(FORM_STORAGE_KEY);
+  safeSessionStorage.removeItem(FORM_SESSION_ID_KEY);
 };
 
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {

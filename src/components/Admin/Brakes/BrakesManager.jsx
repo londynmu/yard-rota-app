@@ -10,6 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, subDays } from 'date-fns';
 import { resolveBreakManagerContext } from '../../../utils/operationalDay';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import { safeLocalStorage, safeSessionStorage } from '../../../utils/safeStorage';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -20,14 +21,14 @@ const ALL_LOCATIONS_VALUE = 'all';
 
 /** Read saved Manage Breaks date/shift and correct stale Night+yesterday in the day window. */
 function readInitialBreakContext() {
-  const savedDate = localStorage.getItem('brakes_selected_date');
-  const savedShift = localStorage.getItem('brakes_selected_shift');
+  const savedDate = safeLocalStorage.getItem('brakes_selected_date');
+  const savedShift = safeLocalStorage.getItem('brakes_selected_shift');
   const resolved = resolveBreakManagerContext(savedDate, savedShift);
   if (resolved.date !== savedDate) {
-    localStorage.setItem('brakes_selected_date', resolved.date);
+    safeLocalStorage.setItem('brakes_selected_date', resolved.date);
   }
   if (resolved.shift !== savedShift) {
-    localStorage.setItem('brakes_selected_shift', resolved.shift);
+    safeLocalStorage.setItem('brakes_selected_shift', resolved.shift);
   }
   return resolved;
 }
@@ -41,15 +42,15 @@ const BrakesManager = ({ readOnly = false }) => {
   // Date initializer corrects stale LS first; shift reads the resolved value.
   const [selectedDate, setSelectedDate] = useState(() => readInitialBreakContext().date);
   const [selectedShift, setSelectedShift] = useState(
-    () => localStorage.getItem('brakes_selected_shift') || 'Day'
+    () => safeLocalStorage.getItem('brakes_selected_shift') || 'Day'
   );
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() => {
     if (readOnly) {
-      const tmLoc = localStorage.getItem('tm_dashboard_location');
+      const tmLoc = safeLocalStorage.getItem('tm_dashboard_location');
       if (tmLoc) return tmLoc;
     }
-    const savedLocation = localStorage.getItem('brakes_selected_location');
+    const savedLocation = safeLocalStorage.getItem('brakes_selected_location');
     return savedLocation || ALL_LOCATIONS_VALUE;
   });
 
@@ -85,18 +86,18 @@ const BrakesManager = ({ readOnly = false }) => {
 
   // Correct stale date/shift for the active window (e.g. Night+yesterday at 14:00 → Day+today)
   useEffect(() => {
-    const savedDate = localStorage.getItem('brakes_selected_date');
-    const savedShift = localStorage.getItem('brakes_selected_shift');
+    const savedDate = safeLocalStorage.getItem('brakes_selected_date');
+    const savedShift = safeLocalStorage.getItem('brakes_selected_shift');
     const resolved = resolveBreakManagerContext(savedDate, savedShift);
 
     if (resolved.date !== savedDate || resolved.shift !== savedShift) {
       setSelectedDate(resolved.date);
       setSelectedShift(resolved.shift);
-      localStorage.setItem('brakes_selected_date', resolved.date);
-      localStorage.setItem('brakes_selected_shift', resolved.shift);
+      safeLocalStorage.setItem('brakes_selected_date', resolved.date);
+      safeLocalStorage.setItem('brakes_selected_shift', resolved.shift);
     }
 
-    localStorage.setItem('brakes_last_visited', Date.now().toString());
+    safeLocalStorage.setItem('brakes_last_visited', Date.now().toString());
   }, []); // Run only once when component mounts
 
   // Fetch active locations for filtering
@@ -125,7 +126,7 @@ const BrakesManager = ({ readOnly = false }) => {
         setLocations(fetchedLocations);
 
         // Ensure selectedLocation is a valid active location; default to Rugby or first
-        const tmPreferred = readOnly ? localStorage.getItem('tm_dashboard_location') : null;
+        const tmPreferred = readOnly ? safeLocalStorage.getItem('tm_dashboard_location') : null;
         const preferred =
           (tmPreferred && fetchedLocations.some((loc) => loc.name === tmPreferred) && tmPreferred) ||
           (fetchedLocations.some((loc) => loc.name === selectedLocation) && selectedLocation) ||
@@ -135,7 +136,7 @@ const BrakesManager = ({ readOnly = false }) => {
           const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
           if (defaultLoc) {
             setSelectedLocation(defaultLoc);
-            if (!readOnly) localStorage.setItem('brakes_selected_location', defaultLoc);
+            if (!readOnly) safeLocalStorage.setItem('brakes_selected_location', defaultLoc);
           }
         } else if (preferred !== selectedLocation) {
           setSelectedLocation(preferred);
@@ -255,7 +256,7 @@ const BrakesManager = ({ readOnly = false }) => {
 
   const markAssignmentsDirty = useCallback(() => {
     try {
-      sessionStorage.setItem(getUnsavedFlagKey(), 'true');
+      safeSessionStorage.setItem(getUnsavedFlagKey(), 'true');
     } catch (err) {
       // Silent fail - not critical
     }
@@ -265,8 +266,8 @@ const BrakesManager = ({ readOnly = false }) => {
     try {
       const sessionStorageKey = getSessionStorageKey();
       const dirtyKey = getUnsavedFlagKey();
-      sessionStorage.removeItem(sessionStorageKey);
-      sessionStorage.removeItem(dirtyKey);
+      safeSessionStorage.removeItem(sessionStorageKey);
+      safeSessionStorage.removeItem(dirtyKey);
     } catch (err) {
       // Silent fail - not critical
     }
@@ -275,7 +276,7 @@ const BrakesManager = ({ readOnly = false }) => {
   const persistAssignmentsToSession = useCallback((assignments) => {
     try {
       const sessionStorageKey = getSessionStorageKey();
-      sessionStorage.setItem(sessionStorageKey, JSON.stringify(assignments));
+      safeSessionStorage.setItem(sessionStorageKey, JSON.stringify(assignments));
       markAssignmentsDirty();
     } catch (err) {
       console.error('[BrakesManager] Failed to persist assignments to sessionStorage:', err);
@@ -472,8 +473,8 @@ const BrakesManager = ({ readOnly = false }) => {
 
     const sessionStorageKey = getSessionStorageKey();
     const unsavedFlagKey = getUnsavedFlagKey();
-    const hasUnsavedChanges = sessionStorage.getItem(unsavedFlagKey) === 'true';
-    let savedAssignments = hasUnsavedChanges ? sessionStorage.getItem(sessionStorageKey) : null;
+    const hasUnsavedChanges = safeSessionStorage.getItem(unsavedFlagKey) === 'true';
+    let savedAssignments = hasUnsavedChanges ? safeSessionStorage.getItem(sessionStorageKey) : null;
     if (!hasUnsavedChanges) {
       clearAssignmentCache();
     }
@@ -1386,17 +1387,17 @@ const BrakesManager = ({ readOnly = false }) => {
 
   // Update localStorage when selections change
   useEffect(() => {
-    localStorage.setItem('brakes_selected_date', selectedDate);
+    safeLocalStorage.setItem('brakes_selected_date', selectedDate);
   }, [selectedDate]);
 
   useEffect(() => {
-    localStorage.setItem('brakes_selected_shift', selectedShift);
+    safeLocalStorage.setItem('brakes_selected_shift', selectedShift);
   }, [selectedShift]);
   
   useEffect(() => {
     if (!selectedLocation || selectedLocation === ALL_LOCATIONS_VALUE) return;
-    localStorage.setItem('brakes_selected_location', selectedLocation);
-    if (readOnly) localStorage.setItem('tm_dashboard_location', selectedLocation);
+    safeLocalStorage.setItem('brakes_selected_location', selectedLocation);
+    if (readOnly) safeLocalStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation, readOnly]);
 
   // Initialize calendar month when date modal opens

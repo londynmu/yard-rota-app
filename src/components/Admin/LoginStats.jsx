@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatDistanceToNow } from 'date-fns';
+import { safeLocalStorage } from '../../utils/safeStorage';
 
 const LoginStats = () => {
   const [loading, setLoading] = useState(true);
@@ -8,7 +9,7 @@ const LoginStats = () => {
   const [activityLogs, setActivityLogs] = useState([]);
   const [activitySummary, setActivitySummary] = useState([]);
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = localStorage.getItem('admin_stats_active_tab');
+    const saved = safeLocalStorage.getItem('admin_stats_active_tab');
     return (saved === 'activity-logs' || saved === 'user-summary' || saved === 'rota-breaks') ? saved : 'activity-logs';
   });
   const [expandedUsers, setExpandedUsers] = useState(new Set());
@@ -32,7 +33,7 @@ const LoginStats = () => {
   }, [activeTab, systemActivityDaysBack, systemActivityEntityFilter]);
 
   useEffect(() => {
-    localStorage.setItem('admin_stats_active_tab', activeTab);
+    safeLocalStorage.setItem('admin_stats_active_tab', activeTab);
   }, [activeTab]);
 
   const fetchSystemActivity = async () => {

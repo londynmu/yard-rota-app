@@ -10,6 +10,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 import { whatsAppReadyLabel } from '../../utils/phoneE164';
+import { safeLocalStorage } from '../../utils/safeStorage';
 
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';
@@ -394,7 +395,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   // Initialize filter state from localStorage or default values
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filters, setFilters] = useState(() => {
-    const savedFilters = localStorage.getItem('userListFilters');
+    const savedFilters = safeLocalStorage.getItem('userListFilters');
     return savedFilters ? JSON.parse(savedFilters) : {
       shift: 'all',
       sortBy: 'name',
@@ -427,7 +428,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   
   // Save filters to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('userListFilters', JSON.stringify(filters));
+    safeLocalStorage.setItem('userListFilters', JSON.stringify(filters));
   }, [filters]);
   
   // Apply filters and sorting when users or filters change
@@ -667,7 +668,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
       sortOrder: 'asc'
     };
     setFilters(defaultFilters);
-    localStorage.removeItem('userListFilters');
+    safeLocalStorage.removeItem('userListFilters');
   };
   
   // Get shift badge style

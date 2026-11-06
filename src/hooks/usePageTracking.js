@@ -2,13 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { safeSessionStorage } from '../utils/safeStorage';
 
 // Generate a session ID that persists for the browser session
 const getSessionId = () => {
-  let sessionId = sessionStorage.getItem('page_tracking_session_id');
+  let sessionId = safeSessionStorage.getItem('page_tracking_session_id');
   if (!sessionId) {
     sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    sessionStorage.setItem('page_tracking_session_id', sessionId);
+    safeSessionStorage.setItem('page_tracking_session_id', sessionId);
   }
   return sessionId;
 };

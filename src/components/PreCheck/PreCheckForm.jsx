@@ -15,6 +15,7 @@ import {
 import { getOpenDefectsForTug, splitAcknowledged } from '../../lib/precheckDefects';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 import { buildPrecheckImagePath } from '../../utils/precheckImageUrl';
+import { safeSessionStorage } from '../../utils/safeStorage';
 import {
   isMultiDefectItemReady,
   collectMultiDefectActions,
@@ -57,17 +58,17 @@ const FALLBACK_INSIDE = [
 const FORM_SESSION_ID_KEY = 'precheck_form_session_id';
 
 const getFormSessionId = () => {
-  let id = sessionStorage.getItem(FORM_SESSION_ID_KEY);
+  let id = safeSessionStorage.getItem(FORM_SESSION_ID_KEY);
   if (!id) {
     id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    sessionStorage.setItem(FORM_SESSION_ID_KEY, id);
+    safeSessionStorage.setItem(FORM_SESSION_ID_KEY, id);
   }
   return id;
 };
 
 const loadSavedForm = () => {
   try {
-    const s = sessionStorage.getItem(FORM_STATE_KEY);
+    const s = safeSessionStorage.getItem(FORM_STATE_KEY);
     return s ? JSON.parse(s) : null;
   } catch { return null; }
 };
@@ -413,7 +414,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     let savedY = null;
     for (const key of scrollKeys) {
       try {
-        const v = Number(sessionStorage.getItem(key));
+        const v = Number(safeSessionStorage.getItem(key));
         if (Number.isFinite(v) && v > 0 && (savedY === null || v > savedY)) {
           savedY = v;
         }
@@ -427,7 +428,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     }
     // Clear all scroll keys after restore to prevent stale values from interfering
     for (const key of scrollKeys) {
-      try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+      try { safeSessionStorage.removeItem(key); } catch { /* ignore */ }
     }
   }, [formInitialized, allItems]);
 
@@ -450,7 +451,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       .filter(img => img.url)
       .map(img => ({ id: img.id, url: img.url }));
     try {
-      sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({
+      safeSessionStorage.setItem(FORM_STATE_KEY, JSON.stringify({
         checkItems: stripped,
         remarks,
         remarksImageUrls,
@@ -568,7 +569,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
 
     const queueSubmission = async () => {
       await queuePrecheckSubmission(payload);
-      try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
+      try { safeSessionStorage.removeItem(FORM_STATE_KEY); safeSessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(null, { queued: true });
     };
 
@@ -588,7 +589,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       }
       setMarkedResolvedDamageIds([]);
       applyDefects(await getOpenDefectsForTug(selectedTug.id, supabase));
-      try { sessionStorage.removeItem(FORM_STATE_KEY); sessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
+      try { safeSessionStorage.removeItem(FORM_STATE_KEY); safeSessionStorage.removeItem(FORM_SESSION_ID_KEY); } catch { /* */ }
       onSubmitSuccess?.(submission, { queued: false });
     } catch (err) {
       console.error('[PreCheckForm] Submit error:', err);

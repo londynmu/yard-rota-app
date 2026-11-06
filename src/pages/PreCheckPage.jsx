@@ -13,6 +13,7 @@ import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import QRScanner from '../components/PreCheck/QRScanner';
 import NotificationBell from '../components/NotificationBell';
+import { safeSessionStorage } from '../utils/safeStorage';
 import {
   getPrecheckQueueStatus,
   onPrecheckQueueUpdate,
@@ -24,26 +25,26 @@ const PAGE_STATE_KEY = 'precheck_page_state';
 export const FORM_STATE_KEY = 'precheck_form_state';
 
 const saveDuringShiftState = (tug) => {
-  if (tug) sessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number, displayName: tug.display_name }));
+  if (tug) safeSessionStorage.setItem(DURING_SHIFT_KEY, JSON.stringify({ tugId: tug.id, tugNumber: tug.tug_number, displayName: tug.display_name }));
 };
-const clearDuringShiftState = () => sessionStorage.removeItem(DURING_SHIFT_KEY);
+const clearDuringShiftState = () => safeSessionStorage.removeItem(DURING_SHIFT_KEY);
 const loadDuringShiftState = () => {
-  try { const s = sessionStorage.getItem(DURING_SHIFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+  try { const s = safeSessionStorage.getItem(DURING_SHIFT_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
 };
 
 const savePageState = (step, tug) => {
   try {
-    sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({
+    safeSessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({
       step,
       tug: tug ? { id: tug.id, tug_number: tug.tug_number, display_name: tug.display_name } : null,
     }));
   } catch { /* ignore */ }
 };
 const loadPageState = () => {
-  try { const s = sessionStorage.getItem(PAGE_STATE_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+  try { const s = safeSessionStorage.getItem(PAGE_STATE_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
 };
-const clearPageState = () => sessionStorage.removeItem(PAGE_STATE_KEY);
-export const clearFormState = () => sessionStorage.removeItem(FORM_STATE_KEY);
+const clearPageState = () => safeSessionStorage.removeItem(PAGE_STATE_KEY);
+export const clearFormState = () => safeSessionStorage.removeItem(FORM_STATE_KEY);
 
 // ─── Shift Window Logic ───
 // Calculates the time window for the current shift based on scheduled_rota data.
@@ -96,10 +97,10 @@ export default function PreCheckPage() {
   const savedPage = !token ? loadPageState() : null; // QR token takes priority over saved state
   const clearPendingPhotos = () => {
     try {
-      const keys = Object.keys(sessionStorage);
+      const keys = safeSessionStorage.keys();
       keys.forEach(k => {
         if (k.startsWith('pending_photos')) {
-          sessionStorage.removeItem(k);
+          safeSessionStorage.removeItem(k);
         }
       });
     } catch { /* ignore */ }
@@ -291,7 +292,7 @@ export default function PreCheckPage() {
       // Set selected tug and show completed view if checks exist
       // BUT don't override if user was in the middle of a form or camera (restored from sessionStorage)
       const restoredStep = getInitialStep();
-      const cameraActive = (() => { try { return sessionStorage.getItem('camera_intent_active') === 'true'; } catch { return false; } })();
+      const cameraActive = (() => { try { return safeSessionStorage.getItem('camera_intent_active') === 'true'; } catch { return false; } })();
       if (checks.length > 0 && effectiveWindow && now <= effectiveWindow.end && !savedDuringShift) {
         if (restoredStep !== 'form' && restoredStep !== 'during_shift' && !cameraActive) {
           const latest = checks[0];

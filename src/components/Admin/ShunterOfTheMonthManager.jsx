@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 import { useToast } from '../ui/ToastContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { safeLocalStorage } from '../../utils/safeStorage';
 import {
   createOrUpdateMonthlyAward,
   getMonthlyAwards,
@@ -130,7 +131,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   const [pickerPeriod, setPickerPeriod] = useState(null);
   const [userSearch, setUserSearch] = useState('');
   const [reminderDismissed, setReminderDismissed] = useState(() =>
-    localStorage.getItem(reminderStorageKey(calendarMonthKey)) === 'true'
+    safeLocalStorage.getItem(reminderStorageKey(calendarMonthKey)) === 'true'
   );
   const [confirmDelete, setConfirmDelete] = useState({
     open: false,
@@ -411,7 +412,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   };
 
   const handleDismissReminder = () => {
-    localStorage.setItem(reminderStorageKey(calendarMonthKey), 'true');
+    safeLocalStorage.setItem(reminderStorageKey(calendarMonthKey), 'true');
     setReminderDismissed(true);
   };
 

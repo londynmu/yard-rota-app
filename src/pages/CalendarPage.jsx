@@ -13,6 +13,7 @@ import NavIcon from '../components/NavIcon';
 import { useAvailabilityEditor } from '../hooks/useAvailabilityEditor';
 import { useBreaksFilters } from '../hooks/useBreaksFilters';
 import { useTodayShiftSummary } from '../hooks/useTodayShiftSummary';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const ADMIN_QUICK_LINK_IDS = ['users', 'approvals', 'rota-planner', 'breaks', 'prechecks'];
 
@@ -48,7 +49,7 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
             <Link
               key={item.id}
               to="/admin"
-              onClick={() => localStorage.setItem('adminActiveSection', item.id)}
+              onClick={() => safeLocalStorage.setItem('adminActiveSection', item.id)}
               className="flex items-center gap-2 px-2 py-1.5 bg-gradient-to-r from-slate-50 via-teal-50/40 to-slate-50 border border-slate-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left group"
             >
               <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105 shrink-0">

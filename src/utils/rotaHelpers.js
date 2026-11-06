@@ -1,3 +1,4 @@
+import { safeLocalStorage } from './safeStorage';
 /**
  * Utility functions for Rota/Schedule management
  */
@@ -41,10 +42,10 @@ export const formatTime = (timeStr) => {
  */
 export const getLocalStorageItem = (key, fallback = null) => {
   try {
-    const item = localStorage.getItem(key);
+    const item = safeLocalStorage.getItem(key);
     return item !== null ? item : fallback;
   } catch (error) {
-    console.warn(`localStorage.getItem failed for key "${key}":`, error);
+    console.warn(`safeLocalStorage.getItem failed for key "${key}":`, error);
     return fallback;
   }
 };
@@ -56,9 +57,9 @@ export const getLocalStorageItem = (key, fallback = null) => {
  */
 export const setLocalStorageItem = (key, value) => {
   try {
-    localStorage.setItem(key, value);
+    safeLocalStorage.setItem(key, value);
   } catch (error) {
-    console.warn(`localStorage.setItem failed for key "${key}":`, error);
+    console.warn(`safeLocalStorage.setItem failed for key "${key}":`, error);
   }
 };
 

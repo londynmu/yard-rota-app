@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import RotaManager from '../components/Admin/Rota/RotaManager';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export default function RotaPlannerPage() {
   const { user, loading: authLoading } = useAuth();
@@ -12,7 +13,7 @@ export default function RotaPlannerPage() {
   // Save the fact that user visited the Rota Planner directly
   useEffect(() => {
     // We'll keep track of this so the admin dashboard knows Rota has been moved
-    localStorage.setItem('rota_planner_migrated', 'true');
+    safeLocalStorage.setItem('rota_planner_migrated', 'true');
   }, []);
 
   // Effect to check admin permissions after AuthContext loads

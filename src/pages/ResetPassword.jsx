@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UpdatePasswordForm from '../components/Auth/UpdatePasswordForm';
 import { supabase } from '../lib/supabaseClient';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export default function ResetPassword() {
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,7 @@ export default function ResetPassword() {
         // Check if token is in URL hash
         if (hash && hash.includes('access_token') && hash.includes('type=recovery')) {
           // Store recovery hash in localStorage before any potential redirects
-          localStorage.setItem('recoveryHash', hash);
+          safeLocalStorage.setItem('recoveryHash', hash);
           
           // Directly process the token that's already in the URL
           const { error } = await supabase.auth.getSession();
@@ -50,7 +51,7 @@ export default function ResetPassword() {
         }
         
         // If no token in URL, check localStorage as fallback
-        const storedHash = localStorage.getItem('recoveryHash');
+        const storedHash = safeLocalStorage.getItem('recoveryHash');
         if (storedHash) {
           // Apply the hash to the URL without navigating
           window.location.hash = storedHash;
@@ -64,7 +65,7 @@ export default function ResetPassword() {
           }
           
           // Clear it after using
-          localStorage.removeItem('recoveryHash');
+          safeLocalStorage.removeItem('recoveryHash');
         }
         
         setLoading(false);
@@ -132,7 +133,7 @@ export default function ResetPassword() {
             </div>
           </div>
         ) : (
-          <UpdatePasswordForm onComplete={handlePasswordUpdateComplete} recoveryHash={localStorage.getItem('recoveryHash')} />
+          <UpdatePasswordForm onComplete={handlePasswordUpdateComplete} recoveryHash={safeLocalStorage.getItem('recoveryHash')} />
         )}
       </div>
     </div>

@@ -20,8 +20,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
-    // v2: bust stale document shells that still pointed at pre-phone-privacy JS
-    cacheName: 'app-document-v2',
+    // v3: bust stale document shells that still served pre-safeStorage ErrorBoundary
+    cacheName: 'app-document-v3',
     networkTimeoutSeconds: 10,
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),

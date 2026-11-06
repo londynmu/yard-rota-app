@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
+import { safeSessionStorage } from '../../utils/safeStorage';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
@@ -71,7 +72,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
     (async () => {
       let pendingRaw = null;
       let pending;
-      try { pendingRaw = sessionStorage.getItem(storageKey); } catch { pendingRaw = null; }
+      try { pendingRaw = safeSessionStorage.getItem(storageKey); } catch { pendingRaw = null; }
       try { pending = JSON.parse(pendingRaw || '[]'); } catch { pending = []; }
       if (!pending || pending.length === 0) return;
       const files = pending.map(p => dataUrlToFile(p.dataUrl, p.name || 'photo.jpg')).filter(Boolean);
@@ -79,7 +80,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         await processAndAddFiles(files);
       }
       if (!cancelled) {
-        try { sessionStorage.setItem(storageKey, pendingRaw || '[]'); } catch {}
+        try { safeSessionStorage.setItem(storageKey, pendingRaw || '[]'); } catch {}
       }
     })();
     return () => { cancelled = true; };
@@ -140,7 +141,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
               name: img.file?.name || img.name || 'photo.jpg',
               dataUrl: img.dataUrl || img.preview || img.url,
             }));
-            sessionStorage.setItem(storageKey, JSON.stringify(payload));
+            safeSessionStorage.setItem(storageKey, JSON.stringify(payload));
           } catch {}
         }
         return merged;
@@ -150,12 +151,12 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
       requestAnimationFrame(() => {
         const targetY = savedScrollY > 0
           ? savedScrollY
-          : Number(sessionStorage.getItem(scrollKey)) || 0;
+          : Number(safeSessionStorage.getItem(scrollKey)) || 0;
         if (targetY > 0) {
           window.scrollTo({ top: targetY, behavior: 'auto' });
         }
         // Clear saved scroll position so it doesn't interfere with future interactions
-        try { sessionStorage.removeItem(scrollKey); } catch {}
+        try { safeSessionStorage.removeItem(scrollKey); } catch {}
       });
     } catch (err) {
       console.error('[ImageUpload] Compression error:', err);
@@ -236,18 +237,18 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         accept="image/*"
         capture="environment"
         onChange={(e) => {
-          try { sessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
+          try { safeSessionStorage.removeItem('camera_intent_active'); } catch { /* */ }
           const files = e.target.files;
           if (files && files.length > 0) {
             // persist dataUrls to survive reload/unmount
             let pending = [];
             if (storageKey) {
-              try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
+              try { pending = JSON.parse(safeSessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
             }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
               .then(arr => {
                 if (storageKey) {
-                  try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+                  try { safeSessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
                 }
               })
               .catch(() => {});
@@ -269,12 +270,12 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
           if (files && files.length > 0) {
             let pending = [];
             if (storageKey) {
-              try { pending = JSON.parse(sessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
+              try { pending = JSON.parse(safeSessionStorage.getItem(storageKey) || '[]'); } catch { pending = []; }
             }
             Promise.all(Array.from(files).map(async f => ({ name: f.name, dataUrl: await fileToDataUrl(f) })))
               .then(arr => {
                 if (storageKey) {
-                  try { sessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
+                  try { safeSessionStorage.setItem(storageKey, JSON.stringify([...pending, ...arr])); } catch {}
                 }
               })
               .catch(() => {});
@@ -290,11 +291,11 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         <button
           type="button"
           onClick={() => {
-            try { sessionStorage.setItem(scrollKey, String(window.scrollY)); } catch {}
+            try { safeSessionStorage.setItem(scrollKey, String(window.scrollY)); } catch {}
             if (isNative) {
               setShowCamera(true);
             } else {
-              try { sessionStorage.setItem('camera_intent_active', 'true'); } catch { /* */ }
+              try { safeSessionStorage.setItem('camera_intent_active', 'true'); } catch { /* */ }
               cameraInputRef.current?.click();
             }
           }}

@@ -10,6 +10,7 @@ import {
   resolveTmLocationSelection,
 } from '../utils/tmLocationsWithStaff';
 import TmLocationPills from '../components/TransportManager/TmLocationPills';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const ABSENCE_STATUS_LABEL = {
   no_show: 'No show',
@@ -30,7 +31,7 @@ export default function TransportManagerHome() {
 
   const [staffedLocations, setStaffedLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('tm_dashboard_location') || '' : ''
+    typeof window !== 'undefined' ? safeLocalStorage.getItem('tm_dashboard_location') || '' : ''
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -69,7 +70,7 @@ export default function TransportManagerHome() {
     const staffed = locationsWithStaffToday(data || []);
     setStaffedLocations(staffed);
 
-    const saved = localStorage.getItem('tm_dashboard_location');
+    const saved = safeLocalStorage.getItem('tm_dashboard_location');
     const next = resolveTmLocationSelection(staffed, saved);
     if (next) setSelectedLocation(next);
   }, [todayYmd]);
@@ -199,7 +200,7 @@ export default function TransportManagerHome() {
 
   useEffect(() => {
     if (!selectedLocation) return;
-    localStorage.setItem('tm_dashboard_location', selectedLocation);
+    safeLocalStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation]);
 
   useEffect(() => {

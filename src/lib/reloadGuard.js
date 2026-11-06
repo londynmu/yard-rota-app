@@ -1,3 +1,4 @@
+import { safeSessionStorage } from '../utils/safeStorage';
 const AUTO_RELOAD_GUARD_KEY = 'auto_reload_guard_v1';
 const RELOAD_WINDOW_MS = 90 * 1000;
 const MAX_RELOADS_PER_WINDOW = 2;
@@ -25,7 +26,7 @@ const readState = () => {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(AUTO_RELOAD_GUARD_KEY);
+    const raw = safeSessionStorage.getItem(AUTO_RELOAD_GUARD_KEY);
     if (!raw) return normalizeState(memoryFallbackState);
     const parsed = JSON.parse(raw);
     return normalizeState(parsed);
@@ -42,7 +43,7 @@ const writeState = (state) => {
   if (typeof window === 'undefined') return;
 
   try {
-    window.sessionStorage.setItem(AUTO_RELOAD_GUARD_KEY, JSON.stringify(normalized));
+    safeSessionStorage.setItem(AUTO_RELOAD_GUARD_KEY, JSON.stringify(normalized));
   } catch {
     // Ignore sessionStorage write issues and rely on memory fallback.
   }

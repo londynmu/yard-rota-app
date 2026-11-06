@@ -10,6 +10,7 @@ import { attendanceLabel } from '../utils/attendanceStatus';
 import { useToast } from '../components/ui/ToastContext';
 import NotificationBell from '../components/NotificationBell';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -126,7 +127,7 @@ const WeeklyRotaPage = () => {
   const [expandedDayMobile, setExpandedDayMobile] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('Rugby');
   const [selectedShiftType, setSelectedShiftType] = useState(() => {
-    const savedShift = localStorage.getItem('weekly_rota_shift_type');
+    const savedShift = safeLocalStorage.getItem('weekly_rota_shift_type');
     return savedShift || 'all';
   });
   const [locations, setLocations] = useState([]);
@@ -218,7 +219,7 @@ const WeeklyRotaPage = () => {
           setLocations(data);
           
           // Set saved location or first location as default
-          const savedLocation = localStorage.getItem('weekly_rota_location');
+          const savedLocation = safeLocalStorage.getItem('weekly_rota_location');
           if (savedLocation && data.some(loc => loc.name === savedLocation)) {
             setSelectedLocation(savedLocation);
           } else {
@@ -242,7 +243,7 @@ const WeeklyRotaPage = () => {
   // Save selected location when it changes (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem('weekly_rota_location', selectedLocation);
+      safeLocalStorage.setItem('weekly_rota_location', selectedLocation);
     }, 100);
     return () => clearTimeout(timer);
   }, [selectedLocation]);
@@ -250,7 +251,7 @@ const WeeklyRotaPage = () => {
   // Save selected shift type when it changes (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem('weekly_rota_shift_type', selectedShiftType);
+      safeLocalStorage.setItem('weekly_rota_shift_type', selectedShiftType);
     }, 100);
     return () => clearTimeout(timer);
   }, [selectedShiftType]);
