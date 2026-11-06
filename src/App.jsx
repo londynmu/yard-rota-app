@@ -341,15 +341,17 @@ function AppContent() {
   const needsPhone =
     phoneGateApplies && hasOwnPhone === false && !phoneCheckError;
 
-  // Preferred start only after phone is set (or gate does not apply for privileged roles)
+  // Preferred start only after phone is confirmed present (hasOwnPhone === true).
+  // While phone is unknown (null / loading / RPC error), keep preferred-start closed
+  // so it cannot cover the Retry banner or skip phone-then-start order.
+  // Privileged roles never hit this (excluded below); they are phone-gate exempt.
   const needsPreferredStart =
     user &&
     profileCheckCompleted &&
     isApproved &&
     sessionProfile &&
     !isPrivilegedRole &&
-    !needsPhone &&
-    hasOwnPhone !== false &&
+    hasOwnPhone === true &&
     !sessionProfile.preferred_start_time;
 
   // Main routing
