@@ -433,7 +433,16 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         return;
       }
 
-      // Create profile data object
+      // Create profile data object.
+      // phone_e164 / whatsapp_opt_in have SELECT revoked (same pattern as email).
+      // Postgres INSERT … ON CONFLICT DO UPDATE requires SELECT on every column
+      // written, so upserting those fields fails with
+      // "permission denied for table profiles". Upsert only selectable columns;
+      // write messaging fields with a separate UPDATE (PhoneRequiredPrompt pattern).
+      const messagingData = {
+        phone_e164: normalizedPhone,
+        whatsapp_opt_in: Boolean(whatsappOptIn && normalizedPhone),
+      };
       const profileData = {
         id: user.id,
         first_name: capitalizedFirstName,
@@ -446,8 +455,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
         preferred_start_time: customStartTime || null,
         preferred_location: preferredLocation || null,
         agency_id: agencyId,
-        phone_e164: normalizedPhone,
-        whatsapp_opt_in: Boolean(whatsappOptIn && normalizedPhone),
       };
       
       // Only set account_status to pending_approval for first-time profile creation
@@ -496,6 +503,14 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       // If there was an error after attempting both ways
       if (finalError) {
         throw finalError; // Throw the determined error
+      }
+
+      const { error: messagingError } = await supabaseClient
+        .from('profiles')
+        .update(messagingData)
+        .eq('id', user.id);
+      if (messagingError) {
+        throw messagingError;
       }
       
       // Refresh gate profile then navigate to waiting (avoid hard reload race on Capacitor)
