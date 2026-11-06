@@ -55,7 +55,7 @@ export default function AdminPage() {
       'availability': 'Availability',
       'rota-planner': 'Rota Planner',
       'breaks': 'Breaks',
-      'attendance': 'Black list',
+      'attendance': 'Attendance',
       'performance': 'Performance',
       'stats': 'Activity',
       'shunter-month': 'Shunter of the Month',
@@ -364,10 +364,7 @@ export default function AdminPage() {
         return <BrakesManager />;
       case 'attendance':
         return (
-          <AttendancePage
-            users={users}
-            onOpenUserViolations={openUserViolations}
-          />
+          <AttendancePage onOpenUserViolations={openUserViolations} />
         );
       case 'tugs':
         return <TugManager />;

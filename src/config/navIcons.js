@@ -56,7 +56,7 @@ export function getAdminMenuItems(pendingApprovals = 0, { shunterIncomplete = fa
     { id: 'availability', label: 'Availability', Icon: CalendarClock, colorClass: adminIcon, description: 'User availability' },
     { id: 'rota-planner', label: 'Rota Planner', Icon: CalendarFold, colorClass: adminIcon, description: 'Plan work schedules' },
     { id: 'breaks', label: 'Breaks', Icon: Timer, colorClass: adminIcon, description: 'Manage employee breaks' },
-    { id: 'attendance', label: 'Black list', Icon: UserMinus, colorClass: adminIcon, description: 'Attendance & disciplinary notes' },
+    { id: 'attendance', label: 'Attendance', Icon: UserMinus, colorClass: adminIcon, description: 'Attendance & disciplinary notes' },
     { id: 'performance', label: 'Performance', Icon: BarChart2, colorClass: adminIcon, description: 'Import performance data' },
     { id: 'stats', label: 'Activity', Icon: LineChart, colorClass: adminIcon, description: 'User activity logs & summary' },
     { id: 'tugs', label: 'Tugs', Icon: Truck, colorClass: adminIcon, description: 'Manage tug fleet & QR codes' },
