@@ -87,6 +87,76 @@ export function formatRotaWeekRangeShort(weekStartIso: string): string {
   return `${startLabel}–${endLabel}`;
 }
 
+/** Placeholder for empty Sat–Fri day slots in week template v2 (Meta forbids empty vars). */
+export const ROTA_WA_DAY_OFF = "off";
+
+/** Fixed weekday labels for Sat→Fri week (matches yard_rota_week_shunter_v2 body). */
+export const ROTA_WA_WEEK_DAY_LABELS = [
+  "Sat",
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+] as const;
+
+export function rotaWeekDayIso(weekStartIso: string, dayOffset: number): string {
+  const raw = String(weekStartIso || "").trim().slice(0, 10);
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + dayOffset);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function formatDayShiftWindows(
+  dayShifts: Array<{ start_time?: unknown; end_time?: unknown }>,
+): string {
+  const sorted = (dayShifts || []).slice().sort((a, b) =>
+    String(a.start_time || "").localeCompare(String(b.start_time || ""))
+  );
+  return sorted
+    .map((s) => {
+      const start = formatShiftTimeAmPm(s.start_time);
+      const end = formatShiftTimeAmPm(s.end_time);
+      if (start && end) return `${start}–${end}`;
+      return start || end || "";
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * Seven Sat→Fri values for week template vars {{4}}…{{10}}.
+ * Empty days are always `off` (never blank — Meta rejects empty Content Variables).
+ */
+export function buildShunterWeekDayVariables(
+  weekStartIso: string,
+  shifts: Array<{ date?: unknown; start_time?: unknown; end_time?: unknown }>,
+): string[] {
+  const byDate = new Map<string, typeof shifts>();
+  for (const shift of shifts || []) {
+    const date = String(shift?.date || "").trim().slice(0, 10);
+    if (!date) continue;
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date)!.push(shift);
+  }
+
+  const days: string[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    const iso = rotaWeekDayIso(weekStartIso, i);
+    const windows = formatDayShiftWindows(byDate.get(iso) || []);
+    days.push(windows || ROTA_WA_DAY_OFF);
+  }
+  return days;
+}
+
+/** Kept for assignment ping / short UI labels — not for week ContentVariables. */
 export function formatShunterShiftSummary(
   shifts: Array<{ date?: unknown; start_time?: unknown; end_time?: unknown }>,
 ): string {
@@ -99,20 +169,10 @@ export function formatShunterShiftSummary(
   }
   const dates = [...byDate.keys()].sort();
   const lines = dates.map((date) => {
-    const dayShifts = byDate.get(date)!.slice().sort((a, b) =>
-      String(a.start_time || "").localeCompare(String(b.start_time || ""))
-    );
-    const windows = dayShifts
-      .map((s) => {
-        const start = formatShiftTimeAmPm(s.start_time);
-        const end = formatShiftTimeAmPm(s.end_time);
-        if (start && end) return `${start}–${end}`;
-        return start || end || "";
-      })
-      .filter(Boolean);
+    const windows = formatDayShiftWindows(byDate.get(date) || []);
     const dateLabel = formatShiftDateLong(date);
-    if (!windows.length) return dateLabel;
-    return `${dateLabel}, ${windows.join(", ")}`;
+    if (!windows) return dateLabel;
+    return `${dateLabel}, ${windows}`;
   }).filter(Boolean);
   return lines.join(" · ");
 }

@@ -10,31 +10,59 @@ Manual admin send after creating / editing a week in Rota Planner.
 - Status webhook: `twilio-whatsapp-status` also updates `rota_whatsapp_sends` by MessageSid
 - UI: Admin → Rota Planner → **Send rota on WhatsApp**
 
-## Meta / Twilio Content Templates (new)
+## Meta / Twilio Content Templates
 
 Create in Twilio Content Template Builder → WhatsApp → Utility → English.
 
-### A) Week summary — `yard_rota_week_shunter_v1`
+**Meta rules that bite us:** Content Variables cannot contain newlines; empty variables are rejected; variables should not sit adjacent with only a space; **the last characters of the body must be fixed text** (not a `{{var}}`). Day labels (`Sat {{4}}`) keep vars non-adjacent. Trailing fixed line after `{{11}}` keeps the message Meta-safe.
 
-Body (copy 1:1):
+### A) Week summary — `yard_rota_week_shunter_v2` (current)
+
+Body (copy 1:1, Enter = new line in the template — **not** inside a variable):
+
+```
+Hi {{1}}, your rota for {{2}} at {{3}} is set:
+Sat {{4}}
+Sun {{5}}
+Mon {{6}}
+Tue {{7}}
+Wed {{8}}
+Thu {{9}}
+Fri {{10}}
+Open the app to check details. Sent by {{11}}.
+Please review your shifts in the app.
+```
+
+| Var | Meaning | Sample |
+|---|---|---|
+| `{{1}}` | first name | `John` |
+| `{{2}}` | week range | `08–14 Nov` |
+| `{{3}}` | location(s) | `DIRFT` |
+| `{{4}}` | Sat times or `off` | `5pm–5pm` |
+| `{{5}}` | Sun | `off` |
+| `{{6}}` | Mon | `5:45am–6pm` |
+| `{{7}}` | Tue | `off` |
+| `{{8}}` | Wed | `off` |
+| `{{9}}` | Thu | `off` |
+| `{{10}}` | Fri | `off` |
+| `{{11}}` | sent by | `Michal Warda` |
+
+Code maps Sat→Fri via `buildShunterWeekDayVariables` → ContentVariables `"4"`…`"10"`. Empty days are always `off` (never blank).
+
+Secret: `TWILIO_WHATSAPP_CONTENT_SID_ROTA_SHUNTER` = **v2** Content SID (`HX…`).  
+Production week sends need this SID updated after Meta approves v2 (owner pastes it). Do not reuse the old v1 SID with the 11-variable payload.
+
+#### Legacy v1 (do not use for new sends)
 
 ```
 Hi {{1}}, your rota for {{2}} is set: {{3}} at {{4}}. Open the app to check details. Sent by {{5}}.
 ```
 
-| Var | Sample |
-|---|---|
-| `{{1}}` | `John` |
-| `{{2}}` | `08–14 Nov` |
-| `{{3}}` | `21 December, 5pm–5pm` |
-| `{{4}}` | `DIRFT` |
-| `{{5}}` | `Michal Warda` |
-
-Secret: `TWILIO_WHATSAPP_CONTENT_SID_ROTA_SHUNTER` = Content SID (`HX…`)
+v1 put the whole week into one `{{3}}` joined with ` · `. Replaced by v2 so each day is its own line in the approved body.
 
 ### B) Assignment ping — `yard_rota_assignment_ping_v1`
 
-Body:
+Body (unchanged):
 
 ```
 Hi {{1}}, you've been added to the rota: {{2}} at {{3}}. Open the app to check details. Sent by {{4}}.
@@ -53,7 +81,7 @@ PreCheck keeps using existing `TWILIO_WHATSAPP_CONTENT_SID`.
 
 ## Secrets to add (same project)
 
-Reuse existing Twilio account secrets. Add only the two new Content SIDs above.
+Reuse existing Twilio account secrets. Add / update the Content SIDs above.
 
 ## Deploy (after merge + migration approved)
 
@@ -64,9 +92,11 @@ npx supabase functions deploy twilio-whatsapp-status --project-ref jkjvtvwedjiup
 
 ## Soft launch check
 
-1. Apply migration (owner approval).
-2. Set the two Content SID secrets after Meta approves templates.
-3. Deploy the two Edge Functions.
-4. Admin → Rota Planner → preview list → **Send to shunters** for 1–2 test people with phone + opt-in.
-5. Optional: **Notify this person** for a single assignment.
-6. Confirm status updates in Twilio and `rota_whatsapp_sends`.
+1. Apply migration (owner approval) if not already applied.
+2. Create / submit **v2** week template with the Meta-safe body above; wait for **Approved**.
+3. Set `TWILIO_WHATSAPP_CONTENT_SID_ROTA_SHUNTER` to the new v2 SID (owner).
+4. Deploy `send-rota-whatsapp`.
+5. Admin → Rota Planner → preview (per-day Sat–Fri) → **Send to shunters** for 1–2 test people with phone + opt-in.
+6. On the phone: each day on its own line (`Sat 5pm–5pm`, `Sun off`, …); trailing fixed line after “Sent by …”.
+7. Optional: **Notify this person** for a single assignment (ping template unchanged).
+8. Confirm status updates in Twilio and `rota_whatsapp_sends`.
