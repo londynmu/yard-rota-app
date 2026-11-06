@@ -37,37 +37,28 @@ function projectRefFromUrl(url) {
 
 const storageKey = `sb-${projectRefFromUrl(supabaseUrl || 'https://jkjvtvwedjiupxoibpld.supabase.co')}-auth-token`;
 
-// Singleton pattern to ensure only one client instance is created
+// Singleton — export the createClient instance directly so auth, functions,
+// storage, realtime, rpc, and from all work (no partial object wrapper).
 let supabaseInstance = null;
 
-// Create Supabase client with custom auth settings
-const createSupabaseClient = () => {
+function createSupabaseClient() {
   if (supabaseInstance === null) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         redirectTo: `${siteUrl}/login`,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true, // Enable session detection from URL hash
+        detectSessionInUrl: true,
         storageKey,
       },
       global: {
         headers: {
-          'X-Client-Info': 'yard-rota-app'
-        }
-      }
+          'X-Client-Info': 'yard-rota-app',
+        },
+      },
     });
   }
   return supabaseInstance;
-};
+}
 
-// Create a custom supabase client with debug logging
-const originalSupabaseClient = createSupabaseClient();
-
-// Create enhanced supabase client with better debugging
-export const supabase = {
-  ...originalSupabaseClient,
-  storage: originalSupabaseClient.storage,
-  from: originalSupabaseClient.from.bind(originalSupabaseClient),
-  rpc: originalSupabaseClient.rpc.bind(originalSupabaseClient)
-};
+export const supabase = createSupabaseClient();
