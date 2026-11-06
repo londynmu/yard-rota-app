@@ -23,12 +23,12 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
 5. In Twilio console, set status callback to:
    `https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/twilio-whatsapp-status`
 6. Soft launch: use **Admin → Notifications → Send WhatsApp now** (force) first.
-7. Enable cron by uncommenting the job block in
-   `supabase/migrations/20261106130000_precheck_reminder_sends.sql`
-   (or schedule manually) once secrets + template work. Default: every 10 minutes;
+7. Cron job `precheck-whatsapp-reminders` is **enabled** on prod
+   (`20261106160000_enable_precheck_whatsapp_reminders_cron.sql`): every **10 minutes**;
    targeting waits **1 hour** after shift start; at most one **successful**
    cron send per user+rota. Failed Twilio attempts retry after **15 minutes**,
    up to **5** attempts (same ledger row / idempotency key).
+   Pause: `SELECT cron.alter_job(jobid, active := false) FROM cron.job WHERE jobname = 'precheck-whatsapp-reminders';`
 
 ## App behaviour
 
