@@ -20,7 +20,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
-    cacheName: 'app-document',
+    // v2: bust stale document shells that still pointed at pre-phone-privacy JS
+    cacheName: 'app-document-v2',
     networkTimeoutSeconds: 10,
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
@@ -32,12 +33,18 @@ registerRoute(
 const supabaseUrlPattern = /^https:\/\/.*\.supabase\.co\/.*/i;
 // Never cache precheck_check_items – list must always be fresh (e.g. 26 vs 31 questions)
 const precheckCheckItemsPattern = /\/rest\/v1\/precheck_check_items(\?|$)/i;
+// Never cache profiles — column grants change; stale GETs (e.g. select=*) must not stick
+const profilesPattern = /\/rest\/v1\/profiles(\?|$)/i;
 
 registerRoute(
   ({ url, request }) => {
     const href = typeof url === 'string' ? url : url.href;
     const pathAndSearch = typeof url === 'string' ? url : (url.pathname + (url.search || ''));
-    return supabaseUrlPattern.test(href) && precheckCheckItemsPattern.test(pathAndSearch) && request.method === 'GET';
+    return (
+      supabaseUrlPattern.test(href) &&
+      (precheckCheckItemsPattern.test(pathAndSearch) || profilesPattern.test(pathAndSearch)) &&
+      request.method === 'GET'
+    );
   },
   new NetworkOnly(),
   'GET'
@@ -46,7 +53,7 @@ registerRoute(
 registerRoute(
   ({ url, request }) => supabaseUrlPattern.test(url.href) && request.method === 'GET',
   new NetworkFirst({
-    cacheName: 'supabase-cache',
+    cacheName: 'supabase-cache-v2',
     networkTimeoutSeconds: 10,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
