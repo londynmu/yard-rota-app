@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS public.precheck_reminder_sends (
   trigger text NOT NULL DEFAULT 'cron'
     CHECK (trigger IN ('cron', 'admin_force')),
   sent_by uuid REFERENCES public.profiles(id),
+  -- Twilio attempts for this idempotency key (cron retries reuse the row).
+  attempt_count integer NOT NULL DEFAULT 1
+    CHECK (attempt_count >= 1),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -175,10 +178,27 @@ AS $$
     b.shift_end,
     pr.phone_e164,
     COALESCE(pr.whatsapp_opt_in, false) AS whatsapp_opt_in,
+    -- Block only success / in-flight (recent queued) / exhausted or
+    -- still-in-backoff failures. Failed/undelivered after 15m backoff and
+    -- under 5 attempts remain retryable (Edge Function reuses the ledger row).
     EXISTS (
       SELECT 1
       FROM public.precheck_reminder_sends s
       WHERE s.idempotency_key = format('precheck-wa:%s:%s', b.user_id, b.rota_id)
+        AND (
+          s.status IN ('sent', 'delivered', 'read', 'accepted')
+          OR (
+            s.status = 'queued'
+            AND s.updated_at > (c.instant - interval '15 minutes')
+          )
+          OR (
+            s.status IN ('failed', 'undelivered', 'canceled')
+            AND (
+              COALESCE(s.attempt_count, 1) >= 5
+              OR s.updated_at > (c.instant - interval '15 minutes')
+            )
+          )
+        )
     ) AS already_sent
   FROM bounds b
   JOIN profiles pr ON pr.id = b.user_id
