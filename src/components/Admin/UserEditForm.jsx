@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
 import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
+import { normalizePhoneE164, whatsAppReadyLabel } from '../../utils/phoneE164';
 import { formatPreferredStartTime, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
 
 const capitalizeFirstLetter = (string) => {
@@ -65,6 +66,8 @@ function snapshotFromUser(user) {
       ? [...user.additional_locations].sort()
       : [],
     agencyId: user?.agency_id || null,
+    phoneE164: user?.phone_e164 || '',
+    whatsappOptIn: Boolean(user?.whatsapp_opt_in),
   };
 }
 
@@ -103,6 +106,8 @@ function currentSnapshot({
   preferredLocation,
   additionalLocations,
   agencyId,
+  phoneE164,
+  whatsappOptIn,
 }) {
   return {
     firstName,
@@ -116,6 +121,8 @@ function currentSnapshot({
     preferredLocation,
     additionalLocations: [...additionalLocations].sort(),
     agencyId,
+    phoneE164: phoneE164 || '',
+    whatsappOptIn: Boolean(whatsappOptIn),
   };
 }
 
@@ -139,6 +146,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
 
   const [agencies, setAgencies] = useState([]);
   const [agencyId, setAgencyId] = useState(null);
+  const [phoneE164, setPhoneE164] = useState('');
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
 
   const [formErrors, setFormErrors] = useState({
     firstName: '',
@@ -146,7 +155,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
     yardSystemId: '',
     shiftPreference: '',
     performanceScore: '',
-    timeRange: ''
+    timeRange: '',
+    phoneE164: '',
   });
 
   const modalRef = useRef(null);
@@ -212,6 +222,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
         Array.isArray(user.additional_locations) ? user.additional_locations : []
       );
       setAgencyId(snap.agencyId);
+      setPhoneE164(snap.phoneE164);
+      setWhatsappOptIn(snap.whatsappOptIn);
       baselineRef.current = snap;
       onDirtyChangeRef.current?.(false);
     }
@@ -231,6 +243,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
       preferredLocation,
       additionalLocations,
       agencyId,
+      phoneE164,
+      whatsappOptIn,
     });
     const dirty =
       Boolean(avatar) ||
@@ -248,6 +262,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
     preferredLocation,
     additionalLocations,
     agencyId,
+    phoneE164,
+    whatsappOptIn,
     avatar,
   ]);
 
@@ -285,7 +301,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
       yardSystemId: '',
       shiftPreference: '',
       performanceScore: '',
-      timeRange: ''
+      timeRange: '',
+      phoneE164: '',
     };
 
     if (!firstName.trim()) {
@@ -329,6 +346,19 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
       isValid = false;
     }
 
+    let normalizedPhone = null;
+    try {
+      normalizedPhone = normalizePhoneE164(phoneE164);
+    } catch (phoneError) {
+      errors.phoneE164 = phoneError.message || 'Enter a valid phone number';
+      isValid = false;
+    }
+
+    if (whatsappOptIn && !normalizedPhone && !errors.phoneE164) {
+      errors.phoneE164 = 'Add a phone number to enable WhatsApp reminders';
+      isValid = false;
+    }
+
     setFormErrors(errors);
     return isValid;
   };
@@ -345,6 +375,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
 
     try {
       const startValue = preferredStartTime || null;
+      const normalizedPhone = normalizePhoneE164(phoneE164);
       const updates = {
         id: user.id,
         first_name: capitalizeFirstLetter(firstName.trim()),
@@ -362,7 +393,9 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
         additional_locations: additionalLocations.filter(
           (name) => name && name !== preferredLocation
         ),
-        agency_id: agencyId
+        agency_id: agencyId,
+        phone_e164: normalizedPhone,
+        whatsapp_opt_in: Boolean(whatsappOptIn && normalizedPhone),
       };
 
       if (avatar) {
@@ -410,7 +443,11 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
         preferredLocation: updates.preferred_location || '',
         additionalLocations: updates.additional_locations || [],
         agencyId: updates.agency_id,
+        phoneE164: updates.phone_e164 || '',
+        whatsappOptIn: updates.whatsapp_opt_in,
       });
+      setPhoneE164(updates.phone_e164 || '');
+      setWhatsappOptIn(updates.whatsapp_opt_in);
       setAvatar(null);
       onDirtyChangeRef.current?.(false);
 
@@ -524,6 +561,55 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.lastName && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
               )}
+            </FieldRow>
+            <FieldRow id="admin-edit-phoneE164" label="Phone (WhatsApp)">
+              <input
+                id="admin-edit-phoneE164"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phoneE164}
+                onChange={(e) => {
+                  setPhoneE164(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, phoneE164: '' }));
+                }}
+                className={inputClass(Boolean(formErrors.phoneE164))}
+                placeholder="+447…"
+                disabled={loading}
+              />
+              {formErrors.phoneE164 ? (
+                <p className="mt-1 text-sm text-red-500">{formErrors.phoneE164}</p>
+              ) : (
+                <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                  E.164 for PreCheck WhatsApp reminders. Status:{' '}
+                  {(() => {
+                    let phone = null;
+                    try {
+                      phone = normalizePhoneE164(phoneE164);
+                    } catch {
+                      phone = phoneE164.trim() || null;
+                    }
+                    return whatsAppReadyLabel({
+                      phone_e164: phone,
+                      whatsapp_opt_in: whatsappOptIn,
+                    });
+                  })()}
+                </p>
+              )}
+            </FieldRow>
+            <FieldRow label="WhatsApp reminders">
+              <div className="pt-1">
+                <ToggleSwitch
+                  id="admin-edit-whatsappOptIn"
+                  label={whatsappOptIn ? 'On' : 'Off'}
+                  checked={whatsappOptIn}
+                  onChange={setWhatsappOptIn}
+                  disabled={loading}
+                />
+                <p className="mt-1 max-w-sm text-[11px] leading-snug text-gray-500">
+                  Operational PreCheck nudges only. Admin can enable or disable for this user.
+                </p>
+              </div>
             </FieldRow>
           </div>
         </FormSection>

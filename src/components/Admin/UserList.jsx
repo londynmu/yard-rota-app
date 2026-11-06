@@ -9,6 +9,7 @@ import UserViolationsPanel from './UserViolationsPanel';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
+import { whatsAppReadyLabel } from '../../utils/phoneE164';
 
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';
@@ -16,6 +17,31 @@ function roleLabel(role) {
   if (role === 'transport_manager') return 'Transport manager';
   return 'User';
 }
+
+function WhatsAppReadyChip({ user }) {
+  const label = whatsAppReadyLabel(user);
+  const className =
+    label === 'WA ready'
+      ? 'bg-green-100 text-green-800'
+      : label === 'no consent'
+        ? 'bg-amber-100 text-amber-800'
+        : 'bg-gray-100 text-gray-600';
+  return (
+    <span
+      className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+      title="WhatsApp PreCheck reminder readiness"
+    >
+      {label}
+    </span>
+  );
+}
+
+WhatsAppReadyChip.propTypes = {
+  user: PropTypes.shape({
+    phone_e164: PropTypes.string,
+    whatsapp_opt_in: PropTypes.bool,
+  }).isRequired,
+};
 
 function UserAvatar({ user }) {
   return (
@@ -842,6 +868,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               <span className="min-w-0 truncate text-sm font-semibold text-charcoal">
                 {user.first_name || ''} {user.last_name || ''}
               </span>
+              <WhatsAppReadyChip user={user} />
               {user.last_activity_at && (
                 <span className="ml-auto flex-shrink-0 text-xs text-gray-500">
                   {formatDistanceToNow(new Date(user.last_activity_at), { addSuffix: true })}
