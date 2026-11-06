@@ -13,11 +13,22 @@ import {
 const outlineBtn =
   'admin-btn disabled:cursor-not-allowed disabled:opacity-50';
 
+const confirmOverlay = 'z-[10000]';
+
 function personName(person) {
   return [person.first_name, person.last_name].filter(Boolean).join(' ').trim() || 'Unknown';
 }
 
-export default function RotaWhatsAppSendPanel({ weekStart }) {
+function statusLabel(person) {
+  if (person.status === 'ready') return 'Ready';
+  if (person.status === 'already_sent') return 'Sent';
+  return person.label || 'Skipped';
+}
+
+/**
+ * Modal body for WhatsApp rota send: name checklist + optional one-shift ping.
+ */
+export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
   const toast = useToast();
   const weekIso = useMemo(
     () => (weekStart instanceof Date ? weekStartIso(weekStart) : weekStartIso(new Date(weekStart))),
@@ -30,9 +41,10 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
   const [messagingReady, setMessagingReady] = useState(null);
   const [missingSecrets, setMissingSecrets] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [forceResend, setForceResend] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
 
-  // Notify this person
+  // Notify one shift
   const [pingSlots, setPingSlots] = useState([]);
   const [pingUserId, setPingUserId] = useState('');
   const [pingRotaId, setPingRotaId] = useState('');
@@ -72,6 +84,18 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
         setMessagingReady(data.messaging_ready);
         setMissingSecrets(Array.isArray(data?.missing) ? data.missing : []);
       }
+      const readyIds = new Set(
+        (data?.people || [])
+          .filter((p) => p.status === 'ready')
+          .map((p) => p.user_id),
+      );
+      setSelectedIds((prev) => {
+        const next = new Set();
+        for (const id of prev) {
+          if (readyIds.has(id)) next.add(id);
+        }
+        return next;
+      });
     } catch (err) {
       console.error('[RotaWhatsApp] preview', err);
       toast.error(err?.message || 'Could not load WhatsApp preview.');
@@ -125,16 +149,32 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
     setPingUserId('');
     setPingRotaId('');
     setPingPreview(null);
-    setForceResend(false);
+    setSearchQuery('');
+    setSelectedIds(new Set());
   }, [loadPreview, loadPingCandidates]);
 
-  const people = preview?.people || [];
-  const summary = preview?.summary || summarizeRotaWhatsAppPreview(
-    people.map((p) => ({ status: p.status })),
+  const people = useMemo(() => preview?.people || [], [preview]);
+  const summary = useMemo(
+    () => preview?.summary || summarizeRotaWhatsAppPreview(
+      people.map((p) => ({ status: p.status })),
+    ),
+    [preview, people],
   );
   const readyCount = summary.ready ?? 0;
   const alreadySentCount = summary.already_sent ?? summary.alreadySent ?? 0;
   const emptyWeek = Boolean(preview?.empty) || (people.length === 0 && !loadingPreview);
+
+  const query = searchQuery.trim().toLowerCase();
+  const filteredPeople = useMemo(() => {
+    if (!query) return people;
+    return people.filter((person) => personName(person).toLowerCase().includes(query));
+  }, [people, query]);
+
+  const selectedReadyIds = useMemo(
+    () => [...selectedIds].filter((id) => people.some((p) => p.user_id === id && p.status === 'ready')),
+    [selectedIds, people],
+  );
+  const selectedCount = selectedReadyIds.length;
 
   const peopleByUser = useMemo(() => {
     const map = new Map();
@@ -161,7 +201,25 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
     return person?.shifts || [];
   }, [peopleByUser, pingUserId]);
 
-  const openSendConfirm = ({ resend = false } = {}) => {
+  const togglePerson = (userId, enabled) => {
+    if (!enabled) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const selectAllReady = () => {
+    setSelectedIds(new Set(
+      people.filter((p) => p.status === 'ready').map((p) => p.user_id),
+    ));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const openSendConfirm = () => {
     if (emptyWeek) {
       toast.error('Add people to the rota before sending');
       return;
@@ -170,19 +228,18 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
       toast.error('WhatsApp is not configured yet (Twilio Content SID missing).');
       return;
     }
-    if (!resend && readyCount === 0) {
-      if (alreadySentCount > 0) {
-        toast.error('Everyone on this week was already notified. Use resend only if needed.');
+    if (selectedCount === 0) {
+      if (readyCount === 0) {
+        if (alreadySentCount > 0) {
+          toast.error('Everyone on this week was already notified.');
+        } else {
+          toast.error('No shunters are ready (phone + WhatsApp consent required).');
+        }
       } else {
-        toast.error('No shunters are ready (phone + WhatsApp consent required).');
+        toast.error('Select at least one ready shunter.');
       }
       return;
     }
-    if (resend && alreadySentCount === 0 && readyCount === 0) {
-      toast.error('No one to notify on this week.');
-      return;
-    }
-    setForceResend(Boolean(resend));
     setConfirmOpen(true);
   };
 
@@ -194,7 +251,8 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
           action: 'send',
           kind: 'shunter_week',
           week_start: weekIso,
-          force_resend: forceResend,
+          user_ids: selectedReadyIds,
+          force_resend: false,
         },
       });
       if (error) throw error;
@@ -221,7 +279,6 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
       toast.error(err?.message || 'WhatsApp send failed.');
     } finally {
       setSending(false);
-      setForceResend(false);
     }
   };
 
@@ -296,32 +353,17 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
     }
   };
 
-  const confirmCount = forceResend
-    ? readyCount + alreadySentCount
-    : readyCount;
+  const weekLabel = preview?.week_range || weekIso;
 
   return (
-    <section className="admin-section-card admin-section-body space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-rota-text-primary">
-            Send rota on WhatsApp
-          </h3>
-          <p className="text-sm text-rota-text-muted">
-            Shunters only — agencies still use Export &amp; Send (email).
-          </p>
-        </div>
-        <button
-          type="button"
-          className={outlineBtn}
-          onClick={() => {
-            loadPreview();
-            loadPingCandidates();
-          }}
-          disabled={loadingPreview || pingLoading}
-        >
-          Refresh
-        </button>
+    <div className="space-y-4 pr-8">
+      <div>
+        <h3 className="text-lg font-semibold text-rota-text-primary">
+          Send rota on WhatsApp
+        </h3>
+        <p className="text-sm text-rota-text-muted">
+          Week {weekLabel}. Agencies stay on Export &amp; Send email.
+        </p>
       </div>
 
       {messagingReady === false && (
@@ -334,110 +376,143 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
         </p>
       )}
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={outlineBtn}
-            disabled={sending || loadingPreview || emptyWeek || readyCount === 0}
-            onClick={() => openSendConfirm({ resend: false })}
-            title={
-              emptyWeek
-                ? 'Add people to the rota before sending'
-                : readyCount === 0
-                  ? 'No new shunters ready to notify'
-                  : 'Send WhatsApp to shunters not yet notified'
-            }
-          >
-            {sending ? 'Sending…' : 'Send to shunters'}
-          </button>
-          {alreadySentCount > 0 && (
-            <button
-              type="button"
-              className={outlineBtn}
-              disabled={sending || loadingPreview}
-              onClick={() => openSendConfirm({ resend: true })}
-              title="Conscious resend after cooldown"
-            >
-              Resend already notified
-            </button>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={outlineBtn}
+          onClick={() => {
+            loadPreview();
+            loadPingCandidates();
+          }}
+          disabled={loadingPreview || pingLoading}
+        >
+          Refresh
+        </button>
+        <button
+          type="button"
+          className={outlineBtn}
+          onClick={selectAllReady}
+          disabled={loadingPreview || readyCount === 0}
+        >
+          Select all ready
+        </button>
+        <button
+          type="button"
+          className={outlineBtn}
+          onClick={clearSelection}
+          disabled={loadingPreview || selectedCount === 0}
+        >
+          Clear
+        </button>
+      </div>
 
-        {loadingPreview ? (
-          <p className="text-sm text-rota-text-muted">Loading preview…</p>
-        ) : emptyWeek ? (
-          <p className="text-sm text-rota-text-muted">
-            Add people to the rota before sending
-          </p>
-        ) : (
-          <ul className="max-h-64 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
-            {people.map((person) => {
-              const dayRows = Array.isArray(person.shift_days) && person.shift_days.length
-                ? person.shift_days
-                : null;
-              return (
-                <li
-                  key={person.user_id}
-                  className="space-y-1 px-3 py-2 text-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-rota-text-primary font-medium">
-                      {personName(person)}
-                      {person.locations ? (
-                        <span className="ml-1 font-normal text-rota-text-muted">
-                          · {person.locations}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={
-                        person.status === 'ready'
-                          ? 'text-emerald-700'
-                          : person.status === 'already_sent'
-                            ? 'text-rota-text-muted'
-                            : 'text-amber-700'
-                      }
+      {loadingPreview ? (
+        <p className="text-sm text-rota-text-muted">Loading preview…</p>
+      ) : emptyWeek ? (
+        <p className="text-sm text-rota-text-muted">
+          Add people to the rota before sending
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="admin-input w-full pl-9"
+            />
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rota-text-muted"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {filteredPeople.length === 0 ? (
+            <p className="text-sm text-rota-text-muted">
+              {query ? 'No people match this search.' : 'No assigned people for this week.'}
+            </p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+              {filteredPeople.map((person) => {
+                const isReady = person.status === 'ready';
+                const checked = isReady && selectedIds.has(person.user_id);
+                return (
+                  <li key={person.user_id}>
+                    <label
+                      className={`flex items-center gap-3 px-3 py-2.5 text-sm ${
+                        isReady
+                          ? 'cursor-pointer hover:bg-rota-day-other-bg-from/30'
+                          : 'cursor-not-allowed opacity-70'
+                      }`}
                     >
-                      {person.status === 'ready'
-                        ? 'Ready'
-                        : person.status === 'already_sent'
-                          ? 'Already sent'
-                          : person.label}
-                    </span>
-                  </div>
-                  {dayRows ? (
-                    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-rota-text-muted sm:grid-cols-4">
-                      {dayRows.map((day) => (
-                        <li key={`${person.user_id}-${day.label}`}>
-                          <span className="font-medium text-rota-text-primary">
-                            {day.label}
-                          </span>
-                          {' '}
-                          {day.value}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : person.shift_summary ? (
-                    <p className="text-xs text-rota-text-muted">{person.shift_summary}</p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {!emptyWeek && !loadingPreview && (
+                      <input
+                        type="checkbox"
+                        className="shrink-0"
+                        checked={checked}
+                        disabled={!isReady}
+                        onChange={() => togglePerson(person.user_id, isReady)}
+                      />
+                      <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                        {personName(person)}
+                      </span>
+                      <span
+                        className={
+                          person.status === 'ready'
+                            ? 'shrink-0 text-emerald-700'
+                            : person.status === 'already_sent'
+                              ? 'shrink-0 text-rota-text-muted'
+                              : 'shrink-0 text-amber-700'
+                        }
+                      >
+                        {statusLabel(person)}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           <p className="text-xs text-rota-text-muted">
             Ready {readyCount} · Skipped {summary.skipped ?? 0} · Already notified{' '}
             {alreadySentCount}
             {preview?.creator_name ? ` · Sent by ${preview.creator_name}` : ''}
           </p>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-rota-toolbar-border pt-4">
+        <button
+          type="button"
+          className={outlineBtn}
+          disabled={sending || loadingPreview || selectedCount === 0}
+          onClick={openSendConfirm}
+          title={
+            selectedCount === 0
+              ? 'Select ready shunters to notify'
+              : `Send WhatsApp to ${selectedCount} selected`
+          }
+        >
+          {sending
+            ? 'Sending…'
+            : `Send to ${selectedCount} selected`}
+        </button>
+        {typeof onClose === 'function' && (
+          <button type="button" className={outlineBtn} onClick={onClose}>
+            Close
+          </button>
         )}
       </div>
 
       <div className="border-t border-rota-toolbar-border pt-4 space-y-2">
         <h4 className="text-sm font-semibold text-rota-text-primary">
-          Notify this person
+          Notify one shift
         </h4>
         <p className="text-xs text-rota-text-muted">
           Optional ping after a manual add — never automatic.
@@ -496,19 +571,13 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
 
       <ConfirmDialog
         isOpen={confirmOpen}
-        onClose={() => {
-          setConfirmOpen(false);
-          setForceResend(false);
-        }}
+        onClose={() => setConfirmOpen(false)}
         onConfirm={handleSend}
-        title={forceResend ? 'Resend WhatsApp to shunters' : 'Send WhatsApp to shunters'}
-        message={
-          forceResend
-            ? `Resend WhatsApp to ${confirmCount} shunter${confirmCount === 1 ? '' : 's'} (includes already notified)? Use only when you mean it.`
-            : `Send WhatsApp to ${confirmCount} shunter${confirmCount === 1 ? '' : 's'}?`
-        }
-        confirmText={forceResend ? 'Resend' : 'Send'}
+        title="Send WhatsApp to shunters"
+        message={`Send WhatsApp to ${selectedCount} shunter${selectedCount === 1 ? '' : 's'}?`}
+        confirmText="Send"
         cancelText="Cancel"
+        overlayClassName={confirmOverlay}
       />
 
       <ConfirmDialog
@@ -525,8 +594,9 @@ export default function RotaWhatsAppSendPanel({ weekStart }) {
           pingPreview?.people?.[0]?.status === 'already_sent' ? 'Resend' : 'Send'
         }
         cancelText="Cancel"
+        overlayClassName={confirmOverlay}
       />
-    </section>
+    </div>
   );
 }
 
@@ -535,4 +605,5 @@ RotaWhatsAppSendPanel.propTypes = {
     PropTypes.instanceOf(Date),
     PropTypes.string,
   ]).isRequired,
+  onClose: PropTypes.func,
 };
