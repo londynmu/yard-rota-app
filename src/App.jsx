@@ -13,6 +13,7 @@ import { NotificationProvider } from './lib/NotificationContext';
 import { usePageTracking } from './hooks/usePageTracking';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PreferredStartTimePrompt from './components/User/PreferredStartTimePrompt';
+import PhoneRequiredPrompt from './components/User/PhoneRequiredPrompt';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateBanner from './components/UpdateBanner';
 import { setMonitoringUser } from './lib/monitoring';
@@ -54,6 +55,12 @@ function AppContent() {
 
   const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [profileCheckCompleted, setProfileCheckCompleted] = useState(false); // true only after first check has run (prevents profile page flash)
+  // null = not checked yet / N/A; true = has phone_e164 via RPC; false = missing (gate applies)
+  const [hasOwnPhone, setHasOwnPhone] = useState(null);
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  // Non-destructive: RPC failure must not open the phone gate as "no phone"
+  const [phoneCheckError, setPhoneCheckError] = useState(false);
+  const [phoneCheckRetryKey, setPhoneCheckRetryKey] = useState(0);
   const [error, setError] = useState(null);
   const [waitingForAuthHash, setWaitingForAuthHash] = useState(
     () => typeof window !== 'undefined' && window.location.hash.includes('access_token')
@@ -61,14 +68,33 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const profileCheckRequestRef = useRef(0);
+  const phoneCheckRequestRef = useRef(0);
 
   const { isProfileComplete, accountStatus } = deriveGateFromProfile(sessionProfile);
   const isApproved = accountStatus === 'approved';
+  const isPrivilegedRole = Boolean(
+    sessionProfile?.role && PRIVILEGED_ROLES.has(sessionProfile.role),
+  );
+  // Phone onboarding only for approved shunters (role=user), not admin/TM/VMU
+  const phoneGateApplies =
+    Boolean(user) &&
+    profileCheckCompleted &&
+    isApproved &&
+    Boolean(sessionProfile) &&
+    !isPrivilegedRole;
   const isResetPasswordRoute = location.pathname === '/reset-password';
   const isWaitingRoute = location.pathname === '/waiting-for-approval';
   
   // Combined loading state: auth loading OR profile checking OR profile check not yet run
-  const isLoading = authLoading || (waitingForAuthHash && !user) || (user && isCheckingProfile) || (user && !profileCheckCompleted);
+  // Also wait for phone RPC when the phone gate applies (avoids home flash before prompt).
+  // On RPC error we stop waiting (phoneCheckError) without treating the user as phone-less.
+  const isLoading =
+    authLoading ||
+    (waitingForAuthHash && !user) ||
+    (user && isCheckingProfile) ||
+    (user && !profileCheckCompleted) ||
+    (phoneGateApplies && isCheckingPhone) ||
+    (phoneGateApplies && hasOwnPhone === null && !phoneCheckError);
 
   // Clear auth-hash wait when session attaches, or time out so we never blank forever
   useEffect(() => {
@@ -110,6 +136,17 @@ function AppContent() {
 
     checkUrlAndRedirect();
   }, [location, navigate]);
+
+  // Reset phone gate when session ends
+  useEffect(() => {
+    if (!user) {
+      phoneCheckRequestRef.current += 1;
+      setHasOwnPhone(null);
+      setIsCheckingPhone(false);
+      setPhoneCheckError(false);
+      setPhoneCheckRetryKey(0);
+    }
+  }, [user]);
 
   // Check if user's profile is complete and account status — writes sessionProfile (gate source of truth)
   useEffect(() => {
@@ -171,6 +208,60 @@ function AppContent() {
     // Only depend on user ID - prevents re-check on token refresh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, setSessionProfile]);
+
+  // Phone presence for role=user — do NOT select phone_e164 from profiles (SELECT revoked);
+  // use get_own_whatsapp_messaging() like ProfilePage.
+  useEffect(() => {
+    if (!phoneGateApplies) {
+      phoneCheckRequestRef.current += 1;
+      setIsCheckingPhone(false);
+      setPhoneCheckError(false);
+      // Privileged / not-yet-approved: gate does not apply
+      if (!user?.id || isPrivilegedRole || !isApproved) {
+        setHasOwnPhone(null);
+      }
+      return undefined;
+    }
+
+    const requestId = ++phoneCheckRequestRef.current;
+    let cancelled = false;
+
+    const checkOwnPhone = async () => {
+      setIsCheckingPhone(true);
+      setPhoneCheckError(false);
+      try {
+        const { data, error: rpcError } = await supabase.rpc('get_own_whatsapp_messaging');
+        if (cancelled || requestId !== phoneCheckRequestRef.current) return;
+
+        if (rpcError) {
+          console.error('Error checking own WhatsApp messaging:', rpcError);
+          // Never assume "no phone" on error — keep previous known state and leave gate closed
+          setPhoneCheckError(true);
+          return;
+        }
+
+        const messaging = Array.isArray(data) ? data[0] : data;
+        const phone = typeof messaging?.phone_e164 === 'string' ? messaging.phone_e164.trim() : '';
+        setHasOwnPhone(Boolean(phone));
+        setPhoneCheckError(false);
+      } catch (err) {
+        if (cancelled || requestId !== phoneCheckRequestRef.current) return;
+        console.error('Error in phone gate check:', err);
+        // Keep previous hasOwnPhone; do not open PhoneRequiredPrompt
+        setPhoneCheckError(true);
+      } finally {
+        if (!cancelled && requestId === phoneCheckRequestRef.current) {
+          setIsCheckingPhone(false);
+        }
+      }
+    };
+
+    void checkOwnPhone();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phoneGateApplies, user?.id, isPrivilegedRole, isApproved, phoneCheckRetryKey]);
 
   // Save deep link URL for redirect after login (e.g. QR code scan)
   useEffect(() => {
@@ -246,12 +337,21 @@ function AppContent() {
     }
   }
 
+  // Only open gate after a successful RPC that confirmed phone is missing — never on RPC error
+  const needsPhone =
+    phoneGateApplies && hasOwnPhone === false && !phoneCheckError;
+
+  // Preferred start only after phone is confirmed present (hasOwnPhone === true).
+  // While phone is unknown (null / loading / RPC error), keep preferred-start closed
+  // so it cannot cover the Retry banner or skip phone-then-start order.
+  // Privileged roles never hit this (excluded below); they are phone-gate exempt.
   const needsPreferredStart =
     user &&
     profileCheckCompleted &&
     isApproved &&
     sessionProfile &&
-    !PRIVILEGED_ROLES.has(sessionProfile.role) &&
+    !isPrivilegedRole &&
+    hasOwnPhone === true &&
     !sessionProfile.preferred_start_time;
 
   // Main routing
@@ -265,6 +365,31 @@ function AppContent() {
         App configuration warning: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing in this production build.
         Ask an administrator to set them on Netlify (Site environment variables) and redeploy.
       </div>
+    )}
+    {phoneGateApplies && phoneCheckError && !needsPhone && (
+      <div
+        role="status"
+        className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2 text-sm text-center flex flex-wrap items-center justify-center gap-2"
+      >
+        <span>Could not verify your phone number. You can continue and retry.</span>
+        <button
+          type="button"
+          onClick={() => setPhoneCheckRetryKey((key) => key + 1)}
+          disabled={isCheckingPhone}
+          className="underline font-medium disabled:opacity-60"
+        >
+          {isCheckingPhone ? 'Retrying…' : 'Retry'}
+        </button>
+      </div>
+    )}
+    {needsPhone && (
+      <PhoneRequiredPrompt
+        userId={user.id}
+        onSaved={() => {
+          setHasOwnPhone(true);
+          setPhoneCheckError(false);
+        }}
+      />
     )}
     {needsPreferredStart && (
       <PreferredStartTimePrompt

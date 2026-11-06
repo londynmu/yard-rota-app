@@ -1133,7 +1133,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                     <p className="text-xs text-red-500 mt-0.5">{formErrors.phoneE164}</p>
                   ) : (
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Used for PreCheck WhatsApp reminders. UK numbers OK as 07… or +44…
+                      Phone is required so we can confirm your shifts and send operational reminders
+                      about PreCheck and breaks. UK numbers OK as 07… or +44….
                     </p>
                   )}
                 </div>
@@ -1142,7 +1143,8 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-charcoal">WhatsApp reminders</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        Operational PreCheck nudges only — not marketing. You can turn this off anytime.
+                        Operational reminders only (PreCheck and similar) — not marketing. You can
+                        turn this off anytime.
                       </p>
                     </div>
                     <button

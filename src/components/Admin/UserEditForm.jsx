@@ -581,7 +581,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 <p className="mt-1 text-sm text-red-500">{formErrors.phoneE164}</p>
               ) : (
                 <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                  E.164 for PreCheck WhatsApp reminders. Status:{' '}
+                  E.164 for shift confirmation and operational reminders (PreCheck, breaks). Status:{' '}
                   {(() => {
                     let phone = null;
                     try {
@@ -607,7 +607,8 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   disabled={loading}
                 />
                 <p className="mt-1 max-w-sm text-[11px] leading-snug text-gray-500">
-                  Operational PreCheck nudges only. Admin can enable or disable for this user.
+                  Operational reminders only — not marketing. Admin can enable or disable for this
+                  user.
                 </p>
               </div>
             </FieldRow>
