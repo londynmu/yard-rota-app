@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import LocationConfigManager from './LocationConfigManager';
 import AgencyConfigManager from './AgencyConfigManager';
+import PrecheckWhatsAppLog from './PrecheckWhatsAppLog';
 import { parseMaxConsecutiveWorkDays } from '../../utils/consecutiveWorkDays';
 
 export default function SettingsManager() {
@@ -183,6 +184,7 @@ export default function SettingsManager() {
               { id: 'agencies', label: 'Agencies' },
               { id: 'home-page', label: 'Home page' },
               { id: 'rota', label: 'Rota' },
+              { id: 'whatsapp', label: 'WhatsApp' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -330,6 +332,7 @@ export default function SettingsManager() {
             </div>
           </div>
         )}
+        {activeSection === 'whatsapp' && <PrecheckWhatsAppLog />}
       </div>
     </div>
   );
