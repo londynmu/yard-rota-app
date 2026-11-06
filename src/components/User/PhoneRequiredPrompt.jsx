@@ -7,12 +7,15 @@ import { normalizePhoneE164 } from '../../utils/phoneE164';
 
 /**
  * Blocking one-time prompt: approved shunters (role=user) must save a phone
- * number before using the app. WhatsApp opt-in stays optional (default off).
+ * number before using the app. WhatsApp opt-in stays optional (default off)
+ * and is only written when the user explicitly toggles the checkbox — never
+ * overwrite an existing consent by saving false from an untouched form.
  */
 export default function PhoneRequiredPrompt({ userId, onSaved }) {
   const toast = useToast();
   const [phone, setPhone] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+  const [whatsappOptInTouched, setWhatsappOptInTouched] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -36,14 +39,20 @@ export default function PhoneRequiredPrompt({ userId, onSaved }) {
       return;
     }
 
+    // Only update phone by default. Include whatsapp_opt_in only when the user
+    // explicitly toggled the optional checkbox (avoids wiping existing consent).
+    const updatePayload = {
+      phone_e164: normalizedPhone,
+      updated_at: new Date().toISOString(),
+    };
+    if (whatsappOptInTouched) {
+      updatePayload.whatsapp_opt_in = whatsappOptIn;
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({
-        phone_e164: normalizedPhone,
-        whatsapp_opt_in: whatsappOptIn,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', userId);
     setSaving(false);
 
@@ -52,7 +61,10 @@ export default function PhoneRequiredPrompt({ userId, onSaved }) {
       return;
     }
 
-    onSaved({ phone_e164: normalizedPhone, whatsapp_opt_in: whatsappOptIn });
+    onSaved({
+      phone_e164: normalizedPhone,
+      ...(whatsappOptInTouched ? { whatsapp_opt_in: whatsappOptIn } : {}),
+    });
   };
 
   return (
@@ -99,7 +111,10 @@ export default function PhoneRequiredPrompt({ userId, onSaved }) {
           id="phone-required-whatsapp"
           type="checkbox"
           checked={whatsappOptIn}
-          onChange={(event) => setWhatsappOptIn(event.target.checked)}
+          onChange={(event) => {
+            setWhatsappOptInTouched(true);
+            setWhatsappOptIn(event.target.checked);
+          }}
           disabled={saving}
           className="mt-0.5 h-4 w-4 rounded border-gray-300 text-charcoal focus:ring-charcoal"
         />
