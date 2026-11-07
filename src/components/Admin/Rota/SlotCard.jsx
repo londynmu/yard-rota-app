@@ -19,7 +19,8 @@ const SlotCard = ({
   handleOpenAssignModal, 
   handleDeleteSlot, 
   handleOpenEditModal,
-  isAdmin 
+  isAdmin,
+  assignedCountMode = 'badge',
 }) => {
   const [assignedUsers, setAssignedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -429,12 +430,14 @@ const SlotCard = ({
           {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm font-semibold ${stateStyles.badgeClass}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-            </svg>
-            {assignedCount}
-          </span>
+          {assignedCountMode === 'badge' && (
+            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm font-semibold ${stateStyles.badgeClass}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+              </svg>
+              {assignedCount}
+            </span>
+          )}
           {isAdmin && (
             <button
               ref={menuButtonRef}
@@ -450,6 +453,11 @@ const SlotCard = ({
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
               </svg>
             </button>
+          )}
+          {assignedCountMode === 'plain' && (
+            <span className="text-sm font-semibold tabular-nums text-rota-text-muted">
+              {assignedCount}
+            </span>
           )}
         </div>
       </div>
@@ -552,11 +560,13 @@ SlotCard.propTypes = {
   handleOpenAssignModal: PropTypes.func.isRequired,
   handleDeleteSlot: PropTypes.func.isRequired,
   handleOpenEditModal: PropTypes.func.isRequired,
-  isAdmin: PropTypes.bool.isRequired
+  isAdmin: PropTypes.bool.isRequired,
+  assignedCountMode: PropTypes.oneOf(['badge', 'plain', 'hidden']),
 };
 
 SlotCard.defaultProps = {
   sameDaySlots: [],
+  assignedCountMode: 'badge',
 };
 
 export default SlotCard; 

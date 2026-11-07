@@ -13,7 +13,14 @@ import {
 } from '../../../utils/rotaSlotConflicts';
 import UserNoteModal from './UserNoteModal';
 
-const AssignModal = ({ slot, onClose, onAssign }) => {
+const AssignModal = ({
+  slot,
+  onClose,
+  onAssign,
+  locations = [],
+  onUpdateSlot = null,
+  onNavigateDay = null,
+}) => {
   const [availableEmployees, setAvailableEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('available');
@@ -29,6 +36,12 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   const [userNoteData, setUserNoteData] = useState(null);
   const [isTaskSectionExpanded, setIsTaskSectionExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingField, setEditingField] = useState(null); // 'capacity' | 'location' | 'time' | null
+  const [draftCapacity, setDraftCapacity] = useState(slot.capacity);
+  const [draftLocation, setDraftLocation] = useState(slot.location);
+  const [draftStartTime, setDraftStartTime] = useState((slot.start_time || '').slice(0, 5));
+  const [draftEndTime, setDraftEndTime] = useState((slot.end_time || '').slice(0, 5));
+  const [isSavingInline, setIsSavingInline] = useState(false);
 
   const normalizedSlotShift = slot?.shift_type?.trim().toLowerCase() || '';
 
@@ -48,6 +61,84 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
   // Format time to remove seconds (HH:MM)
   const formatTimeWithoutSeconds = (timeString) => {
     return timeString.split(':').slice(0, 2).join(':');
+  };
+
+  const toDbTime = (hhmm) => {
+    const trimmed = (hhmm || '').trim();
+    if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+    return trimmed;
+  };
+
+  // Keep inline drafts aligned when parent swaps/refreshes the slot
+  useEffect(() => {
+    setDraftCapacity(slot.capacity);
+    setDraftLocation(slot.location);
+    setDraftStartTime(formatTimeWithoutSeconds(slot.start_time));
+    setDraftEndTime(formatTimeWithoutSeconds(slot.end_time));
+    setEditingField(null);
+  }, [slot.id, slot.capacity, slot.location, slot.start_time, slot.end_time, slot.date]);
+
+  const saveSlotPatch = async (patch) => {
+    if (!onUpdateSlot || isSavingInline) return;
+    setIsSavingInline(true);
+    try {
+      await onUpdateSlot(slot.id, {
+        location: slot.location,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slot.capacity,
+        status: slot.status ?? null,
+        ...patch,
+      });
+      setEditingField(null);
+    } catch (err) {
+      console.error('[AssignModal] inline update failed', err);
+    } finally {
+      setIsSavingInline(false);
+    }
+  };
+
+  const commitCapacity = async () => {
+    const next = Number.parseInt(draftCapacity, 10);
+    if (!Number.isFinite(next) || next < 1) {
+      setDraftCapacity(slot.capacity);
+      setEditingField(null);
+      return;
+    }
+    const minCapacity = Math.max(1, localAssignedCount);
+    const clamped = Math.max(minCapacity, next);
+    setDraftCapacity(clamped);
+    if (clamped === slot.capacity) {
+      setEditingField(null);
+      return;
+    }
+    await saveSlotPatch({ capacity: clamped });
+  };
+
+  const commitLocation = async () => {
+    if (!draftLocation || draftLocation === slot.location) {
+      setDraftLocation(slot.location);
+      setEditingField(null);
+      return;
+    }
+    await saveSlotPatch({ location: draftLocation });
+  };
+
+  const commitTimes = async () => {
+    const start = toDbTime(draftStartTime);
+    const end = toDbTime(draftEndTime);
+    if (!/^\d{2}:\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}:\d{2}$/.test(end)) {
+      setDraftStartTime(formatTimeWithoutSeconds(slot.start_time));
+      setDraftEndTime(formatTimeWithoutSeconds(slot.end_time));
+      setEditingField(null);
+      return;
+    }
+    if (start === slot.start_time && end === slot.end_time) {
+      setEditingField(null);
+      return;
+    }
+    await saveSlotPatch({ start_time: start, end_time: end });
   };
 
   // Format date to include day of week
@@ -618,12 +709,59 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <h3 className="text-sm font-bold text-rota-text-primary">
-                  {slot.location}
-                </h3>
+                {editingField === 'location' ? (
+                  <select
+                    autoFocus
+                    value={draftLocation}
+                    disabled={isSavingInline}
+                    onChange={(e) => setDraftLocation(e.target.value)}
+                    onBlur={commitLocation}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitLocation();
+                      }
+                      if (e.key === 'Escape') {
+                        setDraftLocation(slot.location);
+                        setEditingField(null);
+                      }
+                    }}
+                    className="text-sm font-bold text-rota-text-primary bg-transparent border-0 p-0 focus:outline-none focus:ring-0 cursor-pointer"
+                    aria-label="Change location"
+                  >
+                    {(locations.length > 0 ? locations : [{ id: slot.location, name: slot.location }]).map((loc) => (
+                      <option key={loc.id || loc.name} value={loc.name}>{loc.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <h3
+                    className={`text-sm font-bold text-rota-text-primary ${onUpdateSlot ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (!onUpdateSlot) return;
+                      setDraftLocation(slot.location);
+                      setEditingField('location');
+                    }}
+                    title={onUpdateSlot ? 'Click to change location' : undefined}
+                  >
+                    {slot.location}
+                  </h3>
+                )}
               </div>
               <div className="hidden md:block h-8 w-px bg-gray-300"></div>
               <div className="flex items-center gap-2">
+                {typeof onNavigateDay === 'function' && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateDay(-1)}
+                    className="rounded-full p-1 text-rota-text-primary transition-colors hover:bg-gray-100"
+                    aria-label="Previous day"
+                    title="Previous day"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                )}
                 <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -632,30 +770,137 @@ const AssignModal = ({ slot, onClose, onAssign }) => {
                     {getFormattedDate(slot.date)}
                   </span>
                   <span className="hidden md:inline text-rota-text-muted">•</span>
-                  <span className="text-sm font-semibold text-rota-text-primary flex items-center gap-1">
-                    <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
-                  </span>
+                  {editingField === 'time' ? (
+                    <span className="text-sm font-semibold text-rota-text-primary flex items-center gap-1">
+                      <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <input
+                        type="time"
+                        autoFocus
+                        value={draftStartTime}
+                        disabled={isSavingInline}
+                        onChange={(e) => setDraftStartTime(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            commitTimes();
+                          }
+                          if (e.key === 'Escape') {
+                            setDraftStartTime(formatTimeWithoutSeconds(slot.start_time));
+                            setDraftEndTime(formatTimeWithoutSeconds(slot.end_time));
+                            setEditingField(null);
+                          }
+                        }}
+                        className="w-[7.5rem] bg-transparent border-0 p-0 text-sm font-semibold text-rota-text-primary focus:outline-none focus:ring-0"
+                        aria-label="Start time"
+                      />
+                      <span>-</span>
+                      <input
+                        type="time"
+                        value={draftEndTime}
+                        disabled={isSavingInline}
+                        onChange={(e) => setDraftEndTime(e.target.value)}
+                        onBlur={commitTimes}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            commitTimes();
+                          }
+                          if (e.key === 'Escape') {
+                            setDraftStartTime(formatTimeWithoutSeconds(slot.start_time));
+                            setDraftEndTime(formatTimeWithoutSeconds(slot.end_time));
+                            setEditingField(null);
+                          }
+                        }}
+                        className="w-[7.5rem] bg-transparent border-0 p-0 text-sm font-semibold text-rota-text-primary focus:outline-none focus:ring-0"
+                        aria-label="End time"
+                      />
+                    </span>
+                  ) : (
+                    <span
+                      className={`text-sm font-semibold text-rota-text-primary flex items-center gap-1 ${onUpdateSlot ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (!onUpdateSlot) return;
+                        setDraftStartTime(formatTimeWithoutSeconds(slot.start_time));
+                        setDraftEndTime(formatTimeWithoutSeconds(slot.end_time));
+                        setEditingField('time');
+                      }}
+                      title={onUpdateSlot ? 'Click to edit time' : undefined}
+                    >
+                      <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
+                    </span>
+                  )}
                 </div>
+                {typeof onNavigateDay === 'function' && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateDay(1)}
+                    className="rounded-full p-1 text-rota-text-primary transition-colors hover:bg-gray-100"
+                    aria-label="Next day"
+                    title="Next day"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
               {/* Capacity Badge */}
-              <div className={`flex items-center gap-2 rounded-full px-4 py-1.5 shadow-sm border-2 ${
-                localAssignedCount >= slot.capacity 
-                  ? 'bg-red-100 border-red-400 text-rota-alert-error-text' 
-                  : capacityPercentage >= 75 
-                    ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
-                    : 'bg-green-100 border-green-400 text-green-700'
-              }`}>
+              <div
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 shadow-sm border-2 ${
+                  localAssignedCount >= slot.capacity 
+                    ? 'bg-red-100 border-red-400 text-rota-alert-error-text' 
+                    : capacityPercentage >= 75 
+                      ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                      : 'bg-green-100 border-green-400 text-green-700'
+                } ${onUpdateSlot ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (!onUpdateSlot || editingField === 'capacity') return;
+                  setDraftCapacity(slot.capacity);
+                  setEditingField('capacity');
+                }}
+                title={onUpdateSlot ? 'Click to edit required people' : undefined}
+              >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                <span className="font-bold text-sm">
-                  {localAssignedCount}/{slot.capacity}
-                </span>
+                {editingField === 'capacity' ? (
+                  <span className="font-bold text-sm flex items-center gap-0.5">
+                    {localAssignedCount}/
+                    <input
+                      type="number"
+                      min={Math.max(1, localAssignedCount)}
+                      autoFocus
+                      value={draftCapacity}
+                      disabled={isSavingInline}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => setDraftCapacity(e.target.value)}
+                      onBlur={commitCapacity}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitCapacity();
+                        }
+                        if (e.key === 'Escape') {
+                          setDraftCapacity(slot.capacity);
+                          setEditingField(null);
+                        }
+                      }}
+                      className="w-10 bg-transparent border-0 p-0 text-center font-bold text-sm focus:outline-none focus:ring-0"
+                      aria-label="Required people"
+                    />
+                  </span>
+                ) : (
+                  <span className="font-bold text-sm">
+                    {localAssignedCount}/{slot.capacity}
+                  </span>
+                )}
               </div>
 
               <button
@@ -965,10 +1210,23 @@ AssignModal.propTypes = {
     start_time: PropTypes.string.isRequired,
     end_time: PropTypes.string.isRequired,
     capacity: PropTypes.number.isRequired,
-    assigned_employees: PropTypes.array.isRequired
+    assigned_employees: PropTypes.array.isRequired,
+    status: PropTypes.string,
   }).isRequired,
   onClose: PropTypes.func.isRequired,
-  onAssign: PropTypes.func.isRequired
+  onAssign: PropTypes.func.isRequired,
+  locations: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string.isRequired,
+  })),
+  onUpdateSlot: PropTypes.func,
+  onNavigateDay: PropTypes.func,
+};
+
+AssignModal.defaultProps = {
+  locations: [],
+  onUpdateSlot: null,
+  onNavigateDay: null,
 };
 
 export default AssignModal; 
