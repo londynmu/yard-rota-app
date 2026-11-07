@@ -560,28 +560,59 @@ const RotaManager = ({ user }) => {
       }
 
       // Update local state
+      const nextSlotFields = {
+        location: updatedData.location,
+        start_time: updatedData.start_time,
+        end_time: updatedData.end_time,
+        capacity: updatedData.capacity,
+        status: updatedData.status,
+      };
       setSlots(prevSlots => {
         return prevSlots.map(slot => {
           if (slot.id === slotId) {
             return {
               ...slot,
-              location: updatedData.location,
-              start_time: updatedData.start_time,
-              end_time: updatedData.end_time,
-              capacity: updatedData.capacity,
-              status: updatedData.status // Dodajemy pole status do aktualizacji w stanie lokalnym
+              ...nextSlotFields,
             };
           }
           return slot;
         });
       });
+      setSelectedSlot((prev) => (
+        prev && prev.id === slotId
+          ? { ...prev, ...nextSlotFields }
+          : prev
+      ));
 
       setSuccessMessage('Slot updated successfully');
       setError(null);
     } catch (error) {
       console.error('Error updating slot:', error);
       setError('Failed to update slot');
+      throw error;
     }
+  };
+
+  const handleAssignModalNavigateDay = (direction) => {
+    if (!selectedSlot) return;
+    const targetDate = format(addDays(parseISO(selectedSlot.date), direction), 'yyyy-MM-dd');
+    const daySlots = slots.filter((s) => s.date === targetDate);
+    if (daySlots.length === 0) {
+      toast.error(direction < 0 ? 'No slots on the previous day' : 'No slots on the next day');
+      return;
+    }
+    const score = (s) => {
+      let n = 0;
+      if (s.location === selectedSlot.location) n += 4;
+      if (s.start_time === selectedSlot.start_time) n += 2;
+      if (s.end_time === selectedSlot.end_time) n += 2;
+      if (s.shift_type === selectedSlot.shift_type) n += 1;
+      return n;
+    };
+    const best = [...daySlots].sort(
+      (a, b) => score(b) - score(a) || a.start_time.localeCompare(b.start_time),
+    )[0];
+    setSelectedSlot(best);
   };
 
   const handleEmployeeAssignment = async (slotId, employeeId, isAssigning, task) => {
@@ -1123,6 +1154,11 @@ const RotaManager = ({ user }) => {
     setCurrentDate(format(weekStartDate, 'yyyy-MM-dd'));
   };
 
+  const goToToday = () => {
+    safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
+    setCurrentDate(format(new Date(), 'yyyy-MM-dd'));
+  };
+
   const goToNextWeek = () => {
     safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     const weekStartDate = getWeekStart(parseISO(currentDate));
@@ -1132,12 +1168,13 @@ const RotaManager = ({ user }) => {
 
   const formatDisplayDate = (dateString) => {
     const dateObj = parseISO(dateString);
-    return format(dateObj, 'dd/MM/yyyy');
+    return format(dateObj, 'EEE d MMM yyyy');
   };
-  
-  const getDayShort = (dateString) => {
-    const dateObj = parseISO(dateString);
-    return format(dateObj, 'EEE'); // Short day name
+
+  const formatWeekRangeLabel = (dateString) => {
+    const weekStartDate = getWeekStart(parseISO(dateString));
+    const weekEndDate = addDays(weekStartDate, 6);
+    return `${format(weekStartDate, 'd MMM')} – ${format(weekEndDate, 'd MMM')}`;
   };
 
   const handleLocationTabClick = (location) => {
@@ -1322,23 +1359,17 @@ const RotaManager = ({ user }) => {
   if (loading && !slots.length) {
     return (
       <div className="space-y-6 animate-pulse bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to min-h-screen p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div className="flex gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-24 bg-rota-toolbar-border rounded-lg" />
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="h-11 w-40 bg-rota-toolbar-border rounded-lg" />
+            <div className="h-11 w-36 bg-rota-toolbar-border rounded-lg" />
+            <div className="h-11 flex-1 bg-rota-toolbar-border rounded-lg" />
+          </div>
+          <div className="flex flex-wrap gap-2 border-t border-rota-toolbar-border pt-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-11 w-32 bg-rota-toolbar-border rounded-lg" />
             ))}
           </div>
-          <div className="h-10 bg-rota-toolbar-border rounded-lg" />
-          <div className="flex gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 w-20 bg-rota-toolbar-border rounded-lg" />
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
-          <div className="h-6 w-64 bg-rota-day-other-bg-from rounded" />
-          <div className="w-10 h-10 bg-rota-toolbar-border rounded-lg" />
         </div>
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 35 }).map((_, i) => (
@@ -1357,170 +1388,177 @@ const RotaManager = ({ user }) => {
 
   return (
     <div className="space-y-3 sm:space-y-6">
-      {/* Responsive Toolbar – mobile: 2 rows, desktop: 3 columns */}
-      <div className="sticky top-0 z-40 bg-rota-toolbar-bg border-b border-rota-toolbar-border shadow-sm py-2 sm:py-3">
-        <div className="flex flex-wrap items-center gap-2 lg:grid lg:grid-cols-3 lg:gap-3">
-          {/* Location + view toggle */}
-          <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:justify-start">
-            <select
-              value={selectedLocation || (locations[0]?.name ?? '')}
-              onChange={(e) => handleLocationTabClick(e.target.value)}
-              className="admin-chip h-9 flex-1 min-w-0 truncate !justify-start cursor-pointer sm:h-10 lg:flex-none lg:min-w-[120px]"
-              aria-label="Select location"
-            >
-              {locations.map((location) => (
-                <option key={location.id} value={location.name}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
+      {/* Single toolbar row on desktop: filters + date + actions */}
+      <div className="sticky top-0 z-40 border-b border-rota-toolbar-border bg-rota-toolbar-bg py-2.5 shadow-sm">
+        <div className="flex flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center xl:gap-3">
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
+            <label className="relative inline-flex min-w-0 max-w-full">
+              <span className="sr-only">Select location</span>
+              <select
+                value={selectedLocation || (locations[0]?.name ?? '')}
+                onChange={(e) => handleLocationTabClick(e.target.value)}
+                className="min-w-0 max-w-[10rem] appearance-none truncate rounded-md bg-transparent py-0.5 pl-1.5 pr-6 text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50 focus:outline-none xl:max-w-[11rem]"
+                aria-label="Select location"
+              >
+                {locations.map((location) => (
+                  <option key={location.id} value={location.name}>
+                    {location.name}
+                  </option>
+                ))}
+              </select>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="pointer-events-none absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </label>
+
+            <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
 
             <div
-              className="admin-seg-track shrink-0 !h-9 sm:!h-10"
+              className="inline-flex items-center gap-x-1.5"
               role="group"
               aria-label="Select view"
             >
-              {['day', 'week'].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setViewMode(mode)}
-                  aria-pressed={viewMode === mode}
-                  className={`admin-seg-item capitalize !h-full ${
-                    viewMode === mode ? 'admin-seg-item-active' : ''
-                  }`}
-                >
-                  {mode}
-                </button>
+              {['day', 'week'].map((mode, index) => (
+                <React.Fragment key={mode}>
+                  {index > 0 && (
+                    <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    aria-pressed={viewMode === mode}
+                    className={`rounded-md px-1.5 py-0.5 capitalize transition-colors ${
+                      viewMode === mode
+                        ? 'text-sm font-semibold text-charcoal'
+                        : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                </React.Fragment>
               ))}
             </div>
           </div>
 
-          {/* Date / week navigation */}
-          <div className="flex min-w-0 flex-1 items-center gap-2 lg:justify-center">
+          <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+          <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
+            <button
+              type="button"
+              onClick={viewMode === 'day' ? goToPreviousDay : goToPreviousWeek}
+              className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+              aria-label={viewMode === 'day' ? 'Previous day' : 'Previous week'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
             {viewMode === 'day' ? (
-              <div className="flex h-9 min-w-0 flex-1 items-center bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm sm:h-10 lg:flex-none">
-                <button 
-                  onClick={goToPreviousDay}
-                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg sm:px-3"
-                  aria-label="Previous day"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                
-                <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border sm:gap-2 sm:px-3 lg:flex-none">
-                  <span className="truncate">{formatDisplayDate(currentDate)}</span>
-                  <span>{getDayShort(currentDate)}</span>
-                  <button 
-                    onClick={() => document.getElementById('date-select').showPicker()}
-                    className="text-rota-text-primary hover:opacity-70 transition-opacity"
-                    aria-label="Open calendar"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  <input
-                    id="date-select"
-                    type="date"
-                    value={currentDate}
-                    onChange={handleDateChange}
-                    className="sr-only"
-                  />
-                </div>
-                
-                <button 
-                  onClick={goToNextDay}
-                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg sm:px-3"
-                  aria-label="Next day"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="flex h-9 min-w-0 flex-1 items-center bg-rota-modal-bg rounded-lg border-2 border-rota-input-border shadow-sm sm:h-10 lg:flex-none">
-                <button 
-                  onClick={goToPreviousWeek}
-                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-l-lg sm:px-3"
-                  aria-label="Previous week"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2 h-full text-sm font-semibold text-rota-text-primary whitespace-nowrap border-x-2 border-rota-input-border sm:px-3 lg:flex-none lg:min-w-[140px]">
-                  <span>Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}</span>
-                </div>
-                <button 
-                  onClick={goToNextWeek}
-                  className="h-full px-2.5 text-rota-text-primary hover:bg-rota-btn-primary-hover-bg transition-colors rounded-r-lg sm:px-3"
-                  aria-label="Next week"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            )}
-            {viewMode === 'week' && (
               <button
                 type="button"
-                onClick={goToCurrentWeek}
-                className="admin-chip shrink-0 whitespace-nowrap"
+                onClick={() => document.getElementById('date-select')?.showPicker?.()}
+                className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
+                aria-label="Open calendar"
               >
-                Current week
+                {formatDisplayDate(currentDate)}
               </button>
+            ) : (
+              <div className="min-w-0 shrink-0 px-1 text-center leading-tight">
+                <div className="text-sm font-semibold text-charcoal">
+                  Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}
+                </div>
+                <div className="text-[11px] font-medium text-gray-500">
+                  {formatWeekRangeLabel(currentDate)}
+                </div>
+              </div>
             )}
-          </div>
-          
-          {/* Actions (icons on mobile, labelled from sm) */}
-          <div className="flex shrink-0 items-center gap-1.5 lg:justify-end lg:gap-2">
+
+            <input
+              id="date-select"
+              type="date"
+              value={currentDate}
+              onChange={handleDateChange}
+              className="sr-only"
+            />
+
             <button
+              type="button"
+              onClick={viewMode === 'day' ? goToNextDay : goToNextWeek}
+              className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+              aria-label={viewMode === 'day' ? 'Next day' : 'Next week'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+
+            <button
+              type="button"
+              onClick={viewMode === 'day' ? goToToday : goToCurrentWeek}
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+            >
+              {viewMode === 'day' ? 'Today' : 'Current week'}
+            </button>
+          </div>
+
+          <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+          <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-rota-toolbar-border pt-3 xl:ml-auto xl:flex-nowrap xl:border-t-0 xl:pt-0">
+            <button
+              type="button"
               onClick={handleCopyFromPreviousWeek}
-              className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-auto sm:!px-3 gap-1.5"
+              className="admin-btn h-11 shrink-0 gap-2 !px-4 !text-sm"
               title="Copy last week"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                 <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
               </svg>
-              <span className="hidden sm:inline">Copy last week</span>
+              <span>Copy last week</span>
             </button>
-            
+
             <button
+              type="button"
               onClick={openTemplateModal}
-              className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10"
+              className="admin-btn h-11 shrink-0 gap-2 !px-4 !text-sm"
               title="Templates"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
                 <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
               </svg>
+              <span>Templates</span>
             </button>
-            
-            <div className="relative admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10">
+
+            <div className="relative shrink-0">
               <ExportRotaButton
-                iconOnly={true}
                 weekStart={getWeekStart(currentDate)}
                 pendingCount={pendingAdditionalCount}
                 onBaselineChanged={() => setBaselineEpoch((n) => n + 1)}
+                label="Send to agency"
+                className="!h-11 !w-auto !px-4 !text-sm"
               />
               {pendingAdditionalCount > 0 && (
-                <span className="pointer-events-none absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-charcoal px-1 text-center text-[10px] leading-4 text-white">
+                <span className="pointer-events-none absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-charcoal px-1.5 text-center text-[11px] leading-5 text-white">
                   {pendingAdditionalCount > 9 ? '9+' : pendingAdditionalCount}
                 </span>
               )}
             </div>
 
-            <div className="admin-btn h-9 w-9 flex-shrink-0 !px-0 sm:h-10 sm:w-10">
-              <RotaWhatsAppSendButton
-                weekStart={getWeekStart(parseISO(currentDate))}
-              />
-            </div>
+            <RotaWhatsAppSendButton
+              weekStart={getWeekStart(parseISO(currentDate))}
+            />
           </div>
         </div>
       </div>
@@ -1532,10 +1570,23 @@ const RotaManager = ({ user }) => {
             {['day', 'afternoon', 'night'].map((shiftType) => {
               const shiftSlots = slotsByShift[shiftType];
               const title = shiftType.charAt(0).toUpperCase() + shiftType.slice(1) + ' Shift';
+              const shiftPeopleTotal = shiftSlots.reduce(
+                (sum, slot) => sum + countUniqueAssigned(slot.assigned_employees),
+                0,
+              );
               return (
                 <div key={shiftType} className="space-y-2.5 sm:space-y-4 flex flex-col">
-                  <h3 className="border-b-2 border-rota-toolbar-border pb-1.5 text-base font-semibold capitalize text-rota-text-primary sm:pb-2 sm:text-xl">
-                    {title}
+                  <h3 className="flex items-center justify-between gap-2 border-b-2 border-rota-toolbar-border pb-1.5 text-base font-semibold capitalize text-rota-text-primary sm:pb-2 sm:text-xl">
+                    <span>{title}</span>
+                    <span
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rota-badge-partial-border bg-rota-badge-partial-bg px-2 py-0.5 text-sm font-semibold normal-case text-rota-badge-partial-text"
+                      title={`Total people on ${title.toLowerCase()}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                      </svg>
+                      {shiftPeopleTotal}
+                    </span>
                   </h3>
                   {shiftSlots.length === 0 ? (
                     <p className="italic text-rota-text-muted-light">No slots scheduled for this shift</p>
@@ -1550,6 +1601,7 @@ const RotaManager = ({ user }) => {
                           handleDeleteSlot={handleDeleteSlot}
                           handleOpenEditModal={handleOpenEditModal}
                           isAdmin={true}
+                          assignedCountMode="plain"
                         />
                       ))}
                     </div>
@@ -1601,8 +1653,14 @@ const RotaManager = ({ user }) => {
                         : 'bg-gradient-to-br from-rota-day-other-bg-from to-rota-day-other-bg-to text-rota-day-other-text'
                     }`}
                   >
+                    <div className="text-xl font-medium uppercase tracking-wide opacity-90">
+                      {format(dateObj, 'EEEE')}
+                    </div>
+                    <div className="text-base font-bold mt-1">
+                      {format(dateObj, 'do')} {format(dateObj, 'MMMM')}
+                    </div>
                     {(shiftCounts.day > 0 || shiftCounts.afternoon > 0 || shiftCounts.night > 0) && (
-                      <div className="mb-2 flex flex-row flex-wrap items-center justify-center gap-1.5">
+                      <div className="mt-2 flex flex-row flex-wrap items-center justify-center gap-1.5">
                         {shiftCounts.day > 0 && (
                           <span className="inline-flex items-center text-xs bg-rota-badge-partial-bg text-rota-badge-partial-text px-1.5 py-0.5 rounded-full border border-rota-badge-partial-border">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -1629,12 +1687,6 @@ const RotaManager = ({ user }) => {
                         )}
                       </div>
                     )}
-                    <div className="text-sm font-medium uppercase tracking-wide opacity-90">
-                      {format(dateObj, 'EEE')}
-                    </div>
-                    <div className="text-xl font-bold mt-1">
-                      {format(dateObj, 'do')} {format(dateObj, 'MMM')}
-                    </div>
                   </div>
                   <div className="p-2 min-h-[120px] flex flex-col overflow-visible">
                     {slotsForDay.length === 0 ? (
@@ -1650,6 +1702,7 @@ const RotaManager = ({ user }) => {
                             handleDeleteSlot={handleDeleteSlot}
                             handleOpenEditModal={handleOpenEditModal}
                             isAdmin={true}
+                            assignedCountMode="plain"
                           />
                         ))}
                       </div>
@@ -1855,10 +1908,13 @@ const RotaManager = ({ user }) => {
       {showAssignModal && selectedSlot && createPortal(
         <AssignModal
           slot={selectedSlot}
+          locations={locations}
           onClose={() => setShowAssignModal(false)}
           onAssign={(employeeId, isAssigning, task) => 
             handleEmployeeAssignment(selectedSlot.id, employeeId, isAssigning, task)
           }
+          onUpdateSlot={handleUpdateSlot}
+          onNavigateDay={handleAssignModalNavigateDay}
         />,
         document.body
       )}

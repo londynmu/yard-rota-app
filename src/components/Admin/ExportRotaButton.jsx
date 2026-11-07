@@ -9,6 +9,8 @@ const ExportRotaButton = ({
   pendingCount = 0,
   initialTab = 'weekly',
   onBaselineChanged = null,
+  className = '',
+  label = 'Send to agency',
 }) => {
   const [showModal, setShowModal] = useState(false);
 
@@ -21,18 +23,23 @@ const ExportRotaButton = ({
   };
 
   const resolvedTab = pendingCount > 0 ? 'additional' : initialTab;
+  const exportTitle = pendingCount > 0
+    ? `${label} (${pendingCount} additional bookings)`
+    : label;
 
   return (
     <>
       {iconOnly ? (
         <button
+          type="button"
           onClick={openExportModal}
-          className="h-full w-full flex items-center justify-center text-rota-text-primary hover:opacity-70 transition-opacity"
-          title={pendingCount > 0 ? `Export Schedule (${pendingCount} additional bookings)` : 'Export Schedule'}
+          className={`h-full w-full flex items-center justify-center text-rota-text-primary hover:opacity-70 transition-opacity ${className}`}
+          title={exportTitle}
+          aria-label={exportTitle}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            className="h-4 w-4" 
+            className="h-5 w-5" 
             fill="none" 
             viewBox="0 0 24 24" 
             stroke="currentColor"
@@ -47,25 +54,27 @@ const ExportRotaButton = ({
         </button>
       ) : (
         <button
+          type="button"
           onClick={openExportModal}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-rota-input-border bg-rota-modal-bg px-4 py-2 text-sm font-medium text-rota-text-primary transition hover:bg-rota-btn-primary-hover-bg focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring sm:w-auto"
-          title="Export Schedule"
+          className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-charcoal/30 sm:w-auto ${className}`}
+          title={exportTitle}
+          aria-label={exportTitle}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            className="h-4 w-4" 
+            className="h-5 w-5 shrink-0" 
             fill="none" 
             viewBox="0 0 24 24" 
             stroke="currentColor"
+            strokeWidth={2}
           >
             <path 
               strokeLinecap="round" 
               strokeLinejoin="round" 
-              strokeWidth={2} 
               d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
             />
           </svg>
-          <span className="text-sm">Export</span>
+          <span>{label}</span>
         </button>
       )}
 
@@ -104,6 +113,8 @@ ExportRotaButton.propTypes = {
   pendingCount: PropTypes.number,
   initialTab: PropTypes.oneOf(['weekly', 'additional', 'individual']),
   onBaselineChanged: PropTypes.func,
+  className: PropTypes.string,
+  label: PropTypes.string,
 };
 
 ExportRotaButton.defaultProps = {
@@ -112,6 +123,8 @@ ExportRotaButton.defaultProps = {
   pendingCount: 0,
   initialTab: 'weekly',
   onBaselineChanged: null,
+  className: '',
+  label: 'Send to agency',
 };
 
 export default ExportRotaButton;
