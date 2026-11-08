@@ -11,6 +11,7 @@ import { useNotifications } from '../lib/NotificationContext';
 import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { filterShownOnReports, isShownOnReports } from '../utils/performanceVisibility';
+import { filterToLatestReportDate } from '../utils/latestReportDate';
 import { safeLocalStorage } from '../utils/safeStorage';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,7 +43,9 @@ const modalOptionClass = (selected) =>
   ].join(' ');
 
 const RANGE_OPTIONS = [
-  { value: 'last_day', label: 'Last Day', durationDays: 1 },
+  // Look back a few calendar days so a late morning YMS import still fills "Last Day"
+  // with the most recent report_date (filter applied after fetch).
+  { value: 'last_day', label: 'Last Day', durationDays: 4 },
   { value: 'last_week', label: 'Last Week', durationDays: 7 },
   { value: 'last_month', label: 'Last Month', durationDays: 30 },
   { value: 'all', label: 'All Time' },
@@ -287,7 +290,12 @@ const PerformanceLeaderboard = () => {
         }
       }
 
-      const performanceData = allPerformanceData;
+      let performanceData = allPerformanceData;
+      // "Last Day" = most recent imported report day within the lookback window,
+      // not necessarily calendar today (YMS mail can arrive after the 06:30 cron).
+      if (!actualDateFilter && selectedRange === 'last_day') {
+        performanceData = filterToLatestReportDate(performanceData);
+      }
 
       let normalizedPerformance = normalizePerformanceRecords(performanceData);
       // Keep only the requested actual_date when deep-linked via ?date=
