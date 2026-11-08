@@ -30,6 +30,9 @@ function statusLabel(person) {
  */
 export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
   const toast = useToast();
+  // Stable refs — ToastProvider rebuilds the context object on every toast show/hide
+  const toastError = toast.error;
+  const toastSuccess = toast.success;
   const weekIso = useMemo(
     () => (weekStart instanceof Date ? weekStartIso(weekStart) : weekStartIso(new Date(weekStart))),
     [weekStart],
@@ -98,12 +101,12 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
       });
     } catch (err) {
       console.error('[RotaWhatsApp] preview', err);
-      toast.error(err?.message || 'Could not load WhatsApp preview.');
+      toastError(err?.message || 'Could not load WhatsApp preview.');
       setPreview(null);
     } finally {
       setLoadingPreview(false);
     }
-  }, [toast, weekIso]);
+  }, [toastError, weekIso]);
 
   const loadPingCandidates = useCallback(async () => {
     setPingLoading(true);
@@ -143,14 +146,18 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
     loadMessagingReady();
   }, [loadMessagingReady]);
 
+  // Clear checklist/search only when the week changes (or modal remounts for a new week)
   useEffect(() => {
-    loadPreview();
-    loadPingCandidates();
     setPingUserId('');
     setPingRotaId('');
     setPingPreview(null);
     setSearchQuery('');
     setSelectedIds(new Set());
+  }, [weekIso]);
+
+  useEffect(() => {
+    loadPreview();
+    loadPingCandidates();
   }, [loadPreview, loadPingCandidates]);
 
   const people = useMemo(() => preview?.people || [], [preview]);
@@ -221,22 +228,22 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
 
   const openSendConfirm = () => {
     if (emptyWeek) {
-      toast.error('Add people to the rota before sending');
+      toastError('Add people to the rota before sending');
       return;
     }
     if (messagingReady === false) {
-      toast.error('WhatsApp is not configured yet (Twilio Content SID missing).');
+      toastError('WhatsApp is not configured yet (Twilio Content SID missing).');
       return;
     }
     if (selectedCount === 0) {
       if (readyCount === 0) {
         if (alreadySentCount > 0) {
-          toast.error('Everyone on this week was already notified.');
+          toastError('Everyone on this week was already notified.');
         } else {
-          toast.error('No shunters are ready (phone + WhatsApp consent required).');
+          toastError('No shunters are ready (phone + WhatsApp consent required).');
         }
       } else {
-        toast.error('Select at least one ready shunter.');
+        toastError('Select at least one ready shunter.');
       }
       return;
     }
@@ -257,26 +264,26 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
       });
       if (error) throw error;
       if (data?.error) {
-        toast.error(data.error);
+        toastError(data.error);
         return;
       }
       const okCount = (data?.results || []).filter((r) => r.ok).length;
       const skipped = (data?.results || []).filter((r) => r.skipped).length;
       if (okCount > 0) {
-        toast.success(
+        toastSuccess(
           okCount === 1
             ? 'WhatsApp sent to 1 shunter.'
             : `WhatsApp sent to ${okCount} shunters.`,
         );
       } else if (skipped > 0) {
-        toast.error('No new messages sent (already notified or skipped).');
+        toastError('No new messages sent (already notified or skipped).');
       } else {
-        toast.error('WhatsApp send finished with no messages.');
+        toastError('WhatsApp send finished with no messages.');
       }
       await loadPreview();
     } catch (err) {
       console.error('[RotaWhatsApp] send', err);
-      toast.error(err?.message || 'WhatsApp send failed.');
+      toastError(err?.message || 'WhatsApp send failed.');
     } finally {
       setSending(false);
     }
@@ -284,7 +291,7 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
 
   const openPingConfirm = async () => {
     if (!pingRotaId) {
-      toast.error('Select a person and shift first.');
+      toastError('Select a person and shift first.');
       return;
     }
     try {
@@ -299,17 +306,17 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
       setPingPreview(data || null);
       const person = data?.people?.[0];
       if (!person) {
-        toast.error('Could not preview this person.');
+        toastError('Could not preview this person.');
         return;
       }
       if (person.status?.startsWith('skipped')) {
-        toast.error(person.label || 'Cannot notify this person.');
+        toastError(person.label || 'Cannot notify this person.');
         return;
       }
       setPingConfirmOpen(true);
     } catch (err) {
       console.error('[RotaWhatsApp] ping preview', err);
-      toast.error(err?.message || 'Could not preview WhatsApp ping.');
+      toastError(err?.message || 'Could not preview WhatsApp ping.');
     }
   };
 
@@ -329,25 +336,25 @@ export default function RotaWhatsAppSendPanel({ weekStart, onClose = null }) {
       });
       if (error) throw error;
       if (data?.error) {
-        toast.error(data.error);
+        toastError(data.error);
         return;
       }
       const first = data?.results?.[0];
       if (first?.ok) {
-        toast.success('WhatsApp notification sent.');
+        toastSuccess('WhatsApp notification sent.');
       } else if (first?.skipped) {
-        toast.error(
+        toastError(
           first.reason === 'already_sent'
             ? 'Already notified for this assignment.'
             : first.reason || 'Send skipped.',
         );
       } else {
-        toast.error(first?.error || 'WhatsApp send failed.');
+        toastError(first?.error || 'WhatsApp send failed.');
       }
       await loadPreview();
     } catch (err) {
       console.error('[RotaWhatsApp] ping send', err);
-      toast.error(err?.message || 'WhatsApp send failed.');
+      toastError(err?.message || 'WhatsApp send failed.');
     } finally {
       setPingSending(false);
     }
