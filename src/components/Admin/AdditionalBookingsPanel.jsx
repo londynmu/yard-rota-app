@@ -28,6 +28,9 @@ import {
 
 const outlineBtn = 'admin-btn';
 
+const compactEmailBtn =
+  'inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-rota-toolbar-border bg-white px-2.5 text-xs font-semibold text-rota-text-primary transition hover:bg-rota-day-other-bg-from/40 disabled:cursor-not-allowed disabled:opacity-50';
+
 function flattenPeopleShifts(people) {
   return people.flatMap((person) =>
     person.shifts.map((shift) => ({
@@ -238,37 +241,30 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
           {filteredGroups.length === 0 ? (
             <p className="text-sm text-charcoal">No people match this search.</p>
           ) : (
-            filteredGroups.map((group) => (
+            filteredGroups.map((group) => {
+              const rawAgency = (group.agencyName || '').trim();
+              const agencyLabel = !rawAgency || /^no agency$/i.test(rawAgency)
+                ? 'No agency'
+                : (/\bagency\b/i.test(rawAgency) ? rawAgency : `${rawAgency} Agency`);
+              return (
               <div key={group.agencyId || 'none'} className="card-modern p-4 space-y-3">
-                <div>
-                  <h3 className="text-lg font-medium text-charcoal">{group.agencyName}</h3>
-                  <p className="text-xs text-gray-500">
-                    {group.agencyEmail || 'No email on file'}
-                  </p>
-                </div>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-[#25D366]">
+                  {agencyLabel}
+                </h3>
 
                 <ul className="space-y-3">
                   {group.people.map((person) => (
                     <li key={person.userId} className="border-t border-gray-200 pt-3 first:border-t-0 first:pt-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="font-medium text-charcoal">{person.name}</span>
-                        <span className="rounded-full border border-slate-200/60 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                          {person.kind === 'new' ? 'New' : 'Extra'}
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 flex-1 text-base font-medium text-rota-text-primary">
+                          {person.name}
+                          <span className="ml-2 inline-flex align-middle rounded-full border border-slate-200/60 bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                            {person.kind === 'new' ? 'New' : 'Extra'}
+                          </span>
                         </span>
-                      </div>
-                      <ul className="space-y-1 text-sm text-gray-600">
-                        {person.shifts.map((shift) => (
-                          <li key={`${shift.date}|${shift.start_time}|${shift.location}`}>
-                            {formatShiftDayLabel(shift.date)}, {formatShiftTypeLabel(shift.shift_type)},{' '}
-                            {formatShiftClock(shift.start_time)}-{formatShiftClock(shift.end_time)}
-                            {shift.location ? `, ${shift.location}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-2">
                         <button
                           type="button"
-                          className={outlineBtn}
+                          className={compactEmailBtn}
                           onClick={() =>
                             setConfirm({
                               title: 'Open email and mark as sent',
@@ -284,14 +280,24 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
                             })
                           }
                         >
-                          Create email for this person
+                          Create email
                         </button>
                       </div>
+                      <ul className="space-y-1 text-sm text-gray-600">
+                        {person.shifts.map((shift) => (
+                          <li key={`${shift.date}|${shift.start_time}|${shift.location}`}>
+                            {formatShiftDayLabel(shift.date)}, {formatShiftTypeLabel(shift.shift_type)},{' '}
+                            {formatShiftClock(shift.start_time)}-{formatShiftClock(shift.end_time)}
+                            {shift.location ? `, ${shift.location}` : ''}
+                          </li>
+                        ))}
+                      </ul>
                     </li>
                   ))}
                 </ul>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
