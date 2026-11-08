@@ -113,6 +113,16 @@ export type TwilioSendResult =
   | { ok: true; sid: string; status: string }
   | { ok: false; status: number; errorCode?: string; errorMessage: string };
 
+/** Public Twilio status webhook URL for delivery updates. */
+export function resolveTwilioStatusCallbackUrl(): string | null {
+  const configured = (Deno.env.get("TWILIO_STATUS_CALLBACK_URL") || "").trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  const supabaseUrl = (Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "");
+  if (!supabaseUrl) return null;
+  return `${supabaseUrl}/functions/v1/twilio-whatsapp-status`;
+}
+
 export async function sendWhatsAppContentMessage(params: {
   config: TwilioMessagingConfig;
   toE164: string;
@@ -129,6 +139,15 @@ export async function sendWhatsAppContentMessage(params: {
     ContentSid: config.contentSid,
     ContentVariables: JSON.stringify(contentVariables),
   });
+
+  const statusCallback = resolveTwilioStatusCallbackUrl();
+  if (statusCallback) {
+    body.set("StatusCallback", statusCallback);
+  } else {
+    console.warn(
+      "[twilio-wa] StatusCallback omitted: set TWILIO_STATUS_CALLBACK_URL or SUPABASE_URL",
+    );
+  }
 
   const auth = btoa(`${config.accountSid}:${config.authToken}`);
   const res = await fetch(url, {

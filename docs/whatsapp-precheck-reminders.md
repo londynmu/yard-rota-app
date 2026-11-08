@@ -11,17 +11,23 @@ Automated nudges when a shunter is on an open shift without a `pre_shift` PreChe
    - `TWILIO_WHATSAPP_FROM` (e.g. `whatsapp:+44…`)
    - `TWILIO_WHATSAPP_CONTENT_SID` (approved Meta/Twilio Content Template)
    - `APP_BASE_URL` (production site origin, no trailing slash)
-   - Optional: `CRON_SECRET`, `TWILIO_STATUS_CALLBACK_URL` (exact public URL Twilio calls)
+   - Optional: `CRON_SECRET`
+   - `TWILIO_STATUS_CALLBACK_URL` (recommended): exact public URL Twilio posts to,
+     e.g. `https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/twilio-whatsapp-status`.
+     If unset, `sendWhatsAppContentMessage` derives the same path from `SUPABASE_URL`.
+     Signature validation in `twilio-whatsapp-status` also prefers this secret.
 3. Approve Content Template (EN utility), variables:
    - `{{1}}` first name
    - `{{2}}` shift window (`07:00-17:00`)
    - `{{3}}` link (`{APP_BASE_URL}/precheck`)
    Suggested body: *Hi {{1}}, your shift {{2}} has no pre-shift tug check yet. Please complete it: {{3}}*
 4. Deploy Edge Functions:
-   - `send-precheck-whatsapp-reminders`
+   - `send-precheck-whatsapp-reminders` (includes `_shared/twilioWhatsApp.ts` with per-message `StatusCallback`)
+   - `send-rota-whatsapp` (same shared helper)
    - `twilio-whatsapp-status` (`verify_jwt = false`; validates `X-Twilio-Signature`)
-5. In Twilio console, set status callback to:
-   `https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/twilio-whatsapp-status`
+5. Status callbacks: every Content send sets per-message `StatusCallback` via the shared helper
+   (no MessagingServiceSid required). Keep the Twilio Console webhook URL aligned with the
+   secret/derived URL above so signature validation matches.
 6. Soft launch: use **Admin → Notifications → Send WhatsApp now** (force) first.
 7. Cron job `precheck-whatsapp-reminders` is **enabled** on prod
    (`20261106160000_enable_precheck_whatsapp_reminders_cron.sql`): every **10 minutes**;
