@@ -590,7 +590,6 @@ serve(async (req) => {
       contentVariables: buildRotaShunterContentVariables({
         firstName: profile.first_name || "",
         weekRange,
-        locations: formatShunterLocations(userSlots),
         dayValues: buildShunterWeekDayVariables(weekStart, userSlots),
         creatorName,
       }),

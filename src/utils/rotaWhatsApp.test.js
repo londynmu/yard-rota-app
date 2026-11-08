@@ -6,6 +6,7 @@ import {
   classifyRotaWhatsAppRecipient,
   filterReadyRecipientIds,
   formatCreatorDisplayName,
+  formatOrdinalDay,
   formatRotaWeekRangeShort,
   formatShiftDateLong,
   formatShiftDateShort,
@@ -59,9 +60,22 @@ describe('rotaWhatsApp formatting', () => {
     expect(formatShiftDateShort('2026-12-01')).toBe('1/12');
   });
 
-  it('formats short week ranges', () => {
-    expect(formatRotaWeekRangeShort('2026-11-07')).toBe('07–13 Nov');
-    expect(formatRotaWeekRangeShort('2026-11-28')).toBe('28 Nov–04 Dec');
+  it('formats short week ranges with ASCII hyphen', () => {
+    expect(formatRotaWeekRangeShort('2026-11-07')).toBe('7-13 Nov');
+    expect(formatRotaWeekRangeShort('2026-11-28')).toBe('28 Nov-4 Dec');
+    expect(formatRotaWeekRangeShort('2026-10-24')).toBe('24-30 Oct');
+  });
+
+  it('formats English ordinal days', () => {
+    expect(formatOrdinalDay(1)).toBe('1st');
+    expect(formatOrdinalDay(2)).toBe('2nd');
+    expect(formatOrdinalDay(3)).toBe('3rd');
+    expect(formatOrdinalDay(4)).toBe('4th');
+    expect(formatOrdinalDay(11)).toBe('11th');
+    expect(formatOrdinalDay(12)).toBe('12th');
+    expect(formatOrdinalDay(13)).toBe('13th');
+    expect(formatOrdinalDay(21)).toBe('21st');
+    expect(formatOrdinalDay(30)).toBe('30th');
   });
 
   it('stacks shift summary per day with dates and times only', () => {
@@ -72,25 +86,34 @@ describe('rotaWhatsApp formatting', () => {
     expect(summary).toBe('21 December, 5pm–5pm · 22 December, 5:45am–6pm');
   });
 
-  it('left-packs working days as d/m ddd HH:MM-HH:MM; unused = em dash', () => {
+  it('keeps fixed Sat→Fri slots with Title Case + ordinal + location', () => {
     // Week Sat 2026-11-07 … Fri 2026-11-13
     const days = buildShunterWeekDayVariables('2026-11-07', [
-      { date: '2026-11-07', start_time: '17:00', end_time: '17:00' }, // Sat
-      { date: '2026-11-09', start_time: '05:45', end_time: '18:00' }, // Mon
-      { date: '2026-11-09', start_time: '06:00', end_time: '14:00' }, // Mon second window
+      { date: '2026-11-07', start_time: '17:00', end_time: '17:00', location: 'DIRFT' }, // Sat
+      { date: '2026-11-09', start_time: '05:45', end_time: '18:00', location: 'Rugby' }, // Mon
+      { date: '2026-11-09', start_time: '06:00', end_time: '14:00', location: 'Rugby' }, // Mon second
+      { date: '2026-11-13', start_time: '17:00', end_time: '05:15', location: 'Rugby' }, // Fri
     ]);
     expect(days).toHaveLength(7);
-    expect(days[0]).toBe('7/11 sat 17:00-17:00');
-    expect(days[1]).toBe('9/11 mon 05:45-18:00, 06:00-14:00');
-    expect(days[2]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[0]).toBe('Sat 7th 17:00-17:00 (DIRFT)');
+    expect(days[1]).toBe(ROTA_WA_DAY_OFF); // Sun — not left-packed
+    expect(days[2]).toBe('Mon 9th 05:45-18:00, 06:00-14:00 (Rugby)');
     expect(days[3]).toBe(ROTA_WA_DAY_OFF);
     expect(days[4]).toBe(ROTA_WA_DAY_OFF);
     expect(days[5]).toBe(ROTA_WA_DAY_OFF);
-    expect(days[6]).toBe(ROTA_WA_DAY_OFF);
+    expect(days[6]).toBe('Fri 13th 17:00-05:15 (Rugby)');
     expect(ROTA_WA_DAY_OFF).toBe('—');
     expect(days.every((value) => value.length > 0)).toBe(true);
     expect(days.every((value) => value !== 'off')).toBe(true);
     expect(days.every((value) => !value.includes('•'))).toBe(true);
+  });
+
+  it('puts location per window when yards differ on the same day', () => {
+    const days = buildShunterWeekDayVariables('2026-11-07', [
+      { date: '2026-11-07', start_time: '05:45', end_time: '18:00', location: 'Rugby' },
+      { date: '2026-11-07', start_time: '18:00', end_time: '02:00', location: 'DIRFT' },
+    ]);
+    expect(days[0]).toBe('Sat 7th 05:45-18:00 (Rugby), 18:00-02:00 (DIRFT)');
   });
 
   it('fills all em dashes when there are no shifts in the week', () => {
