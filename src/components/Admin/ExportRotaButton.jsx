@@ -83,7 +83,7 @@ const ExportRotaButton = ({
           className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
         >
-          <div className="relative mx-auto my-auto max-h-[min(90vh,40.5rem)] w-full max-w-5xl overflow-y-auto rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
+          <div className="relative mx-auto my-auto flex h-[min(90vh,40.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="absolute right-4 top-4 z-10">
               <button
                 type="button"
@@ -96,7 +96,7 @@ const ExportRotaButton = ({
                 </svg>
               </button>
             </div>
-            <div className="p-4 sm:p-6">
+            <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
               <ExportRota
                 initialTab={resolvedTab}
                 initialStartDate={weekStart}

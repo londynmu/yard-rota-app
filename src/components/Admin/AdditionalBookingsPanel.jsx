@@ -22,7 +22,6 @@ import {
   fetchAssignedSlotsForWeek,
   loadWeekBaseline,
   mergeSlotsIntoBaseline,
-  resetWeekBaseline,
   weekStartIso,
 } from '../../utils/rotaWeekBaseline';
 
@@ -164,18 +163,6 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
     }
   };
 
-  const resetBaseline = async () => {
-    try {
-      await resetWeekBaseline(supabase, weekIso);
-      toast.success('Baseline reset for this week');
-      await reload();
-      notifyBaselineChanged();
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not reset the baseline');
-    }
-  };
-
   const pendingPeople = countAdditionalPeople(groups);
   const query = searchQuery.trim().toLowerCase();
   const filteredGroups = groups
@@ -300,24 +287,6 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
             })
           )}
         </div>
-      )}
-
-      {baseline && (
-        <button
-          type="button"
-          className="admin-btn-danger"
-          onClick={() =>
-            setConfirm({
-              title: 'Reset baseline for this week',
-              message: 'This will forget what was already sent to agencies for this week. This action cannot be undone.',
-              confirmText: 'Reset baseline',
-              isDestructive: true,
-              onConfirm: resetBaseline,
-            })
-          }
-        >
-          Reset baseline for this week
-        </button>
       )}
 
       <ConfirmDialog

@@ -706,7 +706,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   });
 
   return (
-    <div className="space-y-4 pr-8">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 pr-8">
       <style>
         {`
           .export-rota-datepicker-popper.react-datepicker-popper {
@@ -812,102 +812,108 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         `}
       </style>
 
-      <h3 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pr-6 text-lg font-semibold text-rota-text-primary">
-        <span>Send to agency</span>
-        <DatePicker
-          selected={startDate}
-          onChange={(date) => {
-            setStartDate(date);
-          }}
-          dateFormat="dd/MM/yyyy"
-          filterDate={isSaturday}
-          customInput={<WeekPickerTrigger />}
-          popperClassName="export-rota-datepicker-popper"
-          calendarClassName="export-rota-datepicker"
-          showPopperArrow={false}
-        />
-      </h3>
+      <div className="shrink-0 space-y-4">
+        <h3 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pr-6 text-lg font-semibold text-rota-text-primary">
+          <span>Send to agency</span>
+          <DatePicker
+            selected={startDate}
+            onChange={(date) => {
+              setStartDate(date);
+            }}
+            dateFormat="dd/MM/yyyy"
+            filterDate={isSaturday}
+            customInput={<WeekPickerTrigger />}
+            popperClassName="export-rota-datepicker-popper"
+            calendarClassName="export-rota-datepicker"
+            showPopperArrow={false}
+          />
+        </h3>
 
-      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('weekly')}
-          className={tabBtn(mode === 'weekly')}
-        >
-          Weekly schedule
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('additional')}
-          className={tabBtn(mode === 'additional')}
-        >
-          Additional bookings
-        </button>
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onClick={() => setMode('weekly')}
+            className={tabBtn(mode === 'weekly')}
+          >
+            Weekly schedule
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('additional')}
+            className={tabBtn(mode === 'additional')}
+          >
+            Additional bookings
+          </button>
+        </div>
       </div>
 
       {mode === 'additional' && (
-        <AdditionalBookingsPanel
-          startDate={startDate}
-          currentUser={currentUser}
-          onBaselineChanged={onBaselineChanged}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <AdditionalBookingsPanel
+            startDate={startDate}
+            currentUser={currentUser}
+            onBaselineChanged={onBaselineChanged}
+          />
+        </div>
       )}
 
       {mode === 'weekly' && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-rota-text-muted">
-              {fetchingData
-                ? 'Loading shifts…'
-                : (rotaData.length > 0
-                  ? `${rotaData.length} shifts loaded`
-                  : 'No shifts for this week')}
-            </p>
-            {agencies.length > 0 && (
-              <button
-                type="button"
-                className={selectAllBtn}
-                onClick={toggleSelectAllAgencies}
-                disabled={agencies.length === 0}
-                title={allAgenciesSelected ? 'Clear selection' : 'Select all recipients'}
-              >
-                {allAgenciesSelected ? 'Clear' : 'Select all'}
-                <span className="font-normal text-rota-text-muted">
-                  {selectedAgencies.length}/{agencies.length}
-                </span>
-              </button>
+        <>
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-rota-text-muted">
+                {fetchingData
+                  ? 'Loading shifts…'
+                  : (rotaData.length > 0
+                    ? `${rotaData.length} shifts loaded`
+                    : 'No shifts for this week')}
+              </p>
+              {agencies.length > 0 && (
+                <button
+                  type="button"
+                  className={selectAllBtn}
+                  onClick={toggleSelectAllAgencies}
+                  disabled={agencies.length === 0}
+                  title={allAgenciesSelected ? 'Clear selection' : 'Select all recipients'}
+                >
+                  {allAgenciesSelected ? 'Clear' : 'Select all'}
+                  <span className="font-normal text-rota-text-muted">
+                    {selectedAgencies.length}/{agencies.length}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {agencies.length > 0 ? (
+              <ul className="min-h-0 max-h-[28rem] flex-1 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+                {agencies.map((agency) => {
+                  const checked = selectedAgencies.includes(agency.id);
+                  return (
+                    <li key={agency.id}>
+                      <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                        <input
+                          type="checkbox"
+                          className="shrink-0"
+                          checked={checked}
+                          onChange={() => handleAgencySelection(agency.id)}
+                        />
+                        <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                          {agency.name}
+                        </span>
+                        <span className="shrink-0 text-xs text-rota-text-muted">
+                          {agency.email}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-sm text-rota-text-muted">No active agencies found.</p>
             )}
           </div>
 
-          {agencies.length > 0 ? (
-            <ul className="max-h-60 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
-              {agencies.map((agency) => {
-                const checked = selectedAgencies.includes(agency.id);
-                return (
-                  <li key={agency.id}>
-                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
-                      <input
-                        type="checkbox"
-                        className="shrink-0"
-                        checked={checked}
-                        onChange={() => handleAgencySelection(agency.id)}
-                      />
-                      <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
-                        {agency.name}
-                      </span>
-                      <span className="shrink-0 text-xs text-rota-text-muted">
-                        {agency.email}
-                      </span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-sm text-rota-text-muted">No active agencies found.</p>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-xs text-rota-text-muted">
                 Selected {selectedAgencies.length}
@@ -961,12 +967,12 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
               </span>
             </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Error/Success Messages */}
       {error && (
-        <div className="flex items-center space-x-3 rounded-lg border border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700 transition-all duration-300">
+        <div className="flex shrink-0 items-center space-x-3 rounded-lg border border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700 transition-all duration-300">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -978,9 +984,9 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           </button>
         </div>
       )}
-      
+
       {success && (
-        <div className="flex items-center space-x-3 rounded-lg border border-green-200 bg-green-50 px-6 py-3 text-sm text-green-700 transition-all duration-300">
+        <div className="flex shrink-0 items-center space-x-3 rounded-lg border border-green-200 bg-green-50 px-6 py-3 text-sm text-green-700 transition-all duration-300">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
