@@ -20,8 +20,8 @@ import {
   formatShunterShiftSummary,
   isBlockingStatus,
   isValidPhoneE164,
+  ROTA_WA_DAY_OFF,
   ROTA_WA_RESEND_COOLDOWN_MS,
-  ROTA_WA_WEEK_DAY_LABELS,
   shunterWeekIdempotencyKey,
 } from "../_shared/rotaWhatsApp.ts";
 
@@ -470,9 +470,9 @@ serve(async (req) => {
       now,
     });
     const dayValues = buildShunterWeekDayVariables(weekStart, userSlots);
-    person.shift_days = ROTA_WA_WEEK_DAY_LABELS.map((label, index) => ({
-      label,
-      value: dayValues[index] || "off",
+    person.shift_days = dayValues.map((value) => ({
+      label: "•",
+      value: value || ROTA_WA_DAY_OFF,
     }));
     person.shift_summary = formatShunterShiftSummary(userSlots);
     person.locations = formatShunterLocations(userSlots);
