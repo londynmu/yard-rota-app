@@ -87,11 +87,15 @@ class StatsRepository {
     final today = DateTime(now.year, now.month, now.day);
     switch (range) {
       case StatsRangeFilter.lastDay:
-        final ymd = statsDateToYmd(today);
+        // Look back a few calendar days so a late morning YMS import still
+        // fills Last Day (buildStatsDashboard keeps only the newest report_date).
+        final start = today.subtract(const Duration(days: 3));
+        final startYmd = statsDateToYmd(start);
+        final endYmd = statsDateToYmd(today);
         return _StatsRequest(
-          rangeKey: '${range.dbValue}:$ymd:$ymd',
-          startYmd: ymd,
-          endYmd: ymd,
+          rangeKey: '${range.dbValue}:latest:$startYmd:$endYmd',
+          startYmd: startYmd,
+          endYmd: endYmd,
         );
       case StatsRangeFilter.lastWeek:
         final start = today.subtract(const Duration(days: 6));
@@ -117,6 +121,30 @@ class StatsRepository {
   }
 }
 
+List<StatsPerformanceRecord> filterStatsRecordsToLatestReportDate(
+  List<StatsPerformanceRecord> records,
+) {
+  if (records.isEmpty) {
+    return records;
+  }
+  String? latest;
+  for (final record in records) {
+    final date = record.reportDateYmd;
+    if (date.isEmpty) {
+      continue;
+    }
+    if (latest == null || date.compareTo(latest) > 0) {
+      latest = date;
+    }
+  }
+  if (latest == null) {
+    return records;
+  }
+  return records
+      .where((record) => record.reportDateYmd == latest)
+      .toList(growable: false);
+}
+
 StatsDashboardData buildStatsDashboard({
   required List<StatsPerformanceRecord> records,
   required StatsProfileSnapshot? currentProfile,
@@ -127,10 +155,13 @@ StatsDashboardData buildStatsDashboard({
   required DateTime fetchedAt,
   required bool isFromCache,
 }) {
+  final effectiveRecords = range == StatsRangeFilter.lastDay
+      ? filterStatsRecordsToLatestReportDate(records)
+      : records;
   final grouped = <String, _StatsAccumulator>{};
   final trendByDate = <String, int>{};
 
-  for (final record in records) {
+  for (final record in effectiveRecords) {
     final profile = record.profile;
     if (profile == null || !profile.isActive || !profile.hasYardSystemId) {
       continue;

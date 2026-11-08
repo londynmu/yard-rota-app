@@ -142,5 +142,51 @@ void main() {
       expect(data.currentUserHasYardId, isTrue);
       expect(data.currentUser, isNull);
     });
+
+    test('last day keeps only the newest report_date in the lookback window', () {
+      final data = buildStatsDashboard(
+        records: const [
+          StatsPerformanceRecord(
+            userId: 'u1',
+            reportDateYmd: '2026-05-18',
+            numberOfMoves: 10,
+            avgTimeToCollect: '1:00',
+            avgTimeToTravel: '2:00',
+            numberOfFullLocations: 1,
+            profile: currentProfile,
+          ),
+          StatsPerformanceRecord(
+            userId: 'u1',
+            reportDateYmd: '2026-05-19',
+            numberOfMoves: 40,
+            avgTimeToCollect: '1:00',
+            avgTimeToTravel: '2:00',
+            numberOfFullLocations: 2,
+            profile: currentProfile,
+          ),
+          StatsPerformanceRecord(
+            userId: 'u2',
+            reportDateYmd: '2026-05-18',
+            numberOfMoves: 99,
+            avgTimeToCollect: '1:00',
+            avgTimeToTravel: '2:00',
+            numberOfFullLocations: 0,
+            profile: otherProfile,
+          ),
+        ],
+        currentProfile: currentProfile,
+        currentUserId: 'u1',
+        range: StatsRangeFilter.lastDay,
+        sort: StatsSortOption.totalMoves,
+        shiftFilter: StatsShiftFilter.all,
+        fetchedAt: DateTime(2026, 5, 20),
+        isFromCache: false,
+      );
+
+      expect(data.users, hasLength(1));
+      expect(data.currentUser?.totalMoves, 40);
+      expect(data.currentUser?.daysWorked, 1);
+      expect(data.team.totalMoves, 40);
+    });
   });
 }
