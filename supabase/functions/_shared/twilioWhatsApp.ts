@@ -68,14 +68,14 @@ export function buildPrecheckContentVariables(input: {
 }
 
 /**
- * Rota week summary v3 (`yard_rota_week_shunter_v3`):
- * {{1}} name {{2}} week {{3}} location {{4}}…{{10}} left-packed day lines {{11}} creator
+ * Rota week summary v4 (`yard_rota_week_shunter_v4`):
+ * {{1}} name {{2}} week range {{3}}…{{9}} fixed Sat→Fri day lines {{10}} creator
+ * No location header var — location is inside each day line.
  * Day values must never be empty (use em dash `—` for unused slots).
  */
 export function buildRotaShunterContentVariables(input: {
   firstName: string;
   weekRange: string;
-  locations: string;
   dayValues: string[];
   creatorName: string;
 }): Record<string, string> {
@@ -84,12 +84,11 @@ export function buildRotaShunterContentVariables(input: {
   const vars: Record<string, string> = {
     "1": name,
     "2": (input.weekRange || "").trim() || "this week",
-    "3": (input.locations || "").trim() || "yard",
-    "11": (input.creatorName || "").trim() || "Yard Rota",
+    "10": (input.creatorName || "").trim() || "Yard Rota",
   };
   for (let i = 0; i < 7; i += 1) {
     const value = String(days[i] || "").trim() || "—";
-    vars[String(i + 4)] = value;
+    vars[String(i + 3)] = value;
   }
   return vars;
 }

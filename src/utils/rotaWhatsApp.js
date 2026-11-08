@@ -84,7 +84,7 @@ export function formatShiftDateLong(iso) {
 }
 
 /**
- * Week range for template {{2}}: e.g. 08–14 Nov
+ * Week range for template {{2}}: e.g. 24-30 Oct (ASCII hyphen, no leading zeros)
  * @param {string} weekStartIso yyyy-MM-dd Saturday
  * @returns {string}
  */
@@ -96,16 +96,16 @@ export function formatRotaWeekRangeShort(weekStartIso) {
   if (Number.isNaN(start.getTime())) return raw;
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
-  const startDay = String(start.getDate()).padStart(2, '0');
-  const endDay = String(end.getDate()).padStart(2, '0');
+  const startDay = String(start.getDate());
+  const endDay = String(end.getDate());
   const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
   if (sameMonth) {
     const mon = start.toLocaleDateString('en-GB', { month: 'short' });
-    return `${startDay}–${endDay} ${mon}`;
+    return `${startDay}-${endDay} ${mon}`;
   }
-  const startLabel = start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-  const endLabel = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-  return `${startLabel}–${endLabel}`;
+  const startMon = start.toLocaleDateString('en-GB', { month: 'short' });
+  const endMon = end.toLocaleDateString('en-GB', { month: 'short' });
+  return `${startDay} ${startMon}-${endDay} ${endMon}`;
 }
 
 /**
@@ -114,16 +114,38 @@ export function formatRotaWeekRangeShort(weekStartIso) {
  */
 export const ROTA_WA_DAY_OFF = '—';
 
-/** Lowercase EN weekday labels Sat→Fri (embedded in v3 day line values). */
+/** Title Case EN weekday labels Sat→Fri (embedded in v4 day line values). */
 export const ROTA_WA_WEEK_DAY_LABELS = Object.freeze([
-  'sat',
-  'sun',
-  'mon',
-  'tue',
-  'wed',
-  'thu',
-  'fri',
+  'Sat',
+  'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
 ]);
+
+/**
+ * English ordinal day-of-month: 1st, 2nd, 3rd, 4th, …
+ * @param {unknown} day
+ * @returns {string}
+ */
+export function formatOrdinalDay(day) {
+  const n = Number(day);
+  if (!Number.isFinite(n) || n <= 0) return String(day ?? '');
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
 
 /**
  * @param {string} weekStartIso yyyy-MM-dd Saturday
@@ -216,12 +238,58 @@ export function formatDayShiftWindows24h(dayShifts) {
 }
 
 /**
- * Seven values for week template vars {{4}}…{{10}} (v3).
- * Only days with shifts are left-packed; unused slots are `—` (never blank, never `off`).
- * Line shape: `d/m ddd HH:MM-HH:MM` (bullet lives in the Twilio template, not here).
+ * One v4 day line: `Fri 30th 17:00-05:15 (Rugby)`.
+ * Multi-window same yard: `Fri 30th 05:45-18:00, 18:00-02:00 (Rugby)`.
+ * Different yards: location per window.
+ *
+ * @param {string} iso yyyy-MM-dd
+ * @param {string} weekdayLabel Title Case weekday
+ * @param {Array<{ start_time?: unknown, end_time?: unknown, location?: unknown }>} dayShifts
+ * @returns {string}
+ */
+export function formatShunterWeekDayLine(iso, weekdayLabel, dayShifts) {
+  const sorted = (dayShifts || []).slice().sort((a, b) =>
+    String(a.start_time || '').localeCompare(String(b.start_time || '')),
+  );
+  if (!sorted.length) return ROTA_WA_DAY_OFF;
+
+  const locations = sorted.map((s) => String(s?.location || '').trim());
+  const uniqueLocs = [...new Set(locations.filter(Boolean))];
+  const allSameLocation = uniqueLocs.length <= 1;
+
+  const windows = sorted
+    .map((s, idx) => {
+      const start = formatShiftTime24h(s.start_time);
+      const end = formatShiftTime24h(s.end_time);
+      const window = start && end ? `${start}-${end}` : (start || end || '');
+      if (!window) return '';
+      if (!allSameLocation) {
+        const loc = locations[idx];
+        return loc ? `${window} (${loc})` : window;
+      }
+      return window;
+    })
+    .filter(Boolean);
+
+  if (!windows.length) return ROTA_WA_DAY_OFF;
+
+  const dayMatch = String(iso || '').trim().slice(0, 10).match(/^\d{4}-\d{2}-(\d{2})$/);
+  const ordinal = dayMatch ? formatOrdinalDay(Number(dayMatch[1])) : '';
+  const head = [weekdayLabel, ordinal].filter(Boolean).join(' ');
+  const body = windows.join(', ');
+  if (allSameLocation && uniqueLocs[0]) {
+    return `${head} ${body} (${uniqueLocs[0]})`;
+  }
+  return `${head} ${body}`;
+}
+
+/**
+ * Seven values for week template vars {{3}}…{{9}} (v4).
+ * Fixed Sat→Fri slots (no left-pack); empty days are `—` (never blank, never `off`).
+ * Line shape: `Fri 30th 17:00-05:15 (Rugby)` (bullet lives in the Twilio template).
  *
  * @param {string} weekStartIso yyyy-MM-dd Saturday
- * @param {Array<{ date?: unknown, start_time?: unknown, end_time?: unknown }>} shifts
+ * @param {Array<{ date?: unknown, start_time?: unknown, end_time?: unknown, location?: unknown }>} shifts
  * @returns {string[]} length 7
  */
 export function buildShunterWeekDayVariables(weekStartIso, shifts) {
@@ -233,19 +301,10 @@ export function buildShunterWeekDayVariables(weekStartIso, shifts) {
     byDate.get(date).push(shift);
   }
 
-  const working = [];
-  for (let i = 0; i < 7; i += 1) {
-    const iso = rotaWeekDayIso(weekStartIso, i);
-    const windows = formatDayShiftWindows24h(byDate.get(iso) || []);
-    if (!windows) continue;
-    const dateShort = formatShiftDateShort(iso);
-    const weekday = ROTA_WA_WEEK_DAY_LABELS[i];
-    working.push(`${dateShort} ${weekday} ${windows}`);
-  }
-
   const days = [];
   for (let i = 0; i < 7; i += 1) {
-    days.push(working[i] || ROTA_WA_DAY_OFF);
+    const iso = rotaWeekDayIso(weekStartIso, i);
+    days.push(formatShunterWeekDayLine(iso, ROTA_WA_WEEK_DAY_LABELS[i], byDate.get(iso) || []));
   }
   return days;
 }
