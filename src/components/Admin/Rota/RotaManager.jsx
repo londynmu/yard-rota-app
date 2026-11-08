@@ -38,6 +38,39 @@ const getWeekStart = (date) => {
   return subDays(d, diff);
 };
 
+/** Merge raw scheduled_rota rows into planner slot objects (date-keyed). */
+const mergeScheduledRotaRows = (rows) => {
+  const slotsMap = new Map();
+  (rows || []).forEach((slot) => {
+    const key = `${slot.date}-${slot.shift_type}-${slot.location}-${slot.start_time}-${slot.end_time}`;
+    if (!slotsMap.has(key)) {
+      slotsMap.set(key, {
+        id: slot.id,
+        date: slot.date,
+        shift_type: slot.shift_type,
+        location: slot.location,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        capacity: slot.capacity,
+        assigned_employees: slot.user_id ? [slot.user_id] : [],
+        status: slot.status,
+      });
+    } else {
+      const existingSlot = slotsMap.get(key);
+      if (slot.user_id) {
+        existingSlot.assigned_employees.push(slot.user_id);
+      }
+      if (slot.status === 'available' && existingSlot.status !== 'available') {
+        existingSlot.status = 'available';
+      }
+    }
+  });
+  return Array.from(slotsMap.values()).map((s) => ({
+    ...s,
+    assigned_employees: normalizeAssignedEmployeeIds(s.assigned_employees),
+  }));
+};
+
 const RotaManager = ({ user }) => {
   const [viewMode, setViewMode] = useState(() => {
     const saved = safeLocalStorage.getItem('rota_planner_view_mode');
@@ -578,11 +611,18 @@ const RotaManager = ({ user }) => {
           return slot;
         });
       });
-      setSelectedSlot((prev) => (
-        prev && prev.id === slotId
-          ? { ...prev, ...nextSlotFields }
-          : prev
-      ));
+      // Keep assigned_employees from live slots state (assign/unassign may have changed it)
+      setSelectedSlot((prev) => {
+        if (!prev || prev.id !== slotId) return prev;
+        const live = slots.find((s) => s.id === slotId);
+        return {
+          ...prev,
+          ...nextSlotFields,
+          assigned_employees: live
+            ? normalizeAssignedEmployeeIds(live.assigned_employees)
+            : prev.assigned_employees,
+        };
+      });
 
       setSuccessMessage('Slot updated successfully');
       setError(null);
@@ -593,14 +633,53 @@ const RotaManager = ({ user }) => {
     }
   };
 
-  const handleAssignModalNavigateDay = (direction) => {
+  const handleAssignModalNavigateDay = async (direction) => {
     if (!selectedSlot) return;
     const targetDate = format(addDays(parseISO(selectedSlot.date), direction), 'yyyy-MM-dd');
-    const daySlots = slots.filter((s) => s.date === targetDate);
+    let daySlots = slots.filter((s) => s.date === targetDate);
+
     if (daySlots.length === 0) {
-      toast.error(direction < 0 ? 'No slots on the previous day' : 'No slots on the next day');
-      return;
+      try {
+        let query = supabase
+          .from('scheduled_rota')
+          .select(`
+            id,
+            date,
+            shift_type,
+            location,
+            start_time,
+            end_time,
+            capacity,
+            user_id,
+            status
+          `)
+          .eq('date', targetDate);
+
+        if (selectedLocation) {
+          query = query.eq('location', selectedLocation);
+        }
+
+        const { data, error: fetchError } = await query;
+        if (fetchError) throw fetchError;
+
+        const fetched = mergeScheduledRotaRows(data || []);
+        if (fetched.length === 0) {
+          toast.error(direction < 0 ? 'No slots on the previous day' : 'No slots on the next day');
+          return;
+        }
+
+        setSlots((prev) => {
+          const others = prev.filter((s) => s.date !== targetDate);
+          return [...others, ...fetched];
+        });
+        daySlots = fetched;
+      } catch (err) {
+        console.error('Error loading slots for day navigation:', err);
+        toast.error('Failed to load slots for that day');
+        return;
+      }
     }
+
     const score = (s) => {
       let n = 0;
       if (s.location === selectedSlot.location) n += 4;
@@ -818,21 +897,27 @@ const RotaManager = ({ user }) => {
           },
         });
 
-        // Update UI
+        // Update UI — keep selectedSlot.assigned_employees in sync
+        const nextAssigned = normalizeAssignedEmployeeIds([
+          ...slotToAssign.assigned_employees,
+          employeeId,
+        ]);
         setSlots(prev =>
           prev.map(slot => {
             if (slot.id === slotId) {
               return {
                 ...slot,
-                assigned_employees: normalizeAssignedEmployeeIds([
-                  ...slot.assigned_employees,
-                  employeeId,
-                ]),
+                assigned_employees: nextAssigned,
               };
             }
             return slot;
           })
         );
+        setSelectedSlot((prev) => (
+          prev && prev.id === slotId
+            ? { ...prev, assigned_employees: nextAssigned }
+            : prev
+        ));
         
         // Show success message
         setSuccessMessage(`Staff member assigned successfully to ${slotToAssign.location} (${slotToAssign.start_time} - ${slotToAssign.end_time})`);
@@ -863,20 +948,26 @@ const RotaManager = ({ user }) => {
           },
         });
 
-        // Update UI
+        // Update UI — keep selectedSlot.assigned_employees in sync
+        const nextAssigned = normalizeAssignedEmployeeIds(
+          slotToAssign.assigned_employees.filter((id) => id !== employeeId)
+        );
         setSlots(prev =>
           prev.map(slot => {
             if (slot.id === slotId) {
               return {
                 ...slot,
-                assigned_employees: normalizeAssignedEmployeeIds(
-                  slot.assigned_employees.filter((id) => id !== employeeId)
-                ),
+                assigned_employees: nextAssigned,
               };
             }
             return slot;
           })
         );
+        setSelectedSlot((prev) => (
+          prev && prev.id === slotId
+            ? { ...prev, assigned_employees: nextAssigned }
+            : prev
+        ));
         
         // Show success message
         setSuccessMessage(`Staff member removed successfully from ${slotToAssign.location} (${slotToAssign.start_time} - ${slotToAssign.end_time})`);

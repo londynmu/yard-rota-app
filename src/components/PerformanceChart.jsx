@@ -121,15 +121,17 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
         color: CHARCOAL,
       },
       formatter: (params) => {
-        const param = params[0];
-        const fullDate = chartData.fullDates[param.dataIndex];
+        const param = Array.isArray(params) ? params[0] : params;
+        if (!param) return '';
+        const fullDate = chartData.fullDates[param.dataIndex] ?? '';
+        const moves = param?.value != null ? Number(param.value).toLocaleString() : '0';
         return `
           <div style="padding: 4px;">
             <div style="font-weight: bold; color: ${CHART_PRIMARY}; margin-bottom: 4px;">
               ${fullDate}
             </div>
             <div style="font-size: 18px; font-weight: bold;">
-              ${param.value.toLocaleString()} moves
+              ${moves} moves
             </div>
           </div>
         `;
