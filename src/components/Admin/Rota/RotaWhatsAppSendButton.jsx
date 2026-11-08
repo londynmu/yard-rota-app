@@ -51,7 +51,7 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
           className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
         >
-          <div className="relative mx-auto my-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
+          <div className="relative mx-auto my-auto max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="absolute right-4 top-4 z-10">
               <button
                 type="button"
@@ -65,7 +65,7 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
               </button>
             </div>
             <div className="p-4 sm:p-6">
-              <RotaWhatsAppSendPanel weekStart={weekStart} onClose={closeModal} />
+              <RotaWhatsAppSendPanel weekStart={weekStart} />
             </div>
           </div>
         </div>,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { logSystemActivity } from '../../lib/systemActivityLog';
@@ -7,7 +7,6 @@ import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import AdditionalBookingsPanel from './AdditionalBookingsPanel';
-import IndividualBookingEmailPanel from './IndividualBookingEmailPanel';
 import { EMAIL_SIGN_OFF, formatShiftClock } from '../../utils/rotaAdditionalBookings';
 import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBaseline';
 
@@ -21,11 +20,9 @@ const getNextOrCurrentSaturday = (date) => {
 };
 
 const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaselineChanged = null }) => {
-  const [mode, setMode] = useState(() => {
-    if (initialTab === 'additional') return 'additional';
-    if (initialTab === 'individual') return 'individual';
-    return 'weekly';
-  });
+  const [mode, setMode] = useState(() => (
+    initialTab === 'additional' ? 'additional' : 'weekly'
+  ));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -41,24 +38,9 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   const [rotaData, setRotaData] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [emailMessage, setEmailMessage] = useState(
-    `Please find attached the weekly staff schedule for the upcoming week.\n\nPlease confirm receipt of this schedule.\n\nThank you.`
-  );
   const [currentUser, setCurrentUser] = useState(null);
-  const [step, setStep] = useState(1);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState({ url: '', fileName: '', type: '' });
-
-  // Helper – can we go to the next step?
-  const isNextDisabled = () => {
-    if (step === 1) {
-      return rotaData.length === 0; // need data first
-    }
-    if (step === 3) {
-      return selectedAgencies.length === 0; // need at least one agency
-    }
-    return false;
-  };
 
   // Fetch agencies list
   useEffect(() => {
@@ -90,19 +72,18 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   }, []);
 
   // Get roster data for selected week
-  const fetchRotaForWeek = async () => {
+  const fetchRotaForWeek = useCallback(async () => {
+    if (!startDate) return;
     setFetchingData(true);
     setError(null);
     setRotaData([]);
-    
+
     try {
-      // Calculate end date (7 days)
       const start = startDate;
       const end = addDays(start, 6);
       const formattedStartDate = format(start, 'yyyy-MM-dd');
       const formattedEndDate = format(end, 'yyyy-MM-dd');
-      
-      // Fetch all scheduled slots for the date range
+
       const { data: scheduleData, error: scheduleError } = await supabase
         .from('scheduled_rota')
         .select(`
@@ -117,37 +98,32 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         .gte('date', formattedStartDate)
         .lte('date', formattedEndDate)
         .not('user_id', 'is', null);
-      
+
       if (scheduleError) throw scheduleError;
 
-      // email is not selectable on profiles for clients — admin RPC only
       const { data: profilesData, error: profilesError } = await supabase.rpc(
         'get_admin_profiles_with_emails',
       );
 
       if (profilesError) throw profilesError;
 
-      // Get all agencies for reference
       const { data: agenciesData, error: agenciesError } = await supabase
         .from('agencies')
         .select('id, name');
 
       if (agenciesError) throw agenciesError;
 
-      // Create a map of profiles by id for easy lookup
       const profilesMap = {};
-      profilesData.forEach(profile => {
+      profilesData.forEach((profile) => {
         profilesMap[profile.id] = profile;
       });
-      
-      // Create a map of agencies by id for easy lookup
+
       const agenciesMap = {};
-      agenciesData.forEach(agency => {
+      agenciesData.forEach((agency) => {
         agenciesMap[agency.id] = agency;
       });
 
-      // Process the data for export formats
-      const processedData = scheduleData.map(slot => {
+      const processedData = scheduleData.map((slot) => {
         const profile = profilesMap[slot.user_id] || {};
         const agencyId = profile.agency_id;
         const agency = agencyId ? (agenciesMap[agencyId]?.name || 'No info') : 'No info';
@@ -157,23 +133,22 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           location: slot.location,
           shift: slot.shift_type,
           time: `${formatShiftClock(slot.start_time)} - ${formatShiftClock(slot.end_time)}`,
-          staff: profile.first_name && profile.last_name ? 
-                 `${profile.first_name} ${profile.last_name}` : 'Unassigned',
+          staff: profile.first_name && profile.last_name
+            ? `${profile.first_name} ${profile.last_name}`
+            : 'Unassigned',
           email: profile.email || '',
-          agency: agency
+          agency,
         };
       });
-      
-      // Wczytaj dane i usuń informacje o typie zmiany z czasu pracy
-      const cleanedData = processedData.map(item => {
-        // Usuwamy dodatek "(day)", "(afternoon)", "(night)" z tabeli
+
+      const cleanedData = processedData.map((item) => {
         const cleanTime = item.time.replace(/\s*\([^)]*\)\s*$/, '');
         return {
           ...item,
-          time: cleanTime
+          time: cleanTime,
         };
       });
-      
+
       setRotaData(cleanedData);
     } catch (err) {
       console.error('Error fetching rota data:', err);
@@ -181,7 +156,13 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     } finally {
       setFetchingData(false);
     }
-  };
+  }, [startDate]);
+
+  useEffect(() => {
+    if (mode !== 'weekly') return undefined;
+    fetchRotaForWeek();
+    return undefined;
+  }, [mode, fetchRotaForWeek]);
 
   const normalizeExportTimeRange = (value) => {
     const cleaned = String(value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -680,155 +661,189 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     );
   };
 
-  return (
-    <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 shadow-xl md:p-6 max-w-2xl mx-auto min-h-[520px]">
-      {/* Heading */}
-      <h2 className="text-xl font-semibold text-charcoal mb-4">Export & Send</h2>
+  const allAgenciesSelected = agencies.length > 0
+    && selectedAgencies.length === agencies.length;
 
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+  const toggleSelectAllAgencies = () => {
+    if (allAgenciesSelected) setSelectedAgencies([]);
+    else setSelectedAgencies(agencies.map((agency) => agency.id));
+  };
+
+  const weekLabel = startDate
+    ? `${format(startDate, 'd MMM')} – ${format(addDays(startDate, 6), 'd MMM yyyy')}`
+    : '';
+
+  const selectAllBtn =
+    'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-rota-toolbar-border bg-white px-3 text-xs font-semibold text-rota-text-primary transition hover:bg-rota-day-other-bg-from/40 disabled:cursor-not-allowed disabled:opacity-50';
+
+  const sendPrimaryBtn =
+    'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 disabled:cursor-not-allowed disabled:opacity-50';
+
+  const tabBtn = (active) => (
+    `flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
+      active
+        ? 'border border-rota-toolbar-border bg-white text-rota-text-primary shadow-sm'
+        : 'border border-transparent text-rota-text-muted hover:bg-rota-day-other-bg-from/30 hover:text-rota-text-primary'
+    }`
+  );
+
+  const WeekPickerTrigger = React.forwardRef(function WeekPickerTrigger(
+    { onClick },
+    ref,
+  ) {
+    return (
+      <button
+        type="button"
+        ref={ref}
+        onClick={onClick}
+        className="text-base font-semibold text-[#25D366] transition hover:underline focus:outline-none focus-visible:underline"
+        title="Change week"
+        aria-label={weekLabel ? `Week ${weekLabel}. Click to change week.` : 'Choose week'}
+      >
+        {weekLabel ? `Week ${weekLabel}` : 'Choose week'}
+      </button>
+    );
+  });
+
+  return (
+    <div className="space-y-4 pr-8">
+      <style>
+        {`
+          .export-rota-datepicker-popper.react-datepicker-popper {
+            z-index: 10000;
+          }
+          .export-rota-datepicker-popper .react-datepicker {
+            font-family: inherit;
+            font-size: 0.8125rem;
+            line-height: 1.25;
+            color: #1f2937;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+            padding: 0.5rem;
+          }
+          .export-rota-datepicker-popper .react-datepicker__month-container {
+            float: none;
+          }
+          .export-rota-datepicker-popper .react-datepicker__header {
+            background: transparent;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0.25rem 0 0.5rem;
+          }
+          .export-rota-datepicker-popper .react-datepicker__current-month {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.35rem;
+          }
+          .export-rota-datepicker-popper .react-datepicker__navigation {
+            top: 0.65rem;
+          }
+          .export-rota-datepicker-popper .react-datepicker__navigation-icon::before {
+            border-color: #6b7280;
+            border-width: 2px 2px 0 0;
+            height: 7px;
+            width: 7px;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day-names {
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day-name {
+            width: 1.85rem;
+            line-height: 1.85rem;
+            margin: 0.05rem;
+            color: #6b7280;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          .export-rota-datepicker-popper .react-datepicker__month {
+            margin: 0.25rem 0 0;
+          }
+          .export-rota-datepicker-popper .react-datepicker__week {
+            display: flex;
+            justify-content: space-between;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day {
+            width: 1.85rem;
+            line-height: 1.85rem;
+            margin: 0.05rem;
+            border-radius: 0.4rem;
+            color: #1f2937;
+            background: transparent;
+            font-size: 0.8125rem;
+            font-weight: 500;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day:hover:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected) {
+            background: #f3f4f6;
+            color: #111827;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--saturday:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected),
+          .export-rota-datepicker-popper .react-datepicker__day[aria-label*="Saturday"]:not(.react-datepicker__day--disabled):not(.react-datepicker__day--selected) {
+            background: #f3f4f6;
+            color: #111827;
+            font-weight: 600;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--selected,
+          .export-rota-datepicker-popper .react-datepicker__day--keyboard-selected {
+            background: #25D366 !important;
+            color: #fff !important;
+            font-weight: 600;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--selected:hover,
+          .export-rota-datepicker-popper .react-datepicker__day--keyboard-selected:hover {
+            background: #1ebe57 !important;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--today:not(.react-datepicker__day--selected) {
+            font-weight: 600;
+            box-shadow: inset 0 0 0 1px #d1d5db;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--outside-month {
+            color: #d1d5db;
+          }
+          .export-rota-datepicker-popper .react-datepicker__day--disabled {
+            color: #d1d5db !important;
+            background: transparent !important;
+            cursor: default;
+          }
+        `}
+      </style>
+
+      <h3 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pr-6 text-lg font-semibold text-rota-text-primary">
+        <span>Send to agency</span>
+        <DatePicker
+          selected={startDate}
+          onChange={(date) => {
+            setStartDate(date);
+          }}
+          dateFormat="dd/MM/yyyy"
+          filterDate={isSaturday}
+          customInput={<WeekPickerTrigger />}
+          popperClassName="export-rota-datepicker-popper"
+          calendarClassName="export-rota-datepicker"
+          showPopperArrow={false}
+        />
+      </h3>
+
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => setMode('weekly')}
-          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
-            mode === 'weekly'
-              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-          }`}
+          className={tabBtn(mode === 'weekly')}
         >
           Weekly schedule
         </button>
         <button
           type="button"
           onClick={() => setMode('additional')}
-          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
-            mode === 'additional'
-              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-          }`}
+          className={tabBtn(mode === 'additional')}
         >
           Additional bookings
         </button>
-        <button
-          type="button"
-          onClick={() => setMode('individual')}
-          className={`flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
-            mode === 'individual'
-              ? 'text-slate-800 bg-white/90 border border-slate-200/60 shadow-sm'
-              : 'text-slate-400 hover:text-slate-600 border border-transparent hover:bg-white/60'
-          }`}
-        >
-          Individual booking
-        </button>
       </div>
-
-      {mode === 'weekly' && (
-      <div className="flex items-center space-x-3">
-        <span className="text-sm text-gray-500">Step {step} / 4</span>
-        <div className="flex-1 h-2 rounded bg-gray-200">
-          <div
-            className="h-2 rounded bg-black transition-all duration-300"
-            style={{ width: `${(step / 4) * 100}%` }}
-          />
-        </div>
-      </div>
-      )}
-
-      <div className="mb-2 relative">
-            <label htmlFor="start-date" className="mb-1 block text-sm font-medium text-charcoal">
-              Select Week (Starting Saturday)
-            </label>
-            <style>
-              {`
-                /* Styl dla ikony kalendarza - nadpisanie domyślnych styli */
-                .react-datepicker__calendar-icon {
-                  fill: white !important;
-                  stroke: white !important;
-                  color: white !important;
-                }
-                
-                /* Zwiększenie z-index dla kalendarza, aby był zawsze widoczny */
-                .react-datepicker-popper {
-                  z-index: 9999 !important;
-                }
-                
-                /* Zapewnienie, że kalendarz będzie widoczny wewnątrz modalnego okna */
-                .react-datepicker {
-                  font-size: 0.9rem !important;
-                  background-color: white !important;
-                  border-color: #e5e7eb !important;
-                  color: black !important;
-                }
-                
-                /* Style dla nagłówka kalendarza */
-                .react-datepicker__header {
-                  background-color: white !important;
-                  color: black !important;
-                  border-bottom-color: #e5e7eb !important;
-                }
-                
-                /* Style dla nazw dni tygodnia */
-                .react-datepicker__day-name {
-                  color: black !important;
-                }
-                
-                /* Style dla WSZYSTKICH dni - jasny szary */
-                .react-datepicker__day {
-                  color: black !important;
-                  background-color: #e5e7eb !important;
-                  border-radius: 0.3rem !important;
-                  margin: 0.166rem !important;
-                }
-                
-                /* Wyróżnienie sobót - ciemniejszy kolor (czarny) */
-                .react-datepicker__day.react-datepicker__day--saturday:not(.react-datepicker__day--disabled),
-                .react-datepicker__day[aria-label*="Saturday"]:not(.react-datepicker__day--disabled) {
-                  background-color: #1f2937 !important;
-                  color: white !important;
-                  font-weight: bold !important;
-                }
-                
-                /* Hover dla sobót */
-                .react-datepicker__day.react-datepicker__day--saturday:not(.react-datepicker__day--disabled):hover,
-                .react-datepicker__day[aria-label*="Saturday"]:not(.react-datepicker__day--disabled):hover {
-                  background-color: black !important;
-                }
-                
-                /* Wyróżnienie wybranej daty */
-                .react-datepicker__day--selected,
-                .react-datepicker__day--keyboard-selected {
-                  background-color: #3b82f6 !important;
-                  color: white !important;
-                  font-weight: bold !important;
-                }
-                
-                /* Styl dla dni poza miesiącem */
-                .react-datepicker__day--outside-month {
-                  opacity: 0.5 !important;
-                }
-              `}
-            </style>
-            <DatePicker
-              selected={startDate}
-              onChange={(date) => {
-                setStartDate(date);
-                setRotaData([]);
-              }}
-              dateFormat="dd/MM/yyyy"
-              filterDate={isSaturday}
-              className="admin-input"
-              wrapperClassName="w-full"
-              showIcon
-              calendarIconClassname="text-charcoal cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2"
-              toggleCalendarOnIconClick
-              popperClassName="react-datepicker-popper"
-              calendarClassName="bg-white border border-gray-200 shadow-lg text-charcoal"
-            />
-            {startDate && (
-              <p className="mt-1 text-xs text-gray-500">
-                Week: {format(startDate, 'yyyy-MM-dd')} to {format(addDays(startDate, 6), 'yyyy-MM-dd')}
-              </p>
-            )}
-          </div>
 
       {mode === 'additional' && (
         <AdditionalBookingsPanel
@@ -838,130 +853,115 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         />
       )}
 
-      {mode === 'individual' && (
-        <IndividualBookingEmailPanel
-          startDate={startDate}
-          currentUser={currentUser}
-        />
-      )}
-
-      {mode === 'weekly' && step === 1 && (
-          <div>
-            <button
-              onClick={fetchRotaForWeek}
-              disabled={fetchingData}
-              className="admin-btn"
-            >
-              {fetchingData ? <span className="animate-pulse">Loading data...</span> : 'Fetch Schedule Data'}
-            </button>
-            {rotaData.length > 0 && (
-              <p className="mt-2 text-sm text-gray-600">{rotaData.length} shifts loaded for selected week</p>
+      {mode === 'weekly' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-rota-text-muted">
+              {fetchingData
+                ? 'Loading shifts…'
+                : (rotaData.length > 0
+                  ? `${rotaData.length} shifts loaded`
+                  : 'No shifts for this week')}
+            </p>
+            {agencies.length > 0 && (
+              <button
+                type="button"
+                className={selectAllBtn}
+                onClick={toggleSelectAllAgencies}
+                disabled={agencies.length === 0}
+                title={allAgenciesSelected ? 'Clear selection' : 'Select all recipients'}
+              >
+                {allAgenciesSelected ? 'Clear' : 'Select all'}
+                <span className="font-normal text-rota-text-muted">
+                  {selectedAgencies.length}/{agencies.length}
+                </span>
+              </button>
             )}
           </div>
-      )}
 
-      {/* STEP 2 – Download files */}
-      {mode === 'weekly' && step === 2 && (
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => generateCSV()}
-            className="admin-btn"
-          >
-            Download CSV
-          </button>
-          <button
-            onClick={() => generatePDF()}
-            className="admin-btn"
-          >
-            Download PDF
-          </button>
-        </div>
-      )}
-
-      {/* STEP 3 – Agency selection */}
-      {mode === 'weekly' && step === 3 && agencies.length > 0 && (
-        <>
-          <h3 className="text-lg font-medium text-charcoal mb-3">Send to Agency Managers</h3>
-          <div className="mb-4 max-h-60 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-3">
-            {agencies.map(agency => (
-              <div key={agency.id} className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  id={`agency-${agency.id}`}
-                  checked={selectedAgencies.includes(agency.id)}
-                  onChange={() => handleAgencySelection(agency.id)}
-                  className="mr-2 accent-blue-500 w-4 h-4"
-                />
-                <label htmlFor={`agency-${agency.id}`} className="text-charcoal cursor-pointer">
-                  {agency.name} ({agency.email})
-                </label>
-              </div>
-            ))}
-          </div>
-          {selectedAgencies.length > 0 && (
-            <div className="mb-4 rounded border border-gray-200 bg-gray-50 p-3">
-              <h4 className="text-charcoal text-md font-medium mb-2">Recipients ({selectedAgencies.length})</h4>
-              <div className="max-h-32 overflow-y-auto">
-                {selectedAgencies.map(agencyId => {
-                  const agency = agencies.find(a => a.id === agencyId);
-                  return (
-                    <div key={agencyId} className="text-charcoal mb-1 flex items-center">
-                      <div className="bg-blue-600/30 px-2 py-1 rounded-full text-xs mr-2">To</div>
-                      {agency?.name}: {agency?.email}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {agencies.length > 0 ? (
+            <ul className="max-h-60 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+              {agencies.map((agency) => {
+                const checked = selectedAgencies.includes(agency.id);
+                return (
+                  <li key={agency.id}>
+                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                      <input
+                        type="checkbox"
+                        className="shrink-0"
+                        checked={checked}
+                        onChange={() => handleAgencySelection(agency.id)}
+                      />
+                      <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                        {agency.name}
+                      </span>
+                      <span className="shrink-0 text-xs text-rota-text-muted">
+                        {agency.email}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-rota-text-muted">No active agencies found.</p>
           )}
-        </>
-      )}
 
-      {/* STEP 4 – Email message & send */}
-      {mode === 'weekly' && step === 4 && (
-        <>
-          <div className="mb-4">
-            <label htmlFor="email-message" className="block text-charcoal mb-1">Email Message</label>
-            <textarea
-              id="email-message"
-              value={emailMessage}
-              onChange={(e) => setEmailMessage(e.target.value)}
-              rows={5}
-              className="w-full resize-y rounded border border-gray-300 bg-white px-3 py-2 text-charcoal focus:border-black focus:outline-none focus:ring-2 focus:ring-black/10"
-              placeholder="Enter custom message to send with the schedule..."
-            />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-xs text-rota-text-muted">
+                Selected {selectedAgencies.length}
+                {rotaData.length > 0 ? ` · ${rotaData.length} shifts` : ''}
+              </p>
+              <button
+                type="button"
+                className="text-xs font-semibold text-rota-text-muted underline-offset-2 transition hover:text-rota-text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => generateCSV()}
+                disabled={fetchingData || rotaData.length === 0}
+              >
+                Download CSV
+              </button>
+              <button
+                type="button"
+                className="text-xs font-semibold text-rota-text-muted underline-offset-2 transition hover:text-rota-text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => generatePDF()}
+                disabled={fetchingData || rotaData.length === 0 || loading}
+              >
+                Download PDF
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={confirmSend}
+              disabled={loading || fetchingData || selectedAgencies.length === 0 || rotaData.length === 0}
+              className={sendPrimaryBtn}
+              title={
+                selectedAgencies.length === 0
+                  ? 'Select recipients first'
+                  : rotaData.length === 0
+                    ? 'No shifts to send'
+                    : `Send to ${selectedAgencies.length} selected`
+              }
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>
+                {loading
+                  ? 'Sending…'
+                  : `Send to ${selectedAgencies.length} selected`}
+              </span>
+            </button>
           </div>
-          <button
-            onClick={confirmSend}
-            disabled={loading || selectedAgencies.length === 0}
-            className="admin-btn w-full"
-          >
-            {loading ? 'Sending...' : `Send to ${selectedAgencies.length} Selected Agency Managers`}
-          </button>
-        </>
-      )}
-
-      {mode === 'weekly' && (
-      <div className="flex justify-between pt-4">
-        {step > 1 ? (
-          <button
-            onClick={() => setStep(step - 1)}
-            className="admin-btn-muted"
-          >
-            Back
-          </button>
-        ) : <span />}
-
-        {step < 4 && (
-          <button
-            onClick={() => setStep(step + 1)}
-            disabled={isNextDisabled()}
-            className="admin-btn"
-          >
-            Next
-          </button>
-        )}
-      </div>
+        </div>
       )}
 
       {/* Error/Success Messages */}
@@ -1092,7 +1092,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
 };
 
 ExportRota.propTypes = {
-  initialTab: PropTypes.oneOf(['weekly', 'additional', 'individual']),
+  initialTab: PropTypes.oneOf(['weekly', 'additional']),
   initialStartDate: PropTypes.instanceOf(Date),
   onBaselineChanged: PropTypes.func,
 };
