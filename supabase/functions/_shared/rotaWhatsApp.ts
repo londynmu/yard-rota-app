@@ -87,18 +87,21 @@ export function formatRotaWeekRangeShort(weekStartIso: string): string {
   return `${startLabel}–${endLabel}`;
 }
 
-/** Placeholder for empty Sat–Fri day slots in week template v2 (Meta forbids empty vars). */
-export const ROTA_WA_DAY_OFF = "off";
+/**
+ * Placeholder for unused week-template day slots (Meta forbids empty vars).
+ * Em dash — never empty, never the word "off".
+ */
+export const ROTA_WA_DAY_OFF = "—";
 
-/** Fixed weekday labels for Sat→Fri week (matches yard_rota_week_shunter_v2 body). */
+/** Lowercase EN weekday labels Sat→Fri (embedded in v3 day line values). */
 export const ROTA_WA_WEEK_DAY_LABELS = [
-  "Sat",
-  "Sun",
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
+  "sat",
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
 ] as const;
 
 export function rotaWeekDayIso(weekStartIso: string, dayOffset: number): string {
@@ -114,6 +117,30 @@ export function rotaWeekDayIso(weekStartIso: string, dayOffset: number): string 
   return `${y}-${m}-${d}`;
 }
 
+export function formatShiftTime24h(value: unknown): string {
+  if (value == null || value === "") return "";
+  const s = String(value).trim();
+  const match = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return s;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return s;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/** Short calendar date for week lines: d/m (no leading zeros). */
+export function formatShiftDateShort(iso: unknown): string {
+  if (iso == null || iso === "") return "";
+  const raw = String(iso).trim().slice(0, 10);
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return raw;
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(month) || !Number.isFinite(day)) return raw;
+  return `${day}/${month}`;
+}
+
+/** am/pm windows — assignment ping / short UI labels. */
 export function formatDayShiftWindows(
   dayShifts: Array<{ start_time?: unknown; end_time?: unknown }>,
 ): string {
@@ -131,9 +158,28 @@ export function formatDayShiftWindows(
     .join(", ");
 }
 
+/** 24h windows for week ContentVariables. */
+export function formatDayShiftWindows24h(
+  dayShifts: Array<{ start_time?: unknown; end_time?: unknown }>,
+): string {
+  const sorted = (dayShifts || []).slice().sort((a, b) =>
+    String(a.start_time || "").localeCompare(String(b.start_time || ""))
+  );
+  return sorted
+    .map((s) => {
+      const start = formatShiftTime24h(s.start_time);
+      const end = formatShiftTime24h(s.end_time);
+      if (start && end) return `${start}-${end}`;
+      return start || end || "";
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
 /**
- * Seven Sat→Fri values for week template vars {{4}}…{{10}}.
- * Empty days are always `off` (never blank — Meta rejects empty Content Variables).
+ * Seven values for week template vars {{4}}…{{10}} (v3).
+ * Only days with shifts are left-packed; unused slots are `—`.
+ * Line shape: `d/m ddd HH:MM-HH:MM` (bullet lives in the Twilio template).
  */
 export function buildShunterWeekDayVariables(
   weekStartIso: string,
@@ -147,11 +193,19 @@ export function buildShunterWeekDayVariables(
     byDate.get(date)!.push(shift);
   }
 
-  const days: string[] = [];
+  const working: string[] = [];
   for (let i = 0; i < 7; i += 1) {
     const iso = rotaWeekDayIso(weekStartIso, i);
-    const windows = formatDayShiftWindows(byDate.get(iso) || []);
-    days.push(windows || ROTA_WA_DAY_OFF);
+    const windows = formatDayShiftWindows24h(byDate.get(iso) || []);
+    if (!windows) continue;
+    const dateShort = formatShiftDateShort(iso);
+    const weekday = ROTA_WA_WEEK_DAY_LABELS[i];
+    working.push(`${dateShort} ${weekday} ${windows}`);
+  }
+
+  const days: string[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    days.push(working[i] || ROTA_WA_DAY_OFF);
   }
   return days;
 }
