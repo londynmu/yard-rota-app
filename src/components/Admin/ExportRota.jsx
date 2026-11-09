@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../lib/AuthContext';
 import { logSystemActivity } from '../../lib/systemActivityLog';
 import { format, addDays, getDay, nextSaturday } from 'date-fns';
 import { createPortal } from 'react-dom';
@@ -12,8 +13,10 @@ import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../
 
 /** Display / confirm From for weekly rota emails (SendGrid EMAIL_FROM). */
 const ROTA_EMAIL_FROM = 'bookings@shunters.net';
+/** Inbox display name paired with ROTA_EMAIL_FROM in SendGrid. */
+const ROTA_EMAIL_FROM_NAME = 'Rugby Shunters Rota';
 
-const buildDefaultWeeklyMessage = (weekStart) => {
+const buildDefaultWeeklyMessage = (weekStart, signOff = EMAIL_SIGN_OFF) => {
   const weekRange = `${format(weekStart, 'dd/MM/yyyy')} - ${format(addDays(weekStart, 6), 'dd/MM/yyyy')}`;
   return [
     `Please find attached the weekly shunters schedule for ${weekRange}.`,
@@ -22,7 +25,7 @@ const buildDefaultWeeklyMessage = (weekStart) => {
     '',
     'Best regards',
     '',
-    EMAIL_SIGN_OFF,
+    signOff,
   ].join('\n');
 };
 
@@ -36,6 +39,7 @@ const getNextOrCurrentSaturday = (date) => {
 };
 
 const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaselineChanged = null }) => {
+  const { sessionProfile } = useAuth();
   const [mode, setMode] = useState(() => (
     initialTab === 'additional' ? 'additional' : 'weekly'
   ));
@@ -57,11 +61,20 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   const [currentUser, setCurrentUser] = useState(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState({ url: '', fileName: '', type: '' });
-  const [emailMessage, setEmailMessage] = useState(() => buildDefaultWeeklyMessage(startDate));
+
+  const senderName = useMemo(() => {
+    const fromProfile = [sessionProfile?.first_name, sessionProfile?.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    return fromProfile || EMAIL_SIGN_OFF;
+  }, [sessionProfile]);
+
+  const [emailMessage, setEmailMessage] = useState(() => buildDefaultWeeklyMessage(startDate, senderName));
 
   useEffect(() => {
-    setEmailMessage(buildDefaultWeeklyMessage(startDate));
-  }, [startDate]);
+    setEmailMessage(buildDefaultWeeklyMessage(startDate, senderName));
+  }, [startDate, senderName]);
 
   // Fetch agencies list
   useEffect(() => {
@@ -649,7 +662,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             weekStart,
             weekEnd,
             csvData: csvContent,
-            message: emailMessage.trim() || buildDefaultWeeklyMessage(startDate),
+            message: emailMessage.trim() || buildDefaultWeeklyMessage(startDate, senderName),
           },
         },
       );
@@ -671,7 +684,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       }
 
       if (failed.length === 0 && sent > 0) {
-        setSuccess(`Email sent to ${sent} agenc${sent === 1 ? 'y' : 'ies'} from ${ROTA_EMAIL_FROM}.`);
+        setSuccess(`Email sent to ${sent} agenc${sent === 1 ? 'y' : 'ies'} as ${ROTA_EMAIL_FROM_NAME} from ${ROTA_EMAIL_FROM}.`);
       } else if (sent > 0 && failed.length > 0) {
         setSuccess(`Sent to ${sent} agenc${sent === 1 ? 'y' : 'ies'}. Failed: ${failedNames.join(', ') || failed.length}.`);
         setError(`Some agencies failed: ${failed.map((r) => `${r.agencyName}: ${r.error || 'error'}`).join('; ')}`);
@@ -962,7 +975,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                 placeholder="Message sent with the CSV attachment"
               />
               <p className="text-[11px] text-rota-text-muted">
-                Sent from {ROTA_EMAIL_FROM} with CSV attached. Use Download PDF separately if needed.
+                Sent as {ROTA_EMAIL_FROM_NAME} from {ROTA_EMAIL_FROM} with CSV attached. Use Download PDF separately if needed.
               </p>
             </div>
           </div>
@@ -1059,7 +1072,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
             <h3 className="mb-4 text-xl font-semibold text-charcoal">Confirm Send</h3>
             <div className="mb-6 max-h-[60vh] space-y-3 overflow-y-auto text-sm text-gray-600">
-              <p><span className="font-medium">From:</span> {ROTA_EMAIL_FROM}</p>
+              <p><span className="font-medium">From:</span> {ROTA_EMAIL_FROM_NAME} &lt;{ROTA_EMAIL_FROM}&gt;</p>
               <p className="font-medium">Recipients ({selectedAgencies.length}):</p>
               <ul className="ml-4 list-disc">
                 {selectedAgencies.map(agencyId => {
