@@ -14,7 +14,7 @@ import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../
 /** Display / confirm From for weekly rota emails (SendGrid EMAIL_FROM). */
 const ROTA_EMAIL_FROM = 'bookings@shunters.net';
 /** Inbox display name paired with ROTA_EMAIL_FROM in SendGrid. */
-const ROTA_EMAIL_FROM_NAME = 'Shunters Rota';
+const ROTA_EMAIL_FROM_NAME = 'Rugby Shunters Rota';
 
 const buildDefaultWeeklyMessage = (weekStart, signOff = EMAIL_SIGN_OFF) => {
   const weekRange = `${format(weekStart, 'dd/MM/yyyy')} - ${format(addDays(weekStart, 6), 'dd/MM/yyyy')}`;

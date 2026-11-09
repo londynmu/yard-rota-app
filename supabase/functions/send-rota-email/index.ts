@@ -144,7 +144,7 @@ serve(async (req) => {
       return json(500, { error: "Invalid EMAIL_FROM configuration" });
     }
     // Always show a friendly inbox name; email stays bookings@… from EMAIL_FROM.
-    const from = { email: fromParsed.email, name: "Shunters Rota" };
+    const from = { email: fromParsed.email, name: "Rugby Shunters Rota" };
 
     // Allowlist: every individual address stored on agencies.email
     const allowed = new Set<string>();
