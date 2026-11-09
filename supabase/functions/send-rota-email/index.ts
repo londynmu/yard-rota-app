@@ -139,10 +139,12 @@ serve(async (req) => {
       console.error("SENDGRID_API_KEY missing");
       return json(500, { error: "Server email configuration missing" });
     }
-    const from = parseEmailFromAddress(emailFromRaw);
-    if (!from.email || !from.email.includes("@")) {
+    const fromParsed = parseEmailFromAddress(emailFromRaw);
+    if (!fromParsed.email || !fromParsed.email.includes("@")) {
       return json(500, { error: "Invalid EMAIL_FROM configuration" });
     }
+    // Always show a friendly inbox name; email stays bookings@… from EMAIL_FROM.
+    const from = { email: fromParsed.email, name: "Shunters Rota" };
 
     // Allowlist: every individual address stored on agencies.email
     const allowed = new Set<string>();
