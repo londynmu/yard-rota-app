@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ExportRota from './ExportRota';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
+import { lockPageScroll } from '../../utils/lockPageScroll';
 
 const ExportRotaButton = ({
   iconOnly = false,
@@ -22,7 +23,13 @@ const ExportRotaButton = ({
     setShowModal(false);
   };
 
-  const resolvedTab = pendingCount > 0 ? 'additional' : initialTab;
+  // Lock page scroll while the modal is open (body + admin <main>).
+  useEffect(() => {
+    if (!showModal) return undefined;
+    return lockPageScroll();
+  }, [showModal]);
+
+  const resolvedTab = initialTab === 'additional' ? 'additional' : 'weekly';
   const exportTitle = pendingCount > 0
     ? `${label} (${pendingCount} additional bookings)`
     : label;
@@ -80,8 +87,11 @@ const ExportRotaButton = ({
 
       {showModal && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onWheel={(e) => {
+            if (e.target === e.currentTarget) e.preventDefault();
+          }}
         >
           <div className="relative mx-auto my-auto flex h-[min(90vh,40.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="absolute right-4 top-4 z-10">
@@ -96,7 +106,7 @@ const ExportRotaButton = ({
                 </svg>
               </button>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+            <div className="flex min-h-0 flex-1 flex-col pb-4 pl-4 pt-4 sm:pb-6 sm:pl-6 sm:pt-6">
               <ExportRota
                 initialTab={resolvedTab}
                 initialStartDate={weekStart}

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import RotaWhatsAppSendPanel from './RotaWhatsAppSendPanel';
+import { lockPageScroll } from '../../../utils/lockPageScroll';
 
 /** Official WhatsApp logo mark (phone in speech bubble), monochrome via currentColor. */
 function WhatsAppIcon({ className = 'h-5 w-5' }) {
@@ -33,6 +34,12 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
 
+  // Lock page scroll while the modal is open (body + admin <main>).
+  useEffect(() => {
+    if (!showModal) return undefined;
+    return lockPageScroll();
+  }, [showModal]);
+
   return (
     <>
       <button
@@ -48,8 +55,11 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
 
       {showModal && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onWheel={(e) => {
+            if (e.target === e.currentTarget) e.preventDefault();
+          }}
         >
           <div className="relative mx-auto my-auto max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="absolute right-4 top-4 z-10">

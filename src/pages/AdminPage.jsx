@@ -20,6 +20,7 @@ import AttendancePage from './AttendancePage';
 import InductionGuideManager from '../components/Admin/InductionGuideManager';
 import { getCurrentMonthAwards } from '../utils/shunterAwardsApi';
 import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
+import { lockPageScroll } from '../utils/lockPageScroll';
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -104,6 +105,12 @@ export default function AdminPage() {
   // Efekt do zapisywania aktywnej sekcji w localStorage
   useEffect(() => {
     safeLocalStorage.setItem('adminActiveSection', activeSection);
+  }, [activeSection]);
+
+  // Users keeps search fixed — lock document scroll so content cannot tuck under the top nav.
+  useEffect(() => {
+    if (activeSection !== 'users') return undefined;
+    return lockPageScroll();
   }, [activeSection]);
 
   // Zapisz scroll Statistics przy wyjściu, przywróć przy wejściu
@@ -393,9 +400,11 @@ export default function AdminPage() {
     }
   };
 
+  const isUsersSection = activeSection === 'users';
+
   // Główna zawartość strony admina - uprawnienia już sprawdzone przez ProtectedAdminRoute
   return (
-    <div className="min-h-screen bg-offwhite">
+    <div className={`bg-offwhite ${isUsersSection ? 'h-[calc(100dvh-4rem)] overflow-hidden' : 'min-h-screen'}`}>
       {/* Mobile Overlay - tylko na mobile */}
       {mobileSidebarOpen && (
         <div 
@@ -472,8 +481,15 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
-      <main ref={mainContentRef} className="min-h-screen overflow-y-auto md:ml-20">
-        <div className="p-4 md:p-6 lg:p-8">
+      <main
+        ref={mainContentRef}
+        className={`md:ml-20 ${
+          isUsersSection
+            ? 'h-full overflow-hidden'
+            : 'min-h-screen overflow-y-auto'
+        }`}
+      >
+        <div className={`p-4 md:p-6 lg:p-8 ${isUsersSection ? 'h-full' : ''}`}>
           {renderContent()}
         </div>
       </main>
