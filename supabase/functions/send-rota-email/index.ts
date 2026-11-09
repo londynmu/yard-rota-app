@@ -18,7 +18,11 @@ type RequestBody = {
   weekStart?: string;
   weekEnd?: string;
   csvData?: string;
+  /** Base64-encoded PDF (no data: URI prefix). Optional for back-compat. */
+  pdfData?: string;
   message?: string;
+  /** Optional override; defaults to Weekly Schedule subject. */
+  subject?: string;
   /** @deprecated single-recipient shape — still accepted for back-compat */
   recipient?: string;
   agencyName?: string;
@@ -53,9 +57,36 @@ async function sendViaSendGrid(opts: {
   to: string[];
   subject: string;
   content: string;
-  filename: string;
-  csvData: string;
+  csvFilename?: string;
+  csvData?: string;
+  pdfFilename?: string;
+  pdfDataBase64?: string;
 }): Promise<void> {
+  const attachments: Array<{
+    content: string;
+    filename: string;
+    type: string;
+    disposition: string;
+  }> = [];
+
+  if (opts.csvData && opts.csvFilename) {
+    attachments.push({
+      content: toBase64(opts.csvData),
+      filename: opts.csvFilename,
+      type: "text/csv",
+      disposition: "attachment",
+    });
+  }
+
+  if (opts.pdfDataBase64 && opts.pdfFilename) {
+    attachments.push({
+      content: opts.pdfDataBase64,
+      filename: opts.pdfFilename,
+      type: "application/pdf",
+      disposition: "attachment",
+    });
+  }
+
   const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: {
@@ -73,14 +104,7 @@ async function sendViaSendGrid(opts: {
         : { email: opts.from.email },
       subject: opts.subject,
       content: [{ type: "text/plain", value: opts.content }],
-      attachments: [
-        {
-          content: toBase64(opts.csvData),
-          filename: opts.filename,
-          type: "text/csv",
-          disposition: "attachment",
-        },
-      ],
+      ...(attachments.length > 0 ? { attachments } : {}),
     }),
   });
 
@@ -113,9 +137,13 @@ serve(async (req) => {
     const weekStart = String(body.weekStart || "").trim();
     const weekEnd = String(body.weekEnd || "").trim();
     const csvData = typeof body.csvData === "string" ? body.csvData : "";
-    const message =
-      String(body.message || "").trim() ||
-      "Please find attached the weekly schedule.";
+    const pdfDataRaw = typeof body.pdfData === "string" ? body.pdfData.trim() : "";
+    // Accept raw base64 or a data:application/pdf;base64,... URI
+    const pdfDataBase64 = pdfDataRaw.includes(",")
+      ? pdfDataRaw.split(",").pop() || ""
+      : pdfDataRaw;
+    const message = String(body.message || "").trim();
+    const subjectOverride = String(body.subject || "").trim();
 
     let agencies: AgencyPayload[] = Array.isArray(body.agencies)
       ? body.agencies
@@ -129,7 +157,7 @@ serve(async (req) => {
       }];
     }
 
-    if (!weekStart || !weekEnd || !csvData || agencies.length === 0) {
+    if (!weekStart || !weekEnd || agencies.length === 0 || !message) {
       return json(400, { error: "Missing required fields" });
     }
 
@@ -164,8 +192,9 @@ serve(async (req) => {
       }
     }
 
-    const filename = `rota_${weekStart}_${weekEnd}.csv`;
-    const subject = `Weekly Schedule: ${weekStart} - ${weekEnd}`;
+    const csvFilename = csvData ? `rota_${weekStart}_${weekEnd}.csv` : undefined;
+    const pdfFilename = pdfDataBase64 ? `rota_${weekStart}_${weekEnd}.pdf` : undefined;
+    const subject = subjectOverride || `Weekly Schedule: ${weekStart} - ${weekEnd}`;
     const results: AgencyResult[] = [];
 
     for (const agency of agencies) {
@@ -204,8 +233,10 @@ serve(async (req) => {
           to: recipients,
           subject,
           content,
-          filename,
-          csvData,
+          csvFilename,
+          csvData: csvData || undefined,
+          pdfFilename,
+          pdfDataBase64: pdfDataBase64 || undefined,
         });
         console.log("Email sent to", agencyName, recipients.join(", "));
         results.push({ agencyName, ok: true, recipients });

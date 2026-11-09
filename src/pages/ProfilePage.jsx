@@ -1199,8 +1199,9 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-charcoal">WhatsApp reminders</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        Operational reminders only (PreCheck and similar) — not marketing. You can
-                        turn this off anytime.
+                        {whatsappOptIn
+                          ? 'On — you get WhatsApp notifications.'
+                          : 'Off — you will not get WhatsApp notifications.'}
                       </p>
                     </div>
                     <button
@@ -1224,6 +1225,12 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
               </div>
 
               <div className="pt-2 flex flex-col md:flex-row md:items-center md:justify-end gap-3">
+                {!isRequired && (
+                  <DeleteAccountButton
+                    variant="solid"
+                    className="w-full md:w-auto md:min-w-[160px]"
+                  />
+                )}
                 <button
                   type="submit"
                   id="submit-profile"
@@ -1296,12 +1303,6 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
           </div>
         )}
 
-        {/* Outside the profile form so modal submit does not bubble into Save */}
-        {profileTab === 'details' && (
-          <div className="pt-1 text-center md:text-left">
-            <DeleteAccountButton variant="link" />
-          </div>
-        )}
       </div>
     </div>
   );

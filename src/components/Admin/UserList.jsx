@@ -821,10 +821,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     : 0;
 
   return (
-    <div>
-    <div className="mr-auto flex h-[calc(100dvh-72px-2rem-4.75rem)] w-full max-w-lg flex-col md:h-[calc(100dvh-72px-3rem)] lg:h-[calc(100dvh-72px-4rem)]">
-      <div className="mb-4 flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
-        <div className="relative flex-1 min-w-0">
+    <div className="h-full min-h-0">
+    <div className="mr-auto flex h-full min-h-0 w-full max-w-lg flex-col">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 bg-offwhite md:flex-row md:items-center md:gap-2 md:flex-nowrap">
+        <div className="relative min-w-0 flex-1">
           <input
             type="text"
             placeholder="Search by name..."
@@ -833,7 +833,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
             className="admin-input pl-9"
           />
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -850,7 +850,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
         {filteredUsers.map((user) => {
           const isSelected = expandedUserId === user.id;
 

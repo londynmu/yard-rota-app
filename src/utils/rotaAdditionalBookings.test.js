@@ -150,20 +150,47 @@ describe('groupAddedSlotsByAgency', () => {
 });
 
 describe('additional booking email', () => {
-  test('uses Michal Warda and HH:mm hours', () => {
+  test('uses shunter names in subject and omits week range', () => {
     const groups = groupAddedSlotsByAgency([janeFri, johnNew], [janeWed]);
     const { subject, body } = buildAdditionalBookingsEmail({
       weekStartIso: '2026-08-22',
       people: groups[0].people,
     });
-    expect(subject).toContain('22/08/2026');
+    expect(subject).not.toContain('Shunter needed');
+    expect(subject).toContain('John Smith');
+    expect(subject).toContain('Jane Doe');
     expect(formatWeekRangeLabel('2026-08-22')).toBe('22/08/2026 - 28/08/2026');
     expect(body).toContain(EMAIL_SIGN_OFF);
+    expect(body).toContain('Thank you.');
+    expect(body).toContain('as shunters for:');
+    expect(body).not.toContain('for the week');
     expect(body).not.toContain('Keith Thomas');
     expect(body).toContain('17:00-07:00');
     expect(body).not.toMatch(/\d{2}:\d{2}:\d{2}/);
-    expect(body).toContain('John Smith (new booking)');
-    expect(body).toContain('Jane Doe (extra shifts)');
+    expect(body).toContain('John Smith:');
+    expect(body).toContain('Jane Doe:');
+    expect(body).not.toContain('(new booking)');
+    expect(body).not.toContain('(extra shifts)');
+  });
+
+  test('single shunter subject and no duplicated name above shifts', () => {
+    const { subject, body } = buildAdditionalBookingsEmail({
+      people: [{
+        name: 'Klodian Ago',
+        kind: 'extra',
+        shifts: [{
+          date: '2026-11-10',
+          shift_type: 'night',
+          start_time: '17:00',
+          end_time: '05:15',
+          location: 'Rugby',
+        }],
+      }],
+    });
+    expect(subject).toBe('Klodian Ago');
+    expect(body).toContain('Please book Klodian Ago as shunter for:');
+    expect(body).toContain('- Tuesday 10/11/2026, Night, 17:00-05:15, Rugby');
+    expect(body).not.toMatch(/as shunter for:\n\nKlodian Ago\n/);
   });
 
   test('parses multiple agency emails', () => {

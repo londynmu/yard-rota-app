@@ -207,32 +207,40 @@ export function formatShiftDayLabel(iso) {
 }
 
 /**
- * @param {{ weekStartIso: string, people: Array<{ name: string, kind: 'new'|'extra', shifts: object[] }> }} args
+ * @param {{ weekStartIso?: string, people: Array<{ name: string, kind?: 'new'|'extra', shifts: object[] }> }} args
  * @returns {{ subject: string, body: string }}
  */
-export function buildAdditionalBookingsEmail({ weekStartIso, people }) {
-  const weekRange = formatWeekRangeLabel(weekStartIso);
-  const subject = `Additional shunter bookings: ${weekRange}`;
-  const blocks = (people || []).map((person) => {
-    const kindLabel = person.kind === 'new' ? 'new booking' : 'extra shifts';
-    const lines = (person.shifts || []).map((shift) => {
+export function buildAdditionalBookingsEmail({ people }) {
+  const list = Array.isArray(people) ? people.filter(Boolean) : [];
+  const names = list.map((person) => String(person.name || '').trim()).filter(Boolean);
+  const subject = names.length > 0 ? names.join(', ') : 'Additional shunter booking';
+
+  const shiftLines = list.flatMap((person) => {
+    const personName = String(person.name || '').trim();
+    const shifts = person.shifts || [];
+    if (shifts.length === 0 && personName) {
+      return names.length > 1 ? [`- ${personName}`] : [];
+    }
+    return shifts.map((shift) => {
       const day = formatShiftDayLabel(shift.date);
       const hours = `${formatShiftClock(shift.start_time)}-${formatShiftClock(shift.end_time)}`;
       const shiftLabel = formatShiftTypeLabel(shift.shift_type);
       const location = shift.location ? `, ${shift.location}` : '';
-      return `- ${day}, ${shiftLabel}, ${hours}${location}`;
+      const prefix = names.length > 1 && personName ? `${personName}: ` : '';
+      return `- ${prefix}${day}, ${shiftLabel}, ${hours}${location}`;
     });
-    return `${person.name} (${kindLabel})\n${lines.join('\n')}`;
   });
 
+  const intro = names.length === 1
+    ? `Please book ${names[0]} as shunter for:`
+    : 'Please book the following as shunters for:';
+
   const body = [
-    `Please book the following additional shunter(s) for the week ${weekRange}:`,
+    intro,
     '',
-    blocks.join('\n\n'),
+    shiftLines.join('\n'),
     '',
-    'Please confirm these bookings.',
-    '',
-    'Best regards',
+    'Thank you.',
     '',
     EMAIL_SIGN_OFF,
   ].join('\n');

@@ -15,8 +15,16 @@ const OUTLINE_BUTTON =
   'px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors';
 const DESTRUCTIVE_BUTTON =
   'px-4 py-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg transition-colors';
+const SOLID_BUTTON =
+  'inline-flex h-11 md:h-10 items-center justify-center px-5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors active:scale-[0.99]';
 const LINK_BUTTON =
   'text-sm text-gray-500 hover:text-red-600 underline-offset-2 hover:underline bg-transparent border-0 p-0 font-medium transition-colors';
+
+function triggerClass(variant) {
+  if (variant === 'link') return LINK_BUTTON;
+  if (variant === 'solid') return SOLID_BUTTON;
+  return DESTRUCTIVE_BUTTON;
+}
 
 /**
  * Self-service account deletion. The account is anonymised server-side by
@@ -94,7 +102,7 @@ export default function DeleteAccountButton({ className = '', variant = 'destruc
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`${variant === 'link' ? LINK_BUTTON : DESTRUCTIVE_BUTTON} ${className}`}
+        className={`${triggerClass(variant)} ${className}`}
       >
         Delete account
       </button>
@@ -138,5 +146,5 @@ export default function DeleteAccountButton({ className = '', variant = 'destruc
 
 DeleteAccountButton.propTypes = {
   className: PropTypes.string,
-  variant: PropTypes.oneOf(['destructive', 'link']),
+  variant: PropTypes.oneOf(['destructive', 'link', 'solid']),
 };

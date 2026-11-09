@@ -70,12 +70,6 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     return fromProfile || EMAIL_SIGN_OFF;
   }, [sessionProfile]);
 
-  const [emailMessage, setEmailMessage] = useState(() => buildDefaultWeeklyMessage(startDate, senderName));
-
-  useEffect(() => {
-    setEmailMessage(buildDefaultWeeklyMessage(startDate, senderName));
-  }, [startDate, senderName]);
-
   // Fetch agencies list
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -421,6 +415,144 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     }
   };
 
+  // Build weekly PDF (jsPDF). Returns { doc, dataUri, fileName } or null.
+  const buildWeeklyPdf = async () => {
+    if (rotaData.length === 0) {
+      return null;
+    }
+
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+
+    const locationData = groupDataByLocation();
+
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(new Date(startDate), i);
+      return {
+        day: format(date, 'EEEE'),
+        date: format(date, 'dd/MM/yyyy'),
+      };
+    });
+
+    const doc = new jsPDF('landscape');
+
+    const title = `Weekly Schedule: ${format(startDate, 'dd/MM/yyyy')} - ${format(addDays(startDate, 6), 'dd/MM/yyyy')}`;
+    doc.setFontSize(14);
+    doc.text(title, 14, 20);
+
+    doc.setFontSize(10);
+    doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+
+    const tableColumn = ['Name', 'Agency', 'Location'];
+    dates.forEach((d) => {
+      tableColumn.push(`${d.day}\n(${d.date})`);
+    });
+
+    const tableRows = [];
+
+    locationData.forEach((location) => {
+      tableRows.push([
+        { content: `Location: ${location.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: [0, 0, 0] } },
+      ]);
+
+      location.agencies.forEach((agency) => {
+        tableRows.push([
+          { content: `Agency: ${agency.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: [0, 0, 0] } },
+        ]);
+
+        agency.staff.forEach((staff) => {
+          const row = [staff.name, agency.name, location.name];
+
+          ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach((day) => {
+            const dayShifts = staff.shifts[day];
+            if (dayShifts.length === 0) {
+              row.push('');
+            } else {
+              const shiftsText = dayShifts.map((shift) => {
+                const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
+                return timeOnly;
+              }).join('\n');
+              row.push(shiftsText);
+            }
+          });
+
+          tableRows.push(row);
+        });
+      });
+    });
+
+    autoTable(doc, {
+      startY: 35,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [66, 66, 66],
+        halign: 'center',
+      },
+      styles: {
+        overflow: 'linebreak',
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 30 },
+      },
+      rowPageBreak: 'avoid',
+      bodyStyles: {
+        minCellHeight: 10,
+      },
+      margin: { top: 35, right: 10, bottom: 10, left: 10 },
+      didParseCell(data) {
+        if (data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.colSpan) {
+          data.cell.colSpan = data.cell.raw.colSpan;
+          if (data.cell.raw.styles) {
+            Object.assign(data.cell.styles, data.cell.raw.styles);
+          }
+        }
+
+        if (data.cell.raw
+            && typeof data.cell.raw === 'object'
+            && data.cell.raw.colSpan
+            && data.row.index > 0
+            && data.row.section === 'body') {
+          data.row.pageBreak = 'before';
+        }
+      },
+      willDrawCell(data) {
+        if (data.row.section === 'body'
+            && data.column.index === 0
+            && data.cell.text
+            && typeof data.cell.text === 'string'
+            && !data.cell.raw?.colSpan) {
+          if (data.cursor.y > doc.internal.pageSize.height - 50) {
+            data.cursor.y = data.cursor.y + data.cursor.y / 2;
+          }
+        }
+      },
+      didDrawPage(data) {
+        doc.setFontSize(14);
+        doc.text(title, 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.setFontSize(8);
+
+        const totalPages = doc.getNumberOfPages();
+        doc.text(`Page ${data.pageNumber} of ${totalPages}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
+      },
+    });
+
+    const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.pdf`;
+    const dataUri = doc.output('datauristring');
+    return { doc, dataUri, fileName };
+  };
+
   // Generate and download PDF
   const generatePDF = async ({ skipBaseline = false } = {}) => {
     if (rotaData.length === 0) {
@@ -429,176 +561,24 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     }
 
     try {
-      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
-      ]);
+      const pdf = await buildWeeklyPdf();
+      if (!pdf) {
+        setError('Failed to generate PDF file');
+        return null;
+      }
 
-      // Grupowanie danych według lokalizacji
-      const locationData = groupDataByLocation();
-      
-      // Pobieranie zakresu dat dla nagłówków kolumn
-      const dates = Array.from({ length: 7 }, (_, i) => {
-        const date = addDays(new Date(startDate), i);
-        return {
-          day: format(date, 'EEEE'),
-          date: format(date, 'dd/MM/yyyy')
-        };
-      });
-      
-      // Create new PDF document (A4 landscape dla lepszego dopasowania tabeli)
-      const doc = new jsPDF('landscape');
-      
-      // Add title
-      const title = `Weekly Schedule: ${format(startDate, 'dd/MM/yyyy')} - ${format(addDays(startDate, 6), 'dd/MM/yyyy')}`;
-      doc.setFontSize(14);
-      doc.text(title, 14, 20);
-      
-      // Add current date
-      doc.setFontSize(10);
-      doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
-      
-      // Przygotuj nagłówki kolumn
-      const tableColumn = ['Name', 'Agency', 'Location'];
-      dates.forEach(d => {
-        tableColumn.push(`${d.day}\n(${d.date})`);
-      });
-      
-      // Przygotuj dane tabeli
-      const tableRows = [];
-      
-      // Przejdź przez wszystkie lokalizacje
-      locationData.forEach(location => {
-        // Dodaj nagłówek lokalizacji
-        tableRows.push([
-          { content: `Location: ${location.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: [0, 0, 0] } }
-        ]);
-        
-        // Przejdź przez wszystkie agencje w tej lokalizacji
-        location.agencies.forEach(agency => {
-          // Dodaj nagłówek agencji
-          tableRows.push([
-            { content: `Agency: ${agency.name}`, colSpan: tableColumn.length, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: [0, 0, 0] } }
-          ]);
-          
-          // Przejdź przez wszystkich pracowników w tej agencji
-          agency.staff.forEach(staff => {
-            const row = [staff.name, agency.name, location.name];
-            
-            // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
-            ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-              const dayShifts = staff.shifts[day];
-              if (dayShifts.length === 0) {
-                row.push('');
-              } else {
-                const shiftsText = dayShifts.map(shift => {
-                  // Usuń typ zmiany z wyświetlania jeśli istnieje
-                  const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
-                  return timeOnly;
-                }).join('\n');
-                row.push(shiftsText);
-              }
-            });
-            
-            tableRows.push(row);
-          });
-        });
-      });
-      
-      // Initialize autoTable plugin
-      autoTable(doc, {
-        startY: 35,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'grid',
-        headStyles: { 
-          fillColor: [66, 66, 66],
-          halign: 'center'
-        },
-        styles: { 
-          overflow: 'linebreak', 
-          fontSize: 8,
-          cellPadding: 2
-        },
-        columnStyles: {
-          0: { cellWidth: 40 },  // Location
-          1: { cellWidth: 30 },  // Agency
-          // Pozostałe kolumny (dni) mają równą szerokość
-        },
-        rowPageBreak: 'avoid', // Unikaj łamania wierszy między stronami
-        bodyStyles: {
-          minCellHeight: 10
-        },
-        margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Zmniejsz marginesy
-        didParseCell: function(data) {
-          // Dla nagłówków lokalizacji ustawia się kolSpan
-          if (data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.colSpan) {
-            data.cell.colSpan = data.cell.raw.colSpan;
-            if (data.cell.raw.styles) {
-              Object.assign(data.cell.styles, data.cell.raw.styles);
-            }
-          }
-          
-          // Dla nagłówków lokalizacji, ustaw również pageBreak na 'before' aby
-          // uniknąć łamania grupy tej samej lokalizacji między stronami
-          if (data.cell.raw && 
-              typeof data.cell.raw === 'object' && 
-              data.cell.raw.colSpan && 
-              data.row.index > 0 && 
-              data.row.section === 'body') {
-            data.row.pageBreak = 'before';
-          }
-        },
-        willDrawCell: function(data) {
-          // Jeśli wiersz zawiera nazwisko pracownika, upewnij się, że wszystkie 
-          // komórki tego pracownika są na tej samej stronie
-          if (data.row.section === 'body' && 
-              data.column.index === 0 && 
-              data.cell.text && 
-              typeof data.cell.text === 'string' &&
-              !data.cell.raw?.colSpan) { // Nie jest nagłówkiem lokalizacji
-                
-            // Jeśli jest zbyt mało miejsca dla całego wiersza, zacznij od nowej strony
-            if (data.cursor.y > doc.internal.pageSize.height - 50) {
-              data.cursor.y = data.cursor.y + data.cursor.y / 2;
-            }
-          }
-        },
-        didDrawPage: function(data) {
-          // Dodaj nagłówek na każdej stronie
-          doc.setFontSize(14);
-          doc.text(title, 14, 20);
-          doc.setFontSize(10);
-          doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
-          
-          // Dodaj stopkę z numerem strony
-          const pageSize = doc.internal.pageSize;
-          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-          doc.setFontSize(8);
-          
-          // Get the total number of pages before generating the document
-          const totalPages = doc.getNumberOfPages();
-          doc.text(`Page ${data.pageNumber} of ${totalPages}`, pageSize.width / 2, pageHeight - 10, { align: 'center' });
-        }
-      });
-      
-      // Get the PDF as data URI for better mobile compatibility
-      const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.pdf`;
-      const dataUri = doc.output('datauristring');
-      
-      // Show download modal
       setDownloadInfo({
-        url: dataUri,
-        fileName,
-        type: 'PDF'
+        url: pdf.dataUri,
+        fileName: pdf.fileName,
+        type: 'PDF',
       });
       setShowDownloadModal(true);
 
       if (!skipBaseline) {
         persistWeekBaseline('download');
       }
-      
-      return doc; // Return for potential email attachment
+
+      return pdf.doc;
     } catch (err) {
       console.error('Error generating PDF:', err);
       setError('Failed to generate PDF file');
@@ -639,6 +619,14 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         throw new Error('No data available to send');
       }
 
+      const pdf = await buildWeeklyPdf();
+      if (!pdf?.dataUri) {
+        throw new Error('Failed to generate PDF attachment');
+      }
+      const pdfData = pdf.dataUri.includes(',')
+        ? pdf.dataUri.split(',').pop()
+        : pdf.dataUri;
+
       const agenciesPayload = selectedAgencies
         .map((agencyId) => agencies.find((a) => a.id === agencyId))
         .filter((agency) => agency && agency.email)
@@ -662,7 +650,8 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             weekStart,
             weekEnd,
             csvData: csvContent,
-            message: emailMessage.trim() || buildDefaultWeeklyMessage(startDate, senderName),
+            pdfData,
+            message: buildDefaultWeeklyMessage(startDate, senderName),
           },
         },
       );
@@ -729,11 +718,11 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   const sendPrimaryBtn =
     'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 disabled:cursor-not-allowed disabled:opacity-50';
 
-  const tabBtn = (active) => (
-    `flex min-w-0 items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-all sm:px-3 sm:py-2.5 sm:text-sm ${
+  const modeTabBtn = (active) => (
+    `inline-flex h-7 items-center justify-center rounded-md px-2.5 text-xs font-semibold transition ${
       active
-        ? 'border border-rota-toolbar-border bg-white text-rota-text-primary shadow-sm'
-        : 'border border-transparent text-rota-text-muted hover:bg-rota-day-other-bg-from/30 hover:text-rota-text-primary'
+        ? 'bg-white text-rota-text-primary shadow-sm'
+        : 'text-rota-text-muted hover:text-rota-text-primary'
     }`
   );
 
@@ -756,7 +745,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 pr-8">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <style>
         {`
           .export-rota-datepicker-popper.react-datepicker-popper {
@@ -862,8 +851,8 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         `}
       </style>
 
-      <div className="shrink-0 space-y-4">
-        <h3 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pr-6 text-lg font-semibold text-rota-text-primary">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pr-10">
+        <h3 className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 text-lg font-semibold text-rota-text-primary">
           <span>Send to agency</span>
           <DatePicker
             selected={startDate}
@@ -879,18 +868,26 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           />
         </h3>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        <div
+          className="inline-flex w-fit max-w-full rounded-lg border border-rota-toolbar-border bg-rota-day-other-bg-from/40 p-0.5"
+          role="tablist"
+          aria-label="Agency send mode"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === 'weekly'}
             onClick={() => setMode('weekly')}
-            className={tabBtn(mode === 'weekly')}
+            className={modeTabBtn(mode === 'weekly')}
           >
             Weekly schedule
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === 'additional'}
             onClick={() => setMode('additional')}
-            className={tabBtn(mode === 'additional')}
+            className={modeTabBtn(mode === 'additional')}
           >
             Additional bookings
           </button>
@@ -898,7 +895,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       </div>
 
       {mode === 'additional' && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-2">
           <AdditionalBookingsPanel
             startDate={startDate}
             currentUser={currentUser}
@@ -909,7 +906,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
 
       {mode === 'weekly' && (
         <>
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 pr-4 sm:pr-6">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-rota-text-muted">
                 {fetchingData
@@ -935,7 +932,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             </div>
 
             {agencies.length > 0 ? (
-              <ul className="min-h-0 max-h-[28rem] flex-1 overflow-y-auto divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+              <ul className="min-h-0 max-h-[28rem] flex-1 overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
                 {agencies.map((agency) => {
                   const checked = selectedAgencies.includes(agency.id);
                   return (
@@ -962,25 +959,9 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
               <p className="text-sm text-rota-text-muted">No active agencies found.</p>
             )}
 
-            <div className="shrink-0 space-y-1.5">
-              <label htmlFor="weekly-rota-email-message" className="block text-xs font-semibold text-rota-text-primary">
-                Email message
-              </label>
-              <textarea
-                id="weekly-rota-email-message"
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                rows={6}
-                className="w-full resize-y rounded-lg border border-rota-toolbar-border bg-white px-3 py-2 text-sm text-rota-text-primary shadow-sm focus:border-rota-toolbar-border focus:outline-none focus:ring-2 focus:ring-rota-day-other-bg-from/60"
-                placeholder="Message sent with the CSV attachment"
-              />
-              <p className="text-[11px] text-rota-text-muted">
-                Sent as {ROTA_EMAIL_FROM_NAME} from {ROTA_EMAIL_FROM} with CSV attached. Use Download PDF separately if needed.
-              </p>
-            </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 pr-4 sm:pr-6">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-xs text-rota-text-muted">
                 Selected {selectedAgencies.length}
@@ -1066,34 +1047,73 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         </div>
       )}
       
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog — same size as parent Send to agency modal */}
       {showConfirmation && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
-            <h3 className="mb-4 text-xl font-semibold text-charcoal">Confirm Send</h3>
-            <div className="mb-6 max-h-[60vh] space-y-3 overflow-y-auto text-sm text-gray-600">
-              <p><span className="font-medium">From:</span> {ROTA_EMAIL_FROM_NAME} &lt;{ROTA_EMAIL_FROM}&gt;</p>
-              <p className="font-medium">Recipients ({selectedAgencies.length}):</p>
-              <ul className="ml-4 list-disc">
-                {selectedAgencies.map(agencyId => {
-                  const agency = agencies.find(a => a.id === agencyId);
-                  return (
-                    <li key={agencyId}>{agency?.name} ({agency?.email})</li>
-                  );
-                })}
-              </ul>
-              <p className="text-xs text-gray-500">Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
-              <p className="text-xs text-gray-500">Attachment: CSV only (no PDF). Email is sent by the app — Outlook will not open.</p>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative mx-auto flex h-[min(90vh,40.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg p-4 shadow-2xl sm:p-6">
+            <h3 className="mb-3 shrink-0 text-xl font-semibold text-rota-text-primary">Confirm Send</h3>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain text-sm text-rota-text-muted">
+              <div className="space-y-2">
+                <p>
+                  <span className="font-medium text-rota-text-primary">From:</span>{' '}
+                  {ROTA_EMAIL_FROM_NAME} &lt;{ROTA_EMAIL_FROM}&gt;
+                </p>
+                <p className="font-medium text-rota-text-primary">
+                  Recipients ({selectedAgencies.length}):
+                </p>
+                <ul className="ml-4 list-disc">
+                  {selectedAgencies.map((agencyId) => {
+                    const agency = agencies.find((a) => a.id === agencyId);
+                    return (
+                      <li key={agencyId}>{agency?.name} ({agency?.email})</li>
+                    );
+                  })}
+                </ul>
+                <p className="text-xs text-rota-text-muted">
+                  Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
+                  Message preview
+                </p>
+                {selectedAgencies.length > 1 && (
+                  <p className="text-[11px] text-rota-text-muted">
+                    Each agency gets the same message with their own name in the greeting.
+                  </p>
+                )}
+                <div className="rounded-lg border border-rota-toolbar-border bg-white">
+                  <pre className="whitespace-pre-wrap px-3 py-3 font-sans text-sm leading-relaxed text-rota-text-primary">
+                    {`Dear ${agencies.find((a) => a.id === selectedAgencies[0])?.name || 'Agency'},\n\n${buildDefaultWeeklyMessage(startDate, senderName)}`}
+                  </pre>
+                  <div className="border-t border-rota-toolbar-border px-3 py-2.5">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-rota-text-muted">
+                      Attachments
+                    </p>
+                    <ul className="space-y-0.5 text-sm text-rota-text-primary">
+                      <li>
+                        {`rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.csv`}
+                      </li>
+                      <li>
+                        {`rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.pdf`}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button 
-                onClick={cancelSend} 
+            <div className="mt-4 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={cancelSend}
                 className="admin-btn-muted"
               >
                 Cancel
               </button>
-              <button 
-                onClick={sendToAgencies} 
+              <button
+                type="button"
+                onClick={sendToAgencies}
                 className="admin-btn"
               >
                 Yes, I&apos;m 100% Sure - Send Now
