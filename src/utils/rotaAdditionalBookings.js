@@ -241,57 +241,43 @@ export function buildAdditionalBookingsEmail({ weekStartIso, people }) {
 }
 
 /**
- * Email for a single person's selected shift(s), without baseline tracking.
- * @param {{ weekStartIso: string, personName: string, shifts: object[] }} args
- * @returns {{ subject: string, body: string }}
- */
-export function buildIndividualBookingEmail({ weekStartIso, personName, shifts }) {
-  const weekRange = formatWeekRangeLabel(weekStartIso);
-  const sortedShifts = [...(shifts || [])].sort((a, b) => {
-    const dateCmp = String(a.date || '').localeCompare(String(b.date || ''));
-    if (dateCmp !== 0) return dateCmp;
-    return formatShiftClock(a.start_time).localeCompare(formatShiftClock(b.start_time));
-  });
-  const uniqueDates = [...new Set(sortedShifts.map((shift) => normalizeShiftDate(shift.date)).filter(Boolean))];
-  const dateScope =
-    uniqueDates.length === 1 && sortedShifts.length > 0
-      ? formatShiftDayLabel(uniqueDates[0])
-      : weekRange;
-  const subject = `Shunter booking: ${personName} — ${dateScope}`;
-
-  const lines = sortedShifts.map((shift) => {
-    const day = formatShiftDayLabel(shift.date);
-    const hours = `${formatShiftClock(shift.start_time)}-${formatShiftClock(shift.end_time)}`;
-    const shiftLabel = formatShiftTypeLabel(shift.shift_type);
-    const location = shift.location ? `, ${shift.location}` : '';
-    return `- ${day}, ${shiftLabel}, ${hours}${location}`;
-  });
-
-  const body = [
-    `Please book the following shift(s) for ${personName}:`,
-    '',
-    lines.join('\n'),
-    '',
-    'Please confirm these bookings.',
-    '',
-    'Best regards',
-    '',
-    EMAIL_SIGN_OFF,
-  ].join('\n');
-
-  return { subject, body };
-}
-
-/**
+ * Parse agency contact email fields that may contain multiple addresses
+ * separated by commas, semicolons, newlines, or spaces, including
+ * display-name form: `Name Surname <email@example.com>`.
  * @param {unknown} emailField
  * @returns {string[]}
  */
 export function parseAgencyEmails(emailField) {
   if (emailField == null) return [];
-  return String(emailField)
-    .split(/[,;\n]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const raw = String(emailField).trim();
+  if (!raw) return [];
+
+  const found = [];
+  const angleRe = /([^,<;\n]*?)\s*<\s*([^<>\s]+@[^<>\s]+)\s*>/g;
+  let match = angleRe.exec(raw);
+  while (match) {
+    const email = match[2].trim();
+    if (email) found.push(email);
+    match = angleRe.exec(raw);
+  }
+
+  const remainder = raw.replace(angleRe, ' ');
+  for (const part of remainder.split(/[,;\s\n]+/)) {
+    const token = part.trim();
+    if (token && token.includes('@') && !token.includes('<')) {
+      found.push(token);
+    }
+  }
+
+  const seen = new Set();
+  const unique = [];
+  for (const email of found) {
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(email);
+  }
+  return unique;
 }
 
 /**
