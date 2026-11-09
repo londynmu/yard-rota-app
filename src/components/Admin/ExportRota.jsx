@@ -10,6 +10,22 @@ import AdditionalBookingsPanel from './AdditionalBookingsPanel';
 import { EMAIL_SIGN_OFF, formatShiftClock } from '../../utils/rotaAdditionalBookings';
 import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBaseline';
 
+/** Display / confirm From for weekly rota emails (SendGrid EMAIL_FROM). */
+const ROTA_EMAIL_FROM = 'bookings@shunters.net';
+
+const buildDefaultWeeklyMessage = (weekStart) => {
+  const weekRange = `${format(weekStart, 'dd/MM/yyyy')} - ${format(addDays(weekStart, 6), 'dd/MM/yyyy')}`;
+  return [
+    `Please find attached the weekly shunters schedule for ${weekRange}.`,
+    '',
+    'Please confirm receipt of this schedule.',
+    '',
+    'Best regards',
+    '',
+    EMAIL_SIGN_OFF,
+  ].join('\n');
+};
+
 // Funkcja pomocnicza do uzyskania następnej soboty lub bieżącej, jeśli dzisiaj jest sobota
 const getNextOrCurrentSaturday = (date) => {
   const today = getDay(date); // 0 (Niedziela) do 6 (Sobota)
@@ -41,6 +57,11 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   const [currentUser, setCurrentUser] = useState(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState({ url: '', fileName: '', type: '' });
+  const [emailMessage, setEmailMessage] = useState(() => buildDefaultWeeklyMessage(startDate));
+
+  useEffect(() => {
+    setEmailMessage(buildDefaultWeeklyMessage(startDate));
+  }, [startDate]);
 
   // Fetch agencies list
   useEffect(() => {
@@ -294,6 +315,59 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     }
   };
 
+  // Build weekly CSV string (no download UI).
+  const buildCsvContent = () => {
+    if (rotaData.length === 0) return null;
+
+    const locationData = groupDataByLocation();
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(new Date(startDate), i);
+      return {
+        day: format(date, 'EEEE'),
+        date: format(date, 'dd/MM/yyyy'),
+      };
+    });
+
+    const csvRows = [];
+    const headerRow = ['Name', 'Agency', 'Location'];
+    dates.forEach((d) => {
+      headerRow.push(`${d.day} (${d.date})`);
+    });
+    csvRows.push(headerRow.join(','));
+
+    locationData.forEach((location) => {
+      csvRows.push(Array(headerRow.length).fill('').join(','));
+      csvRows.push([`Location: ${location.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
+
+      location.agencies.forEach((agency) => {
+        csvRows.push([`Agency: ${agency.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
+
+        agency.staff.forEach((staff) => {
+          const row = [staff.name, agency.name, location.name];
+          ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach((day) => {
+            const dayShifts = staff.shifts[day];
+            if (dayShifts.length === 0) {
+              row.push('');
+            } else {
+              const shiftsText = dayShifts.map((shift) => {
+                const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
+                return timeOnly;
+              }).join('; ');
+              row.push(`"${shiftsText}"`);
+            }
+          });
+          csvRows.push(row.join(','));
+        });
+
+        if (agency !== location.agencies[location.agencies.length - 1]) {
+          csvRows.push(Array(headerRow.length).fill('').join(','));
+        }
+      });
+    });
+
+    return csvRows.join('\n');
+  };
+
   // Generate and download CSV
   const generateCSV = ({ skipBaseline = false } = {}) => {
     if (rotaData.length === 0) {
@@ -302,90 +376,31 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     }
 
     try {
-      // Grupowanie danych według lokalizacji
-      const locationData = groupDataByLocation();
-      
-      // Pobieranie zakresu dat dla nagłówków kolumn
-      const dates = Array.from({ length: 7 }, (_, i) => {
-        const date = addDays(new Date(startDate), i);
-        return {
-          day: format(date, 'EEEE'),
-          date: format(date, 'dd/MM/yyyy')
-        };
-      });
-      
-      // Tworzenie CSV
-      let csvRows = [];
-      
-      // Nagłówek
-      const headerRow = ['Name', 'Agency', 'Location'];
-      dates.forEach(d => {
-        headerRow.push(`${d.day} (${d.date})`);
-      });
-      csvRows.push(headerRow.join(','));
-      
-      // Przejdź przez wszystkie lokalizacje
-      locationData.forEach(location => {
-        // Dodaj nagłówek lokalizacji
-        csvRows.push(Array(headerRow.length).fill('').join(','));
-        csvRows.push([`Location: ${location.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
-        
-        // Przejdź przez wszystkie agencje w tej lokalizacji
-        location.agencies.forEach(agency => {
-          // Dodaj nagłówek agencji
-          csvRows.push([`Agency: ${agency.name}`, ...Array(headerRow.length - 1).fill('')].join(','));
-          
-          // Przejdź przez wszystkich pracowników w tej agencji
-          agency.staff.forEach(staff => {
-            const row = [staff.name, agency.name, location.name];
-            
-            // Dla każdego dnia tygodnia, dodaj informacje o zmianach lub pustą komórkę
-            ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-              const dayShifts = staff.shifts[day];
-              if (dayShifts.length === 0) {
-                row.push('');
-              } else {
-                const shiftsText = dayShifts.map(shift => {
-                  // Usuń typ zmiany z wyświetlania jeśli istnieje
-                  const timeOnly = shift.time.replace(/\s*\([^)]*\)\s*$/, '');
-                  return timeOnly;
-                }).join('; ');
-                row.push(`"${shiftsText}"`);
-              }
-            });
-            
-            csvRows.push(row.join(','));
-          });
-          
-          // Dodaj odstęp po agencji, jeśli to nie jest ostatnia agencja w lokalizacji
-          if (agency !== location.agencies[location.agencies.length - 1]) {
-            csvRows.push(Array(headerRow.length).fill('').join(','));
-          }
-        });
-      });
-      
-      // Create blob and download
-      const csvContent = csvRows.join('\n');
+      const csvContent = buildCsvContent();
+      if (!csvContent) {
+        setError('Failed to generate CSV file');
+        return null;
+      }
+
       const fileName = `rota_${format(startDate, 'yyyy-MM-dd')}_${format(addDays(startDate, 6), 'yyyy-MM-dd')}.csv`;
-      
+
       // For mobile compatibility, use data URI instead of Blob URL
       const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
       const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(BOM + csvContent);
-      
-      // Show download modal instead of auto-downloading
+
       setDownloadInfo({
         url: dataUri,
         fileName,
         type: 'CSV',
-        csvContent // Store content for fallback
+        csvContent,
       });
       setShowDownloadModal(true);
 
       if (!skipBaseline) {
         persistWeekBaseline('download');
       }
-      
-      return csvContent; // Return for potential email attachment
+
+      return csvContent;
     } catch (err) {
       console.error('Error generating CSV:', err);
       setError('Failed to generate CSV file');
@@ -598,7 +613,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     setShowConfirmation(false);
   };
 
-  // Send to agencies via email (after confirmation)
+  // Send to agencies via SendGrid Edge Function (after confirmation)
   const sendToAgencies = async () => {
     setLoading(true);
     setError(null);
@@ -606,48 +621,70 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     setShowConfirmation(false);
 
     try {
-      // Generate CSV file (will download automatically)
-      generateCSV({ skipBaseline: true });
-      
-      // Generate PDF file (will download automatically)
-      await generatePDF({ skipBaseline: true });
+      const csvContent = buildCsvContent();
+      if (!csvContent) {
+        throw new Error('No data available to send');
+      }
 
-      await persistWeekBaseline('send');
-      
-      // Prepare email - we'll use mailto protocol to open the default email client
-      const selectedEmails = selectedAgencies
-        .map(agencyId => {
-          const agency = agencies.find(a => a.id === agencyId);
-          return agency?.email;
-        })
-        .filter(email => email) // Remove any undefined emails
-        .join(',');
-      
-      if (!selectedEmails) {
+      const agenciesPayload = selectedAgencies
+        .map((agencyId) => agencies.find((a) => a.id === agencyId))
+        .filter((agency) => agency && agency.email)
+        .map((agency) => ({
+          name: agency.name,
+          email: agency.email,
+        }));
+
+      if (agenciesPayload.length === 0) {
         throw new Error('No valid email addresses found');
       }
-      
-      // Format date range for subject
-      const weekRange = `${format(startDate, 'dd/MM/yyyy')} - ${format(addDays(startDate, 6), 'dd/MM/yyyy')}`;
-      
-      // Create email subject - now using "Shunters" in the title as shown in screenshot
-      const subject = encodeURIComponent(`Weekly Shunters Schedule: ${weekRange}`);
-      
-      // Create email body to match exactly what's in the screenshot
-      const body = encodeURIComponent(
-        `Please find attached the weekly shunters schedule for ${weekRange}.\n\n` +
-        `Please confirm receipt of this schedule.\n\n` +
-        `Best regards\n\n` +
-        EMAIL_SIGN_OFF
+
+      const weekStart = format(startDate, 'yyyy-MM-dd');
+      const weekEnd = format(addDays(startDate, 6), 'yyyy-MM-dd');
+
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'send-rota-email',
+        {
+          body: {
+            agencies: agenciesPayload,
+            weekStart,
+            weekEnd,
+            csvData: csvContent,
+            message: emailMessage.trim() || buildDefaultWeeklyMessage(startDate),
+          },
+        },
       );
-      
-      // Open default email client with prefilled information
-      window.location.href = `mailto:${selectedEmails}?subject=${subject}&body=${body}`;
-      
-      setSuccess(`CSV and PDF files downloaded. Email draft prepared for ${selectedAgencies.length} agencies.`);
+
+      if (invokeError) {
+        throw new Error(invokeError.message || 'Email send failed');
+      }
+      if (data?.error && !Array.isArray(data?.results)) {
+        throw new Error(data.error);
+      }
+
+      const results = Array.isArray(data?.results) ? data.results : [];
+      const sent = results.filter((r) => r.ok).length;
+      const failed = results.filter((r) => !r.ok);
+      const failedNames = failed.map((r) => r.agencyName).filter(Boolean);
+
+      if (sent > 0) {
+        await persistWeekBaseline('send');
+      }
+
+      if (failed.length === 0 && sent > 0) {
+        setSuccess(`Email sent to ${sent} agenc${sent === 1 ? 'y' : 'ies'} from ${ROTA_EMAIL_FROM}.`);
+      } else if (sent > 0 && failed.length > 0) {
+        setSuccess(`Sent to ${sent} agenc${sent === 1 ? 'y' : 'ies'}. Failed: ${failedNames.join(', ') || failed.length}.`);
+        setError(`Some agencies failed: ${failed.map((r) => `${r.agencyName}: ${r.error || 'error'}`).join('; ')}`);
+      } else {
+        throw new Error(
+          failed.map((r) => `${r.agencyName}: ${r.error || 'error'}`).join('; ')
+            || data?.error
+            || 'Email send failed',
+        );
+      }
     } catch (err) {
-      console.error('Error preparing email:', err);
-      setError('Failed to prepare email draft: ' + err.message);
+      console.error('Error sending rota email:', err);
+      setError('Failed to send email: ' + (err.message || String(err)));
     } finally {
       setLoading(false);
     }
@@ -900,7 +937,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                         <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
                           {agency.name}
                         </span>
-                        <span className="shrink-0 text-xs text-rota-text-muted">
+                        <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
                           {agency.email}
                         </span>
                       </label>
@@ -911,6 +948,23 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             ) : (
               <p className="text-sm text-rota-text-muted">No active agencies found.</p>
             )}
+
+            <div className="shrink-0 space-y-1.5">
+              <label htmlFor="weekly-rota-email-message" className="block text-xs font-semibold text-rota-text-primary">
+                Email message
+              </label>
+              <textarea
+                id="weekly-rota-email-message"
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                rows={6}
+                className="w-full resize-y rounded-lg border border-rota-toolbar-border bg-white px-3 py-2 text-sm text-rota-text-primary shadow-sm focus:border-rota-toolbar-border focus:outline-none focus:ring-2 focus:ring-rota-day-other-bg-from/60"
+                placeholder="Message sent with the CSV attachment"
+              />
+              <p className="text-[11px] text-rota-text-muted">
+                Sent from {ROTA_EMAIL_FROM} with CSV attached. Use Download PDF separately if needed.
+              </p>
+            </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
@@ -1005,9 +1059,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
             <h3 className="mb-4 text-xl font-semibold text-charcoal">Confirm Send</h3>
             <div className="mb-6 max-h-[60vh] space-y-3 overflow-y-auto text-sm text-gray-600">
-              {currentUser && (
-                <p><span className="font-medium">From:</span> {currentUser.email}</p>
-              )}
+              <p><span className="font-medium">From:</span> {ROTA_EMAIL_FROM}</p>
               <p className="font-medium">Recipients ({selectedAgencies.length}):</p>
               <ul className="ml-4 list-disc">
                 {selectedAgencies.map(agencyId => {
@@ -1018,6 +1070,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                 })}
               </ul>
               <p className="text-xs text-gray-500">Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}</p>
+              <p className="text-xs text-gray-500">Attachment: CSV only (no PDF). Email is sent by the app — Outlook will not open.</p>
             </div>
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button 

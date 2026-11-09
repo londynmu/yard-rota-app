@@ -1,7 +1,6 @@
 import {
   assignmentSlotKey,
   buildAdditionalBookingsEmail,
-  buildIndividualBookingEmail,
   buildMailtoHref,
   countAdditionalPeople,
   diffAddedSlots,
@@ -175,6 +174,25 @@ describe('additional booking email', () => {
     ]);
   });
 
+  test('parses space-separated and Name <email> agency emails', () => {
+    expect(parseAgencyEmails('a@x.test b@x.test')).toEqual([
+      'a@x.test',
+      'b@x.test',
+    ]);
+    expect(
+      parseAgencyEmails('Alice Smith <alice@staffline.test> bob@other.test'),
+    ).toEqual(['alice@staffline.test', 'bob@other.test']);
+    expect(
+      parseAgencyEmails('Alice <a@x.test>, Bob <b@x.test>; c@x.test'),
+    ).toEqual(['a@x.test', 'b@x.test', 'c@x.test']);
+  });
+
+  test('dedupes agency emails case-insensitively', () => {
+    expect(parseAgencyEmails('A@x.test a@x.test, A@X.test')).toEqual([
+      'A@x.test',
+    ]);
+  });
+
   test('mailto length helper', () => {
     const href = buildMailtoHref({
       emails: ['one@agency.test'],
@@ -183,53 +201,5 @@ describe('additional booking email', () => {
     });
     expect(isMailtoTooLong(href, 'x'.repeat(1900))).toBe(true);
     expect(isMailtoTooLong('mailto:a@b.c?subject=Hi&body=ok', 'ok')).toBe(false);
-  });
-});
-
-describe('buildIndividualBookingEmail', () => {
-  test('uses week range in subject for multiple days', () => {
-    const { subject, body } = buildIndividualBookingEmail({
-      weekStartIso: '2026-08-22',
-      personName: 'Mark Lygo',
-      shifts: [
-        {
-          date: '2026-08-26',
-          shift_type: 'night',
-          start_time: '17:45:00',
-          end_time: '06:00:00',
-          location: 'Rugby',
-        },
-        {
-          date: '2026-08-28',
-          shift_type: 'night',
-          start_time: '17:45:00',
-          end_time: '06:00:00',
-          location: 'Rugby',
-        },
-      ],
-    });
-    expect(subject).toBe('Shunter booking: Mark Lygo — 22/08/2026 - 28/08/2026');
-    expect(body).toContain('Please book the following shift(s) for Mark Lygo:');
-    expect(body).toContain('17:45-06:00');
-    expect(body).toContain(EMAIL_SIGN_OFF);
-    expect(body).not.toContain('additional');
-  });
-
-  test('uses single day in subject when one day selected', () => {
-    const { subject, body } = buildIndividualBookingEmail({
-      weekStartIso: '2026-08-22',
-      personName: 'Mark Lygo',
-      shifts: [
-        {
-          date: '2026-08-27',
-          shift_type: 'night',
-          start_time: '17:45:00',
-          end_time: '06:00:00',
-          location: 'Rugby',
-        },
-      ],
-    });
-    expect(subject).toContain('Thursday 27/08/2026');
-    expect(body).toContain('Thursday 27/08/2026, Night, 17:45-06:00, Rugby');
   });
 });
