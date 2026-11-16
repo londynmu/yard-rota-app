@@ -192,4 +192,14 @@ describe('groupShunterAwardsByAgency', () => {
     expect(groups[0].hasEmail).toBe(false);
     expect(groups[0].mailtoHref).toBeNull();
   });
+
+  it('adds default CC emails to mailto drafts', () => {
+    const groups = groupShunterAwardsByAgency([day], '2026-11', {
+      ccEmails: ['own@evri4you.test', 'alpha@example.com'],
+    });
+    expect(groups[0].mailtoHref).toContain(
+      `cc=${encodeURIComponent('own@evri4you.test')}`,
+    );
+    expect(groups[0].mailtoHref).not.toMatch(/cc=[^&]*alpha%40example\.com/);
+  });
 });

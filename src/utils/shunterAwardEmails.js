@@ -128,9 +128,11 @@ export function buildShunterAwardEmail({ monthKey, winners }) {
  *   userId?: string,
  * }>} awards
  * @param {string} monthKey
+ * @param {{ ccEmails?: string[] }} [opts] Default CC emails (e.g. Evri4you); skipped when already To.
  */
-export function groupShunterAwardsByAgency(awards, monthKey) {
+export function groupShunterAwardsByAgency(awards, monthKey, opts = {}) {
   const groups = new Map();
+  const ccEmails = Array.isArray(opts.ccEmails) ? opts.ccEmails.filter(Boolean) : [];
 
   (awards || []).forEach((row) => {
     if (!row) return;
@@ -182,7 +184,12 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
         winners: group.winners,
       });
       const mailtoHref = group.hasEmail
-        ? buildMailtoHref({ emails: group.emails, subject, body })
+        ? buildMailtoHref({
+          emails: group.emails,
+          ccEmails,
+          subject,
+          body,
+        })
         : null;
       const mailtoTooLong = group.hasEmail
         ? isMailtoTooLong(mailtoHref, body)
@@ -193,6 +200,7 @@ export function groupShunterAwardsByAgency(awards, monthKey) {
         body,
         mailtoHref,
         mailtoTooLong,
+        ccEmails,
       };
     })
     .sort((a, b) => {
