@@ -4,6 +4,7 @@ import {
   buildMailtoHref,
   collectCcEmails,
   countAdditionalPeople,
+  ccAgencyIdsExcludingDirectRecipients,
   defaultCcAgencyIds,
   diffAddedSlots,
   EMAIL_SIGN_OFF,
@@ -277,6 +278,12 @@ describe('default CC agency helpers', () => {
   test('defaultCcAgencyIds excludes primary To', () => {
     expect(defaultCcAgencyIds(agencies)).toEqual(['own']);
     expect(defaultCcAgencyIds(agencies, { excludeAgencyIds: ['own'] })).toEqual([]);
+  });
+
+  test('drops CC ids that are already direct recipients', () => {
+    expect(ccAgencyIdsExcludingDirectRecipients(['own', 'hng'], ['own'])).toEqual(['hng']);
+    expect(ccAgencyIdsExcludingDirectRecipients(['own', 'hng'], ['own', 'hng'])).toEqual([]);
+    expect(ccAgencyIdsExcludingDirectRecipients(['own'], [])).toEqual(['own']);
   });
 
   test('resolveCcAgencies and collectCcEmails skip To overlap', () => {

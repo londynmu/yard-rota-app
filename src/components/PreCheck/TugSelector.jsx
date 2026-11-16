@@ -83,7 +83,7 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
   return (
     <div>
       {/* Tug list (accordion) */}
-      <div className="space-y-2">
+      <div className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
         {filteredTugs.map(tug => {
           const isExpanded = expandedTug === tug.id;
           const displayName = tug.display_name || tug.tug_number;

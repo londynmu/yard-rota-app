@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
@@ -8,9 +8,9 @@ import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
 import { attendanceLabel } from '../utils/attendanceStatus';
 import { useToast } from '../components/ui/ToastContext';
-import NotificationBell from '../components/NotificationBell';
-import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin } from 'lucide-react';
+import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin, ChevronDown } from 'lucide-react';
 import { safeLocalStorage } from '../utils/safeStorage';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -22,17 +22,17 @@ const getWeekStart = (date) => {
 const SHIFT_SECTION_CONFIG = {
   day: {
     title: 'Day shift',
-    accent: 'border-l-amber-400',
+    surface: 'border-amber-100 bg-amber-50/80',
     icon: <Sun className="h-3.5 w-3.5 text-amber-500" />,
   },
   afternoon: {
     title: 'Afternoon shift',
-    accent: 'border-l-orange-400',
+    surface: 'border-orange-100 bg-orange-50/70',
     icon: <Cloud className="h-3.5 w-3.5 text-orange-500" />,
   },
   night: {
     title: 'Night shift',
-    accent: 'border-l-blue-500',
+    surface: 'border-sky-100 bg-sky-50/80',
     icon: <Moon className="h-3.5 w-3.5 text-blue-500" />,
   },
 };
@@ -138,7 +138,18 @@ const WeeklyRotaPage = () => {
   const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
   const [attendanceModalSlot, setAttendanceModalSlot] = useState(null);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
+  const isDesktop = useIsDesktop();
+  const [filterHost, setFilterHost] = useState(null);
   const isAnyModalOpen = showWeekModal || showLocationModal || showShiftModal || !!attendanceModalSlot;
+
+  useLayoutEffect(() => {
+    if (!isDesktop) {
+      setFilterHost(null);
+      return undefined;
+    }
+    setFilterHost(document.getElementById('my-rota-desktop-filters'));
+    return undefined;
+  }, [isDesktop]);
 
   // Lock background scroll while any modal is open
   useEffect(() => {
@@ -593,7 +604,7 @@ const WeeklyRotaPage = () => {
 
     return (
       <div>
-        <div className="flex items-center justify-between px-1 pb-1.5">
+        <div className="flex items-center justify-between px-1 pb-1.5 md:hidden">
           <div className="flex items-center gap-1.5">
             {config.icon}
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{config.title}</h4>
@@ -601,7 +612,7 @@ const WeeklyRotaPage = () => {
           <span className="text-xs font-medium tabular-nums text-slate-400">{presentCount}</span>
         </div>
 
-        <div className={`bg-white/90 rounded-xl border border-slate-200/60 border-l-2 ${config.accent} overflow-hidden`}>
+        <div className={`overflow-hidden rounded-xl border ${config.surface}`}>
           {sortedStartTimes.map((startTime) => {
             const timeSlots = slotsByStartTime[startTime];
             // All slots with the same start time share the end time of the first one
@@ -854,9 +865,6 @@ const WeeklyRotaPage = () => {
       
       {/* Content skeleton - visible on desktop, hidden on mobile */}
       <div className="hidden md:block p-2.5 md:p-2 space-y-2.5">
-        {/* Shift type badge skeleton */}
-        <div className="h-3 w-24 bg-slate-100 rounded" />
-        
         {/* Time group skeleton */}
         <div className="space-y-1.5">
           <div className="h-8 bg-slate-50 rounded" />
@@ -870,11 +878,39 @@ const WeeklyRotaPage = () => {
     </div>
   );
 
+  const shiftFilterLabel = selectedShiftType === 'all' ? 'All'
+    : selectedShiftType === 'day' ? 'Day'
+    : selectedShiftType === 'afternoon' ? 'Afternoon'
+    : 'Night';
+
+  const desktopFilterPortal = filterHost ? createPortal(
+    <>
+      {[
+        { label: 'Week', value: `Week ${getWeek(weekStart)}`, onClick: () => setShowWeekModal(true) },
+        { label: 'Location', value: selectedLocation || 'Hub', onClick: () => setShowLocationModal(true) },
+        { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true) },
+      ].map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          onClick={item.onClick}
+          aria-label={item.label}
+          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-slate-50"
+        >
+          <span className="text-sm font-medium text-slate-700">{item.value}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+        </button>
+      ))}
+    </>,
+    filterHost,
+  ) : null;
+
   if (loading) {
     return (
       <>
+        {desktopFilterPortal}
         {/* Navigation skeleton */}
-        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
+        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
           <div className="w-full px-4 py-3 md:px-6 md:py-3.5">
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
@@ -901,7 +937,7 @@ const WeeklyRotaPage = () => {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-transparent px-4">
-        <div className="glass-card p-6 max-w-md w-full shadow-strong">
+        <div className="glass-card p-6 max-w-md w-full shadow-sm">
           <h3 className="text-xl font-bold mb-3 flex items-center text-charcoal">
             <AlertCircle className="h-5 w-5 mr-2 text-red-500" />
             Error Loading Rota
@@ -923,8 +959,9 @@ const WeeklyRotaPage = () => {
 
   return (
     <>
+      {desktopFilterPortal}
       {/* Week Navigation */}
-      <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
+      <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
         <div className="w-full px-4 py-3 md:px-6 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
           <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
             {/* Week Button */}
@@ -957,11 +994,6 @@ const WeeklyRotaPage = () => {
                 : 'Night'}
             </button>
           </div>
-          {isAdmin && (
-            <div className="flex md:hidden">
-              <NotificationBell variant="segment" />
-            </div>
-          )}
         </div>
       </div>
 
@@ -1020,13 +1052,13 @@ const WeeklyRotaPage = () => {
 
       {/* Week Selection Modal */}
       {showWeekModal && createPortal(
-        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-strong rounded-2xl">
+        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-sm rounded-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-charcoal">Select Week</h3>
+              <h3 className="text-base font-semibold text-slate-800">Select Week</h3>
               <button
                 onClick={() => setShowWeekModal(false)}
-                className="text-rota-text-muted-light hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -1035,19 +1067,19 @@ const WeeklyRotaPage = () => {
             <div className="space-y-2">
               <button
                 onClick={handlePreviousWeek}
-                className="w-full px-4 py-2.5 rounded-xl text-slate-700 hover:bg-slate-50 font-medium border border-slate-200/60 transition-colors"
+                className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Previous Week
               </button>
               <button
                 onClick={handleCurrentWeek}
-                className="w-full px-4 py-2.5 rounded-xl text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 font-medium border border-blue-600 transition-colors"
+                className="w-full rounded-xl border border-sky-100 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-900 transition-colors hover:bg-sky-50"
               >
                 Current Week
               </button>
               <button
                 onClick={handleNextWeek}
-                className="w-full px-4 py-2.5 rounded-xl text-slate-700 hover:bg-slate-50 font-medium border border-slate-200/60 transition-colors"
+                className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50"
               >
                 Next Week
               </button>
@@ -1059,13 +1091,13 @@ const WeeklyRotaPage = () => {
 
       {/* Location Selection Modal */}
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full max-h-[80vh] flex flex-col shadow-strong rounded-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full max-h-[80vh] flex flex-col shadow-sm rounded-2xl overflow-hidden">
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              <h3 className="text-xl font-bold text-charcoal">Select Location</h3>
+              <h3 className="text-base font-semibold text-slate-800">Select Location</h3>
               <button
                 onClick={() => setShowLocationModal(false)}
-                className="text-rota-text-muted-light hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -1078,8 +1110,8 @@ const WeeklyRotaPage = () => {
                   onClick={() => handleLocationChange(loc.name)}
                   className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
                     selectedLocation === loc.name
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
-                      : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
+                      ? 'border-sky-100 bg-sky-50 text-sky-900'
+                      : 'border-transparent text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {loc.name}
@@ -1093,13 +1125,13 @@ const WeeklyRotaPage = () => {
 
       {/* Shift Type Selection Modal */}
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 bg-black/35 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-strong rounded-2xl">
+        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-sm rounded-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-charcoal">Select Shift Type</h3>
+              <h3 className="text-base font-semibold text-slate-800">Select Shift Type</h3>
               <button
                 onClick={() => setShowShiftModal(false)}
-                className="text-rota-text-muted-light hover:text-charcoal transition-colors p-1.5 rounded-lg hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -1110,7 +1142,7 @@ const WeeklyRotaPage = () => {
                 onClick={() => handleShiftTypeChange('all')}
                 className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
                   selectedShiftType === 'all'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
+                    ? 'border-sky-100 bg-sky-50 text-sky-900'
                     : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
                 }`}
               >
@@ -1120,7 +1152,7 @@ const WeeklyRotaPage = () => {
                 onClick={() => handleShiftTypeChange('day')}
                 className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
                   selectedShiftType === 'day'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
+                    ? 'border-sky-100 bg-sky-50 text-sky-900'
                     : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
                 }`}
               >
@@ -1130,7 +1162,7 @@ const WeeklyRotaPage = () => {
                 onClick={() => handleShiftTypeChange('afternoon')}
                 className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
                   selectedShiftType === 'afternoon'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
+                    ? 'border-sky-100 bg-sky-50 text-sky-900'
                     : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
                 }`}
               >
@@ -1140,7 +1172,7 @@ const WeeklyRotaPage = () => {
                 onClick={() => handleShiftTypeChange('night')}
                 className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
                   selectedShiftType === 'night'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
+                    ? 'border-sky-100 bg-sky-50 text-sky-900'
                     : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
                 }`}
               >

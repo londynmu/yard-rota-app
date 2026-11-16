@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { useLocation, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { useLocation, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { mainNavConfig, transportManagerNavConfig } from '../config/navIcons';
+import AdminSidebar from './Admin/AdminSidebar';
+import { safeLocalStorage } from '../utils/safeStorage';
+import { getCurrentMonthAwards } from '../utils/shunterAwardsApi';
 
 import NavIcon from './NavIcon';
 import CalendarPage from '../pages/CalendarPage';
@@ -77,8 +80,9 @@ function DesktopNavAppIcon({ homePath = '/calendar' }) {
 
 export default function HomePage() {
   const { user, signOut, sessionProfile } = useAuth();
-  const { isAdmin, isVmu, isTransportManager } = useNotifications();
+  const { isAdmin, isVmu, isTransportManager, pendingApprovals = 0 } = useNotifications();
   const location = useLocation();
+  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const [avatarUrl, setAvatarUrl] = useState('');
   const [profileName, setProfileName] = useState('');
@@ -89,6 +93,17 @@ export default function HomePage() {
   const avatarButtonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const [currentAdminSectionLabel, setCurrentAdminSectionLabel] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (
+    safeLocalStorage.getItem('adminSidebarCollapsed') === '1'
+  ));
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [adminSection, setAdminSection] = useState(() => (
+    safeLocalStorage.getItem('adminActiveSection') || 'dashboard'
+  ));
+  const [settingsTab, setSettingsTab] = useState(() => (
+    safeLocalStorage.getItem('adminSettingsTab') || 'locations'
+  ));
+  const [shunterIncomplete, setShunterIncomplete] = useState(false);
 
   // Listen for admin section title (mobile header)
   useEffect(() => {
@@ -98,7 +113,39 @@ export default function HomePage() {
   }, []);
   useEffect(() => {
     if (location.pathname !== '/admin') setCurrentAdminSectionLabel('');
+    setMobileSidebarOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handle = (event) => {
+      if (event.detail?.section) setAdminSection(event.detail.section);
+      if (event.detail?.settingsTab) setSettingsTab(event.detail.settingsTab);
+    };
+    window.addEventListener('adminShellState', handle);
+    return () => window.removeEventListener('adminShellState', handle);
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const awards = await getCurrentMonthAwards();
+        if (cancelled) return;
+        const hasDay = awards.some((row) => row.period === 'day' && row.userId);
+        const hasNight = awards.some((row) => row.period === 'night' && row.userId);
+        setShunterIncomplete(!(hasDay && hasNight));
+      } catch (err) {
+        console.error('[HomePage] shunter award check failed:', err);
+      }
+    };
+    refresh();
+    window.addEventListener('adminShunterRefresh', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('adminShunterRefresh', refresh);
+    };
+  }, [isAdmin]);
 
   // Header avatar/name from sessionProfile (same row as App gate) — fallback fetch if missing
   useEffect(() => {
@@ -278,10 +325,11 @@ export default function HomePage() {
   }
 
   const path = location.pathname;
-  const hideHeaderOnMobile =
+  const hideHeaderOnMobile = !isAdmin && (
     path === '/my-rota' || path === '/brakes' || path.startsWith('/calendar') ||
     path === '/performance' || path.startsWith('/precheck') || path.startsWith('/vmu') || path.startsWith('/transport-dashboard') ||
-    path === '/yard-guide';
+    path === '/yard-guide'
+  );
 
 
   return (
@@ -294,13 +342,29 @@ export default function HomePage() {
         const isTransportDashboardPage = path.startsWith('/transport-dashboard');
 
         const hasStickyHeader = isAdminPage || isProfilePage || isNotificationsPage;
-        const hasFilterButtons = path === '/my-rota' || path === '/performance';
         
         const visibilityClass = hideHeaderOnMobile ? 'hidden md:block' : '';
-        const borderClass = hasFilterButtons ? 'border-b border-slate-200/60 md:border-b-0' : 'border-b border-slate-200/60';
+        const borderClass = 'border-b border-slate-200/60';
+        const stickyClass = hasStickyHeader
+          ? 'sticky top-0 z-40'
+          : path === '/my-rota' || path === '/performance' || path.startsWith('/vmu')
+            ? 'relative z-10 md:sticky md:top-0 md:z-40'
+            : 'relative z-10';
+        const myRotaFilterSlot = path === '/my-rota' ? (
+          <div
+            id="my-rota-desktop-filters"
+            className="hidden shrink-0 items-center gap-4 md:flex"
+          />
+        ) : null;
+        const performanceFilterSlot = path === '/performance' ? (
+          <div
+            id="performance-desktop-filters"
+            className="hidden shrink-0 items-center gap-4 md:flex"
+          />
+        ) : null;
 
         return (
-          <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe ${hasStickyHeader ? 'sticky top-0 z-40' : 'relative z-10'} ${visibilityClass}`}>
+          <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe ${stickyClass} ${visibilityClass}`}>
             <div className={isAdmin || (isTransportManager && !isAdmin) ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
@@ -320,6 +384,7 @@ export default function HomePage() {
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
+                    {performanceFilterSlot}
                     <div className="relative">
                       <button
                         ref={avatarButtonRef}
@@ -388,6 +453,7 @@ export default function HomePage() {
 
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
+                    {performanceFilterSlot}
                     <div className="relative">
                       <button
                         ref={avatarButtonRef}
@@ -443,6 +509,7 @@ export default function HomePage() {
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
+                    {performanceFilterSlot}
                     <div className="relative">
                       <button
                         ref={avatarButtonRef}
@@ -483,21 +550,20 @@ export default function HomePage() {
                 <>
               {/* Admin: nav left (hamburger + links), NotificationBell + Avatar right */}
               <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="md:hidden p-2 hover:bg-white/70 rounded-lg transition-colors flex-shrink-0"
+                  title="Open menu"
+                >
+                  <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
                 {isAdminPage && (
-                  <>
-                    <button
-                      onClick={() => window.dispatchEvent(new Event('toggleAdminSidebar'))}
-                      className="md:hidden p-2 hover:bg-white/70 rounded-lg transition-colors flex-shrink-0"
-                      title="Open menu"
-                    >
-                      <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                    <span className="md:hidden font-semibold text-slate-800 truncate">
-                      {currentAdminSectionLabel || 'Admin'}
-                    </span>
-                  </>
+                  <span className="md:hidden font-semibold text-slate-800 truncate">
+                    {currentAdminSectionLabel || 'Admin'}
+                  </span>
                 )}
                 {isProfilePage && !isAdminPage && (
                   <span className="md:hidden font-semibold text-slate-800">Profile</span>
@@ -506,21 +572,13 @@ export default function HomePage() {
                   <span className="md:hidden font-semibold text-slate-800">Notifications</span>
                 )}
                 <DesktopNavAppIcon />
-                <nav className="hidden md:flex space-x-2">
-                  {topNavLinks.map((nav) => (
-                    <Link
-                      key={nav.path}
-                      to={nav.path}
-                      className={topNavLinkClassName(location.pathname === nav.path)}
-                    >
-                      <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
-                      {nav.label}
-                    </Link>
-                  ))}
-                </nav>
+                <span className="hidden md:inline text-sm font-semibold tracking-tight text-slate-700">
+                  Yard Rota
+                </span>
               </div>
-              
               <div className="flex items-center space-x-2 flex-shrink-0">
+                {myRotaFilterSlot}
+                {performanceFilterSlot}
                 <NotificationBell />
                 <div className="relative">
                   <button 
@@ -565,8 +623,47 @@ export default function HomePage() {
       })()}
       
       {renderDropdownMenu()}
-      
-      <main className={`flex-1 relative z-0 pb-bottom-nav ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
+
+      {isAdmin && mobileSidebarOpen && (
+        <div
+          className="fixed z-40 bg-slate-900/20 md:hidden"
+          style={{ top: '64px', bottom: 0, left: 0, right: 0 }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+      {isAdmin && (
+        <AdminSidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={(next) => {
+            setSidebarCollapsed(next);
+            safeLocalStorage.setItem('adminSidebarCollapsed', next ? '1' : '0');
+          }}
+          mobileOpen={mobileSidebarOpen}
+          activeSection={location.pathname.startsWith('/admin') ? adminSection : ''}
+          settingsTab={settingsTab}
+          pendingApprovals={pendingApprovals}
+          shunterIncomplete={shunterIncomplete}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+          onNavigate={({ section, settingsTab: nextTab }) => {
+            if (nextTab) {
+              safeLocalStorage.setItem('adminSettingsTab', nextTab);
+              setSettingsTab(nextTab);
+            }
+            safeLocalStorage.setItem('adminActiveSection', section);
+            setAdminSection(section);
+            setMobileSidebarOpen(false);
+            if (location.pathname.startsWith('/admin')) {
+              window.dispatchEvent(new CustomEvent('adminSidebarNavigate', {
+                detail: { section, settingsTab: nextTab || null },
+              }));
+            } else {
+              navigate('/admin');
+            }
+          }}
+        />
+      )}
+
+      <main className={`flex-1 relative z-0 ${isAdmin ? '' : 'pb-bottom-nav'} ${isAdmin ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : ''} ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
         <Suspense fallback={<div className="min-h-screen bg-transparent" />}>
           <Routes>
             <Route
@@ -742,7 +839,7 @@ export default function HomePage() {
         </Suspense>
       </main>
 
-      {/* Bottom Navigation - Mobile Only with safe area */}
+      {!isAdmin && (
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t border-slate-200/60 shadow-lg pb-safe backdrop-blur-md"
       >
@@ -783,6 +880,7 @@ export default function HomePage() {
           )}
         </div>
       </nav>
+      )}
     </div>
   );
 } 

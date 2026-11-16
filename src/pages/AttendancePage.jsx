@@ -192,6 +192,8 @@ export default function AttendancePage({ onOpenUserViolations }) {
     </div>
   );
 
+  const selected = grouped.find((row) => row.user_id === expandedUserId) || null;
+
   if (grouped.length === 0) {
     return (
       <div className="space-y-4">
@@ -202,104 +204,262 @@ export default function AttendancePage({ onOpenUserViolations }) {
   }
 
   return (
-    <div className="space-y-4">
-      {pageIntro}
+    <>
+      <div className="space-y-4 md:hidden">
+        {pageIntro}
 
-      <div className="space-y-2">
-        {grouped.map((row) => {
-          const expanded = expandedUserId === row.user_id;
-          const name = `${row.profile?.first_name || ''} ${row.profile?.last_name || ''}`.trim() || 'Unknown';
-          const records = [...(row.records || [])].sort(
-            (a, b) => new Date(b.date) - new Date(a.date)
-          );
-          return (
-            <div key={row.user_id} className="admin-section-card">
-              <div className="flex items-center gap-3 px-4 py-3">
+        <div className="space-y-2">
+          {grouped.map((row) => {
+            const expanded = expandedUserId === row.user_id;
+            const name = personName(row);
+            const records = sortedRecords(row);
+            return (
+              <div key={row.user_id} className="admin-section-card">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleRow(row.user_id)}
+                    aria-expanded={expanded}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <span className="truncate font-semibold text-charcoal">{name}</span>
+                    <span className="ml-auto flex flex-wrap justify-end gap-2">
+                      {row.no_show > 0 && (
+                        <span className="admin-chip !h-7 cursor-default text-xs">No show: {row.no_show}</span>
+                      )}
+                      {row.sick > 0 && (
+                        <span className="admin-chip !h-7 cursor-default text-xs">Sick: {row.sick}</span>
+                      )}
+                      {row.late > 0 && (
+                        <span className="admin-chip !h-7 cursor-default text-xs">Late: {row.late}</span>
+                      )}
+                      {row.other > 0 && (
+                        <span className="admin-chip !h-7 cursor-default text-xs">Other: {row.other}</span>
+                      )}
+                      {(row.violations?.length || 0) > 0 && (
+                        <span className="admin-chip admin-chip-active !h-7 cursor-default text-xs">
+                          Violations: {row.violations.length}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openUser(row.user_id)}
+                    className="admin-btn shrink-0"
+                  >
+                    Open
+                  </button>
+                </div>
+
+                {expanded && (
+                  <div className="space-y-3 border-t border-gray-200 px-4 py-3">
+                    {records.length > 0 && (
+                      <div>
+                        <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Attendance</h4>
+                        <ul className="space-y-0.5 text-sm text-gray-600">
+                          {records.slice(0, 20).map((record, index) => (
+                            <li key={`${record.date}-${record.status}-${index}`}>
+                              {record.date ? format(new Date(record.date), 'd MMM yyyy') : '—'} —{' '}
+                              <span className="font-medium">{attendanceLabel(record.status) || record.status}</span>
+                              {record.note && <span className="text-gray-500"> — {record.note}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                        {records.length > 20 && (
+                          <p className="mt-1 text-xs text-gray-500">+ {records.length - 20} more</p>
+                        )}
+                      </div>
+                    )}
+
+                    {row.violations && row.violations.length > 0 && (
+                      <div>
+                        <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Disciplinary notes</h4>
+                        <ul className="space-y-1 text-sm text-gray-600">
+                          {row.violations.slice(0, 5).map((violation) => (
+                            <li key={violation.id} className="flex flex-wrap gap-x-2">
+                              <span className="text-gray-500">
+                                {violation.created_at ? format(new Date(violation.created_at), 'd MMM yyyy') : '—'}
+                              </span>
+                              <span>{violation.body}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {row.violations.length > 5 && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            + {row.violations.length - 5} more — Open for the full list
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={`hidden h-full min-h-0 w-full md:flex md:flex-row md:gap-4`}>
+        <div className={`flex h-full min-h-0 w-full min-w-0 flex-col ${selected ? 'md:flex-1 md:basis-0' : 'max-w-lg'}`}>
+          <div className="mb-3 shrink-0">
+            <h2 className="text-base font-semibold text-slate-800">Attendance</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {grouped.length} {grouped.length === 1 ? 'person' : 'people'}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+            {grouped.map((row) => {
+              const name = personName(row);
+              const isSelected = selected?.user_id === row.user_id;
+              return (
                 <button
+                  key={row.user_id}
                   type="button"
                   onClick={() => toggleRow(row.user_id)}
-                  aria-expanded={expanded}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  aria-current={isSelected ? 'true' : undefined}
+                  className={`admin-section-card flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
+                    isSelected ? 'ring-2 ring-slate-200' : ''
+                  }`}
                 >
-                  <span className="truncate font-semibold text-charcoal">{name}</span>
-                  <span className="ml-auto flex flex-wrap justify-end gap-2">
-                    {row.no_show > 0 && (
-                      <span className="admin-chip !h-7 cursor-default text-xs">No show: {row.no_show}</span>
-                    )}
-                    {row.sick > 0 && (
-                      <span className="admin-chip !h-7 cursor-default text-xs">Sick: {row.sick}</span>
-                    )}
-                    {row.late > 0 && (
-                      <span className="admin-chip !h-7 cursor-default text-xs">Late: {row.late}</span>
-                    )}
-                    {row.other > 0 && (
-                      <span className="admin-chip !h-7 cursor-default text-xs">Other: {row.other}</span>
-                    )}
-                    {(row.violations?.length || 0) > 0 && (
-                      <span className="admin-chip admin-chip-active !h-7 cursor-default text-xs">
-                        Violations: {row.violations.length}
-                      </span>
-                    )}
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                    {name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-slate-800">{name}</span>
+                    <span className="mt-0.5 block truncate text-xs text-slate-500">{summaryLine(row)}</span>
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => openUser(row.user_id)}
-                  className="admin-btn shrink-0"
+              );
+            })}
+          </div>
+        </div>
+
+        {selected && (
+          <AttendanceDetail
+            row={selected}
+            onOpen={() => openUser(selected.user_id)}
+          />
+        )}
+      </div>
+    </>
+  );
+}
+
+function personName(row) {
+  return `${row.profile?.first_name || ''} ${row.profile?.last_name || ''}`.trim() || 'Unknown';
+}
+
+function sortedRecords(row) {
+  return [...(row.records || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function summaryLine(row) {
+  const parts = [];
+  if (row.no_show > 0) parts.push(`No show ${row.no_show}`);
+  if (row.sick > 0) parts.push(`Sick ${row.sick}`);
+  if (row.late > 0) parts.push(`Late ${row.late}`);
+  if (row.other > 0) parts.push(`Other ${row.other}`);
+  if (row.violations?.length) parts.push(`${row.violations.length} notes`);
+  return parts.join(' · ') || 'No records';
+}
+
+function statusTone(status) {
+  if (status === 'no_show') return 'bg-rose-50 text-rose-700';
+  if (status === 'sick') return 'bg-amber-50 text-amber-800';
+  if (status === 'late') return 'bg-sky-50 text-sky-700';
+  return 'bg-slate-100 text-slate-600';
+}
+
+function AttendanceDetail({ row, onOpen }) {
+  const name = personName(row);
+  const records = sortedRecords(row);
+  const counts = [
+    ['No show', row.no_show, 'bg-rose-50 text-rose-700'],
+    ['Sick', row.sick, 'bg-amber-50 text-amber-800'],
+    ['Late', row.late, 'bg-sky-50 text-sky-700'],
+    ['Other', row.other, 'bg-slate-100 text-slate-600'],
+    ['Notes', row.violations?.length || 0, 'bg-violet-50 text-violet-700'],
+  ].filter(([, count]) => count > 0);
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+          {name.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-semibold text-slate-800">{name}</h2>
+          <p className="truncate text-xs text-slate-500">{summaryLine(row)}</p>
+        </div>
+        <button type="button" onClick={onOpen} className="admin-btn shrink-0">
+          Open on Users
+        </button>
+      </div>
+
+      {counts.length > 0 && (
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 px-5 py-3">
+          {counts.map(([label, count, tone]) => (
+            <span key={label} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}>
+              {label} {count}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        {records.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-sm font-medium text-slate-500">Records</h3>
+            <ul className="space-y-1">
+              {records.map((record, index) => (
+                <li
+                  key={`${record.date}-${record.status}-${index}`}
+                  className="flex items-start gap-3 rounded-lg px-2 py-2"
                 >
-                  Open
-                </button>
-              </div>
+                  <span className="w-28 shrink-0 text-sm text-slate-500">
+                    {record.date ? format(new Date(record.date), 'd MMM yyyy') : '—'}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone(record.status)}`}>
+                    {attendanceLabel(record.status) || record.status}
+                  </span>
+                  {record.note ? (
+                    <span className="min-w-0 text-sm text-slate-500">{record.note}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-              {expanded && (
-                <div className="space-y-3 border-t border-gray-200 px-4 py-3">
-                  {records.length > 0 && (
-                    <div>
-                      <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Attendance</h4>
-                      <ul className="space-y-0.5 text-sm text-gray-600">
-                        {records.slice(0, 20).map((record, index) => (
-                          <li key={`${record.date}-${record.status}-${index}`}>
-                            {record.date ? format(new Date(record.date), 'd MMM yyyy') : '—'} —{' '}
-                            <span className="font-medium">{attendanceLabel(record.status) || record.status}</span>
-                            {record.note && <span className="text-gray-500"> — {record.note}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                      {records.length > 20 && (
-                        <p className="mt-1 text-xs text-gray-500">+ {records.length - 20} more</p>
-                      )}
-                    </div>
-                  )}
+        {row.violations?.length > 0 && (
+          <section className={records.length > 0 ? 'mt-6' : ''}>
+            <h3 className="mb-2 text-sm font-medium text-slate-500">Notes</h3>
+            <ul className="space-y-2">
+              {row.violations.map((violation) => (
+                <li key={violation.id} className="rounded-lg px-2 py-2">
+                  <p className="text-xs text-slate-400">
+                    {violation.created_at ? format(new Date(violation.created_at), 'd MMM yyyy') : '—'}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-700">{violation.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-                  {row.violations && row.violations.length > 0 && (
-                    <div>
-                      <h4 className="mb-1 text-xs font-semibold uppercase text-gray-500">Disciplinary notes</h4>
-                      <ul className="space-y-1 text-sm text-gray-600">
-                        {row.violations.slice(0, 5).map((violation) => (
-                          <li key={violation.id} className="flex flex-wrap gap-x-2">
-                            <span className="text-gray-500">
-                              {violation.created_at ? format(new Date(violation.created_at), 'd MMM yyyy') : '—'}
-                            </span>
-                            <span>{violation.body}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {row.violations.length > 5 && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          + {row.violations.length - 5} more — Open for the full list
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {records.length === 0 && !(row.violations?.length > 0) && (
+          <p className="text-sm text-slate-500">No records for this person.</p>
+        )}
       </div>
     </div>
   );
 }
+
+AttendanceDetail.propTypes = {
+  row: PropTypes.object.isRequired,
+  onOpen: PropTypes.func.isRequired,
+};
 
 AttendancePage.propTypes = {
   onOpenUserViolations: PropTypes.func,

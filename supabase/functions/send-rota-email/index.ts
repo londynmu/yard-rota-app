@@ -241,7 +241,6 @@ serve(async (req) => {
         for (const addr of parseAgencyEmails(ccAgency.email)) {
           const key = addr.toLowerCase();
           if (toLower.has(key) || ccSeen.has(key)) continue;
-          if (allowed.size > 0 && !allowed.has(key)) continue;
           ccSeen.add(key);
           ccCandidates.push(addr);
         }

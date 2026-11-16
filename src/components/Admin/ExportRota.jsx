@@ -10,6 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import AdditionalBookingsPanel from './AdditionalBookingsPanel';
 import {
   EMAIL_SIGN_OFF,
+  ccAgencyIdsExcludingDirectRecipients,
   defaultCcAgencyIds,
   formatShiftClock,
   parseAgencyEmails,
@@ -62,6 +63,8 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   const [agencies, setAgencies] = useState([]);
   const [selectedAgencies, setSelectedAgencies] = useState([]);
   const [selectedCcAgencies, setSelectedCcAgencies] = useState([]);
+  const [extraCc, setExtraCc] = useState('');
+  const [showCcChooser, setShowCcChooser] = useState(false);
   const [rotaData, setRotaData] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -617,6 +620,34 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     setShowConfirmation(false);
   };
 
+  const sameAgencyId = (left, right) => String(left) === String(right);
+
+  const collectWeeklyExtraCc = (ccAgencyRows) => {
+    const toKeys = new Set();
+    for (const id of selectedAgencies) {
+      const agency = agencies.find((item) => sameAgencyId(item.id, id));
+      for (const addr of parseAgencyEmails(agency?.email)) toKeys.add(addr.toLowerCase());
+    }
+    const ccKeys = new Set();
+    for (const agency of ccAgencyRows || []) {
+      for (const addr of parseAgencyEmails(agency?.email)) ccKeys.add(addr.toLowerCase());
+    }
+    const rows = [];
+    const extras = [];
+    const seen = new Set();
+    for (const addr of parseAgencyEmails(extraCc)) {
+      const key = addr.toLowerCase();
+      const alreadyTo = toKeys.has(key);
+      const alreadyCc = ccKeys.has(key);
+      rows.push({ addr, alreadyTo, alreadyCc });
+      if (alreadyTo || alreadyCc || seen.has(key)) continue;
+      seen.add(key);
+      ccKeys.add(key);
+      extras.push(addr);
+    }
+    return { rows, extras };
+  };
+
   // Send to agencies via SendGrid Edge Function (after confirmation)
   const sendToAgencies = async () => {
     setLoading(true);
@@ -650,11 +681,21 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         throw new Error('No valid email addresses found');
       }
 
-      // Edge function drops CC addresses that already appear in each email's To.
-      const ccPayload = resolveCcAgencies(agencies, selectedCcAgencies).map((agency) => ({
-        name: agency.name,
-        email: agency.email,
-      }));
+      // A direct To recipient must not also be CC'd, or they get a second copy.
+      const ccAgencyRows = resolveCcAgencies(agencies, selectedCcAgencies, {
+        excludeAgencyIds: selectedAgencies,
+      });
+      const { extras: extraCcEmails } = collectWeeklyExtraCc(ccAgencyRows);
+      const ccPayload = [
+        ...ccAgencyRows.map((agency) => ({
+          name: agency.name,
+          email: agency.email,
+        })),
+        ...extraCcEmails.map((addr) => ({
+          name: addr,
+          email: addr,
+        })),
+      ];
 
       const weekStart = format(startDate, 'yyyy-MM-dd');
       const weekEnd = format(addDays(startDate, 6), 'yyyy-MM-dd');
@@ -711,30 +752,60 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   };
 
   const handleAgencySelection = (agencyId) => {
-    setSelectedAgencies(prev =>
-      prev.includes(agencyId)
-        ? prev.filter(id => id !== agencyId)
-        : [...prev, agencyId]
-    );
+    const alreadySelected = selectedAgencies.some((id) => sameAgencyId(id, agencyId));
+    if (alreadySelected) {
+      setSelectedAgencies((prev) => prev.filter((id) => !sameAgencyId(id, agencyId)));
+      const isDefaultCc = defaultCcAgencyIds(agencies).some((id) => sameAgencyId(id, agencyId));
+      if (isDefaultCc) {
+        setSelectedCcAgencies((prev) => (
+          prev.some((id) => sameAgencyId(id, agencyId)) ? prev : [...prev, agencyId]
+        ));
+      }
+      return;
+    }
+    setSelectedAgencies((prev) => [...prev, agencyId]);
+    setSelectedCcAgencies((prev) => ccAgencyIdsExcludingDirectRecipients(prev, [agencyId]));
   };
 
   const handleCcAgencySelection = (agencyId) => {
-    setSelectedCcAgencies((prev) => (
-      prev.includes(agencyId)
-        ? prev.filter((id) => id !== agencyId)
-        : [...prev, agencyId]
-    ));
+    setSelectedCcAgencies((prev) => {
+      if (prev.some((id) => sameAgencyId(id, agencyId))) {
+        return prev.filter((id) => !sameAgencyId(id, agencyId));
+      }
+      if (selectedAgencies.some((id) => sameAgencyId(id, agencyId))) return prev;
+      return [...prev, agencyId];
+    });
   };
 
   const allAgenciesSelected = agencies.length > 0
     && selectedAgencies.length === agencies.length;
 
   const toggleSelectAllAgencies = () => {
-    if (allAgenciesSelected) setSelectedAgencies([]);
-    else setSelectedAgencies(agencies.map((agency) => agency.id));
+    if (allAgenciesSelected) {
+      setSelectedAgencies([]);
+      setSelectedCcAgencies((prev) => {
+        const kept = ccAgencyIdsExcludingDirectRecipients(prev, []);
+        const seen = new Set(kept.map((id) => String(id)));
+        const restored = [...kept];
+        for (const id of defaultCcAgencyIds(agencies)) {
+          if (!seen.has(String(id))) restored.push(id);
+        }
+        return restored;
+      });
+      return;
+    }
+    const allIds = agencies.map((agency) => agency.id);
+    setSelectedAgencies(allIds);
+    setSelectedCcAgencies((prev) => ccAgencyIdsExcludingDirectRecipients(prev, allIds));
   };
 
-  const weeklyCcAgencies = resolveCcAgencies(agencies, selectedCcAgencies);
+  const weeklyCcAgencies = resolveCcAgencies(agencies, selectedCcAgencies, {
+    excludeAgencyIds: selectedAgencies,
+  });
+  const { rows: weeklyTypedCc, extras: weeklyExtraCcEmails } = collectWeeklyExtraCc(weeklyCcAgencies);
+  const weeklyToNames = selectedAgencies
+    .map((id) => agencies.find((agency) => sameAgencyId(agency.id, id))?.name)
+    .filter(Boolean);
   const weeklyCcPickerAgencies = agencies.filter((agency) => (
     Boolean(agency?.id)
     && parseAgencyEmails(agency.email).length > 0
@@ -940,36 +1011,41 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
       {mode === 'weekly' && (
         <>
           <div className="flex min-h-0 flex-1 flex-col gap-3 pr-4 sm:pr-6">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-rota-text-muted">
-                {fetchingData
-                  ? 'Loading shifts…'
-                  : (rotaData.length > 0
-                    ? `${rotaData.length} shifts loaded`
-                    : 'No shifts for this week')}
-              </p>
-              {agencies.length > 0 && (
-                <button
-                  type="button"
-                  className={selectAllBtn}
-                  onClick={toggleSelectAllAgencies}
-                  disabled={agencies.length === 0}
-                  title={allAgenciesSelected ? 'Clear selection' : 'Select all recipients'}
-                >
-                  {allAgenciesSelected ? 'Clear' : 'Select all'}
-                  <span className="font-normal text-rota-text-muted">
-                    {selectedAgencies.length}/{agencies.length}
-                  </span>
-                </button>
-              )}
-            </div>
-
             {agencies.length > 0 ? (
               <>
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
-                    To
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
+                      To
+                    </p>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        type="button"
+                        className={selectAllBtn}
+                        onClick={() => setShowCcChooser(true)}
+                        title="Choose CC recipients"
+                      >
+                        CC
+                        {weeklyCcAgencies.length > 0 && (
+                          <span className="font-normal text-rota-text-muted">
+                            {weeklyCcAgencies.length}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className={selectAllBtn}
+                        onClick={toggleSelectAllAgencies}
+                        disabled={agencies.length === 0}
+                        title={allAgenciesSelected ? 'Clear selection' : 'Select all recipients'}
+                      >
+                        {allAgenciesSelected ? 'Clear' : 'Select all'}
+                        <span className="font-normal text-rota-text-muted">
+                          {selectedAgencies.length}/{agencies.length}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                   <ul className="min-h-0 max-h-[16rem] overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
                     {agencies.map((agency) => {
                       const checked = selectedAgencies.includes(agency.id);
@@ -981,38 +1057,6 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                               className="shrink-0"
                               checked={checked}
                               onChange={() => handleAgencySelection(agency.id)}
-                            />
-                            <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
-                              {agency.name}
-                            </span>
-                            <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
-                              {agency.email}
-                            </span>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
-                    CC{weeklyCcAgencies.length > 0 ? ` (${weeklyCcAgencies.length})` : ''}
-                  </p>
-                  <p className="text-[11px] text-rota-text-muted">
-                    Evri4you is copied by default. Addresses already in To are skipped for that email.
-                  </p>
-                  <ul className="min-h-0 max-h-[12rem] overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
-                    {weeklyCcPickerAgencies.map((agency) => {
-                      const checked = selectedCcAgencies.includes(agency.id);
-                      return (
-                        <li key={`cc-${agency.id}`}>
-                          <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
-                            <input
-                              type="checkbox"
-                              className="shrink-0"
-                              checked={checked}
-                              onChange={() => handleCcAgencySelection(agency.id)}
                             />
                             <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
                               {agency.name}
@@ -1119,6 +1163,85 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         </div>
       )}
       
+      {showCcChooser && createPortal(
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative flex max-h-[min(80vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg p-4 shadow-2xl sm:p-6">
+            <h3 className="mb-1 shrink-0 text-xl font-semibold text-rota-text-primary">CC</h3>
+            <p className="mb-3 shrink-0 text-xs text-rota-text-muted">
+              Evri4you is copied by default. Addresses already in To are skipped for that email.
+            </p>
+            <ul className="min-h-0 flex-1 divide-y divide-rota-toolbar-border overflow-y-auto overscroll-contain rounded-lg border border-rota-toolbar-border">
+              {weeklyCcPickerAgencies.map((agency) => {
+                const checked = selectedCcAgencies.includes(agency.id);
+                return (
+                  <li key={`cc-${agency.id}`}>
+                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                      <input
+                        type="checkbox"
+                        className="shrink-0"
+                        checked={checked}
+                        onChange={() => handleCcAgencySelection(agency.id)}
+                      />
+                      <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                        {agency.name}
+                      </span>
+                      <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
+                        {agency.email}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-4 shrink-0 space-y-1.5">
+              <label
+                htmlFor="weekly-cc-emails"
+                className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary"
+              >
+                Add email
+              </label>
+              <p className="text-[11px] text-rota-text-muted">
+                Copied on each email to {weeklyToNames.length > 0 ? weeklyToNames.join(', ') : 'the selected agencies'}. Separate addresses with commas. Addresses already in To are skipped.
+              </p>
+              <input
+                id="weekly-cc-emails"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                value={extraCc}
+                onChange={(event) => setExtraCc(event.target.value)}
+                placeholder="name@example.com, other@example.com"
+                disabled={loading}
+                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-charcoal placeholder:text-gray-400 focus:border-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal"
+              />
+              {weeklyTypedCc.length > 0 && (
+                <ul className="space-y-0.5 text-xs text-rota-text-muted">
+                  {weeklyTypedCc.map((row) => (
+                    <li key={row.addr}>
+                      {row.alreadyTo
+                        ? `${row.addr} — already in To, not copied`
+                        : row.alreadyCc
+                          ? `${row.addr} — already in CC, not added again`
+                          : `${row.addr} — CC on each email to ${weeklyToNames.length > 0 ? weeklyToNames.join(', ') : 'the selected agencies'}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="mt-4 flex shrink-0 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCcChooser(false)}
+                className="admin-btn"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       {/* Confirmation Dialog — same size as parent Send to agency modal */}
       {showConfirmation && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4">
@@ -1142,14 +1265,17 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                   })}
                 </ul>
                 <p className="font-medium text-rota-text-primary">
-                  CC ({weeklyCcAgencies.length}):
+                  CC ({weeklyCcAgencies.length + weeklyExtraCcEmails.length}):
                 </p>
-                {weeklyCcAgencies.length > 0 ? (
+                {weeklyCcAgencies.length > 0 || weeklyExtraCcEmails.length > 0 ? (
                   <ul className="ml-4 list-disc">
                     {weeklyCcAgencies.map((agency) => (
                       <li key={`confirm-cc-${agency.id}`}>
                         {agency.name} ({parseAgencyEmails(agency.email).join(', ')})
                       </li>
+                    ))}
+                    {weeklyExtraCcEmails.map((addr) => (
+                      <li key={`confirm-extra-cc-${addr}`}>{addr}</li>
                     ))}
                   </ul>
                 ) : (

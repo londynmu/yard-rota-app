@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { format as formatDate, parseISO } from 'date-fns';
 import PropTypes from 'prop-types';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
@@ -27,6 +28,7 @@ const getVisibleWindow = (records, windowStartIndex, windowSize) => {
 };
 
 const PerformanceChart = ({ data, isAllTime = false }) => {
+  const isDesktop = useIsDesktop();
   const touchStartX = useRef(null);
   const [windowStartIndex, setWindowStartIndex] = useState(0);
 
@@ -182,6 +184,7 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
         name: 'Moves',
         type: chartData.dates.length > 18 ? 'line' : 'bar',
         data: chartData.values,
+        barMaxWidth: isDesktop ? 56 : undefined,
         smooth: true,
         symbol: chartData.dates.length > 20 ? 'none' : 'circle',
         symbolSize: 6,
