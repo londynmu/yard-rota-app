@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getAdminMenuItems } from '../config/navIcons';
-import NavIcon from '../components/NavIcon';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { useNotifications } from '../lib/NotificationContext';
 import UserList from '../components/Admin/UserList';
 import AvailabilityManager from '../components/Admin/AvailabilityManager';
 import SettingsManager from '../components/Admin/SettingsManager';
@@ -18,7 +15,7 @@ import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
 import CheckItemManager from '../components/Admin/PreCheck/CheckItemManager';
 import AttendancePage from './AttendancePage';
 import InductionGuideManager from '../components/Admin/InductionGuideManager';
-import { getCurrentMonthAwards } from '../utils/shunterAwardsApi';
+import AdminDashboard from '../components/Admin/AdminDashboard';
 import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
 import { lockPageScroll } from '../utils/lockPageScroll';
 
@@ -41,8 +38,9 @@ export default function AdminPage() {
     return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
   });
   // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
-  const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState(() => (
+    safeLocalStorage.getItem('adminSettingsTab') || 'locations'
+  ));
   const mainContentRef = useRef(null);
   const prevSectionRef = useRef(activeSection);
   // Deep-link from Black list → Users Violations tab
@@ -73,22 +71,23 @@ export default function AdminPage() {
     window.dispatchEvent(new CustomEvent('adminSectionChange', { detail: { label } }));
   }, [activeSection]);
   
-  const { pendingApprovals = 0 } = useNotifications() || {};
-
-  // Listener dla custom event z top bara - tylko mobile
   useEffect(() => {
-    const handleToggleSidebar = () => {
-      if (window.innerWidth < 768) {
-        setMobileSidebarOpen(true);
-      }
-      // Na desktop nie potrzebujemy hamburgera - hover działa automatycznie
+    safeLocalStorage.setItem('adminActiveSection', activeSection);
+    safeLocalStorage.setItem('adminSettingsTab', settingsTab);
+    window.dispatchEvent(new CustomEvent('adminShellState', {
+      detail: { section: activeSection, settingsTab },
+    }));
+  }, [activeSection, settingsTab]);
+
+  useEffect(() => {
+    const handle = (event) => {
+      const nextSection = event.detail?.section;
+      const nextTab = event.detail?.settingsTab;
+      if (nextTab) setSettingsTab(nextTab);
+      if (nextSection) setActiveSection(nextSection);
     };
-    
-    window.addEventListener('toggleAdminSidebar', handleToggleSidebar);
-    
-    return () => {
-      window.removeEventListener('toggleAdminSidebar', handleToggleSidebar);
-    };
+    window.addEventListener('adminSidebarNavigate', handle);
+    return () => window.removeEventListener('adminSidebarNavigate', handle);
   }, []);
 
   // Check if we need to migrate old rota tab
@@ -102,18 +101,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Efekt do zapisywania aktywnej sekcji w localStorage
-  useEffect(() => {
-    safeLocalStorage.setItem('adminActiveSection', activeSection);
-  }, [activeSection]);
-
-  // Users keeps search fixed — lock document scroll so content cannot tuck under the top nav.
-  useEffect(() => {
-    if (activeSection !== 'users') return undefined;
-    return lockPageScroll();
-  }, [activeSection]);
-
-  // Zapisz scroll Statistics przy wyjściu, przywróć przy wejściu
   useEffect(() => {
     const prev = prevSectionRef.current;
     prevSectionRef.current = activeSection;
@@ -135,30 +122,15 @@ export default function AdminPage() {
     }
   }, [activeSection]);
 
-  // Sidebar badge when current month is missing Day or Night award
-  const [shunterIncomplete, setShunterIncomplete] = useState(false);
-
-  const refreshShunterIncomplete = async () => {
-    try {
-      const awards = await getCurrentMonthAwards();
-      const hasDay = awards.some((row) => row.period === 'day' && row.userId);
-      const hasNight = awards.some((row) => row.period === 'night' && row.userId);
-      setShunterIncomplete(!(hasDay && hasNight));
-    } catch (err) {
-      console.error('[AdminPage] refreshShunterIncomplete error:', err);
-    }
-  };
-
   useEffect(() => {
-    if (pageLoading) return;
-    refreshShunterIncomplete();
-  }, [pageLoading]);
+    if (activeSection !== 'users') return undefined;
+    return lockPageScroll();
+  }, [activeSection]);
 
   const openUserViolations = (userId) => {
     if (!userId) return;
     setUsersFocus({ userId, tab: 'violations' });
     setActiveSection('users');
-    setMobileSidebarOpen(false);
   };
 
   // Define fetchUsers function outside useEffect so it can be passed to components
@@ -307,51 +279,11 @@ export default function AdminPage() {
     );
   }
 
-  const menuItems = getAdminMenuItems(pendingApprovals, { shunterIncomplete });
-
-  // Dashboard Component - pokazywany jako główny widok
-  const DashboardView = () => (
-    <div className="space-y-6">
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-lg font-semibold text-charcoal mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {menuItems.filter(item => item.id !== 'dashboard').map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-5 hover:shadow-xl hover:border-slate-300/80 transition-all duration-300 text-left group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl group-hover:bg-slate-50 transition-colors duration-300 flex items-center justify-center">
-                  <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="large" animate={true} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-charcoal group-hover:text-charcoal">
-                    {item.label}
-                    {item.badge > 0 && (
-                      <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-charcoal rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                <svg className="w-5 h-5 text-slate-400 group-hover:text-charcoal group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   // Renderowanie zawartości w zależności od aktywnej sekcji
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-        return <DashboardView />;
+        return <AdminDashboard onOpen={setActiveSection} />;
       case 'users':
         return (
           <UserList
@@ -384,11 +316,16 @@ export default function AdminPage() {
         return (
           <ShunterOfTheMonthManager
             users={users}
-            onAwardsChange={refreshShunterIncomplete}
+            onAwardsChange={() => window.dispatchEvent(new Event('adminShunterRefresh'))}
           />
         );
       case 'settings':
-        return <SettingsManager />;
+        return (
+          <SettingsManager
+            initialSection={settingsTab}
+            onSectionChange={setSettingsTab}
+          />
+        );
       case 'performance':
         return <PerformanceImport />;
       case 'stats':
@@ -396,103 +333,36 @@ export default function AdminPage() {
       case 'induction-guide':
         return <InductionGuideManager />;
       default:
-        return <DashboardView />;
+        return <AdminDashboard onOpen={setActiveSection} />;
     }
   };
 
   const isUsersSection = activeSection === 'users';
+  const isAttendanceSection = activeSection === 'attendance';
 
   // Główna zawartość strony admina - uprawnienia już sprawdzone przez ProtectedAdminRoute
   return (
-    <div className={`bg-offwhite ${isUsersSection ? 'h-[calc(100dvh-4rem)] overflow-hidden' : 'min-h-screen'}`}>
-      {/* Mobile Overlay - tylko na mobile */}
-      {mobileSidebarOpen && (
-        <div 
-          className="fixed bg-black bg-opacity-50 z-40 md:hidden"
-          style={{ top: '64px', bottom: 0, left: 0, right: 0 }}
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar - zawsze widoczny na desktop, rozwija się po najechaniu; na mobile wysuwa się do końca z napisami */}
-      <aside 
-        onMouseEnter={() => setSidebarHovered(true)}
-        onMouseLeave={() => setSidebarHovered(false)}
-        className={`
-          ${(sidebarHovered || mobileSidebarOpen) ? 'w-72' : 'w-20'}
-          bg-white border-r border-gray-200 flex flex-col shadow-lg
-          fixed left-0 z-50
-          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          transition-all duration-200 ease-out
-        `}
-        style={{ top: '64px', bottom: 0 }}
-      >
-        {/* Sidebar Menu */}
-        <nav className="flex-1 overflow-y-auto py-2 px-2">
-          {menuItems.map((item) => {
-            const isActive = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveSection(item.id);
-                  setMobileSidebarOpen(false);
-                }}
-                className={`relative w-full flex items-center py-2 mb-0.5 rounded-lg ${
-                  isActive
-                    ? 'bg-charcoal text-white shadow-md'
-                    : 'text-gray-700 hover:bg-gray-100'
-                } ${(sidebarHovered || mobileSidebarOpen) ? 'px-3' : 'justify-center px-2'}`}
-                title={!(sidebarHovered || mobileSidebarOpen) ? item.label : ''}
-              >
-                <div className="w-8 flex items-center justify-center flex-shrink-0">
-                  <NavIcon
-                    Icon={item.Icon}
-                    colorClass={isActive ? 'text-white' : item.colorClass}
-                    animate={true}
-                  />
-                </div>
-                {(sidebarHovered || mobileSidebarOpen) && (
-                  <div className="flex-1 text-left font-medium flex items-center gap-2 whitespace-nowrap opacity-0 animate-fadeIn ml-3" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
-                    {item.label}
-                    {item.badge > 0 && (
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-charcoal rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {!(sidebarHovered || mobileSidebarOpen) && item.badge > 0 && (
-                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-charcoal rounded-full border border-white"></span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Sidebar Footer */}
-        {(sidebarHovered || mobileSidebarOpen) && (
-          <div className="p-4 border-t border-gray-200 opacity-0 animate-fadeIn" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>
-            <div className="text-xs text-gray-500 text-center whitespace-nowrap">
-              Logged in as Admin
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* Main Content Area - zawsze z marginesem 80px (dla zwiniętego sidebara) */}
-      <main
+    <div className={`bg-offwhite ${
+      isUsersSection
+        ? 'h-[calc(100dvh-4rem)] overflow-hidden'
+        : isAttendanceSection
+          ? 'min-h-screen md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden'
+          : 'min-h-screen'
+    }`}>
+      <div
         ref={mainContentRef}
-        className={`md:ml-20 ${
+        className={
           isUsersSection
             ? 'h-full overflow-hidden'
-            : 'min-h-screen overflow-y-auto'
-        }`}
+            : isAttendanceSection
+              ? 'min-h-screen overflow-y-auto md:h-full md:min-h-0 md:overflow-hidden'
+              : 'min-h-screen overflow-y-auto'
+        }
       >
-        <div className={`p-4 md:p-6 lg:p-8 ${isUsersSection ? 'h-full' : ''}`}>
+        <div className={`p-4 md:p-6 lg:p-8 ${isUsersSection ? 'h-full' : isAttendanceSection ? 'md:h-full' : ''}`}>
           {renderContent()}
         </div>
-      </main>
+      </div>
     </div>
   );
 } 

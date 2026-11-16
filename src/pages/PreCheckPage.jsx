@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { useNotifications } from '../lib/NotificationContext';
 import { safeAutoReload } from '../lib/reloadGuard';
 import { toLocalYmd } from '../utils/operationalDay';
 
@@ -12,13 +11,28 @@ import TugSelector from '../components/PreCheck/TugSelector';
 import PreCheckForm from '../components/PreCheck/PreCheckForm';
 import DuringShiftReport from '../components/PreCheck/DuringShiftReport';
 import QRScanner from '../components/PreCheck/QRScanner';
-import NotificationBell from '../components/NotificationBell';
 import { safeSessionStorage } from '../utils/safeStorage';
 import {
   getPrecheckQueueStatus,
   onPrecheckQueueUpdate,
   processPrecheckQueue,
 } from '../lib/precheckQueue';
+
+const PAGE_SHELL = 'mx-auto w-full px-4 pt-safe pb-24 md:max-w-5xl md:px-6';
+const FORM_SHELL = 'mx-auto w-full px-4 pt-safe pb-24 md:max-w-3xl md:px-6';
+
+function PageTitle({ subtitle, action }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 md:mb-5">
+      <div className="min-w-0">
+        <h1 className="text-lg font-semibold tracking-tight text-slate-800 md:text-xl">PreCheck</h1>
+        {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
+      </div>
+      {action ? <div className="hidden shrink-0 md:block">{action}</div> : null}
+    </div>
+  );
+}
+
 // ─── Persist state helpers ───
 const DURING_SHIFT_KEY = 'precheck_during_shift';
 const PAGE_STATE_KEY = 'precheck_page_state';
@@ -89,7 +103,6 @@ export default function PreCheckPage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isAdmin } = useNotifications() || {};
   const { isOnline, connection } = useNetworkStatus();
 
   // Restore state from sessionStorage (survives page refresh)
@@ -406,7 +419,7 @@ export default function PreCheckPage() {
   // ─── Loading ───
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 animate-pulse space-y-4">
+      <div className={`${PAGE_SHELL} animate-pulse space-y-4 py-6 md:py-8`}>
         <div className="h-8 bg-slate-200 rounded w-48" />
         <div className="h-40 bg-slate-200 rounded-xl" />
       </div>
@@ -416,13 +429,20 @@ export default function PreCheckPage() {
   // ─── Completed view ───
   if (step === 'completed' && shiftChecks.length > 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
-        <div className="space-y-3">
-        {isAdmin && (
-          <div className="flex justify-end pt-2 md:hidden">
-            <NotificationBell />
-          </div>
-        )}
+      <div className={`${PAGE_SHELL} py-6 md:py-8`}>
+        <div className="space-y-4 md:space-y-5">
+        <PageTitle
+          subtitle="Today's checks"
+          action={(
+            <button
+              type="button"
+              onClick={handleCheckAnotherTug}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              Check Another Tug
+            </button>
+          )}
+        />
         {/* All checks grouped in one card */}
         <div className="bg-green-50 border border-green-200 rounded-xl overflow-hidden">
           {shiftChecks.map((check, idx) => {
@@ -431,7 +451,7 @@ export default function PreCheckPage() {
             const time = new Date(check.check_time || check.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
             return (
-              <div key={check.id} className={`p-3 flex items-center justify-between ${idx > 0 ? 'border-t border-green-200' : ''}`}>
+              <div key={check.id} className={`flex items-center justify-between p-3 md:px-5 md:py-4 ${idx > 0 ? 'border-t border-green-200' : ''}`}>
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -464,7 +484,7 @@ export default function PreCheckPage() {
         {/* Check Another Tug */}
         <button
           onClick={handleCheckAnotherTug}
-          className="w-full py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors"
+          className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 md:hidden"
         >
           Check Another Tug
         </button>
@@ -477,7 +497,8 @@ export default function PreCheckPage() {
   if (step === 'during_shift') {
     if (!duringShiftDamageEnabled) {
       return (
-        <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
+        <div className={`${FORM_SHELL} space-y-4 py-6 md:py-8`}>
+          <PageTitle subtitle="Report damage" />
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
             <p className="text-sm font-semibold text-yellow-800">
               Damage reporting is currently disabled by admin.
@@ -503,7 +524,8 @@ export default function PreCheckPage() {
     }
 
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
+      <div className={`${FORM_SHELL} space-y-4 py-6 md:py-8`}>
+        <PageTitle subtitle="Report damage" />
         {(queueStatus.total > 0 || !isOnline) && (
           <div className={`rounded-lg border px-3 py-2 text-xs ${
             !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'
@@ -579,7 +601,8 @@ export default function PreCheckPage() {
     const now = new Date();
 
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24">
+      <div className={`${FORM_SHELL} py-6 md:py-8`}>
+        <PageTitle subtitle={isDamage ? 'Damage recorded' : 'Check completed'} />
         <div className={`${isDamage ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border rounded-xl p-5 space-y-4`}>
           <div>
             <h2 className={`text-base font-bold ${isDamage ? 'text-red-800' : 'text-green-800'}`}>
@@ -618,7 +641,7 @@ export default function PreCheckPage() {
     const checkedTugIds = shiftChecks.map(c => c.tug_id);
 
     return (
-      <div className="max-w-lg mx-auto px-4 pt-safe py-4 pb-24 space-y-4">
+      <div className={`${PAGE_SHELL} space-y-4 py-4 md:py-8`}>
         {/* QR Scanner overlay */}
         {showQRScanner && (
           <QRScanner
@@ -640,14 +663,7 @@ export default function PreCheckPage() {
           </button>
         )}
 
-        <div className="flex items-center justify-between gap-2 pt-2">
-          <h1 className="text-lg font-bold text-charcoal">Select Tug</h1>
-          {isAdmin && (
-            <div className="md:hidden">
-              <NotificationBell />
-            </div>
-          )}
-        </div>
+        <PageTitle subtitle="Select a tug" />
 
         {/* Scan QR Code button */}
         <button
@@ -656,7 +672,7 @@ export default function PreCheckPage() {
             setQrError(null);
             setShowQRScanner(true);
           }}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-charcoal text-white font-semibold rounded-xl hover:bg-black active:scale-[0.98] transition-all"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 active:scale-[0.98] md:w-auto md:px-5"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -686,7 +702,8 @@ export default function PreCheckPage() {
 
   // ─── Form (pre-shift check) ───
   return (
-    <div className="max-w-lg mx-auto px-4 pt-safe py-6 pb-24 space-y-4">
+    <div className={`${FORM_SHELL} space-y-4 py-6 md:py-8`}>
+      <PageTitle subtitle="Pre-shift check" />
       {(queueStatus.total > 0 || !isOnline) && (
         <div className={`rounded-lg border px-3 py-2 text-xs ${
           !isOnline ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-800'

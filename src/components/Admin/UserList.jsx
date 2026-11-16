@@ -821,8 +821,8 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     : 0;
 
   return (
-    <div className="h-full min-h-0">
-    <div className="mr-auto flex h-full min-h-0 w-full max-w-lg flex-col">
+    <div className="flex h-full min-h-0 w-full flex-col md:flex-row md:gap-4">
+    <div className={`mr-auto flex h-full min-h-0 w-full min-w-0 flex-col ${selectedUser ? 'md:mr-0 md:min-w-0 md:flex-1 md:basis-0' : 'max-w-lg'}`}>
       <div className="mb-4 flex shrink-0 flex-col gap-3 bg-offwhite md:flex-row md:items-center md:gap-2 md:flex-nowrap">
         <div className="relative min-w-0 flex-1">
           <input
@@ -977,9 +977,9 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         overlayClassName="z-[10001]"
       />
     </div>
-    {selectedUser && createPortal(
+    {selectedUser && (
       <div
-        className="fixed right-0 top-[72px] z-[60] flex h-[calc(100dvh-72px)] w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:left-[calc(5rem+2rem+32rem+0.75rem)] lg:w-auto"
+        className="fixed right-0 top-[72px] z-[60] flex h-[calc(100dvh-72px)] w-full min-w-0 flex-col border-l border-gray-200 bg-white shadow-xl md:static md:z-auto md:h-full md:min-h-0 md:w-auto md:flex-1 md:basis-0 md:overflow-hidden md:rounded-xl md:border md:shadow-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-user-drawer-title"
@@ -1078,8 +1078,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
             </button>
           </div>
         )}
-      </div>,
-      document.body
+      </div>
     )}
     </div>
   );

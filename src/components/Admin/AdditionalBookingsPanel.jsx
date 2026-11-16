@@ -61,6 +61,7 @@ export default function AdditionalBookingsPanel({
   const [currentSlotCount, setCurrentSlotCount] = useState(0);
   const [confirm, setConfirm] = useState(null);
   const [sendPreview, setSendPreview] = useState(null);
+  const [showCcChooser, setShowCcChooser] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [agenciesLocal, setAgenciesLocal] = useState([]);
 
@@ -136,6 +137,7 @@ export default function AdditionalBookingsPanel({
     const ccAgencyIds = defaultCcAgencyIds(agencies, {
       excludeAgencyIds: [agencyId],
     });
+    setShowCcChooser(false);
     setSendPreview({
       people,
       agencyId,
@@ -144,6 +146,7 @@ export default function AdditionalBookingsPanel({
       emails,
       email,
       ccAgencyIds,
+      extraCc: '',
     });
   };
 
@@ -173,6 +176,18 @@ export default function AdditionalBookingsPanel({
     const ccAgencies = resolveCcAgencies(agencies, ccAgencyIds, {
       excludeAgencyIds: [agencyId],
     });
+    const toKeys = new Set((sendPreview.emails || []).map((addr) => addr.toLowerCase()));
+    const ccKeys = new Set();
+    for (const agency of ccAgencies) {
+      for (const addr of parseAgencyEmails(agency.email)) ccKeys.add(addr.toLowerCase());
+    }
+    const extraCcEmails = [];
+    for (const addr of parseAgencyEmails(sendPreview.extraCc)) {
+      const key = addr.toLowerCase();
+      if (toKeys.has(key) || ccKeys.has(key)) continue;
+      ccKeys.add(key);
+      extraCcEmails.push(addr);
+    }
 
     setSending(true);
     try {
@@ -181,10 +196,16 @@ export default function AdditionalBookingsPanel({
         {
           body: {
             agencies: [{ name: agencyName, email: agencyEmail }],
-            cc: ccAgencies.map((agency) => ({
-              name: agency.name,
-              email: agency.email,
-            })),
+            cc: [
+              ...ccAgencies.map((agency) => ({
+                name: agency.name,
+                email: agency.email,
+              })),
+              ...extraCcEmails.map((addr) => ({
+                name: addr,
+                email: addr,
+              })),
+            ],
             weekStart: weekIso,
             weekEnd: weekEndIso,
             subject: email.subject,
@@ -219,14 +240,19 @@ export default function AdditionalBookingsPanel({
           agency_name: agencyName || null,
           cc_agency_ids: ccAgencies.map((a) => a.id),
           cc_agency_names: ccAgencies.map((a) => a.name),
+          extra_cc_emails: extraCcEmails,
           slots_count: flattenPeopleShifts(people).length,
           people_count: people.length,
           via: 'sendgrid',
         },
       });
 
-      const ccNote = ccAgencies.length > 0
-        ? ` (CC: ${ccAgencies.map((a) => a.name).join(', ')})`
+      const ccNames = [
+        ...ccAgencies.map((a) => a.name),
+        ...extraCcEmails,
+      ];
+      const ccNote = ccNames.length > 0
+        ? ` (CC: ${ccNames.join(', ')})`
         : '';
       toast.success(
         `Email sent to ${agencyName || 'agency'}${ccNote} as ${ROTA_EMAIL_FROM_NAME}`,
@@ -426,52 +452,6 @@ export default function AdditionalBookingsPanel({
                   <span className="font-medium text-rota-text-primary">To:</span>{' '}
                   {sendPreview.agencyName} ({sendPreview.emails.join(', ')})
                 </p>
-                <div className="space-y-1.5">
-                  <p className="font-medium text-rota-text-primary">
-                    CC{previewCcAgencies.length > 0 ? ` (${previewCcAgencies.length})` : ''}:
-                  </p>
-                  {previewCcAgencies.length > 0 ? (
-                    <ul className="ml-4 list-disc">
-                      {previewCcAgencies.map((agency) => (
-                        <li key={agency.id}>
-                          {agency.name} ({parseAgencyEmails(agency.email).join(', ')})
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-rota-text-muted">No CC selected.</p>
-                  )}
-                  {ccPickerAgencies.length > 0 && (
-                    <div className="rounded-lg border border-rota-toolbar-border bg-white">
-                      <ul className="max-h-40 divide-y divide-rota-toolbar-border overflow-y-auto">
-                        {ccPickerAgencies.map((agency) => {
-                          const checked = (sendPreview.ccAgencyIds || []).includes(agency.id);
-                          return (
-                            <li key={agency.id}>
-                              <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-rota-day-other-bg-from/30">
-                                <input
-                                  type="checkbox"
-                                  className="shrink-0"
-                                  checked={checked}
-                                  onChange={() => toggleCcAgency(agency.id)}
-                                />
-                                <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
-                                  {agency.name}
-                                </span>
-                                <span
-                                  className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted"
-                                  title={agency.email || ''}
-                                >
-                                  {agency.email}
-                                </span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-                </div>
                 <p>
                   <span className="font-medium text-rota-text-primary">Subject:</span>{' '}
                   {sendPreview.email.subject}
@@ -487,7 +467,16 @@ export default function AdditionalBookingsPanel({
                 </pre>
               </div>
             </div>
-            <div className="mt-4 flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-4 flex shrink-0 flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                className={compactEmailBtn}
+                onClick={() => setShowCcChooser(true)}
+                title="Choose CC recipients"
+              >
+                CC
+                {previewCcAgencies.length > 0 ? ` (${previewCcAgencies.length})` : ''}
+              </button>
               <button
                 type="button"
                 className="admin-btn-muted"
@@ -503,6 +492,94 @@ export default function AdditionalBookingsPanel({
                 onClick={sendAdditionalBookings}
               >
                 {sending ? 'Sending…' : "Yes, I'm 100% Sure - Send Now"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showCcChooser && sendPreview && createPortal(
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative flex max-h-[min(80vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg p-4 shadow-2xl sm:p-6">
+            <h3 className="mb-1 shrink-0 text-xl font-semibold text-rota-text-primary">CC</h3>
+            <p className="mb-3 shrink-0 text-xs text-rota-text-muted">
+              Evri4you is copied by default. Addresses already in To are skipped for that email.
+            </p>
+            <ul className="min-h-0 flex-1 divide-y divide-rota-toolbar-border overflow-y-auto overscroll-contain rounded-lg border border-rota-toolbar-border">
+              {ccPickerAgencies.map((agency) => {
+                const checked = (sendPreview.ccAgencyIds || []).includes(agency.id);
+                return (
+                  <li key={agency.id}>
+                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                      <input
+                        type="checkbox"
+                        className="shrink-0"
+                        checked={checked}
+                        onChange={() => toggleCcAgency(agency.id)}
+                      />
+                      <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                        {agency.name}
+                      </span>
+                      <span
+                        className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted"
+                        title={agency.email || ''}
+                      >
+                        {agency.email}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-4 shrink-0 space-y-1.5">
+              <label
+                htmlFor="additional-cc-emails"
+                className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary"
+              >
+                Add email
+              </label>
+              <p className="text-[11px] text-rota-text-muted">
+                Copied on the email to {sendPreview.agencyName || 'this agency'}. Separate addresses with commas. Addresses already in To are skipped.
+              </p>
+              <input
+                id="additional-cc-emails"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                value={sendPreview.extraCc || ''}
+                onChange={(event) => {
+                  const extraCc = event.target.value;
+                  setSendPreview((prev) => (prev ? { ...prev, extraCc } : prev));
+                }}
+                placeholder="name@example.com, other@example.com"
+                disabled={sending}
+                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-charcoal placeholder:text-gray-400 focus:border-charcoal focus:outline-none focus:ring-1 focus:ring-charcoal"
+              />
+              {parseAgencyEmails(sendPreview.extraCc).length > 0 && (
+                <ul className="space-y-0.5 text-xs text-rota-text-muted">
+                  {parseAgencyEmails(sendPreview.extraCc).map((addr) => {
+                    const alreadyTo = (sendPreview.emails || []).some(
+                      (to) => to.toLowerCase() === addr.toLowerCase(),
+                    );
+                    return (
+                      <li key={addr}>
+                        {alreadyTo
+                          ? `${addr} — already in To, not copied`
+                          : `${addr} — CC on the email to ${sendPreview.agencyName || 'this agency'}`}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="mt-4 flex shrink-0 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCcChooser(false)}
+                className="admin-btn"
+              >
+                Done
               </button>
             </div>
           </div>

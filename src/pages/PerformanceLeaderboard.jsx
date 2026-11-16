@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy, useLayoutEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format as formatDate, subDays, addDays, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, ChevronDown } from 'lucide-react';
+import { createPortal } from 'react-dom';
 const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import Modal from '../components/ui/Modal';
 import { supabase } from '../lib/supabaseClient';
@@ -13,6 +14,7 @@ import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { filterShownOnReports, isShownOnReports } from '../utils/performanceVisibility';
 import { filterToLatestReportDate } from '../utils/latestReportDate';
 import { safeLocalStorage } from '../utils/safeStorage';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -179,6 +181,17 @@ const PerformanceLeaderboard = () => {
   const [showSortModal, setShowSortModal] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [shiftFilter, setShiftFilter] = useState('all');
+  const isDesktop = useIsDesktop();
+  const [filterHost, setFilterHost] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!isDesktop) {
+      setFilterHost(null);
+      return undefined;
+    }
+    setFilterHost(document.getElementById('performance-desktop-filters'));
+    return undefined;
+  }, [isDesktop]);
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [rawPerformance, setRawPerformance] = useState([]);
 
@@ -668,9 +681,32 @@ const PerformanceLeaderboard = () => {
     );
   };
 
+  const sortFilterLabel = SORT_OPTIONS.find((option) => option.value === sortOption)?.label || 'Total Moves';
+  const shiftFilterLabel = shiftFilter === 'day' ? 'Day' : shiftFilter === 'night' ? 'Night' : 'All';
+  const desktopFilterPortal = filterHost ? createPortal(
+    [
+      { label: 'Range', value: getRangeLabel(selectedRange), onClick: () => setShowRangeModal(true) },
+      { label: 'Sort', value: sortFilterLabel, onClick: () => setShowSortModal(true) },
+      { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true) },
+    ].map((item) => (
+      <button
+        key={item.label}
+        type="button"
+        onClick={item.onClick}
+        aria-label={item.label}
+        className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-slate-50"
+      >
+        <span className="text-sm font-medium text-slate-700">{item.value}</span>
+        <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+      </button>
+    )),
+    filterHost,
+  ) : null;
+
   return (
     <div className="min-h-screen bg-transparent">
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe">
+      {desktopFilterPortal}
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
         <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
           <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
             <button
@@ -866,7 +902,7 @@ const PerformanceLeaderboard = () => {
                     <p className="text-sm text-slate-600 mt-1">No shunters match the current filters.</p>
                   ) : (
                     <p className="text-sm text-slate-600 mt-1">
-                      {rankedLeaderboardData.list.length} shunters ({rankedLeaderboardData.belowAverageCount} below average)
+                      {rankedLeaderboardData.list.length} shunters
                     </p>
                   )}
                 </div>
@@ -885,7 +921,7 @@ const PerformanceLeaderboard = () => {
                       whileHover={{ y: -1, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)' }}
                       whileTap={{ scale: 0.99 }}
                       onClick={() => toggleExpandedUser(user.userId)}
-                      className={`${cardBgClass} rounded-2xl border p-4 shadow-sm cursor-pointer transition-all backdrop-blur-sm ${user.isBelowAverage ? 'border-l-4 border-l-amber-600/70' : ''}`}
+                      className={`${cardBgClass} rounded-2xl border p-4 shadow-sm cursor-pointer transition-all backdrop-blur-sm`}
                     >
                       {/* Header Row */}
                       <div className="flex items-center gap-3">
@@ -914,9 +950,6 @@ const PerformanceLeaderboard = () => {
                               <span className="text-[10px] font-medium text-slate-500">
                                 {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : 'Night'}
                               </span>
-                            )}
-                            {user.isBelowAverage && (
-                              <span className="text-[10px] font-medium text-amber-700">Below average output</span>
                             )}
                             {user.isHighOutput && (
                               <span className="text-[10px] font-medium text-emerald-600">High output</span>

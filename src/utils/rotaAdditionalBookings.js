@@ -94,6 +94,27 @@ export function resolveCcAgencies(agencies, ccAgencyIds, opts = {}) {
 }
 
 /**
+ * Drop CC agency ids that are already direct To recipients.
+ * Keeps one email per agency: the direct send, not a second CC copy.
+ * @param {Array<string|null|undefined>|null|undefined} ccAgencyIds
+ * @param {Array<string|null|undefined>|null|undefined} toAgencyIds
+ * @returns {Array<string>}
+ */
+export function ccAgencyIdsExcludingDirectRecipients(ccAgencyIds, toAgencyIds) {
+  const to = new Set((toAgencyIds || []).filter(Boolean).map((id) => String(id)));
+  const seen = new Set();
+  const out = [];
+  for (const rawId of ccAgencyIds || []) {
+    if (rawId == null || rawId === '') continue;
+    const id = String(rawId);
+    if (to.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(rawId);
+  }
+  return out;
+}
+
+/**
  * Flatten CC agency emails, dropping any already present in To.
  * @param {Array<{ email?: string }>|null|undefined} ccAgencies
  * @param {string[]|null|undefined} toEmails

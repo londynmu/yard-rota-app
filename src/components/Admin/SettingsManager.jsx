@@ -5,8 +5,8 @@ import AgencyConfigManager from './AgencyConfigManager';
 import PrecheckWhatsAppLog from './PrecheckWhatsAppLog';
 import { parseMaxConsecutiveWorkDays } from '../../utils/consecutiveWorkDays';
 
-export default function SettingsManager() {
-  const [activeSection, setActiveSection] = useState('locations');
+export default function SettingsManager({ initialSection = 'locations', onSectionChange }) {
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddLocationForm, setShowAddLocationForm] = useState(false);
   const [showAddAgencyForm, setShowAddAgencyForm] = useState(false);
@@ -21,6 +21,10 @@ export default function SettingsManager() {
   useEffect(() => {
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (initialSection) setActiveSection(initialSection);
+  }, [initialSection]);
 
   useEffect(() => {
     if (activeSection !== 'home-page') return;
@@ -161,7 +165,7 @@ export default function SettingsManager() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex flex-row flex-nowrap items-center gap-2 md:h-8">
+        <div className="flex flex-row flex-nowrap items-center gap-2 md:hidden">
           <div className="h-8 bg-gray-100 rounded-lg p-0.5 w-48 animate-pulse" />
         </div>
         <div className="space-y-3">
@@ -176,8 +180,10 @@ export default function SettingsManager() {
   return (
     <div className="space-y-4">
       {/* Toolbar – same as Tug Management: one line, tabs left, overflow-x-auto */}
-      <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
-        <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
+      <div className={`flex flex-row flex-nowrap items-center justify-between gap-1 overflow-x-auto min-w-0 md:gap-2 md:h-8 ${
+        activeSection === 'locations' || activeSection === 'agencies' ? '' : 'md:hidden'
+      }`}>
+        <div className="flex flex-shrink-0 items-center gap-2 md:hidden">
           <div className="admin-seg-track flex-shrink-0">
             {[
               { id: 'locations', label: 'Locations' },
@@ -189,7 +195,10 @@ export default function SettingsManager() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveSection(tab.id)}
+                onClick={() => {
+                  setActiveSection(tab.id);
+                  onSectionChange?.(tab.id);
+                }}
                 className={`admin-seg-item ${
                   activeSection === tab.id ? 'admin-seg-item-active' : ''
                 }`}
@@ -200,7 +209,7 @@ export default function SettingsManager() {
           </div>
         </div>
         {activeSection === 'locations' && (
-          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
+          <div className="flex h-8 flex-shrink-0 gap-1 md:ml-auto md:gap-2">
             <button
               onClick={() => setShowAddLocationForm(true)}
               className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
@@ -213,7 +222,7 @@ export default function SettingsManager() {
           </div>
         )}
         {activeSection === 'agencies' && (
-          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
+          <div className="flex h-8 flex-shrink-0 gap-1 md:ml-auto md:gap-2">
             <button
               onClick={() => setShowAddAgencyForm(true)}
               className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
