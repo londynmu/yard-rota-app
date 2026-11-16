@@ -15,6 +15,8 @@ type AgencyPayload = {
 
 type RequestBody = {
   agencies?: AgencyPayload[];
+  /** Optional CC agencies applied to every To email (addresses already in To are skipped). */
+  cc?: AgencyPayload[];
   weekStart?: string;
   weekEnd?: string;
   csvData?: string;
@@ -32,6 +34,7 @@ type AgencyResult = {
   agencyName: string;
   ok: boolean;
   recipients?: string[];
+  cc?: string[];
   error?: string;
 };
 
@@ -55,6 +58,7 @@ async function sendViaSendGrid(opts: {
   apiKey: string;
   from: { email: string; name?: string };
   to: string[];
+  cc?: string[];
   subject: string;
   content: string;
   csvFilename?: string;
@@ -87,6 +91,16 @@ async function sendViaSendGrid(opts: {
     });
   }
 
+  const personalization: {
+    to: Array<{ email: string }>;
+    cc?: Array<{ email: string }>;
+  } = {
+    to: opts.to.map((email) => ({ email })),
+  };
+  if (opts.cc && opts.cc.length > 0) {
+    personalization.cc = opts.cc.map((email) => ({ email }));
+  }
+
   const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: {
@@ -94,11 +108,7 @@ async function sendViaSendGrid(opts: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      personalizations: [
-        {
-          to: opts.to.map((email) => ({ email })),
-        },
-      ],
+      personalizations: [personalization],
       from: opts.from.name
         ? { email: opts.from.email, name: opts.from.name }
         : { email: opts.from.email },
@@ -148,6 +158,7 @@ serve(async (req) => {
     let agencies: AgencyPayload[] = Array.isArray(body.agencies)
       ? body.agencies
       : [];
+    const ccAgencies: AgencyPayload[] = Array.isArray(body.cc) ? body.cc : [];
 
     // Back-compat: single recipient payload
     if (agencies.length === 0 && body.recipient) {
@@ -223,6 +234,19 @@ serve(async (req) => {
         continue;
       }
 
+      const toLower = new Set(recipients.map((addr) => addr.toLowerCase()));
+      const ccCandidates: string[] = [];
+      const ccSeen = new Set<string>();
+      for (const ccAgency of ccAgencies) {
+        for (const addr of parseAgencyEmails(ccAgency.email)) {
+          const key = addr.toLowerCase();
+          if (toLower.has(key) || ccSeen.has(key)) continue;
+          if (allowed.size > 0 && !allowed.has(key)) continue;
+          ccSeen.add(key);
+          ccCandidates.push(addr);
+        }
+      }
+
       const content =
         `Dear ${agencyName},\n\n${message}`;
 
@@ -231,6 +255,7 @@ serve(async (req) => {
           apiKey: sendgridKey,
           from,
           to: recipients,
+          cc: ccCandidates.length > 0 ? ccCandidates : undefined,
           subject,
           content,
           csvFilename,
@@ -238,12 +263,28 @@ serve(async (req) => {
           pdfFilename,
           pdfDataBase64: pdfDataBase64 || undefined,
         });
-        console.log("Email sent to", agencyName, recipients.join(", "));
-        results.push({ agencyName, ok: true, recipients });
+        console.log(
+          "Email sent to",
+          agencyName,
+          recipients.join(", "),
+          ccCandidates.length > 0 ? `cc=${ccCandidates.join(", ")}` : "",
+        );
+        results.push({
+          agencyName,
+          ok: true,
+          recipients,
+          cc: ccCandidates,
+        });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("SendGrid error for", agencyName, msg);
-        results.push({ agencyName, ok: false, error: msg, recipients });
+        results.push({
+          agencyName,
+          ok: false,
+          error: msg,
+          recipients,
+          cc: ccCandidates,
+        });
       }
     }
 

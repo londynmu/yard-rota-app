@@ -10,11 +10,16 @@ import {
   getUsersLastAwards,
   deleteAwardById,
 } from '../../utils/shunterAwardsApi';
+import { supabase } from '../../lib/supabaseClient';
 import {
   buildCollectiveShunterAwardEmail,
   formatEmailForClipboard,
   groupShunterAwardsByAgency,
 } from '../../utils/shunterAwardEmails';
+import {
+  findDefaultCcAgency,
+  parseAgencyEmails,
+} from '../../utils/rotaAdditionalBookings';
 
 const getCurrentMonthKey = () => {
   const now = new Date();
@@ -138,12 +143,36 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     monthKey: null,
     period: null,
   });
+  const [defaultCcEmails, setDefaultCcEmails] = useState([]);
 
   const historyByMonth = useMemo(() => {
     const map = new Map();
     history.forEach((row) => map.set(row.monthKey, row));
     return map;
   }, [history]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadDefaultCc = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('agencies')
+          .select('id, name, email, is_active')
+          .eq('is_active', true);
+        if (error) throw error;
+        if (cancelled) return;
+        const own = findDefaultCcAgency(data || []);
+        setDefaultCcEmails(own ? parseAgencyEmails(own.email) : []);
+      } catch (err) {
+        console.error('[ShunterOfTheMonthManager] default CC load failed', err);
+        if (!cancelled) setDefaultCcEmails([]);
+      }
+    };
+    loadDefaultCc();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -322,8 +351,10 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   }, [monthAwardRows, selectedMonthKey]);
 
   const emailGroups = useMemo(
-    () => groupShunterAwardsByAgency(monthAwardRows, selectedMonthKey),
-    [monthAwardRows, selectedMonthKey]
+    () => groupShunterAwardsByAgency(monthAwardRows, selectedMonthKey, {
+      ccEmails: defaultCcEmails,
+    }),
+    [monthAwardRows, selectedMonthKey, defaultCcEmails]
   );
 
   const handleSave = async (period) => {
@@ -700,9 +731,14 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                             <p className="text-sm font-semibold text-charcoal">{group.agencyName}</p>
                             <p className="text-[11px] text-gray-500 mt-0.5">
                               {group.hasEmail
-                                ? group.emails.join(', ')
+                                ? `To: ${group.emails.join(', ')}`
                                 : 'No email on file — copy the message manually'}
                             </p>
+                            {group.hasEmail && defaultCcEmails.length > 0 && (
+                              <p className="text-[11px] text-gray-500">
+                                CC: Evri4you ({defaultCcEmails.join(', ')})
+                              </p>
+                            )}
                             <ul className="mt-1.5 space-y-0.5">
                               {group.winners.map((w) => (
                                 <li key={`${w.period}-${w.userId}`} className="text-xs text-charcoal">

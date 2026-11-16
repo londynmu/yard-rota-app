@@ -9,12 +9,14 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import {
   buildAdditionalBookingsEmail,
   countAdditionalPeople,
+  defaultCcAgencyIds,
   diffAddedSlots,
   formatShiftClock,
   formatShiftDayLabel,
   formatShiftTypeLabel,
   groupAddedSlotsByAgency,
   parseAgencyEmails,
+  resolveCcAgencies,
 } from '../../utils/rotaAdditionalBookings';
 import {
   ensureWeekBaseline,
@@ -45,7 +47,12 @@ function flattenPeopleShifts(people) {
   );
 }
 
-export default function AdditionalBookingsPanel({ startDate, currentUser, onBaselineChanged }) {
+export default function AdditionalBookingsPanel({
+  startDate,
+  currentUser,
+  onBaselineChanged,
+  agencies: agenciesProp,
+}) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -55,9 +62,37 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
   const [confirm, setConfirm] = useState(null);
   const [sendPreview, setSendPreview] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [agenciesLocal, setAgenciesLocal] = useState([]);
+
+  const agencies = Array.isArray(agenciesProp) && agenciesProp.length > 0
+    ? agenciesProp
+    : agenciesLocal;
 
   const weekIso = weekStartIso(startDate);
   const weekEndIso = format(addDays(startDate, 6), 'yyyy-MM-dd');
+
+  useEffect(() => {
+    if (Array.isArray(agenciesProp) && agenciesProp.length > 0) return undefined;
+    let cancelled = false;
+    const loadAgencies = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('agencies')
+          .select('id, name, email, is_active')
+          .eq('is_active', true)
+          .order('name');
+        if (error) throw error;
+        if (!cancelled) setAgenciesLocal(data || []);
+      } catch (err) {
+        console.error('Failed to load agencies for CC', err);
+        if (!cancelled) setAgenciesLocal([]);
+      }
+    };
+    loadAgencies();
+    return () => {
+      cancelled = true;
+    };
+  }, [agenciesProp]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -98,6 +133,9 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
       return;
     }
     const email = buildAdditionalBookingsEmail({ weekStartIso: weekIso, people });
+    const ccAgencyIds = defaultCcAgencyIds(agencies, {
+      excludeAgencyIds: [agencyId],
+    });
     setSendPreview({
       people,
       agencyId,
@@ -105,6 +143,18 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
       agencyName,
       emails,
       email,
+      ccAgencyIds,
+    });
+  };
+
+  const toggleCcAgency = (agencyId) => {
+    setSendPreview((prev) => {
+      if (!prev) return prev;
+      const current = prev.ccAgencyIds || [];
+      const next = current.includes(agencyId)
+        ? current.filter((id) => id !== agencyId)
+        : [...current, agencyId];
+      return { ...prev, ccAgencyIds: next };
     });
   };
 
@@ -117,7 +167,12 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
       agencyEmail,
       agencyName,
       email,
+      ccAgencyIds,
     } = sendPreview;
+
+    const ccAgencies = resolveCcAgencies(agencies, ccAgencyIds, {
+      excludeAgencyIds: [agencyId],
+    });
 
     setSending(true);
     try {
@@ -126,6 +181,10 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
         {
           body: {
             agencies: [{ name: agencyName, email: agencyEmail }],
+            cc: ccAgencies.map((agency) => ({
+              name: agency.name,
+              email: agency.email,
+            })),
             weekStart: weekIso,
             weekEnd: weekEndIso,
             subject: email.subject,
@@ -158,13 +217,20 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
           week_start: weekIso,
           agency_id: agencyId || null,
           agency_name: agencyName || null,
+          cc_agency_ids: ccAgencies.map((a) => a.id),
+          cc_agency_names: ccAgencies.map((a) => a.name),
           slots_count: flattenPeopleShifts(people).length,
           people_count: people.length,
           via: 'sendgrid',
         },
       });
 
-      toast.success(`Email sent to ${agencyName || 'agency'} as ${ROTA_EMAIL_FROM_NAME}`);
+      const ccNote = ccAgencies.length > 0
+        ? ` (CC: ${ccAgencies.map((a) => a.name).join(', ')})`
+        : '';
+      toast.success(
+        `Email sent to ${agencyName || 'agency'}${ccNote} as ${ROTA_EMAIL_FROM_NAME}`,
+      );
       setSendPreview(null);
       await reload();
       notifyBaselineChanged();
@@ -213,6 +279,19 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
       people: group.people.filter((person) => person.name.toLowerCase().includes(query)),
     }))
     .filter((group) => group.people.length > 0);
+
+  const previewCcAgencies = sendPreview
+    ? resolveCcAgencies(agencies, sendPreview.ccAgencyIds, {
+      excludeAgencyIds: [sendPreview.agencyId],
+    })
+    : [];
+  const ccPickerAgencies = (agencies || []).filter((agency) => {
+    if (!agency?.id || !agency.email) return false;
+    if (sendPreview?.agencyId && String(agency.id) === String(sendPreview.agencyId)) {
+      return false;
+    }
+    return parseAgencyEmails(agency.email).length > 0;
+  });
 
   return (
     <div className="space-y-4 pb-8 pr-4 sm:pr-6">
@@ -347,6 +426,52 @@ export default function AdditionalBookingsPanel({ startDate, currentUser, onBase
                   <span className="font-medium text-rota-text-primary">To:</span>{' '}
                   {sendPreview.agencyName} ({sendPreview.emails.join(', ')})
                 </p>
+                <div className="space-y-1.5">
+                  <p className="font-medium text-rota-text-primary">
+                    CC{previewCcAgencies.length > 0 ? ` (${previewCcAgencies.length})` : ''}:
+                  </p>
+                  {previewCcAgencies.length > 0 ? (
+                    <ul className="ml-4 list-disc">
+                      {previewCcAgencies.map((agency) => (
+                        <li key={agency.id}>
+                          {agency.name} ({parseAgencyEmails(agency.email).join(', ')})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-rota-text-muted">No CC selected.</p>
+                  )}
+                  {ccPickerAgencies.length > 0 && (
+                    <div className="rounded-lg border border-rota-toolbar-border bg-white">
+                      <ul className="max-h-40 divide-y divide-rota-toolbar-border overflow-y-auto">
+                        {ccPickerAgencies.map((agency) => {
+                          const checked = (sendPreview.ccAgencyIds || []).includes(agency.id);
+                          return (
+                            <li key={agency.id}>
+                              <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-rota-day-other-bg-from/30">
+                                <input
+                                  type="checkbox"
+                                  className="shrink-0"
+                                  checked={checked}
+                                  onChange={() => toggleCcAgency(agency.id)}
+                                />
+                                <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                                  {agency.name}
+                                </span>
+                                <span
+                                  className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted"
+                                  title={agency.email || ''}
+                                >
+                                  {agency.email}
+                                </span>
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
                 <p>
                   <span className="font-medium text-rota-text-primary">Subject:</span>{' '}
                   {sendPreview.email.subject}
@@ -392,9 +517,11 @@ AdditionalBookingsPanel.propTypes = {
   startDate: PropTypes.instanceOf(Date).isRequired,
   currentUser: PropTypes.object,
   onBaselineChanged: PropTypes.func,
+  agencies: PropTypes.arrayOf(PropTypes.object),
 };
 
 AdditionalBookingsPanel.defaultProps = {
   currentUser: null,
   onBaselineChanged: null,
+  agencies: null,
 };

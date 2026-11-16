@@ -8,7 +8,13 @@ import { createPortal } from 'react-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import AdditionalBookingsPanel from './AdditionalBookingsPanel';
-import { EMAIL_SIGN_OFF, formatShiftClock } from '../../utils/rotaAdditionalBookings';
+import {
+  EMAIL_SIGN_OFF,
+  defaultCcAgencyIds,
+  formatShiftClock,
+  parseAgencyEmails,
+  resolveCcAgencies,
+} from '../../utils/rotaAdditionalBookings';
 import { ensureWeekBaseline, fetchAssignedSlotsForWeek, weekStartIso } from '../../utils/rotaWeekBaseline';
 
 /** Display / confirm From for weekly rota emails (SendGrid EMAIL_FROM). */
@@ -55,6 +61,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
   });
   const [agencies, setAgencies] = useState([]);
   const [selectedAgencies, setSelectedAgencies] = useState([]);
+  const [selectedCcAgencies, setSelectedCcAgencies] = useState([]);
   const [rotaData, setRotaData] = useState([]);
   const [fetchingData, setFetchingData] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -81,7 +88,11 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
           .order('name');
 
         if (error) throw error;
-        setAgencies(data || []);
+        const list = data || [];
+        setAgencies(list);
+        setSelectedCcAgencies((prev) => (
+          prev.length > 0 ? prev : defaultCcAgencyIds(list)
+        ));
       } catch (err) {
         console.error('Error fetching agency managers:', err);
         setError('Could not load agency managers list');
@@ -639,6 +650,12 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         throw new Error('No valid email addresses found');
       }
 
+      // Edge function drops CC addresses that already appear in each email's To.
+      const ccPayload = resolveCcAgencies(agencies, selectedCcAgencies).map((agency) => ({
+        name: agency.name,
+        email: agency.email,
+      }));
+
       const weekStart = format(startDate, 'yyyy-MM-dd');
       const weekEnd = format(addDays(startDate, 6), 'yyyy-MM-dd');
 
@@ -647,6 +664,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
         {
           body: {
             agencies: agenciesPayload,
+            cc: ccPayload,
             weekStart,
             weekEnd,
             csvData: csvContent,
@@ -700,6 +718,14 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     );
   };
 
+  const handleCcAgencySelection = (agencyId) => {
+    setSelectedCcAgencies((prev) => (
+      prev.includes(agencyId)
+        ? prev.filter((id) => id !== agencyId)
+        : [...prev, agencyId]
+    ));
+  };
+
   const allAgenciesSelected = agencies.length > 0
     && selectedAgencies.length === agencies.length;
 
@@ -707,6 +733,12 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
     if (allAgenciesSelected) setSelectedAgencies([]);
     else setSelectedAgencies(agencies.map((agency) => agency.id));
   };
+
+  const weeklyCcAgencies = resolveCcAgencies(agencies, selectedCcAgencies);
+  const weeklyCcPickerAgencies = agencies.filter((agency) => (
+    Boolean(agency?.id)
+    && parseAgencyEmails(agency.email).length > 0
+  ));
 
   const weekLabel = startDate
     ? `${format(startDate, 'd MMM')} – ${format(addDays(startDate, 6), 'd MMM yyyy')}`
@@ -900,6 +932,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             startDate={startDate}
             currentUser={currentUser}
             onBaselineChanged={onBaselineChanged}
+            agencies={agencies}
           />
         </div>
       )}
@@ -932,29 +965,68 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
             </div>
 
             {agencies.length > 0 ? (
-              <ul className="min-h-0 max-h-[28rem] flex-1 overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
-                {agencies.map((agency) => {
-                  const checked = selectedAgencies.includes(agency.id);
-                  return (
-                    <li key={agency.id}>
-                      <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
-                        <input
-                          type="checkbox"
-                          className="shrink-0"
-                          checked={checked}
-                          onChange={() => handleAgencySelection(agency.id)}
-                        />
-                        <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
-                          {agency.name}
-                        </span>
-                        <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
-                          {agency.email}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
+                    To
+                  </p>
+                  <ul className="min-h-0 max-h-[16rem] overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+                    {agencies.map((agency) => {
+                      const checked = selectedAgencies.includes(agency.id);
+                      return (
+                        <li key={agency.id}>
+                          <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                            <input
+                              type="checkbox"
+                              className="shrink-0"
+                              checked={checked}
+                              onChange={() => handleAgencySelection(agency.id)}
+                            />
+                            <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                              {agency.name}
+                            </span>
+                            <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
+                              {agency.email}
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rota-text-primary">
+                    CC{weeklyCcAgencies.length > 0 ? ` (${weeklyCcAgencies.length})` : ''}
+                  </p>
+                  <p className="text-[11px] text-rota-text-muted">
+                    Evri4you is copied by default. Addresses already in To are skipped for that email.
+                  </p>
+                  <ul className="min-h-0 max-h-[12rem] overflow-y-auto overscroll-contain divide-y divide-rota-toolbar-border rounded-lg border border-rota-toolbar-border">
+                    {weeklyCcPickerAgencies.map((agency) => {
+                      const checked = selectedCcAgencies.includes(agency.id);
+                      return (
+                        <li key={`cc-${agency.id}`}>
+                          <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-rota-day-other-bg-from/30">
+                            <input
+                              type="checkbox"
+                              className="shrink-0"
+                              checked={checked}
+                              onChange={() => handleCcAgencySelection(agency.id)}
+                            />
+                            <span className="min-w-0 flex-1 font-medium text-rota-text-primary">
+                              {agency.name}
+                            </span>
+                            <span className="max-w-[45%] shrink-0 truncate text-xs text-rota-text-muted" title={agency.email || ''}>
+                              {agency.email}
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </>
             ) : (
               <p className="text-sm text-rota-text-muted">No active agencies found.</p>
             )}
@@ -1059,7 +1131,7 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                   {ROTA_EMAIL_FROM_NAME} &lt;{ROTA_EMAIL_FROM}&gt;
                 </p>
                 <p className="font-medium text-rota-text-primary">
-                  Recipients ({selectedAgencies.length}):
+                  To ({selectedAgencies.length}):
                 </p>
                 <ul className="ml-4 list-disc">
                   {selectedAgencies.map((agencyId) => {
@@ -1069,6 +1141,20 @@ const ExportRota = ({ initialTab = 'weekly', initialStartDate = null, onBaseline
                     );
                   })}
                 </ul>
+                <p className="font-medium text-rota-text-primary">
+                  CC ({weeklyCcAgencies.length}):
+                </p>
+                {weeklyCcAgencies.length > 0 ? (
+                  <ul className="ml-4 list-disc">
+                    {weeklyCcAgencies.map((agency) => (
+                      <li key={`confirm-cc-${agency.id}`}>
+                        {agency.name} ({parseAgencyEmails(agency.email).join(', ')})
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-rota-text-muted">No CC selected.</p>
+                )}
                 <p className="text-xs text-rota-text-muted">
                   Week period: {format(startDate, 'dd/MM/yyyy')} - {format(addDays(startDate, 6), 'dd/MM/yyyy')}
                 </p>

@@ -2,14 +2,19 @@ import {
   assignmentSlotKey,
   buildAdditionalBookingsEmail,
   buildMailtoHref,
+  collectCcEmails,
   countAdditionalPeople,
+  defaultCcAgencyIds,
   diffAddedSlots,
   EMAIL_SIGN_OFF,
+  findDefaultCcAgency,
   formatShiftClock,
   formatWeekRangeLabel,
   groupAddedSlotsByAgency,
+  isDefaultCcAgencyName,
   isMailtoTooLong,
   parseAgencyEmails,
+  resolveCcAgencies,
 } from './rotaAdditionalBookings';
 
 describe('formatShiftClock', () => {
@@ -228,5 +233,65 @@ describe('additional booking email', () => {
     });
     expect(isMailtoTooLong(href, 'x'.repeat(1900))).toBe(true);
     expect(isMailtoTooLong('mailto:a@b.c?subject=Hi&body=ok', 'ok')).toBe(false);
+  });
+
+  test('mailto includes cc and skips addresses already in To', () => {
+    const href = buildMailtoHref({
+      emails: ['to@agency.test'],
+      ccEmails: ['cc@agency.test', 'to@agency.test'],
+      subject: 'Hi',
+      body: 'Body',
+    });
+    expect(href).toContain('mailto:to@agency.test?');
+    expect(href).toContain(`cc=${encodeURIComponent('cc@agency.test')}`);
+    expect(href).not.toMatch(/cc=[^&]*to%40agency\.test/);
+  });
+});
+
+describe('default CC agency helpers', () => {
+  const agencies = [
+    { id: 'hng', name: 'H&G', email: 'ravi@hng.test' },
+    {
+      id: 'own',
+      name: 'Evri4you',
+      email: 'tide@end.test\nadine@own.test',
+    },
+    { id: 'dead', name: 'Every4You', email: '', is_active: false },
+  ];
+
+  test('matches Evri4you and Every4You spellings', () => {
+    expect(isDefaultCcAgencyName('Evri4you')).toBe(true);
+    expect(isDefaultCcAgencyName('Every4You')).toBe(true);
+    expect(isDefaultCcAgencyName('every 4 you')).toBe(true);
+    expect(isDefaultCcAgencyName('H&G')).toBe(false);
+  });
+
+  test('finds active own agency with email', () => {
+    expect(findDefaultCcAgency(agencies)).toEqual({
+      id: 'own',
+      name: 'Evri4you',
+      email: 'tide@end.test\nadine@own.test',
+    });
+  });
+
+  test('defaultCcAgencyIds excludes primary To', () => {
+    expect(defaultCcAgencyIds(agencies)).toEqual(['own']);
+    expect(defaultCcAgencyIds(agencies, { excludeAgencyIds: ['own'] })).toEqual([]);
+  });
+
+  test('resolveCcAgencies and collectCcEmails skip To overlap', () => {
+    const resolved = resolveCcAgencies(agencies, ['own', 'hng'], {
+      excludeAgencyIds: ['hng'],
+    });
+    expect(resolved).toEqual([
+      {
+        id: 'own',
+        name: 'Evri4you',
+        email: 'tide@end.test\nadine@own.test',
+      },
+    ]);
+    expect(
+      collectCcEmails(resolved, ['tide@end.test', 'other@x.test']),
+    ).toEqual(['adine@own.test']);
   });
 });

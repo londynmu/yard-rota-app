@@ -6,6 +6,117 @@ export const EMAIL_SIGN_OFF = 'Michal Warda';
 export const MAILTO_BODY_SAFE_LIMIT = 1800;
 
 /**
+ * Own agency always offered as default CC on agency/rota emails.
+ * DB name is Evri4you; also accept Every4You spelling.
+ */
+export const DEFAULT_CC_AGENCY_NAME = 'Evri4you';
+
+/**
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export function isDefaultCcAgencyName(name) {
+  const key = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+  return key === 'evri4you' || key === 'every4you';
+}
+
+/**
+ * Find the own-agency row used as default CC.
+ * @param {Array<{ id?: string, name?: string, email?: string, is_active?: boolean }>|null|undefined} agencies
+ * @returns {{ id: string, name: string, email: string }|null}
+ */
+export function findDefaultCcAgency(agencies) {
+  const list = Array.isArray(agencies) ? agencies : [];
+  const match = list.find((agency) => {
+    if (!agency || !isDefaultCcAgencyName(agency.name)) return false;
+    if (agency.is_active === false) return false;
+    return parseAgencyEmails(agency.email).length > 0;
+  });
+  if (!match?.id) return null;
+  return {
+    id: match.id,
+    name: match.name || DEFAULT_CC_AGENCY_NAME,
+    email: match.email || '',
+  };
+}
+
+/**
+ * Default CC agency ids (Evri4you), excluding primary To ids when provided.
+ * @param {Array<{ id?: string, name?: string, email?: string, is_active?: boolean }>|null|undefined} agencies
+ * @param {{ excludeAgencyIds?: Array<string|null|undefined> }} [opts]
+ * @returns {string[]}
+ */
+export function defaultCcAgencyIds(agencies, opts = {}) {
+  const exclude = new Set(
+    (opts.excludeAgencyIds || []).filter(Boolean).map((id) => String(id)),
+  );
+  const own = findDefaultCcAgency(agencies);
+  if (!own?.id || exclude.has(String(own.id))) return [];
+  return [own.id];
+}
+
+/**
+ * Resolve selected CC agency rows for display / SendGrid payload.
+ * Skips ids already used as primary To.
+ * @param {Array<{ id?: string, name?: string, email?: string }>|null|undefined} agencies
+ * @param {Array<string|null|undefined>|null|undefined} ccAgencyIds
+ * @param {{ excludeAgencyIds?: Array<string|null|undefined> }} [opts]
+ * @returns {Array<{ id: string, name: string, email: string }>}
+ */
+export function resolveCcAgencies(agencies, ccAgencyIds, opts = {}) {
+  const byId = new Map(
+    (Array.isArray(agencies) ? agencies : [])
+      .filter((a) => a?.id)
+      .map((a) => [String(a.id), a]),
+  );
+  const exclude = new Set(
+    (opts.excludeAgencyIds || []).filter(Boolean).map((id) => String(id)),
+  );
+  const seen = new Set();
+  const resolved = [];
+  for (const rawId of ccAgencyIds || []) {
+    if (rawId == null || rawId === '') continue;
+    const id = String(rawId);
+    if (exclude.has(id) || seen.has(id)) continue;
+    const agency = byId.get(id);
+    if (!agency?.email || parseAgencyEmails(agency.email).length === 0) continue;
+    seen.add(id);
+    resolved.push({
+      id,
+      name: agency.name || 'Agency',
+      email: agency.email,
+    });
+  }
+  return resolved;
+}
+
+/**
+ * Flatten CC agency emails, dropping any already present in To.
+ * @param {Array<{ email?: string }>|null|undefined} ccAgencies
+ * @param {string[]|null|undefined} toEmails
+ * @returns {string[]}
+ */
+export function collectCcEmails(ccAgencies, toEmails = []) {
+  const toSet = new Set(
+    (toEmails || []).map((e) => String(e || '').trim().toLowerCase()).filter(Boolean),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const agency of ccAgencies || []) {
+    for (const email of parseAgencyEmails(agency?.email)) {
+      const key = email.toLowerCase();
+      if (toSet.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      out.push(email);
+    }
+  }
+  return out;
+}
+
+/**
  * Postgres time often arrives as HH:mm:ss. Display and compare as HH:mm.
  * @param {unknown} value
  * @returns {string}
@@ -289,12 +400,24 @@ export function parseAgencyEmails(emailField) {
 }
 
 /**
- * @param {{ emails: string[], subject: string, body: string }} args
+ * @param {{ emails: string[], ccEmails?: string[], subject: string, body: string }} args
  * @returns {string}
  */
-export function buildMailtoHref({ emails, subject, body }) {
+export function buildMailtoHref({ emails, ccEmails, subject, body }) {
   const to = (emails || []).filter(Boolean).join(',');
-  return `mailto:${to}?subject=${encodeURIComponent(subject || '')}&body=${encodeURIComponent(body || '')}`;
+  const toSet = new Set(
+    (emails || []).map((e) => String(e || '').trim().toLowerCase()).filter(Boolean),
+  );
+  const cc = (ccEmails || [])
+    .filter(Boolean)
+    .filter((email) => !toSet.has(String(email).trim().toLowerCase()))
+    .join(',');
+  const params = [
+    `subject=${encodeURIComponent(subject || '')}`,
+    `body=${encodeURIComponent(body || '')}`,
+  ];
+  if (cc) params.unshift(`cc=${encodeURIComponent(cc)}`);
+  return `mailto:${to}?${params.join('&')}`;
 }
 
 /**
