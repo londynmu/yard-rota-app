@@ -57,9 +57,10 @@ function TodayRow({ currentShift, breakStatus, nextShift }) {
     ) : detail;
   } else {
     title = 'Day off today';
+    // Day off with no upcoming shift: omit the empty-week subtitle.
     subtitle = nextShift
       ? `Next: ${nextShift.dayLabel} ${shiftShort(nextShift.shiftType)} ${nextShift.start}`
-      : 'No more shifts this week';
+      : null;
   }
 
   return (
@@ -69,7 +70,9 @@ function TodayRow({ currentShift, breakStatus, nextShift }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-charcoal truncate">{title}</p>
-        <p className={`text-xs truncate ${subtitleClass}`}>{subtitle}</p>
+        {subtitle ? (
+          <p className={`text-xs truncate ${subtitleClass}`}>{subtitle}</p>
+        ) : null}
       </div>
       {chip}
     </div>

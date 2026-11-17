@@ -329,6 +329,21 @@ void main() {
       await disposeCard(tester);
     });
 
+    testWidgets('day off with no next shift hides empty subtitle', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        data: const MyDayData(shifts: [], breaks: []),
+        now: DateTime(2026, 10, 14, 12),
+      );
+
+      expect(find.text('Day off today'), findsOneWidget);
+      expect(find.text('No shifts in the next 7 days'), findsNothing);
+      expect(find.textContaining('Next shift:'), findsNothing);
+      await disposeCard(tester);
+    });
+
     testWidgets('load failure asks to retry', (tester) async {
       await pumpCard(tester, data: null, now: DateTime(2026, 10, 14, 12));
 

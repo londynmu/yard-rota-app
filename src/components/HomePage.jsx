@@ -663,7 +663,7 @@ export default function HomePage() {
         />
       )}
 
-      <main className={`flex-1 relative z-0 ${isAdmin ? '' : 'pb-bottom-nav'} ${isAdmin ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : ''} ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
+      <main className={`flex-1 relative z-0 pb-bottom-nav ${isAdmin ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : ''} ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
         <Suspense fallback={<div className="min-h-screen bg-transparent" />}>
           <Routes>
             <Route
@@ -839,7 +839,6 @@ export default function HomePage() {
         </Suspense>
       </main>
 
-      {!isAdmin && (
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t border-slate-200/60 shadow-lg pb-safe backdrop-blur-md"
       >
@@ -880,7 +879,6 @@ export default function HomePage() {
           )}
         </div>
       </nav>
-      )}
     </div>
   );
 } 

@@ -142,14 +142,16 @@ class _ShiftTile extends StatelessWidget {
     final value = shift;
     if (value == null) {
       final upcoming = next;
+      // Day off with no upcoming shift: omit the empty-week subtitle.
+      final nextLabel = upcoming == null
+          ? null
+          : 'Next shift: ${_dayLabel(upcoming.start, now)}, '
+                '${upcoming.shiftLabel} '
+                '${MyDayLogic.formatTime(upcoming.start)}';
       return _Tile(
         icon: Icons.event_available_outlined,
         title: 'Day off today',
-        subtitle: upcoming == null
-            ? 'No shifts in the next 7 days'
-            : 'Next shift: ${_dayLabel(upcoming.start, now)}, '
-                  '${upcoming.shiftLabel} '
-                  '${MyDayLogic.formatTime(upcoming.start)}',
+        subtitle: nextLabel,
         onTap: onTap,
       );
     }
@@ -318,7 +320,7 @@ class _Tile extends StatelessWidget {
   const _Tile({
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     this.iconForeground,
     this.iconBackground,
     this.titleColor,
@@ -328,7 +330,7 @@ class _Tile extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final Color? iconForeground;
   final Color? iconBackground;
   final Color? titleColor;
@@ -339,6 +341,7 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final textTheme = Theme.of(context).textTheme;
+    final subtitleText = subtitle?.trim();
     return AppCard(
       padding: EdgeInsets.zero,
       surfaceOpacity: AppOpacity.homeCard,
@@ -378,15 +381,17 @@ class _Tile extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: textTheme.bodySmall?.copyWith(
-                              color: colors.textSecondary,
+                          if (subtitleText != null && subtitleText.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              subtitleText,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colors.textSecondary,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

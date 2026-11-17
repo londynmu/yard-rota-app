@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/ToastContext';
 import { useAdminStatus } from '../../hooks/useAdminStatus';
 import UserEditForm from './UserEditForm';
 import UserViolationsPanel from './UserViolationsPanel';
+import UserAssessmentsPanel from './UserAssessmentsPanel';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
@@ -421,6 +422,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
   const pendingNavRef = useRef(null); // { type: 'collapse' | 'expand' | 'tab', userId?, tab? }
   const [violationCountByUser, setViolationCountByUser] = useState({});
+  const [assessmentCountByUser, setAssessmentCountByUser] = useState({});
   // Role update in progress (for dropdown loading state)
   const [roleUpdatingUserId, setRoleUpdatingUserId] = useState(null);
   const toast = useToast();
@@ -488,14 +490,16 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
   }, [confirmationStep]);
 
-  // Deep-link from Black list: expand user + Violations tab.
+  // Deep-link from Attendance / Dashboard: expand user + target tab.
   // Reset shift filter + search so a filtered list cannot hide the target card.
   useEffect(() => {
     if (!focusUserId) return;
     setFilters((prev) => ({ ...prev, shift: 'all' }));
     setSearchQuery('');
     setExpandedUserId(focusUserId);
-    setUserPanel(focusTab === 'violations' ? 'violations' : 'details');
+    const tab =
+      focusTab === 'violations' || focusTab === 'assessments' ? focusTab : 'details';
+    setUserPanel(tab);
     setFormDirty(false);
     onFocusConsumed?.();
   }, [focusUserId, focusTab, onFocusConsumed]);
@@ -818,7 +822,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   const selectedUser = users.find((user) => user.id === expandedUserId) || null;
   const selectedViolationCount = selectedUser
     ? violationCountByUser[selectedUser.id]
-    : 0;
+    : undefined;
+  const selectedAssessmentCount = selectedUser
+    ? assessmentCountByUser[selectedUser.id]
+    : undefined;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col md:flex-row md:gap-4">
@@ -1032,13 +1039,27 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               </span>
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => requestPanelChange('assessments')}
+            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+              userPanel === 'assessments' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
+            }`}
+          >
+            Assessments
+            {typeof selectedAssessmentCount === 'number' && selectedAssessmentCount > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
+                {selectedAssessmentCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className={`border-b border-gray-200 px-5 py-3 ${userPanel === 'details' ? '' : 'hidden'}`}>
           <div id="admin-user-visibility-slot" className="flex items-center" />
         </div>
 
-        <div className={`min-h-0 flex-1 ${userPanel === 'violations' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`min-h-0 flex-1 ${userPanel === 'violations' || userPanel === 'assessments' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
           <div className={userPanel === 'details' ? 'px-5 py-5' : 'hidden'}>
             <UserEditForm
               key={selectedUser.id}
@@ -1058,6 +1079,14 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               users={users}
               onCountChange={(count) => {
                 setViolationCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
+              }}
+            />
+          )}
+          {userPanel === 'assessments' && (
+            <UserAssessmentsPanel
+              user={selectedUser}
+              onCountChange={(count) => {
+                setAssessmentCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
               }}
             />
           )}
@@ -1088,6 +1117,6 @@ UserList.propTypes = {
   users: PropTypes.arrayOf(PropTypes.object).isRequired,
   onRefresh: PropTypes.func.isRequired,
   focusUserId: PropTypes.string,
-  focusTab: PropTypes.oneOf(['details', 'violations']),
+  focusTab: PropTypes.oneOf(['details', 'violations', 'assessments']),
   onFocusConsumed: PropTypes.func,
 };

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { getCurrentMonthAwards } from '../../utils/shunterAwardsApi';
 import { aggregateYesterdayPerformance } from '../../utils/tmPerformanceKpi';
 import { weeklyPresenceSeries } from '../../utils/adminDashboard';
+import AssessmentsDueCard from './AssessmentsDueCard';
 
 const PERF_SELECT = `
   user_id,
@@ -198,7 +199,7 @@ SummaryCard.defaultProps = {
   onClick: undefined,
 };
 
-export default function AdminDashboard({ onOpen }) {
+export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
   const [loading, setLoading] = useState(true);
   const [best, setBest] = useState(null);
   const [leader, setLeader] = useState(null);
@@ -241,6 +242,8 @@ export default function AdminDashboard({ onOpen }) {
 
   return (
     <div className="space-y-6">
+      <AssessmentsDueCard onOpenUser={onOpenUserAssessment} />
+
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <SummaryCard
           title="Best yesterday"
@@ -324,4 +327,5 @@ export default function AdminDashboard({ onOpen }) {
 
 AdminDashboard.propTypes = {
   onOpen: PropTypes.func.isRequired,
+  onOpenUserAssessment: PropTypes.func,
 };
