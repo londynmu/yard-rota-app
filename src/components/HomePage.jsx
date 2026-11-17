@@ -376,6 +376,13 @@ export default function HomePage() {
               className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
             />
           ) : null;
+        const tmBreaksToolbarSlot =
+          path === '/transport-dashboard/breaks' ? (
+            <div
+              id="breaks-desktop-toolbar"
+              className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
+            />
+          ) : null;
         const availabilityToolbarSlot =
           path === '/admin' && adminSection === 'availability' ? (
             <div
@@ -406,7 +413,7 @@ export default function HomePage() {
 
         return (
           <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe overflow-visible ${stickyClass} ${visibilityClass}`}>
-            <div className={isAdmin || (isTransportManager && !isAdmin) ? `w-full flex justify-between items-center overflow-visible ${adminHeaderToolbarSlot ? 'py-3.5 md:pl-0 md:pr-6 lg:pr-8 px-4' : 'px-4 py-3 sm:px-6 lg:px-8'}` : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+            <div className={isAdmin || (isTransportManager && !isAdmin) ? `w-full flex justify-between items-center overflow-visible ${adminHeaderToolbarSlot || tmBreaksToolbarSlot ? 'py-3.5 md:pl-0 md:pr-6 lg:pr-8 px-4' : 'px-4 py-3 sm:px-6 lg:px-8'}` : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
@@ -492,7 +499,7 @@ export default function HomePage() {
                     })}
                   </nav>
 
-                  <div className="flex-1" aria-hidden="true" />
+                  {tmBreaksToolbarSlot || <div className="flex-1" aria-hidden="true" />}
                   <div className="flex items-center space-x-2 flex-shrink-0">
                     {performanceFilterSlot}
                     <div className="relative">
