@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useNotifications } from '../lib/NotificationContext';
 import { supabase } from '../lib/supabaseClient';
-import { format, addDays, subDays, isSameDay, getWeek } from 'date-fns';
+import { format, addDays, subDays, isSameDay, getWeek, parseISO } from 'date-fns';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
@@ -11,6 +12,7 @@ import { useToast } from '../components/ui/ToastContext';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin, ChevronDown } from 'lucide-react';
 import { safeLocalStorage } from '../utils/safeStorage';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import Modal from '../components/ui/Modal';
 
 // Utility to get week start on Saturday
 const getWeekStart = (date) => {
@@ -120,6 +122,7 @@ const WeeklyRotaPage = () => {
   const { user } = useAuth();
   const { isAdmin } = useNotifications();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
   const [dailyRotaData, setDailyRotaData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -138,9 +141,18 @@ const WeeklyRotaPage = () => {
   const [attendanceBySlotId, setAttendanceBySlotId] = useState({});
   const [attendanceModalSlot, setAttendanceModalSlot] = useState(null);
   const [attendanceSaving, setAttendanceSaving] = useState(false);
+  const [showBlockedRemovalModal, setShowBlockedRemovalModal] = useState(false);
+  const [pendingAttendanceDeepLink, setPendingAttendanceDeepLink] = useState(null);
+  const pendingAttendanceAfterBlockRef = useRef(null);
+  const deepLinkHandledRef = useRef(false);
   const isDesktop = useIsDesktop();
   const [filterHost, setFilterHost] = useState(null);
-  const isAnyModalOpen = showWeekModal || showLocationModal || showShiftModal || !!attendanceModalSlot;
+  const isAnyModalOpen =
+    showWeekModal ||
+    showLocationModal ||
+    showShiftModal ||
+    !!attendanceModalSlot ||
+    showBlockedRemovalModal;
 
   useLayoutEffect(() => {
     if (!isDesktop) {
@@ -214,6 +226,98 @@ const WeeklyRotaPage = () => {
     return () => clearTimeout(timer);
   }, [expandedDayMobile]);
 
+  // Deep-link from rota planner when silent remove is blocked (<12h / active shift)
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    const openAttendance = searchParams.get('openAttendance');
+    if (openAttendance !== '1') return;
+
+    const date = searchParams.get('date');
+    const location = searchParams.get('location');
+    const userId = searchParams.get('userId');
+    const startTime = searchParams.get('startTime');
+    const endTime = searchParams.get('endTime');
+    const shiftType = searchParams.get('shiftType');
+    const blockedRemoval = searchParams.get('blockedRemoval') === '1';
+
+    deepLinkHandledRef.current = true;
+
+    if (date) {
+      try {
+        setWeekStart(getWeekStart(parseISO(date)));
+        setExpandedDayMobile(date);
+      } catch {
+        // ignore bad date
+      }
+    }
+    if (location) {
+      setSelectedLocation(location);
+      safeLocalStorage.setItem('weekly_rota_location', location);
+    }
+    setSelectedShiftType('all');
+
+    setPendingAttendanceDeepLink({
+      date,
+      location,
+      userId,
+      startTime,
+      endTime,
+      shiftType,
+      blockedRemoval,
+    });
+
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // After rota data loads, open the matching person for tracked absence
+  useEffect(() => {
+    if (!pendingAttendanceDeepLink || loading) return;
+    const {
+      date,
+      userId,
+      startTime,
+      endTime,
+      shiftType,
+      blockedRemoval,
+    } = pendingAttendanceDeepLink;
+
+    const daySlots = (date && dailyRotaData[date]) || [];
+    const match = daySlots.find((slot) => {
+      if (userId && String(slot.user_id) !== String(userId)) return false;
+      if (shiftType && String(slot.shift_type || '').toLowerCase() !== String(shiftType).toLowerCase()) {
+        return false;
+      }
+      if (startTime && String(slot.start_time || '').slice(0, 5) !== String(startTime).slice(0, 5)) {
+        return false;
+      }
+      if (endTime && String(slot.end_time || '').slice(0, 5) !== String(endTime).slice(0, 5)) {
+        return false;
+      }
+      return Boolean(slot.profiles);
+    }) || daySlots.find((slot) => userId && String(slot.user_id) === String(userId) && slot.profiles);
+
+    if (blockedRemoval) {
+      pendingAttendanceAfterBlockRef.current = match || null;
+      setShowBlockedRemovalModal(true);
+      if (!match && userId) {
+        toast.warning('Could not find that person on My Rota for this filter. Pick them from the list.');
+      }
+    } else if (match) {
+      setAttendanceModalSlot(match);
+    } else if (userId) {
+      toast.warning('Could not find that person on My Rota for this filter. Pick them from the list.');
+    }
+
+    setPendingAttendanceDeepLink(null);
+  }, [pendingAttendanceDeepLink, loading, dailyRotaData, toast]);
+
+  const handleBlockedRemovalClose = useCallback(() => {
+    setShowBlockedRemovalModal(false);
+    const pending = pendingAttendanceAfterBlockRef.current;
+    pendingAttendanceAfterBlockRef.current = null;
+    if (pending) setAttendanceModalSlot(pending);
+  }, []);
+
   // Fetch available locations from database - only once on mount
   useEffect(() => {
     const fetchLocations = async () => {
@@ -229,13 +333,15 @@ const WeeklyRotaPage = () => {
         if (data && data.length > 0) {
           setLocations(data);
           
-          // Set saved location or first location as default
+          // Prefer deep-link location already applied; else saved / first
           const savedLocation = safeLocalStorage.getItem('weekly_rota_location');
-          if (savedLocation && data.some(loc => loc.name === savedLocation)) {
-            setSelectedLocation(savedLocation);
-          } else {
-            setSelectedLocation(data[0].name);
-          }
+          setSelectedLocation((current) => {
+            if (current && data.some((loc) => loc.name === current)) return current;
+            if (savedLocation && data.some((loc) => loc.name === savedLocation)) {
+              return savedLocation;
+            }
+            return data[0].name;
+          });
         } else {
           setLocations([]);
         }
@@ -1183,6 +1289,32 @@ const WeeklyRotaPage = () => {
         </div>,
         document.body
       )}
+
+      <Modal
+        isOpen={showBlockedRemovalModal}
+        onClose={handleBlockedRemovalClose}
+      >
+        <h3 className="text-base font-semibold text-charcoal mb-2">
+          Removal blocked
+        </h3>
+        <p className="text-sm text-slate-600 mb-3">
+          This shift starts within 12 hours or is already active. You cannot remove
+          the person silently from the rota planner.
+        </p>
+        <p className="text-sm text-slate-600 mb-4">
+          Next, mark attendance with a reason (for example No show or Sick) so the
+          absence stays visible.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleBlockedRemovalClose}
+          >
+            Continue
+          </button>
+        </div>
+      </Modal>
 
       {attendanceModalSlot && (
         <AttendanceStatusModal

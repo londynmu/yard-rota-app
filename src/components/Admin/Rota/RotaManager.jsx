@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { logSystemActivity } from '../../../lib/systemActivityLog';
 import SlotCard from './SlotCard';
@@ -30,6 +31,10 @@ import {
   collectCrossDayRestConflictIds,
   collectSameDayConflictIds,
 } from '../../../utils/rotaSlotConflicts';
+import {
+  buildMyRotaAttendancePath,
+  shouldBlockSilentUnassign,
+} from '../../../utils/rotaRemovalGuard';
 
 // Week start on Saturday (same as My Rota)
 const getWeekStart = (date) => {
@@ -73,6 +78,7 @@ const mergeScheduledRotaRows = (rows) => {
 };
 
 const RotaManager = ({ user }) => {
+  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const [toolbarHost, setToolbarHost] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
@@ -455,12 +461,33 @@ const RotaManager = ({ user }) => {
     }
   };
 
+  const redirectToTrackedAbsence = (slot, employeeId) => {
+    const path = buildMyRotaAttendancePath({
+      date: slot.date,
+      location: slot.location,
+      userId: employeeId,
+      startTime: slot.start_time,
+      endTime: slot.end_time,
+      shiftType: slot.shift_type,
+    });
+    setShowAssignModal(false);
+    setSelectedSlot(null);
+    toast.info('Near shift start — set absence reason on My Rota instead of silent remove.');
+    navigate(path);
+  };
+
   const handleDeleteSlot = async (slotId) => {
     try {
       // Get the slot to delete
       const slotToDelete = slots.find(slot => slot.id === slotId);
       if (!slotToDelete) {
         setError('Slot not found');
+        return;
+      }
+
+      const assignedIds = normalizeAssignedEmployeeIds(slotToDelete.assigned_employees);
+      if (assignedIds.length > 0 && shouldBlockSilentUnassign(slotToDelete)) {
+        redirectToTrackedAbsence(slotToDelete, assignedIds[0]);
         return;
       }
 
@@ -934,7 +961,12 @@ const RotaManager = ({ user }) => {
         // Show success message
         setSuccessMessage(`Staff member assigned successfully to ${slotToAssign.location} (${slotToAssign.start_time} - ${slotToAssign.end_time})`);
       } else {
-        // Removing employee from slot
+        // Removing employee from slot — block silent wipe near start / while active
+        if (shouldBlockSilentUnassign(slotToAssign)) {
+          redirectToTrackedAbsence(slotToAssign, employeeId);
+          return;
+        }
+
         const { error } = await supabase
           .from('scheduled_rota')
           .delete()
