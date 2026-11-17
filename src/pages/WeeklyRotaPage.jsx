@@ -163,25 +163,21 @@ const WeeklyRotaPage = () => {
     return undefined;
   }, [isDesktop]);
 
-  // Lock background scroll while any modal is open
+  // Lock background scroll while any modal is open.
+  // Always clear on unlock (do not restore captured values) so a nested Modal.jsx
+  // body-overflow cleanup cannot leave html/touch-action permanently locked.
   useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
+    if (typeof document === 'undefined' || !isAnyModalOpen) return undefined;
 
     const { body, documentElement } = document;
-    const previousBodyOverflow = body.style.overflow;
-    const previousHtmlOverflow = documentElement.style.overflow;
-    const previousTouchAction = body.style.touchAction;
-
-    if (isAnyModalOpen) {
-      body.style.overflow = 'hidden';
-      documentElement.style.overflow = 'hidden';
-      body.style.touchAction = 'none';
-    }
+    body.style.overflow = 'hidden';
+    documentElement.style.overflow = 'hidden';
+    body.style.touchAction = 'none';
 
     return () => {
-      body.style.overflow = previousBodyOverflow;
-      documentElement.style.overflow = previousHtmlOverflow;
-      body.style.touchAction = previousTouchAction;
+      body.style.overflow = '';
+      documentElement.style.overflow = '';
+      body.style.touchAction = '';
     };
   }, [isAnyModalOpen]);
 
@@ -311,12 +307,19 @@ const WeeklyRotaPage = () => {
     setPendingAttendanceDeepLink(null);
   }, [pendingAttendanceDeepLink, loading, dailyRotaData, toast]);
 
+  // Close "Removal blocked" first so scroll unlock runs, then open mark attendance.
+  // Opening both in one update kept isAnyModalOpen true and desynced Modal.jsx vs page lock.
   const handleBlockedRemovalClose = useCallback(() => {
     setShowBlockedRemovalModal(false);
-    const pending = pendingAttendanceAfterBlockRef.current;
-    pendingAttendanceAfterBlockRef.current = null;
-    if (pending) setAttendanceModalSlot(pending);
   }, []);
+
+  useEffect(() => {
+    if (showBlockedRemovalModal) return;
+    const pending = pendingAttendanceAfterBlockRef.current;
+    if (!pending) return;
+    pendingAttendanceAfterBlockRef.current = null;
+    setAttendanceModalSlot(pending);
+  }, [showBlockedRemovalModal]);
 
   // Fetch available locations from database - only once on mount
   useEffect(() => {
