@@ -133,6 +133,12 @@ export default function AdminPage() {
     setActiveSection('users');
   };
 
+  const openUserAssessments = (userId) => {
+    if (!userId) return;
+    setUsersFocus({ userId, tab: 'assessments' });
+    setActiveSection('users');
+  };
+
   // Define fetchUsers function outside useEffect so it can be passed to components
   const fetchUsers = async () => {
     setPageLoading(true);
@@ -283,7 +289,12 @@ export default function AdminPage() {
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-        return <AdminDashboard onOpen={setActiveSection} />;
+        return (
+          <AdminDashboard
+            onOpen={setActiveSection}
+            onOpenUserAssessment={openUserAssessments}
+          />
+        );
       case 'users':
         return (
           <UserList
@@ -333,7 +344,12 @@ export default function AdminPage() {
       case 'induction-guide':
         return <InductionGuideManager />;
       default:
-        return <AdminDashboard onOpen={setActiveSection} />;
+        return (
+          <AdminDashboard
+            onOpen={setActiveSection}
+            onOpenUserAssessment={openUserAssessments}
+          />
+        );
     }
   };
 
