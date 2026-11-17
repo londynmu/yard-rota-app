@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   format, 
   addWeeks, 
@@ -8,14 +9,18 @@ import {
   isSameMonth, 
   parseISO, 
   getDay,
+  getWeek,
   addDays,
-  subDays
+  subDays,
 } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import AvailabilityEditModal from './AvailabilityEditModal';
 import { safeLocalStorage } from '../../utils/safeStorage';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
 
 export default function AvailabilityManager() {
+  const isDesktop = useIsDesktop();
+  const [toolbarHost, setToolbarHost] = useState(null);
   const [currentDate, setCurrentDate] = useState(() => {
     // Try to get date from localStorage
     const savedDate = safeLocalStorage.getItem('availability_manager_date');
@@ -34,6 +39,22 @@ export default function AvailabilityManager() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentAvailability, setCurrentAvailability] = useState(null);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const findHost = () => {
+      const el = document.getElementById('availability-desktop-toolbar');
+      if (!cancelled && el) setToolbarHost(el);
+    };
+    findHost();
+    const intervalId = window.setInterval(findHost, 100);
+    const timeoutId = window.setTimeout(() => window.clearInterval(intervalId), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   // Save current date to localStorage when it changes
   useEffect(() => {
@@ -187,6 +208,16 @@ export default function AvailabilityManager() {
     setCurrentDate(prevDate => addWeeks(prevDate, 1));
   }, []);
 
+  const goToCurrentWeek = useCallback(() => {
+    setCurrentDate(new Date());
+  }, []);
+
+  const formatWeekRangeLabel = useCallback((date) => {
+    const weekStartDate = getWeekStartingSaturday(date);
+    const weekEndDate = addDays(weekStartDate, 6);
+    return `${format(weekStartDate, 'd MMM')} – ${format(weekEndDate, 'd MMM')}`;
+  }, []);
+
   // Generate days for the current week starting from Saturday - memoized
   const daysInWeek = useMemo(() => {
     const weekStart = getWeekStartingSaturday(currentDate);
@@ -289,12 +320,60 @@ export default function AvailabilityManager() {
     }
   };
 
-  // Get the week date range for display - memoized
-  const weekDisplayRange = useMemo(() => {
-    const weekStart = getWeekStartingSaturday(currentDate);
-    const weekEnd = addDays(weekStart, 6);
-    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
-  }, [currentDate]);
+  // Same week date controls as Rota Planner (prev / week label / next / current week).
+  const toolbarControls = (
+    <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
+      <button
+        type="button"
+        onClick={goToPreviousWeek}
+        className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+        aria-label="Previous week"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <div className="min-w-0 shrink-0 px-1 text-center leading-tight">
+        <div className="text-sm font-semibold text-charcoal">
+          Week {getWeek(currentDate, { weekStartsOn: 6 })}
+        </div>
+        <div className="text-[11px] font-medium text-gray-500">
+          {formatWeekRangeLabel(currentDate)}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={goToNextWeek}
+        className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+        aria-label="Next week"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+
+      <button
+        type="button"
+        onClick={goToCurrentWeek}
+        className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+      >
+        Current week
+      </button>
+    </div>
+  );
+
+  const desktopToolbarPortal = toolbarHost
+    ? createPortal(
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-2 overflow-visible">
+        {toolbarControls}
+      </div>,
+      toolbarHost,
+    )
+    : null;
 
   if (isLoading && users.length === 0) {
     return (
@@ -333,40 +412,22 @@ export default function AvailabilityManager() {
   }
 
   return (
-    <div className="admin-section-card w-full max-w-full overflow-hidden">
-      <div className="admin-section-body">
-      <div className="flex flex-col gap-4 mb-4">
-        {/* Navigation Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              className="admin-btn !px-2"
-              onClick={goToPreviousWeek}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
-              </svg>
-            </button>
-            
-            <h2 className="text-lg font-semibold text-charcoal px-3 whitespace-nowrap">
-              {weekDisplayRange}
-            </h2>
-            
-            <button
-              className="admin-btn !px-2"
-              onClick={goToNextWeek}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-              </svg>
-            </button>
+    <div className="space-y-3 sm:space-y-4">
+      {desktopToolbarPortal}
+      {/* Mobile-only sticky toolbar; desktop controls live in the logo header bar */}
+      {!isDesktop && (
+        <div className="sticky top-0 z-40 border-b border-rota-toolbar-border bg-rota-toolbar-bg py-2.5 shadow-sm">
+          <div className="flex flex-col gap-3">
+            {toolbarControls}
           </div>
         </div>
+      )}
 
-        {/* Filters Row */}
-        <div className="flex flex-col sm:flex-row gap-2 items-center">
+    <div className="admin-section-card w-full max-w-full overflow-hidden">
+      <div className="admin-section-body">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* Search */}
-          <div className="flex-1 w-full">
+          <div className="w-full flex-1">
             <input
               type="text"
               placeholder="Search by name..."
@@ -389,10 +450,9 @@ export default function AvailabilityManager() {
           </select>
 
           {/* Results count */}
-          <span className="text-sm text-gray-600 whitespace-nowrap">
+          <span className="whitespace-nowrap text-sm text-gray-600">
             {sortedUsers.length} user{sortedUsers.length !== 1 ? 's' : ''}
           </span>
-        </div>
       </div>
 
       <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -494,6 +554,7 @@ export default function AvailabilityManager() {
         />
       )}
       </div>
+    </div>
     </div>
   );
 } 

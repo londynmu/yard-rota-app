@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
@@ -7,10 +7,11 @@ import { useToast } from '../../../components/ui/ToastContext';
 import { useAuth } from '../../../lib/AuthContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format as formatDate, subDays } from 'date-fns';
-import { resolveBreakManagerContext } from '../../../utils/operationalDay';
+import { format as formatDate, addDays, subDays } from 'date-fns';
+import { getSuggestedBreakContext, resolveBreakManagerContext } from '../../../utils/operationalDay';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { safeLocalStorage, safeSessionStorage } from '../../../utils/safeStorage';
+import { useIsDesktop } from '../../../hooks/useIsDesktop';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -36,8 +37,19 @@ function readInitialBreakContext() {
 const BrakesManager = ({ readOnly = false }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const isDesktop = useIsDesktop();
+  const [toolbarHost, setToolbarHost] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!isDesktop) {
+      setToolbarHost(null);
+      return undefined;
+    }
+    setToolbarHost(document.getElementById('breaks-desktop-toolbar'));
+    return undefined;
+  }, [isDesktop]);
 
   // Date initializer corrects stale LS first; shift reads the resolved value.
   const [selectedDate, setSelectedDate] = useState(() => readInitialBreakContext().date);
@@ -289,7 +301,41 @@ const BrakesManager = ({ readOnly = false }) => {
     const { default: html2canvas } = await import('html2canvas');
     const el = breaksExportRef.current;
     const safeCss = '*,*::before,*::after{color:#374151!important;background-color:#f3f4f6!important;border-color:#d1d5db!important;}';
-    const tryIframeCapture = () => {
+    const exportDateLabel = selectedDate
+      ? formatDate(new Date(`${selectedDate}T00:00:00`), 'EEEE d MMMM yyyy')
+      : 'Date not selected';
+    const exportLocationLabel =
+      selectedLocation && selectedLocation !== ALL_LOCATIONS_VALUE
+        ? selectedLocation
+        : 'All locations';
+    const exportHeadingText = `${exportDateLabel} · ${exportLocationLabel} · ${selectedShift}`;
+
+    // Draw the date header onto the finished canvas. DOM injection in html2canvas
+    // onclone was unreliable (header never appeared in the copied image).
+    const withExportHeading = (sourceCanvas) => {
+      if (!sourceCanvas) return null;
+      const scale = 2;
+      const padX = 16 * scale;
+      const padTop = 14 * scale;
+      const padBottom = 18 * scale;
+      const fontSize = 20 * scale;
+      const headerHeight = padTop + fontSize + padBottom;
+      const out = document.createElement('canvas');
+      out.width = sourceCanvas.width;
+      out.height = sourceCanvas.height + headerHeight;
+      const ctx = out.getContext('2d');
+      if (!ctx) return sourceCanvas;
+      ctx.fillStyle = '#f3f4f6';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.fillStyle = '#111827';
+      ctx.font = `600 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(exportHeadingText, padX, padTop, out.width - padX * 2);
+      ctx.drawImage(sourceCanvas, 0, headerHeight);
+      return out;
+    };
+
+    const tryIframeCapture = async () => {
       const iframe = document.createElement('iframe');
       iframe.setAttribute('data-html2canvas-capture', '1');
       iframe.style.cssText = 'position:fixed;left:-99999px;width:' + el.offsetWidth + 'px;height:' + (el.scrollHeight || el.offsetHeight) + 'px;border:0;';
@@ -306,22 +352,25 @@ const BrakesManager = ({ readOnly = false }) => {
       const clone = el.cloneNode(true);
       clone.querySelectorAll('[data-html2canvas-ignore]').forEach((n) => n.remove());
       body.appendChild(clone);
-      return html2canvas(body, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#f3f4f6',
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: body.scrollWidth,
-        windowHeight: body.scrollHeight,
-      }).finally(() => {
+      try {
+        const canvas = await html2canvas(body, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#f3f4f6',
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: body.scrollWidth,
+          windowHeight: body.scrollHeight,
+        });
+        return withExportHeading(canvas);
+      } finally {
         iframe.remove();
-      });
+      }
     };
     try {
-      return await html2canvas(el, {
+      const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         allowTaint: false,
@@ -346,6 +395,7 @@ const BrakesManager = ({ readOnly = false }) => {
                 clonedDoc.styleSheets[i].disabled = true;
               } catch (_) {}
             }
+            clonedDoc.body?.querySelectorAll('[data-html2canvas-ignore]').forEach((n) => n.remove());
             const elArr = [clonedDoc.documentElement, clonedDoc.body, ...clonedDoc.body.querySelectorAll('*')];
             elArr.forEach((node) => {
               try {
@@ -357,13 +407,14 @@ const BrakesManager = ({ readOnly = false }) => {
           } catch (_) {}
         },
       });
+      return withExportHeading(canvas);
     } catch (err) {
       if (err?.message && (err.message.includes('oklab') || err.message.includes('oklch') || err.message.includes('unsupported color'))) {
         return await tryIframeCapture();
       }
       throw err;
     }
-  }, []);
+  }, [selectedDate, selectedLocation, selectedShift]);
 
   const downloadBlobFromCanvas = useCallback((canvas) => {
     if (!canvas) return;
@@ -1411,9 +1462,170 @@ const BrakesManager = ({ readOnly = false }) => {
     }
   }, [showDateModal, selectedDate]);
 
+  const goToPreviousDay = () => {
+    if (!selectedDate) return;
+    setSelectedDate(formatDate(subDays(new Date(`${selectedDate}T00:00:00`), 1), 'yyyy-MM-dd'));
+  };
+
+  const goToNextDay = () => {
+    if (!selectedDate) return;
+    setSelectedDate(formatDate(addDays(new Date(`${selectedDate}T00:00:00`), 1), 'yyyy-MM-dd'));
+  };
+
+  const goToToday = () => {
+    const suggested = getSuggestedBreakContext();
+    setSelectedDate(suggested.date);
+    setSelectedShift(suggested.shift);
+  };
+
+  const handleLocationSelect = (locationName) => {
+    setSelectedLocation(locationName);
+  };
+
+  const desktopDateLabel = selectedDate
+    ? formatDate(new Date(`${selectedDate}T00:00:00`), 'EEE d MMM yyyy')
+    : 'Select date';
+
+  const desktopToolbarControls = (
+    <>
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
+        <label className="relative inline-flex min-w-0 shrink-0">
+          <span className="sr-only">Select location</span>
+          <select
+            value={selectedLocation || (locations[0]?.name ?? '')}
+            onChange={(e) => handleLocationSelect(e.target.value)}
+            className="admin-btn h-9 min-w-[6.5rem] max-w-[10rem] appearance-none truncate !justify-start !px-0 py-0 pl-2.5 pr-8 text-left !text-sm font-semibold"
+            aria-label="Select location"
+          >
+            {locations.map((location) => (
+              <option key={location.id} value={location.name}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </label>
+
+        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+
+        <div
+          className="inline-flex items-center gap-x-1.5"
+          role="group"
+          aria-label="Select shift"
+        >
+          {['Day', 'Afternoon', 'Night'].map((shift, index) => (
+            <React.Fragment key={shift}>
+              {index > 0 && (
+                <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedShift(shift)}
+                aria-pressed={selectedShift === shift}
+                className={`rounded-md px-1.5 py-0.5 transition-colors ${
+                  selectedShift === shift
+                    ? 'text-sm font-semibold text-charcoal'
+                    : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
+                }`}
+              >
+                {shift}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
+        <button
+          type="button"
+          onClick={goToPreviousDay}
+          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          aria-label="Previous day"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setShowDateModal(true);
+            setShowLocationModal(false);
+            setShowShiftModal(false);
+          }}
+          className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
+          aria-label="Open calendar"
+        >
+          {desktopDateLabel}
+        </button>
+
+        <button
+          type="button"
+          onClick={goToNextDay}
+          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          aria-label="Next day"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={goToToday}
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+        >
+          Today
+        </button>
+      </div>
+
+      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+      <div className="ml-auto flex min-w-0 flex-nowrap items-center gap-2" data-html2canvas-ignore>
+        <button
+          type="button"
+          onClick={handleCopyAsPicture}
+          disabled={isExporting || isLoading}
+          className="admin-btn h-9 shrink-0 gap-2 !px-3 !text-sm"
+          title="Copy as picture"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+          </svg>
+          <span>{isExporting ? '…' : 'Copy as picture'}</span>
+        </button>
+      </div>
+    </>
+  );
+
+  const desktopToolbarPortal = toolbarHost
+    ? createPortal(
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-2 overflow-visible">
+        {desktopToolbarControls}
+      </div>,
+      toolbarHost,
+    )
+    : null;
+
   // --- Rendering ---
   return (
     <div className="bg-offwhite text-charcoal min-h-screen pb-4 md:pb-20">
+      {desktopToolbarPortal}
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
@@ -1717,62 +1929,65 @@ const BrakesManager = ({ readOnly = false }) => {
 
 
       {/* Break Slots Display - bez kontenera, floating cards */}
-      <div ref={breaksExportRef} className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2">
-        {/* Floating Pills - filters */}
-        <div className="mb-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
-          {/* Row 1: 3 filter pills - on mobile equal width across screen, on md+ inline */}
-          <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-1">
-            {/* Date pill */}
-            <button
-              type="button"
-              onClick={() => { 
-                setShowDateModal(true); 
-                setShowLocationModal(false); 
-                setShowShiftModal(false);
-              }}
-              className={`admin-chip w-full md:w-auto min-w-0 ${showDateModal ? 'admin-chip-active' : ''}`}
-            >
-              📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
-            </button>
-            {/* Location pill */}
-            <button
-              type="button"
-              onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-              className={`admin-chip w-full md:w-auto min-w-0 ${showLocationModal ? 'admin-chip-active' : ''}`}
-            >
-              📍 {selectedLocation || 'Hub'}
-            </button>
-            {/* Shift pill */}
-            <button
-              type="button"
-              onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-              className={`admin-chip w-full md:w-auto min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
-            >
-              🌙 {selectedShift}
-            </button>
-          </div>
+      <div
+        ref={breaksExportRef}
+        data-breaks-export-root
+        className="px-4 pt-2 pb-4 md:px-6 md:pt-2 md:pb-2"
+      >
+        {/* Mobile-only filter chips; desktop controls live in the logo header bar */}
+        {!isDesktop && (
+          <div className="mb-4 flex flex-col gap-2" data-html2canvas-ignore>
+            <div className="grid grid-cols-3 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDateModal(true);
+                  setShowLocationModal(false);
+                  setShowShiftModal(false);
+                }}
+                className={`admin-chip w-full min-w-0 ${showDateModal ? 'admin-chip-active' : ''}`}
+              >
+                📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
+                className={`admin-chip w-full min-w-0 ${showLocationModal ? 'admin-chip-active' : ''}`}
+              >
+                📍 {selectedLocation || 'Hub'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+                className={`admin-chip w-full min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
+              >
+                🌙 {selectedShift}
+              </button>
+            </div>
 
-          {/* Copy as picture: on mobile full width below; on desktop same line, top right */}
-          <div className="w-full md:w-auto md:ml-auto" data-html2canvas-ignore>
-            <button
-              type="button"
-              onClick={handleCopyAsPicture}
-              disabled={isExporting || isLoading}
-              className="admin-chip w-full md:w-auto"
-            >
-              {isExporting ? '…' : 'Copy as picture'}
-            </button>
+            <div className="w-full">
+              <button
+                type="button"
+                onClick={handleCopyAsPicture}
+                disabled={isExporting || isLoading}
+                className="admin-chip w-full"
+              >
+                {isExporting ? '…' : 'Copy as picture'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-4 animate-pulse">
-            {/* Filters skeleton */}
+            {/* Filters skeleton (mobile only — desktop filters are in the logo bar) */}
+            {!isDesktop && (
             <div className="flex gap-3 mb-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-10 w-24 bg-slate-200 rounded-lg" />
               ))}
             </div>
+            )}
             
             {/* Slot cards skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

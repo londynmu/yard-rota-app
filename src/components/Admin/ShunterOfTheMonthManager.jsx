@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 import { useToast } from '../ui/ToastContext';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import Modal from '../ui/Modal';
 import { safeLocalStorage } from '../../utils/safeStorage';
 import {
   createOrUpdateMonthlyAward,
   getMonthlyAwards,
   getUsersLastAwards,
-  deleteAwardById,
 } from '../../utils/shunterAwardsApi';
 import { supabase } from '../../lib/supabaseClient';
 import {
@@ -39,6 +40,18 @@ const getMonthLabel = (monthKey) => {
   }
 };
 
+/** Full month name for empty card copy, e.g. "November". */
+const getMonthNameOnly = (monthKey) => {
+  if (!monthKey) return 'this month';
+  try {
+    const [year, month] = monthKey.split('-');
+    const d = new Date(Number(year), Number(month) - 1, 1);
+    return format(d, 'MMMM');
+  } catch {
+    return 'this month';
+  }
+};
+
 const shiftMonthKey = (monthKey, delta) => {
   const [y, m] = String(monthKey || getCurrentMonthKey()).split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
@@ -48,6 +61,20 @@ const shiftMonthKey = (monthKey, delta) => {
 const reminderStorageKey = (monthKey) => `shunterReminderDismissed-${monthKey}`;
 
 const emptyWinners = () => ({ day: null, night: null });
+
+/** Soft Rota / dashboard tones — warm, no black-and-white slabs. */
+const SLOT_TONES = {
+  day: {
+    shell:
+      'border-rota-badge-partial-border bg-gradient-to-br from-rota-badge-partial-bg via-white to-rota-card-partial-bg',
+    title: 'text-rota-badge-partial-text',
+  },
+  night: {
+    shell:
+      'border-rota-input-focus-border/40 bg-gradient-to-br from-rota-btn-primary-hover-bg via-white to-rota-page-bg-via',
+    title: 'text-rota-btn-primary-hover-text',
+  },
+};
 
 const groupHistoryFromRows = (historyRows) => {
   const grouped = {};
@@ -100,31 +127,27 @@ const groupHistoryFromRows = (historyRows) => {
   );
 };
 
-const winnersFromHistoryEntry = (entry) => ({
-  day: entry?.dayUserId || null,
-  night: entry?.nightUserId || null,
-});
-
-/**
- * Merge local workspace pick with saved history for one period.
- * - History has a value + local differs → keep dirty unsaved replacement
- * - History cleared + local was the previous saved id → clear (delete path)
- * - History cleared + local is some other unsaved pick → keep
- */
-const mergePeriodWinner = (localId, savedId, prevSavedId) => {
-  if (savedId != null) {
-    if (localId != null && localId !== savedId) return localId;
-    return savedId;
-  }
-  if (localId == null) return null;
-  if (prevSavedId != null && localId === prevSavedId) return null;
-  return localId;
-};
-
 export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   const toast = useToast();
+  const [toolbarHost, setToolbarHost] = useState(null);
   const calendarMonthKey = useMemo(() => getCurrentMonthKey(), []);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const findHost = () => {
+      const el = document.getElementById('shunter-month-desktop-toolbar');
+      if (!cancelled && el) setToolbarHost(el);
+    };
+    findHost();
+    const intervalId = window.setInterval(findHost, 100);
+    const timeoutId = window.setTimeout(() => window.clearInterval(intervalId), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
   const [saving, setSaving] = useState(false);
   const [selectedMonthKey, setSelectedMonthKey] = useState(calendarMonthKey);
   const [monthWinners, setMonthWinners] = useState(emptyWinners);
@@ -138,12 +161,8 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
   const [reminderDismissed, setReminderDismissed] = useState(() =>
     safeLocalStorage.getItem(reminderStorageKey(calendarMonthKey)) === 'true'
   );
-  const [confirmDelete, setConfirmDelete] = useState({
-    open: false,
-    monthKey: null,
-    period: null,
-  });
   const [defaultCcEmails, setDefaultCcEmails] = useState([]);
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
 
   const historyByMonth = useMemo(() => {
     const map = new Map();
@@ -199,32 +218,13 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     };
   }, [toast]);
 
-  const prevSelectedMonthRef = useRef(null);
-  const prevSavedWinnersRef = useRef(emptyWinners());
-
+  // Day/Night cards are a draft workspace only. Saved winners live in Full history —
+  // never hydrate cards from history, and reset drafts when the month changes.
   useEffect(() => {
-    const entry = historyByMonth.get(selectedMonthKey);
-    const fromHistory = entry ? winnersFromHistoryEntry(entry) : emptyWinners();
-    const monthChanged = prevSelectedMonthRef.current !== selectedMonthKey;
-    prevSelectedMonthRef.current = selectedMonthKey;
-
-    if (monthChanged) {
-      setMonthWinners(fromHistory);
-      prevSavedWinnersRef.current = fromHistory;
-      setPickerPeriod(null);
-      setUserSearch('');
-      return;
-    }
-
-    // Same month, history refreshed (save/delete/load):
-    // keep dirty unsaved replacements; clear slot when that saved winner was deleted
-    const prevSaved = prevSavedWinnersRef.current;
-    setMonthWinners((prev) => ({
-      day: mergePeriodWinner(prev.day, fromHistory.day, prevSaved.day),
-      night: mergePeriodWinner(prev.night, fromHistory.night, prevSaved.night),
-    }));
-    prevSavedWinnersRef.current = fromHistory;
-  }, [selectedMonthKey, historyByMonth]);
+    setMonthWinners(emptyWinners());
+    setPickerPeriod(null);
+    setUserSearch('');
+  }, [selectedMonthKey]);
 
   const sortedUsers = useMemo(() => {
     return [...(users || [])].sort((a, b) => {
@@ -269,86 +269,113 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     return history.filter((row) => String(row.monthKey).startsWith(historyYear));
   }, [history, historyYear]);
 
-  const resolveUser = useCallback(
-    (userId) => sortedUsers.find((u) => u.id === userId) || null,
-    [sortedUsers]
+  const emptySlotLabel = useMemo(
+    () => `Pick a shunter for ${getMonthNameOnly(selectedMonthKey)}`,
+    [selectedMonthKey]
   );
 
-  const slotMeta = useCallback(
-    (period) => {
-      const userId = monthWinners[period];
-      const historyEntry = historyByMonth.get(selectedMonthKey);
-      const user = userId ? resolveUser(userId) : null;
-      const fromHistoryName =
-        period === 'day' ? historyEntry?.dayName : historyEntry?.nightName;
-      const fromHistoryAgency =
-        period === 'day' ? historyEntry?.dayAgency : historyEntry?.nightAgency;
-      const name = user
-        ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown'
-        : fromHistoryName || null;
-      // Selected user: their agency only (null if none). Do not fall back to the
-      // previous saved winner's agency when a different user is picked.
-      const agency = user
-        ? user.agency_name || null
-        : userId
-          ? fromHistoryAgency || null
-          : null;
-      return { userId, name, agency };
-    },
-    [monthWinners, historyByMonth, selectedMonthKey, resolveUser]
+  const resolveUser = (userId) => sortedUsers.find((u) => u.id === userId) || null;
+
+  const slotMeta = (period) => {
+    const userId = monthWinners[period];
+    const user = userId ? resolveUser(userId) : null;
+    const name = user
+      ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown'
+      : null;
+    const agency = user ? user.agency_name || null : null;
+    return { userId, name, agency };
+  };
+
+  const pendingPeriods = useMemo(
+    () => ['day', 'night'].filter((period) => Boolean(monthWinners[period])),
+    [monthWinners]
   );
+  const canSaveShunters = pendingPeriods.length > 0 && !saving;
 
   const calendarMonthIncomplete = useMemo(() => {
     const entry = historyByMonth.get(calendarMonthKey);
     return !(entry?.dayId && entry?.nightId);
   }, [historyByMonth, calendarMonthKey]);
 
-  const selectedComplete = useMemo(() => {
-    const entry = historyByMonth.get(selectedMonthKey);
-    return Boolean(entry?.dayId && entry?.nightId);
-  }, [historyByMonth, selectedMonthKey]);
-
+  // Prefer live card picks for announcement; fall back to saved history per period.
   const monthAwardRows = useMemo(() => {
-    if (!selectedComplete) return [];
     const entry = historyByMonth.get(selectedMonthKey);
-    if (!entry) return [];
     const awards = [];
-    if (entry.dayUserId) {
-      awards.push({
-        period: 'day',
-        firstName: entry.dayName?.split(' ')[0],
-        lastName: entry.dayName?.split(' ').slice(1).join(' '),
-        fullName: entry.dayName,
-        amount: entry.dayAmount,
-        agencyId: entry.dayAgencyId,
-        agencyName: entry.dayAgency,
-        agencyEmail: entry.dayEmail,
-        userId: entry.dayUserId,
-      });
-    }
-    if (entry.nightUserId) {
-      awards.push({
-        period: 'night',
-        firstName: entry.nightName?.split(' ')[0],
-        lastName: entry.nightName?.split(' ').slice(1).join(' '),
-        fullName: entry.nightName,
-        amount: entry.nightAmount,
-        agencyId: entry.nightAgencyId,
-        agencyName: entry.nightAgency,
-        agencyEmail: entry.nightEmail,
-        userId: entry.nightUserId,
-      });
-    }
+
+    const fromCard = (period) => {
+      const userId = monthWinners[period];
+      if (!userId) return null;
+      const user = sortedUsers.find((u) => u.id === userId) || null;
+      if (!user) return null;
+      const fullName =
+        [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+      const amount =
+        period === 'day' ? entry?.dayAmount ?? 50 : entry?.nightAmount ?? 50;
+      return {
+        period,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        fullName,
+        amount,
+        agencyId: user.agency_id || null,
+        agencyName: user.agency_name || null,
+        agencyEmail: null,
+        userId: user.id,
+      };
+    };
+
+    const fromHistory = (period) => {
+      if (!entry) return null;
+      if (period === 'day' && entry.dayUserId) {
+        return {
+          period: 'day',
+          firstName: entry.dayName?.split(' ')[0],
+          lastName: entry.dayName?.split(' ').slice(1).join(' '),
+          fullName: entry.dayName,
+          amount: entry.dayAmount,
+          agencyId: entry.dayAgencyId,
+          agencyName: entry.dayAgency,
+          agencyEmail: entry.dayEmail,
+          userId: entry.dayUserId,
+        };
+      }
+      if (period === 'night' && entry.nightUserId) {
+        return {
+          period: 'night',
+          firstName: entry.nightName?.split(' ')[0],
+          lastName: entry.nightName?.split(' ').slice(1).join(' '),
+          fullName: entry.nightName,
+          amount: entry.nightAmount,
+          agencyId: entry.nightAgencyId,
+          agencyName: entry.nightAgency,
+          agencyEmail: entry.nightEmail,
+          userId: entry.nightUserId,
+        };
+      }
+      return null;
+    };
+
+    const day = fromCard('day') || fromHistory('day');
+    const night = fromCard('night') || fromHistory('night');
+    if (day) awards.push(day);
+    if (night) awards.push(night);
     return awards;
-  }, [selectedComplete, historyByMonth, selectedMonthKey]);
+  }, [historyByMonth, selectedMonthKey, monthWinners, sortedUsers]);
+
+  const selectedComplete = useMemo(
+    () =>
+      monthAwardRows.some((row) => row.period === 'day') &&
+      monthAwardRows.some((row) => row.period === 'night'),
+    [monthAwardRows]
+  );
 
   const collectiveEmail = useMemo(() => {
-    if (!monthAwardRows.length) return null;
+    if (!selectedComplete) return null;
     return buildCollectiveShunterAwardEmail({
       monthKey: selectedMonthKey,
       winners: monthAwardRows,
     });
-  }, [monthAwardRows, selectedMonthKey]);
+  }, [monthAwardRows, selectedComplete, selectedMonthKey]);
 
   const emailGroups = useMemo(
     () => groupShunterAwardsByAgency(monthAwardRows, selectedMonthKey, {
@@ -357,21 +384,48 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
     [monthAwardRows, selectedMonthKey, defaultCcEmails]
   );
 
-  const handleSave = async (period) => {
-    const userId = monthWinners[period];
-    if (!userId) {
-      toast.error('Select a user before saving.');
+  const closePickerModal = () => {
+    setPickerPeriod(null);
+    setUserSearch('');
+  };
+
+  const openPickerModal = (period) => {
+    if (saving) return;
+    setPickerPeriod(period);
+    setUserSearch('');
+  };
+
+  const selectShunterFromModal = (period, userId) => {
+    setMonthWinners((prev) => ({ ...prev, [period]: userId }));
+    setPickerPeriod(null);
+    setUserSearch('');
+  };
+
+  const handleSaveConfirm = async () => {
+    const toSave = ['day', 'night']
+      .map((period) => ({ period, userId: monthWinners[period] }))
+      .filter((item) => item.userId);
+    if (toSave.length === 0) {
+      toast.error('Select a shunter before saving.');
       return;
     }
 
     try {
       setSaving(true);
-      await createOrUpdateMonthlyAward({
-        awardMonthKey: selectedMonthKey,
-        period,
-        userId,
-      });
-      toast.success('Award saved successfully.');
+      for (const item of toSave) {
+        await createOrUpdateMonthlyAward({
+          awardMonthKey: selectedMonthKey,
+          period: item.period,
+          userId: item.userId,
+        });
+      }
+      toast.success(
+        toSave.length === 1 ? 'Award saved successfully.' : 'Awards saved successfully.'
+      );
+      // Clear cards after save — history shows the winners.
+      setMonthWinners(emptyWinners());
+      setPickerPeriod(null);
+      setUserSearch('');
 
       const [lastMap, historyRows] = await Promise.all([
         getUsersLastAwards(),
@@ -383,62 +437,11 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
         onAwardsChange();
       }
     } catch (err) {
-      console.error('[ShunterOfTheMonthManager] handleSave error:', err);
+      console.error('[ShunterOfTheMonthManager] handleSaveConfirm error:', err);
       toast.error('Could not save award.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    const { monthKey, period } = confirmDelete;
-    const entry = history.find((h) => h.monthKey === monthKey);
-    if (!entry || !period) return;
-    const awardId = period === 'day' ? entry.dayId : entry.nightId;
-    if (!awardId) return;
-
-    try {
-      setSaving(true);
-      await deleteAwardById(awardId);
-      toast.success('Award removed.');
-
-      setHistory((prev) =>
-        prev.map((row) => {
-          if (row.monthKey !== monthKey) return row;
-          if (period === 'day') {
-            return {
-              ...row,
-              dayName: null,
-              dayId: null,
-              dayUserId: null,
-              dayAgency: null,
-              dayAgencyId: null,
-              dayEmail: null,
-            };
-          }
-          return {
-            ...row,
-            nightName: null,
-            nightId: null,
-            nightUserId: null,
-            nightAgency: null,
-            nightAgencyId: null,
-            nightEmail: null,
-          };
-        })
-      );
-
-      const lastMap = await getUsersLastAwards();
-      setLastAwardsMap(lastMap);
-      if (typeof onAwardsChange === 'function') {
-        onAwardsChange();
-      }
-    } catch (err) {
-      console.error('[ShunterOfTheMonthManager] handleDeleteConfirm error:', err);
-      toast.error('Could not remove award.');
-    } finally {
-      setSaving(false);
-      setConfirmDelete({ open: false, monthKey: null, period: null });
+      setConfirmSaveOpen(false);
     }
   };
 
@@ -492,221 +495,168 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
 
   const renderSlot = (period) => {
     const label = period === 'day' ? 'Day' : 'Night / Afternoon';
+    const tone = period === 'day' ? SLOT_TONES.day : SLOT_TONES.night;
     const meta = slotMeta(period);
-    const isPickerOpen = pickerPeriod === period;
+    const openLabel =
+      period === 'day' ? 'Open day shunter picker' : 'Open night shunter picker';
 
     return (
-      <div
+      <button
         key={period}
-        className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm flex flex-col gap-2"
+        type="button"
+        aria-label={openLabel}
+        disabled={saving}
+        onClick={() => openPickerModal(period)}
+        className={`flex w-full flex-col gap-3 rounded-2xl border p-4 text-left shadow-soft transition hover:brightness-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-rota-input-focus-border disabled:cursor-not-allowed disabled:opacity-60 ${tone.shell}`}
       >
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-charcoal">{label}</p>
-          <button
-            type="button"
-            className="admin-btn"
-            onClick={() => {
-              setPickerPeriod(isPickerOpen ? null : period);
-              setUserSearch('');
-            }}
-          >
-            {meta.userId ? 'Change' : 'Choose'}
-          </button>
-        </div>
-
+        <p className={`text-[11px] font-semibold uppercase tracking-wide ${tone.title}`}>
+          {label}
+        </p>
         {meta.name ? (
-          <div>
-            <p className="text-sm font-semibold text-charcoal">{meta.name}</p>
-            <p className="text-[11px] text-gray-500">
+          <div className="min-w-0">
+            <p className="truncate text-xl font-semibold tracking-tight text-rota-text-primary sm:text-2xl">
+              {meta.name}
+            </p>
+            <p className="mt-1 text-sm text-rota-text-muted">
               {meta.agency || 'No agency'}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-gray-400">Not set</p>
+          <p className="py-2 text-base text-rota-text-muted-light">{emptySlotLabel}</p>
         )}
-
-        {isPickerOpen && (
-          <div className="mt-1 rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <input
-              type="text"
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              placeholder="Search by name or agency..."
-              className="admin-input rounded-none border-0 border-b border-gray-200 text-xs focus:ring-0"
-            />
-            <div className="max-h-[180px] overflow-y-auto divide-y divide-slate-100">
-              {filteredUserList.length === 0 ? (
-                <div className="py-3 text-center text-xs text-gray-500">No users match.</div>
-              ) : (
-                filteredUserList.map((user) => {
-                  const fullName =
-                    [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
-                  const isSelected = monthWinners[period] === user.id;
-                  const last = lastAwardsMap.get(user.id) || { day: null, night: null };
-                  const latestKey =
-                    last.day && last.night
-                      ? last.day >= last.night
-                        ? last.day
-                        : last.night
-                      : last.day || last.night;
-                  const lastLabel = latestKey ? getMonthLabel(latestKey) : null;
-                  return (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => {
-                        setMonthWinners((prev) => ({ ...prev, [period]: user.id }));
-                        setPickerPeriod(null);
-                        setUserSearch('');
-                      }}
-                      className={`w-full px-2.5 py-2 text-left flex items-center justify-between gap-2 transition-colors ${
-                        isSelected
-                          ? 'bg-amber-50 border-l-2 border-amber-500'
-                          : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-xs font-medium text-charcoal truncate">
-                          {fullName}
-                        </span>
-                        {user.agency_name && (
-                          <span className="block text-[10px] text-gray-500 truncate">
-                            {user.agency_name}
-                          </span>
-                        )}
-                      </span>
-                      {lastLabel && (
-                        <span className="text-[10px] text-gray-500 flex-shrink-0">
-                          Last: {lastLabel}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-auto pt-2 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={() => handleSave(period)}
-            disabled={!monthWinners[period] || saving}
-            className="admin-btn w-full"
-          >
-            Save {period === 'day' ? 'Day' : 'Night'}
-          </button>
-        </div>
-      </div>
+      </button>
     );
   };
+
+  const pickerModalLabel =
+    pickerPeriod === 'night' ? 'Night / Afternoon' : 'Day';
+  const pickerModalTitle = pickerPeriod
+    ? `Pick ${pickerModalLabel.toLowerCase()} shunter`
+    : 'Pick a shunter';
+
+  // Same logo-bar month controls as Rota / Breaks / Availability date nav.
+  const toolbarControls = (
+    <div className="flex min-w-0 flex-nowrap items-center justify-center gap-x-1 md:gap-x-2">
+      <button
+        type="button"
+        aria-label="Previous month"
+        className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+        onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, -1))}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <span className="min-w-0 truncate px-0.5 text-center text-sm font-semibold text-charcoal md:min-w-[5.5rem] md:px-1">
+        {getMonthLabel(selectedMonthKey)}
+      </span>
+
+      <button
+        type="button"
+        aria-label="Next month"
+        className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+        onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, 1))}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <span className="hidden h-4 w-px bg-gray-200 md:block" aria-hidden="true" />
+
+      <button
+        type="button"
+        onClick={() => setSelectedMonthKey(calendarMonthKey)}
+        className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal md:inline"
+      >
+        Current month
+      </button>
+    </div>
+  );
+
+  const headerToolbarPortal = toolbarHost
+    ? createPortal(
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-2 overflow-visible">
+        {toolbarControls}
+      </div>,
+      toolbarHost,
+    )
+    : null;
 
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="admin-section-card p-3">
-          <div className="h-5 w-40 bg-slate-200 rounded mb-2" />
-          <div className="h-3 w-24 bg-slate-100 rounded" />
-        </div>
-        <div className="admin-section-card p-3">
-          <div className="h-5 w-48 bg-slate-200 rounded mb-3" />
-          <div className="h-8 bg-slate-200 rounded mb-2" />
-          <div className="h-6 w-full bg-slate-100 rounded" />
+        {headerToolbarPortal}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="h-40 rounded-2xl border border-rota-badge-partial-border bg-rota-badge-partial-bg/50" />
+          <div className="h-40 rounded-2xl border border-rota-toolbar-border bg-rota-btn-primary-hover-bg/50" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {headerToolbarPortal}
+
       {calendarMonthIncomplete && !reminderDismissed && (
-        <div className="rounded-xl border border-amber-200 bg-white p-3 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col gap-3 rounded-2xl border border-rota-badge-partial-border bg-gradient-to-r from-rota-badge-partial-bg via-white to-rota-card-partial-bg p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-charcoal">
+            <p className="text-sm font-semibold text-rota-badge-partial-text">
               Time to pick Shunter of the Month
             </p>
-            <p className="text-xs text-gray-600 mt-0.5">
+            <p className="mt-0.5 text-xs text-rota-text-muted">
               {getMonthLabel(calendarMonthKey)} still needs Day and/or Night winners.
             </p>
           </div>
-          <button type="button" onClick={handleDismissReminder} className="admin-btn">
+          <button
+            type="button"
+            onClick={handleDismissReminder}
+            className="rounded-lg border border-rota-toolbar-border bg-white px-3 py-1.5 text-xs font-medium text-rota-text-primary transition hover:bg-rota-day-other-bg-from"
+          >
             Dismiss for this month
           </button>
         </div>
       )}
 
-      {/* Month workspace */}
-      <div className="admin-section-card flex flex-col">
-        <div className="admin-section-header justify-between gap-2">
-          <h2 className="admin-section-title">Month workspace</h2>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Previous month"
-              className="admin-btn"
-              onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, -1))}
-            >
-              ‹
-            </button>
-            <span className="min-w-[5.5rem] text-center text-xs font-semibold text-charcoal">
-              {getMonthLabel(selectedMonthKey)}
-            </span>
-            <button
-              type="button"
-              aria-label="Next month"
-              className="admin-btn"
-              onClick={() => setSelectedMonthKey((prev) => shiftMonthKey(prev, 1))}
-            >
-              ›
-            </button>
-          </div>
-        </div>
-        <div className="admin-section-body">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {renderSlot('day')}
-            {renderSlot('night')}
-          </div>
-        </div>
-      </div>
-
       {/* Copy announcement + optional agency drafts */}
       {selectedComplete && collectiveEmail && (
-        <div className="admin-section-card">
-          <div className="admin-section-header flex-col items-start gap-0.5 !min-h-0 py-2">
-            <h2 className="admin-section-title">Copy announcement</h2>
-            <p className="text-[11px] text-gray-600">
+        <section className="overflow-hidden rounded-2xl border border-rota-toolbar-border bg-rota-modal-bg shadow-soft">
+          <div className="border-b border-rota-toolbar-border bg-gradient-to-r from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to px-4 py-3">
+            <h2 className="text-sm font-semibold text-rota-text-primary">Copy announcement</h2>
+            <p className="mt-0.5 text-xs text-rota-text-muted">
               Copy and paste into your group mailbox — nothing is sent automatically.
             </p>
           </div>
-          <div className="admin-section-body space-y-3">
-            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm space-y-2">
-              <p className="text-xs font-semibold text-charcoal">
+          <div className="space-y-3 p-3 sm:p-4">
+            <div className="space-y-2 rounded-xl border border-rota-toolbar-border bg-gradient-to-br from-white to-rota-page-bg-via/40 p-3 shadow-sm">
+              <p className="text-xs font-semibold text-rota-text-primary">
                 Subject: {collectiveEmail.subject}
               </p>
-              <pre className="whitespace-pre-wrap text-xs text-charcoal font-sans leading-relaxed">
+              <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-rota-text-primary">
                 {collectiveEmail.body}
               </pre>
               <button
                 type="button"
-                className="admin-btn"
+                className="rounded-lg border border-rota-toolbar-border bg-white px-3 py-1.5 text-xs font-semibold text-rota-text-primary transition hover:bg-rota-day-other-bg-from"
                 onClick={copyCollectiveAnnouncement}
               >
                 Copy
               </button>
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-rota-toolbar-border bg-white shadow-sm">
               <button
                 type="button"
                 onClick={() => setAgencyDraftsOpen((prev) => !prev)}
-                className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-rota-btn-primary-hover-bg/50"
               >
-                <span className="text-xs font-semibold text-charcoal">
+                <span className="text-xs font-semibold text-rota-text-primary">
                   Agency drafts (optional)
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-gray-500 transition-transform ${agencyDraftsOpen ? 'rotate-180' : ''}`}
+                  className={`h-3.5 w-3.5 text-rota-text-muted transition-transform ${agencyDraftsOpen ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -715,33 +665,35 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                 </svg>
               </button>
               {agencyDraftsOpen && (
-                <div className="border-t border-slate-100 p-3 space-y-2">
+                <div className="space-y-2 border-t border-rota-toolbar-border p-3">
                   {emailGroups.length === 0 ? (
-                    <p className="text-xs text-gray-500">No agency drafts.</p>
+                    <p className="text-xs text-rota-text-muted">No agency drafts.</p>
                   ) : (
                     emailGroups.map((group) => (
                       <div
                         key={group.key}
-                        className={`rounded-xl border bg-white p-3 shadow-sm ${
-                          group.hasEmail ? 'border-gray-200' : 'border-amber-200'
+                        className={`rounded-xl border p-3 shadow-sm ${
+                          group.hasEmail
+                            ? 'border-rota-toolbar-border bg-gradient-to-br from-white to-rota-page-bg-via/30'
+                            : 'border-rota-badge-partial-border bg-rota-badge-partial-bg/40'
                         }`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-charcoal">{group.agencyName}</p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
+                            <p className="text-sm font-semibold text-rota-text-primary">{group.agencyName}</p>
+                            <p className="mt-0.5 text-[11px] text-rota-text-muted">
                               {group.hasEmail
                                 ? `To: ${group.emails.join(', ')}`
                                 : 'No email on file — copy the message manually'}
                             </p>
                             {group.hasEmail && defaultCcEmails.length > 0 && (
-                              <p className="text-[11px] text-gray-500">
+                              <p className="text-[11px] text-rota-text-muted">
                                 CC: Evri4you ({defaultCcEmails.join(', ')})
                               </p>
                             )}
                             <ul className="mt-1.5 space-y-0.5">
                               {group.winners.map((w) => (
-                                <li key={`${w.period}-${w.userId}`} className="text-xs text-charcoal">
+                                <li key={`${w.period}-${w.userId}`} className="text-xs text-rota-text-primary">
                                   <span className="font-medium">
                                     {w.period === 'day' ? 'Day' : 'Night'}:
                                   </span>{' '}
@@ -751,11 +703,11 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                               ))}
                             </ul>
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0">
+                          <div className="flex flex-shrink-0 flex-col gap-1.5 sm:flex-row">
                             {group.hasEmail && (
                               <button
                                 type="button"
-                                className="admin-btn"
+                                className="rounded-lg border border-rota-toolbar-border bg-white px-2.5 py-1.5 text-xs font-medium text-rota-text-primary transition hover:bg-rota-day-other-bg-from"
                                 onClick={() => openEmailDraft(group)}
                               >
                                 Open email draft
@@ -763,7 +715,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                             )}
                             <button
                               type="button"
-                              className="admin-btn"
+                              className="rounded-lg border border-rota-toolbar-border bg-white px-2.5 py-1.5 text-xs font-medium text-rota-text-primary transition hover:bg-rota-day-other-bg-from"
                               onClick={() => copyEmailDraft(group)}
                             >
                               Copy
@@ -777,39 +729,69 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
               )}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* History */}
-      <div className="admin-section-card">
-        <button
-          type="button"
-          onClick={() => setHistoryOpen((prev) => !prev)}
-          className="admin-section-header w-full justify-between hover:bg-gray-100 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <p className="admin-section-title">Full history</p>
-            {history.length > 0 && (
-              <span className="text-[10px] text-gray-500">({history.length} months)</span>
-            )}
+      {/* Day / Night pickers + Full history in one container */}
+      <section className="overflow-hidden rounded-2xl border border-rota-toolbar-border bg-rota-modal-bg shadow-soft">
+        <div className="border-b border-rota-toolbar-border bg-gradient-to-r from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to px-4 py-3">
+          <p className="text-sm font-semibold text-rota-text-primary">
+            Pick winners · {getMonthLabel(selectedMonthKey)}
+          </p>
+          <p className="mt-0.5 text-xs text-rota-text-muted">
+            Choose Day and Night winners, then use Confirm Award below. Past months stay in history.
+          </p>
+        </div>
+
+        <div className="space-y-3 border-b border-rota-toolbar-border p-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {renderSlot('day')}
+            {renderSlot('night')}
           </div>
-          <svg
-            className={`w-3.5 h-3.5 text-gray-500 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+
+          <button
+            type="button"
+            onClick={() => setConfirmSaveOpen(true)}
+            disabled={!canSaveShunters}
+            className="w-full rounded-xl border-2 border-charcoal bg-white px-4 py-2.5 text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            Confirm Award
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between rounded-xl border border-rota-toolbar-border bg-white px-3 py-2.5 text-left transition hover:bg-rota-day-other-bg-from/40"
+          >
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-rota-text-primary">Full history</p>
+              {history.length > 0 && (
+                <span className="text-[10px] text-rota-text-muted">({history.length} months)</span>
+              )}
+            </div>
+            <svg
+              className={`h-3.5 w-3.5 text-rota-text-muted transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
         {historyOpen && (
-          <div className="admin-section-body space-y-2 !p-2">
+          <div className="space-y-2 p-3">
             {historyYears.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 px-1">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setHistoryYear('all')}
-                  className={`admin-chip ${historyYear === 'all' ? 'admin-chip-active' : ''}`}
+                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                    historyYear === 'all'
+                      ? 'border-charcoal bg-rota-day-other-bg-from text-rota-text-primary'
+                      : 'border-rota-toolbar-border bg-white text-rota-text-muted hover:bg-rota-day-other-bg-from/50'
+                  }`}
                 >
                   All
                 </button>
@@ -818,7 +800,11 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                     key={year}
                     type="button"
                     onClick={() => setHistoryYear(year)}
-                    className={`admin-chip ${historyYear === year ? 'admin-chip-active' : ''}`}
+                    className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                      historyYear === year
+                        ? 'border-charcoal bg-rota-day-other-bg-from text-rota-text-primary'
+                        : 'border-rota-toolbar-border bg-white text-rota-text-muted hover:bg-rota-day-other-bg-from/50'
+                    }`}
                   >
                     {year}
                   </button>
@@ -826,16 +812,19 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
               </div>
             )}
 
-            <div className="max-h-[min(60vh,360px)] overflow-y-auto space-y-1.5">
+            <div className="max-h-[min(60vh,360px)] space-y-1.5 overflow-y-auto">
               {filteredHistory.length === 0 ? (
-                <p className="text-xs text-gray-500 py-2 px-1">No awards recorded yet.</p>
+                <p className="px-1 py-2 text-xs text-rota-text-muted">No awards recorded yet.</p>
               ) : (
-                filteredHistory.map((row) => {
+                filteredHistory.map((row, index) => {
                   const complete = row.dayId && row.nightId;
                   const isSelected = row.monthKey === selectedMonthKey;
-                  const cardStyle = complete
-                    ? 'border border-gray-200 bg-white'
-                    : 'border border-amber-200 bg-white';
+                  const softTone =
+                    index % 2 === 0
+                      ? 'border-rota-card-partial-border/60 bg-rota-card-partial-bg'
+                      : 'border-rota-toolbar-border bg-gradient-to-r from-white to-rota-page-bg-via/50';
+                  const incompleteTone =
+                    'border-rota-badge-partial-low-border bg-rota-card-partial-low-bg';
                   return (
                     <div
                       key={row.monthKey}
@@ -848,64 +837,28 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                           setSelectedMonthKey(row.monthKey);
                         }
                       }}
-                      className={`rounded-lg px-2.5 py-1.5 flex flex-col md:flex-row md:items-center gap-1 md:gap-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${cardStyle} ${
-                        isSelected ? 'ring-2 ring-charcoal/30' : ''
-                      }`}
+                      className={`flex cursor-pointer flex-col gap-1 rounded-xl px-3 py-2 shadow-sm transition hover:shadow-md md:flex-row md:items-center md:gap-3 ${
+                        complete ? softTone : incompleteTone
+                      } ${isSelected ? 'ring-2 ring-rota-badge-partial-border' : ''}`}
                     >
-                      <span className="text-xs font-semibold text-charcoal md:w-24 flex-shrink-0">
+                      <span className="flex-shrink-0 text-xs font-semibold text-rota-text-primary md:w-24">
                         {getMonthLabel(row.monthKey)}
                       </span>
-                      <div className="flex items-center gap-1 md:flex-1 min-w-0">
-                        <span className="text-xs text-charcoal truncate">
+                      <div className="min-w-0 md:flex-1">
+                        <span className="truncate text-xs text-rota-text-primary">
                           {row.dayName || '—'}
                           {row.dayAgency ? (
-                            <span className="text-gray-400"> · {row.dayAgency}</span>
+                            <span className="text-rota-text-muted-light"> · {row.dayAgency}</span>
                           ) : null}
                         </span>
-                        {row.dayId && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmDelete({
-                                open: true,
-                                monthKey: row.monthKey,
-                                period: 'day',
-                              });
-                            }}
-                            disabled={saving}
-                            className="text-gray-400 hover:text-red-600 text-xs p-0.5 flex-shrink-0"
-                            title="Remove Day award"
-                          >
-                            ✕
-                          </button>
-                        )}
                       </div>
-                      <div className="flex items-center gap-1 md:flex-1 min-w-0">
-                        <span className="text-xs text-charcoal truncate">
+                      <div className="min-w-0 md:flex-1">
+                        <span className="truncate text-xs text-rota-text-primary">
                           {row.nightName || '—'}
                           {row.nightAgency ? (
-                            <span className="text-gray-400"> · {row.nightAgency}</span>
+                            <span className="text-rota-text-muted-light"> · {row.nightAgency}</span>
                           ) : null}
                         </span>
-                        {row.nightId && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmDelete({
-                                open: true,
-                                monthKey: row.monthKey,
-                                period: 'night',
-                              });
-                            }}
-                            disabled={saving}
-                            className="text-gray-400 hover:text-red-600 text-xs p-0.5 flex-shrink-0"
-                            title="Remove Night award"
-                          >
-                            ✕
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -914,17 +867,87 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
             </div>
           </div>
         )}
-      </div>
+      </section>
+
+      <Modal
+        isOpen={Boolean(pickerPeriod)}
+        onClose={closePickerModal}
+        className="flex max-h-[min(85vh,36rem)] flex-col p-0"
+      >
+        <div className="border-b border-rota-modal-border px-5 py-4">
+          <h2 className="text-xl font-semibold text-charcoal">{pickerModalTitle}</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {getMonthLabel(selectedMonthKey)} · choose a name to put them on the card.
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden px-5 py-3">
+          <input
+            type="text"
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="Search by name or agency..."
+            className="admin-input mb-3 w-full text-sm"
+            autoFocus
+          />
+          <div className="max-h-[min(55vh,22rem)] divide-y divide-rota-toolbar-border overflow-y-auto rounded-xl border border-rota-toolbar-border bg-white">
+            {filteredUserList.length === 0 ? (
+              <div className="py-6 text-center text-sm text-rota-text-muted">No users match.</div>
+            ) : (
+              filteredUserList.map((user) => {
+                const fullName =
+                  [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+                const isSelected = monthWinners[pickerPeriod] === user.id;
+                const last = lastAwardsMap.get(user.id) || { day: null, night: null };
+                const latestKey =
+                  last.day && last.night
+                    ? last.day >= last.night
+                      ? last.day
+                      : last.night
+                    : last.day || last.night;
+                const lastLabel = latestKey ? getMonthLabel(latestKey) : null;
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => selectShunterFromModal(pickerPeriod, user.id)}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-3 text-left transition-colors ${
+                      isSelected
+                        ? 'border-l-2 border-rota-badge-partial-border bg-rota-badge-partial-bg'
+                        : 'hover:bg-rota-btn-primary-hover-bg/60'
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-rota-text-primary">
+                        {fullName}
+                      </span>
+                      {user.agency_name && (
+                        <span className="block truncate text-xs text-rota-text-muted">
+                          {user.agency_name}
+                        </span>
+                      )}
+                    </span>
+                    {lastLabel && (
+                      <span className="flex-shrink-0 text-[10px] text-rota-text-muted-light">
+                        Last: {lastLabel}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
-        isOpen={confirmDelete.open}
-        onClose={() => setConfirmDelete({ open: false, monthKey: null, period: null })}
-        onConfirm={handleDeleteConfirm}
-        title="Remove award?"
-        message="Remove this award from history? You can set a new winner afterwards."
-        confirmText="Remove"
+        isOpen={confirmSaveOpen}
+        onClose={() => setConfirmSaveOpen(false)}
+        onConfirm={handleSaveConfirm}
+        title="Are you sure?"
+        message={`Save the selected Shunter of the Month winner${pendingPeriods.length > 1 ? 's' : ''} for ${getMonthLabel(selectedMonthKey)}?`}
+        confirmText="Save"
         cancelText="Cancel"
-        isDestructive
       />
     </div>
   );

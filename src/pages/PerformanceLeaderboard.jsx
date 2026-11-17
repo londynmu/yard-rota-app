@@ -8,10 +8,9 @@ const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import Modal from '../components/ui/Modal';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '../components/ui/ToastContext';
-import { useNotifications } from '../lib/NotificationContext';
-import NotificationBell from '../components/NotificationBell';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { filterShownOnReports, isShownOnReports } from '../utils/performanceVisibility';
+import { matchesPerformanceShiftFilter } from '../utils/performanceShiftFilter';
 import { filterToLatestReportDate } from '../utils/latestReportDate';
 import { safeLocalStorage } from '../utils/safeStorage';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -36,12 +35,13 @@ const FILTER_SORT_CLASS =
 const FILTER_SHIFT_CLASS =
   'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-indigo-50/90 via-white to-violet-50/70 border border-indigo-200/60 shadow-sm hover:from-indigo-100/90 hover:to-violet-100/70 hover:border-indigo-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 min-w-0';
 
+/** Selected option: light gray + charcoal border (same idea as Breaks shift modal). No filled blue. */
 const modalOptionClass = (selected) =>
   [
-    'w-full px-4 py-2.5 rounded-xl border font-medium transition-colors text-left',
+    'w-full px-4 py-2.5 rounded-xl border text-sm font-normal transition-colors text-left',
     selected
-      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-600 hover:from-blue-700 hover:to-blue-800'
-      : 'text-slate-700 hover:bg-slate-50 border-slate-200/60',
+      ? 'border-charcoal bg-gray-100 text-charcoal'
+      : 'border-slate-200/60 bg-white text-slate-700 hover:bg-slate-50',
   ].join(' ');
 
 const RANGE_OPTIONS = [
@@ -133,7 +133,6 @@ const secondsToTime = (totalSeconds) => {
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
-  const { isAdmin } = useNotifications() || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const actualDateFilter = useMemo(
     () => parseActualDateParam(searchParams.get('date')),
@@ -460,7 +459,12 @@ const PerformanceLeaderboard = () => {
   const trendSeries = useMemo(() => {
     if (!rawPerformance.length) return [];
 
-    const totalsByDate = rawPerformance.reduce((acc, record) => {
+    // Same shift buckets as the leaderboard list (day vs night+afternoon).
+    const filteredRecords = rawPerformance.filter((record) =>
+      matchesPerformanceShiftFilter(record.profiles?.shift_preference, shiftFilter)
+    );
+
+    const totalsByDate = filteredRecords.reduce((acc, record) => {
       if (!record.actual_date) return acc;
       const moves = record.number_of_moves || 0;
       acc[record.actual_date] = (acc[record.actual_date] || 0) + moves;
@@ -477,7 +481,7 @@ const PerformanceLeaderboard = () => {
 
     const rangeLimit = RANGE_LOOKUP[selectedRange]?.durationDays || 30;
     return sortedEntries.slice(-rangeLimit);
-  }, [rawPerformance, selectedRange]);
+  }, [rawPerformance, selectedRange, shiftFilter]);
 
   const toggleExpandedUser = useCallback((userId) => {
     setExpandedUserId((prev) => (prev === userId ? null : userId));
@@ -508,11 +512,9 @@ const PerformanceLeaderboard = () => {
 
     const belowAverageCount = enriched.filter((u) => u.isBelowAverage).length;
 
-    if (shiftFilter === 'day') {
-      enriched = enriched.filter((u) => u.shiftPreference === 'day');
-    } else     if (shiftFilter === 'night') {
-      enriched = enriched.filter((u) => u.shiftPreference === 'night' || u.shiftPreference === 'afternoon');
-    }
+    enriched = enriched.filter((u) =>
+      matchesPerformanceShiftFilter(u.shiftPreference, shiftFilter)
+    );
 
     switch (sortOption) {
         case 'collect':
@@ -707,8 +709,8 @@ const PerformanceLeaderboard = () => {
     <div className="min-h-screen bg-transparent">
       {desktopFilterPortal}
       <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
-        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
-          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
+        <div className="max-w-4xl mx-auto px-4 py-3 md:py-3.5">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setShowRangeModal(true)}
@@ -725,18 +727,13 @@ const PerformanceLeaderboard = () => {
               </span>
             </button>
           </div>
-          {isAdmin && (
-            <div className="flex md:hidden">
-              <NotificationBell variant="segment" />
-            </div>
-          )}
         </div>
       </div>
 
       <Modal isOpen={showRangeModal} onClose={() => setShowRangeModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-charcoal">Select Range</h3>
+            <h3 className="text-lg font-semibold text-charcoal">Select Range</h3>
             <button
               type="button"
               onClick={() => setShowRangeModal(false)}
@@ -769,7 +766,7 @@ const PerformanceLeaderboard = () => {
       <Modal isOpen={showSortModal} onClose={() => setShowSortModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-charcoal">Sort Leaderboard</h3>
+            <h3 className="text-lg font-semibold text-charcoal">Sort Leaderboard</h3>
             <button
               type="button"
               onClick={() => setShowSortModal(false)}
@@ -802,7 +799,7 @@ const PerformanceLeaderboard = () => {
       <Modal isOpen={showShiftModal} onClose={() => setShowShiftModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-charcoal">Shift</h3>
+            <h3 className="text-lg font-semibold text-charcoal">Shift</h3>
             <button
               type="button"
               onClick={() => setShowShiftModal(false)}

@@ -184,7 +184,8 @@ const PerformanceChart = ({ data, isAllTime = false }) => {
         name: 'Moves',
         type: chartData.dates.length > 18 ? 'line' : 'bar',
         data: chartData.values,
-        barMaxWidth: isDesktop ? 56 : undefined,
+        // Cap bar width on mobile too — with few days a single bar otherwise fills the chart.
+        barMaxWidth: isDesktop ? 56 : 40,
         smooth: true,
         symbol: chartData.dates.length > 20 ? 'none' : 'circle',
         symbolSize: 6,

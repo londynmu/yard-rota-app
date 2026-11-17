@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { logSystemActivity } from '../../../lib/systemActivityLog';
 import SlotCard from './SlotCard';
@@ -11,6 +11,7 @@ import RotaWhatsAppSendButton from './RotaWhatsAppSendButton';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../ui/ToastContext';
 import { countPendingAdditionalPeople } from '../../../utils/rotaWeekBaseline';
+import { useIsDesktop } from '../../../hooks/useIsDesktop';
 
 // Add date-fns for date manipulation
 import { format, addDays, subDays, parseISO, getWeek } from 'date-fns';
@@ -72,6 +73,8 @@ const mergeScheduledRotaRows = (rows) => {
 };
 
 const RotaManager = ({ user }) => {
+  const isDesktop = useIsDesktop();
+  const [toolbarHost, setToolbarHost] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     const saved = safeLocalStorage.getItem('rota_planner_view_mode');
     return saved === 'week' ? 'week' : 'day';
@@ -90,6 +93,15 @@ const RotaManager = ({ user }) => {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!isDesktop) {
+      setToolbarHost(null);
+      return undefined;
+    }
+    setToolbarHost(document.getElementById('rota-planner-desktop-toolbar'));
+    return undefined;
+  }, [isDesktop]);
   const [successMessage, setSuccessMessage] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -1477,182 +1489,194 @@ const RotaManager = ({ user }) => {
     );
   }
 
-  return (
-    <div className="space-y-3 sm:space-y-6">
-      {/* Single toolbar row on desktop: filters + date + actions */}
-      <div className="sticky top-0 z-40 border-b border-rota-toolbar-border bg-rota-toolbar-bg py-2.5 shadow-sm">
-        <div className="flex flex-col gap-3 xl:flex-row xl:flex-nowrap xl:items-center xl:gap-3">
-          <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
-            <label className="relative inline-flex min-w-0 max-w-full">
-              <span className="sr-only">Select location</span>
-              <select
-                value={selectedLocation || (locations[0]?.name ?? '')}
-                onChange={(e) => handleLocationTabClick(e.target.value)}
-                className="min-w-0 max-w-[10rem] appearance-none truncate rounded-md bg-transparent py-0.5 pl-1.5 pr-6 text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50 focus:outline-none xl:max-w-[11rem]"
-                aria-label="Select location"
-              >
-                {locations.map((location) => (
-                  <option key={location.id} value={location.name}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="pointer-events-none absolute right-1 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </label>
+  const toolbarControls = (
+    <>
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
+        <label className="relative inline-flex min-w-0 shrink-0">
+          <span className="sr-only">Select location</span>
+          <select
+            value={selectedLocation || (locations[0]?.name ?? '')}
+            onChange={(e) => handleLocationTabClick(e.target.value)}
+            className="admin-btn h-9 min-w-[6.5rem] max-w-[10rem] appearance-none truncate !justify-start !px-0 py-0 pl-2.5 pr-8 text-left !text-sm font-semibold"
+            aria-label="Select location"
+          >
+            {locations.map((location) => (
+              <option key={location.id} value={location.name}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </label>
 
-            <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
 
-            <div
-              className="inline-flex items-center gap-x-1.5"
-              role="group"
-              aria-label="Select view"
-            >
-              {['day', 'week'].map((mode, index) => (
-                <React.Fragment key={mode}>
-                  {index > 0 && (
-                    <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setViewMode(mode)}
-                    aria-pressed={viewMode === mode}
-                    className={`rounded-md px-1.5 py-0.5 capitalize transition-colors ${
-                      viewMode === mode
-                        ? 'text-sm font-semibold text-charcoal'
-                        : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
-          <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
-
-          <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
-            <button
-              type="button"
-              onClick={viewMode === 'day' ? goToPreviousDay : goToPreviousWeek}
-              className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
-              aria-label={viewMode === 'day' ? 'Previous day' : 'Previous week'}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {viewMode === 'day' ? (
+        <div
+          className="inline-flex items-center gap-x-1.5"
+          role="group"
+          aria-label="Select view"
+        >
+          {['day', 'week'].map((mode, index) => (
+            <React.Fragment key={mode}>
+              {index > 0 && (
+                <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+              )}
               <button
                 type="button"
-                onClick={() => document.getElementById('date-select')?.showPicker?.()}
-                className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
-                aria-label="Open calendar"
+                onClick={() => setViewMode(mode)}
+                aria-pressed={viewMode === mode}
+                className={`rounded-md px-1.5 py-0.5 capitalize transition-colors ${
+                  viewMode === mode
+                    ? 'text-sm font-semibold text-charcoal'
+                    : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
+                }`}
               >
-                {formatDisplayDate(currentDate)}
+                {mode}
               </button>
-            ) : (
-              <div className="min-w-0 shrink-0 px-1 text-center leading-tight">
-                <div className="text-sm font-semibold text-charcoal">
-                  Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}
-                </div>
-                <div className="text-[11px] font-medium text-gray-500">
-                  {formatWeekRangeLabel(currentDate)}
-                </div>
-              </div>
-            )}
-
-            <input
-              id="date-select"
-              type="date"
-              value={currentDate}
-              onChange={handleDateChange}
-              className="sr-only"
-            />
-
-            <button
-              type="button"
-              onClick={viewMode === 'day' ? goToNextDay : goToNextWeek}
-              className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
-              aria-label={viewMode === 'day' ? 'Next day' : 'Next week'}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-
-            <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
-
-            <button
-              type="button"
-              onClick={viewMode === 'day' ? goToToday : goToCurrentWeek}
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
-            >
-              {viewMode === 'day' ? 'Today' : 'Current week'}
-            </button>
-          </div>
-
-          <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
-
-          <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-rota-toolbar-border pt-3 xl:ml-auto xl:flex-nowrap xl:border-t-0 xl:pt-0">
-            <button
-              type="button"
-              onClick={handleCopyFromPreviousWeek}
-              className="admin-btn h-11 shrink-0 gap-2 !px-4 !text-sm"
-              title="Copy last week"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-                <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-              </svg>
-              <span>Copy last week</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={openTemplateModal}
-              className="admin-btn h-11 shrink-0 gap-2 !px-4 !text-sm"
-              title="Templates"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-              </svg>
-              <span>Templates</span>
-            </button>
-
-            <div className="relative shrink-0">
-              <ExportRotaButton
-                weekStart={getWeekStart(currentDate)}
-                pendingCount={pendingAdditionalCount}
-                onBaselineChanged={() => setBaselineEpoch((n) => n + 1)}
-                label="Send to agency"
-                className="!h-11 !w-auto !px-4 !text-sm"
-              />
-              {pendingAdditionalCount > 0 && (
-                <span className="pointer-events-none absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-charcoal px-1.5 text-center text-[11px] leading-5 text-white">
-                  {pendingAdditionalCount > 9 ? '9+' : pendingAdditionalCount}
-                </span>
-              )}
-            </div>
-
-            <RotaWhatsAppSendButton
-              weekStart={getWeekStart(parseISO(currentDate))}
-            />
-          </div>
+            </React.Fragment>
+          ))}
         </div>
       </div>
+
+      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
+        <button
+          type="button"
+          onClick={viewMode === 'day' ? goToPreviousDay : goToPreviousWeek}
+          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          aria-label={viewMode === 'day' ? 'Previous day' : 'Previous week'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {viewMode === 'day' ? (
+          <button
+            type="button"
+            onClick={() => document.getElementById('date-select')?.showPicker?.()}
+            className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
+            aria-label="Open calendar"
+          >
+            {formatDisplayDate(currentDate)}
+          </button>
+        ) : (
+          <div className="min-w-0 shrink-0 px-1 text-center leading-tight">
+            <div className="text-sm font-semibold text-charcoal">
+              Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}
+            </div>
+            <div className="text-[11px] font-medium text-gray-500">
+              {formatWeekRangeLabel(currentDate)}
+            </div>
+          </div>
+        )}
+
+        <input
+          id="date-select"
+          type="date"
+          value={currentDate}
+          onChange={handleDateChange}
+          className="sr-only"
+        />
+
+        <button
+          type="button"
+          onClick={viewMode === 'day' ? goToNextDay : goToNextWeek}
+          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          aria-label={viewMode === 'day' ? 'Next day' : 'Next week'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={viewMode === 'day' ? goToToday : goToCurrentWeek}
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+        >
+          {viewMode === 'day' ? 'Today' : 'Current week'}
+        </button>
+      </div>
+
+      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+
+      <div className={`flex min-w-0 flex-wrap items-center gap-2 ${isDesktop ? 'ml-auto flex-nowrap' : 'border-t border-rota-toolbar-border pt-3 xl:ml-auto xl:flex-nowrap xl:border-t-0 xl:pt-0'}`}>
+        <button
+          type="button"
+          onClick={handleCopyFromPreviousWeek}
+          className={`admin-btn shrink-0 gap-2 !text-sm ${isDesktop ? 'h-9 !px-3' : 'h-11 !px-4'}`}
+          title="Copy last week"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+          </svg>
+          <span>Copy last week</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={openTemplateModal}
+          className={`admin-btn shrink-0 gap-2 !text-sm ${isDesktop ? 'h-9 !px-3' : 'h-11 !px-4'}`}
+          title="Templates"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+          </svg>
+          <span>Templates</span>
+        </button>
+
+        <ExportRotaButton
+          weekStart={getWeekStart(currentDate)}
+          pendingCount={pendingAdditionalCount}
+          onBaselineChanged={() => setBaselineEpoch((n) => n + 1)}
+          label="Send to agency"
+          className={isDesktop ? '!h-9 !w-auto !px-3 !text-sm' : '!h-11 !w-auto !px-4 !text-sm'}
+        />
+
+        <RotaWhatsAppSendButton
+          weekStart={getWeekStart(parseISO(currentDate))}
+          className={isDesktop ? '!h-9 !px-3' : ''}
+        />
+      </div>
+    </>
+  );
+
+  const desktopToolbarPortal = toolbarHost
+    ? createPortal(
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-2 overflow-visible">
+        {toolbarControls}
+      </div>,
+      toolbarHost,
+    )
+    : null;
+
+  return (
+    <div className="space-y-3 sm:space-y-6">
+      {desktopToolbarPortal}
+      {/* Mobile-only sticky toolbar; desktop controls live in the logo header bar */}
+      {!isDesktop && (
+        <div className="sticky top-0 z-40 border-b border-rota-toolbar-border bg-rota-toolbar-bg py-2.5 shadow-sm">
+          <div className="flex flex-col gap-3">
+            {toolbarControls}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4 md:space-y-8">
         {viewMode === 'day' ? (

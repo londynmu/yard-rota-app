@@ -5,6 +5,13 @@ import { supabase } from '../../lib/supabaseClient';
 import { getCurrentMonthAwards } from '../../utils/shunterAwardsApi';
 import { aggregateYesterdayPerformance } from '../../utils/tmPerformanceKpi';
 import { weeklyPresenceSeries } from '../../utils/adminDashboard';
+import {
+  diversifySystemItems,
+  formatAssessmentActivityItem,
+  formatSystemActivityItem,
+  interleaveActivityItems,
+  targetUserIdFromPayload,
+} from '../../utils/adminDashboardActivity';
 import AssessmentsDueCard from './AssessmentsDueCard';
 
 const PERF_SELECT = `
@@ -94,7 +101,7 @@ async function loadAwards() {
 }
 
 async function loadActivity() {
-  const [approvalsRes, checksRes] = await Promise.all([
+  const [approvalsRes, checksRes, assessmentsRes, systemRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, first_name, last_name, account_status, created_at')
@@ -107,13 +114,33 @@ async function loadActivity() {
       .select('id, created_at, profiles:user_id(first_name, last_name), tugs(tug_number, display_name)')
       .order('created_at', { ascending: false })
       .limit(4),
+    supabase
+      .from('shunter_assessments')
+      .select(`
+        id,
+        user_id,
+        assessment_date,
+        created_at,
+        updated_at,
+        profiles:user_id ( first_name, last_name ),
+        created_by_profile:created_by ( first_name, last_name )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(8),
+    supabase.rpc('get_system_activity_log', {
+      days_back: 7,
+      limit_count: 40,
+      entity_type_filter: null,
+      user_id_filter: null,
+    }),
   ]);
 
-  const items = [];
+  const approvalItems = [];
   if (!approvalsRes.error) {
     (approvalsRes.data || []).forEach((row) => {
-      items.push({
+      approvalItems.push({
         id: `approval-${row.id}`,
+        kind: 'approval',
         section: 'approvals',
         title: personName(row.first_name, row.last_name),
         detail: 'Waiting for approval',
@@ -121,11 +148,14 @@ async function loadActivity() {
       });
     });
   }
+
+  const checkItems = [];
   if (!checksRes.error) {
     (checksRes.data || []).forEach((row) => {
       const tug = row.tugs?.display_name || row.tugs?.tug_number || 'Tug';
-      items.push({
+      checkItems.push({
         id: `check-${row.id}`,
+        kind: 'precheck',
         section: 'prechecks',
         title: personName(row.profiles?.first_name, row.profiles?.last_name),
         detail: `Pre-check · ${tug}`,
@@ -133,8 +163,47 @@ async function loadActivity() {
       });
     });
   }
-  items.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
-  return items.slice(0, 6);
+
+  const assessmentItems = [];
+  if (!assessmentsRes.error) {
+    (assessmentsRes.data || []).forEach((row) => {
+      const item = formatAssessmentActivityItem(row);
+      if (item) assessmentItems.push(item);
+    });
+  }
+
+  const systemLogs = !systemRes.error ? systemRes.data || [] : [];
+  const targetIds = new Set();
+  systemLogs.forEach((log) => {
+    const id = targetUserIdFromPayload(log.payload, log.action_type);
+    if (id) targetIds.add(id);
+  });
+
+  let nameById = {};
+  if (targetIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', [...targetIds]);
+    nameById = {};
+    (profiles || []).forEach((pr) => {
+      nameById[pr.id] = personName(pr.first_name, pr.last_name);
+    });
+  }
+
+  const systemItems = diversifySystemItems(
+    systemLogs
+      .map((log) => formatSystemActivityItem(log, nameById))
+      .filter(Boolean)
+      .sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))),
+    3,
+  );
+
+  // Round-robin sources so assessments / rota aren't buried under break spam.
+  return interleaveActivityItems(
+    [assessmentItems, systemItems, approvalItems, checkItems],
+    12,
+  );
 }
 
 async function loadPresence() {
@@ -168,36 +237,87 @@ async function loadPresence() {
   }));
 }
 
-function SummaryCard({ title, eyebrow, value, detail, empty, onClick }) {
+/** Soft tones reused from Rota Planner slot / day cards (tailwind `rota.*`). */
+const SUMMARY_TONES = {
+  best: {
+    shell:
+      'border-rota-input-focus-border/40 bg-gradient-to-br from-rota-btn-primary-hover-bg via-white to-rota-page-bg-via',
+    title: 'text-rota-btn-primary-hover-text',
+  },
+  award: {
+    shell:
+      'border-rota-badge-partial-border bg-gradient-to-br from-rota-badge-partial-bg via-white to-rota-card-partial-bg',
+    title: 'text-rota-badge-partial-text',
+  },
+  leader: {
+    shell:
+      'border-rota-badge-full-border bg-gradient-to-br from-rota-badge-full-bg via-white to-rota-card-full-bg',
+    title: 'text-rota-badge-full-text',
+  },
+};
+
+function SummaryCard({ title, value, detail, empty, onClick, tone = 'best' }) {
+  const palette = SUMMARY_TONES[tone] || SUMMARY_TONES.best;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="card-modern p-4 text-left transition hover:border-slate-300"
+      className={`rounded-2xl border p-4 text-left shadow-soft transition hover:shadow-medium ${palette.shell}`}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-rota-text-muted">{title}</p>
-      <p className="mt-2 truncate text-lg font-semibold text-charcoal">{value || '—'}</p>
-      <p className="mt-1 text-sm text-rota-text-muted">{empty || detail || eyebrow}</p>
+      <p className={`text-[11px] font-semibold uppercase tracking-wide ${palette.title}`}>{title}</p>
+      <p className="mt-2 truncate text-lg font-semibold text-rota-text-primary">{value || '—'}</p>
+      <p className="mt-1 text-sm text-rota-text-muted">{empty || detail || ''}</p>
     </button>
   );
 }
 
 SummaryCard.propTypes = {
   title: PropTypes.string.isRequired,
-  eyebrow: PropTypes.string,
   value: PropTypes.string,
   detail: PropTypes.string,
   empty: PropTypes.string,
   onClick: PropTypes.func,
+  tone: PropTypes.oneOf(['best', 'award', 'leader']),
 };
 
 SummaryCard.defaultProps = {
-  eyebrow: '',
   value: '',
   detail: '',
   empty: '',
   onClick: undefined,
+  tone: 'best',
 };
+
+/** Same fill bands as Rota Planner SlotCard — soft windows, never dark bars. */
+function attendanceWindowTone(present, maxPresent) {
+  if (!present || maxPresent <= 0) {
+    return {
+      borderClass: 'border-rota-toolbar-border',
+      bgClass: 'bg-gradient-to-br from-rota-day-other-bg-from to-rota-day-other-bg-to',
+      valueClass: 'text-rota-day-other-text',
+    };
+  }
+  const ratio = present / maxPresent;
+  if (ratio >= 0.85) {
+    return {
+      borderClass: 'border-rota-card-full-border',
+      bgClass: 'bg-rota-card-full-bg',
+      valueClass: 'text-rota-badge-full-text',
+    };
+  }
+  if (ratio >= 0.55) {
+    return {
+      borderClass: 'border-rota-card-partial-border',
+      bgClass: 'bg-rota-card-partial-bg',
+      valueClass: 'text-rota-badge-partial-text',
+    };
+  }
+  return {
+    borderClass: 'border-rota-card-partial-low-border',
+    bgClass: 'bg-rota-card-partial-low-bg',
+    valueClass: 'text-rota-badge-partial-low-text',
+  };
+}
 
 export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
   const [loading, setLoading] = useState(true);
@@ -246,6 +366,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <SummaryCard
+          tone="best"
           title="Best yesterday"
           value={loading ? 'Loading…' : best?.name}
           detail={best?.moves != null ? `${best.moves} moves · ${best.label}` : ''}
@@ -253,6 +374,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
           onClick={() => onOpen('performance')}
         />
         <SummaryCard
+          tone="award"
           title="Shunter of the Month"
           value={loading ? 'Loading…' : awardValue}
           detail={awardDetail}
@@ -260,6 +382,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
           onClick={() => onOpen('shunter-month')}
         />
         <SummaryCard
+          tone="leader"
           title="Overall leader"
           value={loading ? 'Loading…' : leader?.name}
           detail={leader?.moves != null ? `${leader.moves} moves this month` : ''}
@@ -268,56 +391,73 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
         />
       </section>
 
-      <section className="card-modern p-4">
-        <h2 className="text-sm font-semibold text-charcoal">Recent activity</h2>
-        {loading ? (
-          <p className="mt-3 text-sm text-rota-text-muted">Loading…</p>
-        ) : activity.length === 0 ? (
-          <p className="mt-3 text-sm text-rota-text-muted">No recent approvals or pre-checks.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-slate-200/80">
-            {activity.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(item.section)}
-                  className="flex w-full items-center justify-between gap-3 py-2.5 text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-charcoal">{item.title}</span>
-                    <span className="block truncate text-xs text-rota-text-muted">{item.detail}</span>
-                  </span>
-                  <span className="shrink-0 text-xs text-rota-text-muted">
-                    {item.at ? format(parseISO(item.at), 'd MMM') : ''}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <section className="overflow-hidden rounded-2xl border border-rota-toolbar-border bg-rota-modal-bg shadow-soft">
+        <div className="border-b border-rota-toolbar-border bg-gradient-to-r from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to px-4 py-3">
+          <h2 className="text-sm font-semibold text-rota-text-primary">Recent activity</h2>
+        </div>
+        <div className="px-4 pb-1">
+          {loading ? (
+            <p className="py-3 text-sm text-rota-text-muted">Loading…</p>
+          ) : activity.length === 0 ? (
+            <p className="py-3 text-sm text-rota-text-muted">No recent activity yet.</p>
+          ) : (
+            <ul className="divide-y divide-rota-toolbar-border">
+              {activity.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (item.kind === 'assessment' && item.userId && onOpenUserAssessment) {
+                        onOpenUserAssessment(item.userId);
+                        return;
+                      }
+                      onOpen(item.section);
+                    }}
+                    className="flex w-full items-center justify-between gap-3 py-2.5 text-left transition hover:bg-rota-btn-primary-hover-bg/50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-rota-text-primary">{item.title}</span>
+                      <span className="block truncate text-xs text-rota-text-muted">{item.detail}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-rota-text-muted-light">
+                      {item.at ? format(parseISO(item.at), 'd MMM') : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
-      <section className="card-modern p-4">
-        <h2 className="text-sm font-semibold text-charcoal">Weekly attendance</h2>
-        <p className="mt-1 text-xs text-rota-text-muted">
-          People on the rota who were not marked absent.
-        </p>
+      <section className="overflow-hidden rounded-2xl border border-rota-toolbar-border bg-rota-modal-bg shadow-soft">
+        <div className="border-b border-rota-toolbar-border bg-gradient-to-r from-rota-badge-partial-bg/70 via-white to-rota-page-bg-via px-4 py-3">
+          <h2 className="text-sm font-semibold text-rota-text-primary">Weekly attendance</h2>
+          <p className="mt-0.5 text-xs text-rota-text-muted">
+            People on the rota who were not marked absent.
+          </p>
+        </div>
         {loading ? (
-          <p className="mt-3 text-sm text-rota-text-muted">Loading…</p>
+          <p className="px-4 py-3 text-sm text-rota-text-muted">Loading…</p>
         ) : (
-          <div className="mt-4 grid grid-cols-7 items-end gap-2">
-            {presence.map((day) => (
-              <div key={day.date} className="flex flex-col items-center gap-1">
-                <span className="text-[11px] font-semibold text-charcoal">{day.present}</span>
-                <div className="flex h-24 w-full items-end rounded-md bg-slate-100">
-                  <div
-                    className="w-full rounded-md bg-slate-700"
-                    style={{ height: `${Math.max(8, Math.round((day.present / maxPresent) * 100))}%` }}
-                  />
+          <div className="grid grid-cols-7 gap-1.5 p-3 sm:gap-2 sm:p-4">
+            {presence.map((day) => {
+              const tone = attendanceWindowTone(day.present, maxPresent);
+              return (
+                <div
+                  key={day.date}
+                  className={`flex min-h-[4.5rem] flex-col items-center justify-center rounded-xl border px-1 py-2 text-center shadow-sm sm:min-h-[5rem] ${tone.borderClass} ${tone.bgClass}`}
+                  title={`${day.present} present · ${day.scheduled} scheduled`}
+                >
+                  <span className={`text-base font-semibold tabular-nums sm:text-lg ${tone.valueClass}`}>
+                    {day.present}
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-rota-text-muted-light sm:text-[11px]">
+                    {day.label}
+                  </span>
                 </div>
-                <span className="text-[11px] text-rota-text-muted">{day.label}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
