@@ -12,6 +12,7 @@ import { getSuggestedBreakContext, resolveBreakManagerContext } from '../../../u
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { safeLocalStorage, safeSessionStorage } from '../../../utils/safeStorage';
 import { useIsDesktop } from '../../../hooks/useIsDesktop';
+import { fetchTmBreakBoards, TM_BREAK_SHIFTS } from '../../../utils/tmBreakBoardFetch';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -59,12 +60,16 @@ const BrakesManager = ({ readOnly = false }) => {
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(() => {
     if (readOnly) {
+      // TM Breaks: never use "all"; default Rugby (MyRota-style).
       const tmLoc = safeLocalStorage.getItem('tm_dashboard_location');
-      if (tmLoc) return tmLoc;
+      if (tmLoc && tmLoc !== ALL_LOCATIONS_VALUE) return tmLoc;
+      return 'Rugby';
     }
     const savedLocation = safeLocalStorage.getItem('brakes_selected_location');
     return savedLocation || ALL_LOCATIONS_VALUE;
   });
+  /** TM read-only: day → afternoon → night boards (no shift picker). */
+  const [tmBoards, setTmBoards] = useState([]);
 
   // Check user role and profile
   useEffect(() => {
@@ -148,10 +153,17 @@ const BrakesManager = ({ readOnly = false }) => {
           const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
           if (defaultLoc) {
             setSelectedLocation(defaultLoc);
-            if (!readOnly) safeLocalStorage.setItem('brakes_selected_location', defaultLoc);
+            if (readOnly) {
+              safeLocalStorage.setItem('tm_dashboard_location', defaultLoc);
+            } else {
+              safeLocalStorage.setItem('brakes_selected_location', defaultLoc);
+            }
           }
         } else if (preferred !== selectedLocation) {
           setSelectedLocation(preferred);
+          if (readOnly && preferred !== ALL_LOCATIONS_VALUE) {
+            safeLocalStorage.setItem('tm_dashboard_location', preferred);
+          }
         }
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -873,8 +885,43 @@ const BrakesManager = ({ readOnly = false }) => {
   };
 
   useEffect(() => {
+    if (readOnly) return undefined;
     fetchBreakData();
-  }, [selectedDate, selectedShift, selectedLocation, fetchBreakData]);
+    return undefined;
+  }, [readOnly, selectedDate, selectedShift, selectedLocation, fetchBreakData]);
+
+  // TM Breaks: load day → afternoon → night for the selected location (no shift toggle).
+  useEffect(() => {
+    if (!readOnly) return undefined;
+    if (!selectedDate || !selectedLocation || selectedLocation === ALL_LOCATIONS_VALUE) {
+      setTmBoards([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const boards = await fetchTmBreakBoards({
+          date: selectedDate,
+          location: selectedLocation,
+        });
+        if (!cancelled) setTmBoards(boards);
+      } catch (err) {
+        console.error('[BrakesManager] TM boards load failed:', err);
+        if (!cancelled) {
+          setTmBoards([]);
+          toast.error('Failed to load break data');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [readOnly, selectedDate, selectedLocation, toast]);
 
   // --- Actions ---
   const handleSaveAllBreaks = async (silent = false, assignmentsOverride = null) => {
@@ -1516,33 +1563,37 @@ const BrakesManager = ({ readOnly = false }) => {
           </svg>
         </label>
 
-        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+        {!readOnly && (
+          <>
+            <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
 
-        <div
-          className="inline-flex items-center gap-x-1.5"
-          role="group"
-          aria-label="Select shift"
-        >
-          {['Day', 'Afternoon', 'Night'].map((shift, index) => (
-            <React.Fragment key={shift}>
-              {index > 0 && (
-                <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedShift(shift)}
-                aria-pressed={selectedShift === shift}
-                className={`rounded-md px-1.5 py-0.5 transition-colors ${
-                  selectedShift === shift
-                    ? 'text-sm font-semibold text-charcoal'
-                    : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
-                }`}
-              >
-                {shift}
-              </button>
-            </React.Fragment>
-          ))}
-        </div>
+            <div
+              className="inline-flex items-center gap-x-1.5"
+              role="group"
+              aria-label="Select shift"
+            >
+              {['Day', 'Afternoon', 'Night'].map((shift, index) => (
+                <React.Fragment key={shift}>
+                  {index > 0 && (
+                    <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShift(shift)}
+                    aria-pressed={selectedShift === shift}
+                    className={`rounded-md px-1.5 py-0.5 transition-colors ${
+                      selectedShift === shift
+                        ? 'text-sm font-semibold text-charcoal'
+                        : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
+                    }`}
+                  >
+                    {shift}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
@@ -1937,7 +1988,7 @@ const BrakesManager = ({ readOnly = false }) => {
         {/* Mobile-only filter chips; desktop controls live in the logo header bar */}
         {!isDesktop && (
           <div className="mb-4 flex flex-col gap-2" data-html2canvas-ignore>
-            <div className="grid grid-cols-3 items-center gap-1">
+            <div className={`grid items-center gap-1 ${readOnly ? 'grid-cols-2' : 'grid-cols-3'}`}>
               <button
                 type="button"
                 onClick={() => {
@@ -1956,13 +2007,15 @@ const BrakesManager = ({ readOnly = false }) => {
               >
                 📍 {selectedLocation || 'Hub'}
               </button>
-              <button
-                type="button"
-                onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-                className={`admin-chip w-full min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
-              >
-                🌙 {selectedShift}
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
+                  className={`admin-chip w-full min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
+                >
+                  🌙 {selectedShift}
+                </button>
+              )}
             </div>
 
             <div className="w-full">
@@ -2000,6 +2053,41 @@ const BrakesManager = ({ readOnly = false }) => {
                 </div>
               ))}
             </div>
+          </div>
+        ) : readOnly ? (
+          <div className="space-y-8 md:space-y-10">
+            {(tmBoards.length ? tmBoards : TM_BREAK_SHIFTS.map((shift) => ({
+              shift,
+              slots: [],
+              assignments: [],
+            }))).map((board) => (
+              <section key={board.shift} aria-label={`${board.shift} breaks`}>
+                <h3 className="mb-3 text-sm font-bold tracking-tight text-charcoal md:text-base">
+                  {board.shift} shift
+                </h3>
+                {board.slots.length === 0 ? (
+                  <p className="text-sm text-slate-500">No break slots for this shift.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                    {board.slots.map((slot) => (
+                      <SlotCard
+                        key={`${board.shift}-${slot.id}`}
+                        slot={slot}
+                        assignedStaff={(board.assignments || []).filter(
+                          (a) => a.slot_id === slot.id
+                        )}
+                        onSlotClick={handleSlotClick}
+                        onDeleteClick={handleDeleteCustomSlot}
+                        onRemoveStaffClick={requestRemoveStaff}
+                        isAdmin={false}
+                        readOnly
+                        currentUserId={currentUser?.id ?? null}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
           </div>
         ) : (
           <div className="space-y-6 md:space-y-8">
