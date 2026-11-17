@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
+import { useIsDesktop } from '../../../hooks/useIsDesktop';
+import Modal from '../../ui/Modal';
 import TugTabletsCard from './TugTabletsCard';
 
 export default function TugManager() {
+  const isDesktop = useIsDesktop();
+  const [toolbarHost, setToolbarHost] = useState(null);
   const [activeTab, setActiveTab] = useState('tugs');
   const [tugs, setTugs] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -15,6 +20,27 @@ export default function TugManager() {
   const [showQR, setShowQR] = useState(null);
   const [filter] = useState('all'); // 'all', 'active', 'inactive', 'maintenance'
   const [showTabletForm, setShowTabletForm] = useState(false);
+  const [tugToDelete, setTugToDelete] = useState(null);
+  const [deleteStep, setDeleteStep] = useState(1);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const deleteConfirmInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const findHost = () => {
+      const el = document.getElementById('tugs-desktop-toolbar');
+      if (!cancelled && el) setToolbarHost(el);
+    };
+    findHost();
+    const intervalId = window.setInterval(findHost, 100);
+    const timeoutId = window.setTimeout(() => window.clearInterval(intervalId), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -77,15 +103,37 @@ export default function TugManager() {
     }
   };
 
-  const handleDelete = async (tug) => {
-    if (!confirm(`Delete tug ${tug.tug_number}? This cannot be undone.`)) return;
+  const closeDeleteModal = () => {
+    setTugToDelete(null);
+    setDeleteStep(1);
+    setDeleteConfirmInput('');
+    setDeleting(false);
+  };
+
+  const openDeleteModal = (tug) => {
+    setTugToDelete(tug);
+    setDeleteStep(1);
+    setDeleteConfirmInput('');
+  };
+
+  useEffect(() => {
+    if (deleteStep === 2 && deleteConfirmInputRef.current) {
+      deleteConfirmInputRef.current.focus();
+    }
+  }, [deleteStep]);
+
+  const handleConfirmDelete = async () => {
+    if (!tugToDelete || deleteConfirmInput.toLowerCase() !== 'delete') return;
+    setDeleting(true);
     try {
-      const { error } = await supabase.from('tugs').delete().eq('id', tug.id);
+      const { error } = await supabase.from('tugs').delete().eq('id', tugToDelete.id);
       if (error) throw error;
+      closeDeleteModal();
       fetchData();
     } catch (err) {
       console.error('[TugManager] Delete error:', err);
       alert(`Error deleting tug: ${err.message}`);
+      setDeleting(false);
     }
   };
 
@@ -193,9 +241,81 @@ export default function TugManager() {
     maintenance: 'bg-yellow-100 text-yellow-700',
   };
 
+  const toolbarControls = (
+    <div className="flex min-w-0 flex-1 flex-row flex-nowrap items-center justify-between gap-1 overflow-x-auto md:gap-2 md:h-8">
+      <div className="flex flex-shrink-0 items-center gap-2 md:min-w-0 md:flex-1 md:h-8">
+        <div className="admin-seg-track flex-shrink-0">
+          {[
+            { id: 'tugs', label: 'Tugs' },
+            { id: 'tablets', label: 'Tablets' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`admin-seg-item ${
+                activeTab === tab.id ? 'admin-seg-item-active' : ''
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {activeTab === 'tugs' && (
+        <div className="flex h-8 flex-shrink-0 gap-1 md:gap-2">
+          <button
+            type="button"
+            onClick={printAllQRCodes}
+            className="admin-btn gap-1 px-2 !font-medium md:gap-1.5 md:px-4"
+          >
+            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print QR
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowForm(true);
+              setEditingTug(null);
+              setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' });
+            }}
+            className="admin-btn gap-1 px-2 md:gap-1.5 md:px-4"
+          >
+            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Tug
+          </button>
+        </div>
+      )}
+      {activeTab === 'tablets' && (
+        <div className="flex h-8 flex-shrink-0 gap-1 md:gap-2">
+          <button
+            type="button"
+            onClick={() => setShowTabletForm(true)}
+            className="admin-btn gap-1 px-2 md:gap-1.5 md:px-4"
+          >
+            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Tablet
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const headerToolbarPortal =
+    isDesktop && toolbarHost
+      ? createPortal(toolbarControls, toolbarHost)
+      : null;
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-3">
+        {headerToolbarPortal}
         <div className="h-10 bg-slate-200 rounded-xl w-48" />
         {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-slate-200 rounded-xl" />)}
       </div>
@@ -204,63 +324,9 @@ export default function TugManager() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: fixed h-8 (32px) for all elements – same as VMU search bar height */}
-      <div className="flex flex-row flex-nowrap items-center justify-between gap-1 md:gap-2 md:h-8 overflow-x-auto min-w-0">
-        <div className="flex items-center gap-2 flex-shrink-0 md:flex-1 md:min-w-0 md:h-8">
-          <div className="admin-seg-track flex-shrink-0">
-            {[
-              { id: 'tugs', label: 'Tugs' },
-              { id: 'tablets', label: 'Tablets' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`admin-seg-item ${
-                  activeTab === tab.id ? 'admin-seg-item-active' : ''
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {activeTab === 'tugs' && (
-          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
-            <button
-              onClick={printAllQRCodes}
-              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4 !font-medium"
-            >
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Print QR
-            </button>
-            <button
-              onClick={() => { setShowForm(true); setEditingTug(null); setFormData({ tug_number: '', display_name: '', location_id: '', status: 'active' }); }}
-              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
-            >
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Tug
-            </button>
-          </div>
-        )}
-        {activeTab === 'tablets' && (
-          <div className="flex gap-1 md:gap-2 flex-shrink-0 h-8">
-            <button
-              onClick={() => setShowTabletForm(true)}
-              className="admin-btn gap-1 md:gap-1.5 px-2 md:px-4"
-            >
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Tablet
-            </button>
-          </div>
-        )}
-      </div>
+      {headerToolbarPortal}
+      {/* Mobile-only toolbar; desktop controls live in the logo header bar */}
+      {!isDesktop && toolbarControls}
 
       {activeTab === 'tablets' ? (
         <TugTabletsCard showForm={showTabletForm} setShowForm={setShowTabletForm} />
@@ -383,7 +449,7 @@ export default function TugManager() {
                   </svg>
                 </button>
                 <button
-                  onClick={() => handleDelete(tug)}
+                  onClick={() => openDeleteModal(tug)}
                   className="admin-icon-btn hover:bg-red-50"
                   title="Delete"
                 >
@@ -504,6 +570,75 @@ export default function TugManager() {
       )}
         </div>
       )}
+
+      <Modal isOpen={Boolean(tugToDelete)} onClose={closeDeleteModal}>
+        <div className="text-center sm:text-left">
+          <h3 className="text-xl font-semibold mb-2 text-rota-text-primary">Delete tug</h3>
+          {deleteStep === 1 ? (
+            <>
+              <p className="text-rota-text-muted mb-2">
+                Are you sure you want to delete this tug? This cannot be undone.
+              </p>
+              <p className="font-semibold text-rota-text-primary mb-6">
+                {tugToDelete?.display_name
+                  ? `${tugToDelete.display_name} (${tugToDelete.tug_number})`
+                  : tugToDelete?.tug_number}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  className="px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteStep(2)}
+                  className="px-4 py-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg transition-colors order-1 sm:order-2"
+                >
+                  Continue
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-rota-text-muted mb-3">
+                Final confirmation required. Please type{' '}
+                <span className="font-semibold text-red-600">delete</span> to confirm:
+              </p>
+              <input
+                ref={deleteConfirmInputRef}
+                type="text"
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                className="admin-input mb-6"
+                placeholder="Type 'delete' to confirm"
+                autoComplete="off"
+                disabled={deleting}
+              />
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={deleting || deleteConfirmInput.toLowerCase() !== 'delete'}
+                  className="px-4 py-2 rounded-lg border-2 border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg transition-colors order-1 sm:order-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

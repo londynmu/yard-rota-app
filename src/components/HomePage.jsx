@@ -362,10 +362,51 @@ export default function HomePage() {
             className="hidden shrink-0 items-center gap-4 md:flex"
           />
         ) : null;
+        const rotaPlannerToolbarSlot =
+          path === '/admin' && adminSection === 'rota-planner' ? (
+            <div
+              id="rota-planner-desktop-toolbar"
+              className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
+            />
+          ) : null;
+        const breaksToolbarSlot =
+          path === '/admin' && adminSection === 'breaks' ? (
+            <div
+              id="breaks-desktop-toolbar"
+              className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
+            />
+          ) : null;
+        const availabilityToolbarSlot =
+          path === '/admin' && adminSection === 'availability' ? (
+            <div
+              id="availability-desktop-toolbar"
+              className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
+            />
+          ) : null;
+        const shunterMonthToolbarSlot =
+          path === '/admin' && adminSection === 'shunter-month' ? (
+            <div
+              id="shunter-month-desktop-toolbar"
+              className="flex min-w-0 flex-1 items-center justify-center gap-x-1 overflow-visible px-1 md:justify-start md:gap-x-2 md:pl-3 md:pr-0"
+            />
+          ) : null;
+        const tugsToolbarSlot =
+          path === '/admin' && adminSection === 'tugs' ? (
+            <div
+              id="tugs-desktop-toolbar"
+              className="hidden min-w-0 flex-1 items-center gap-x-2 overflow-visible pl-3 md:flex"
+            />
+          ) : null;
+        const adminHeaderToolbarSlot =
+          rotaPlannerToolbarSlot ||
+          breaksToolbarSlot ||
+          availabilityToolbarSlot ||
+          shunterMonthToolbarSlot ||
+          tugsToolbarSlot;
 
         return (
-          <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe ${stickyClass} ${visibilityClass}`}>
-            <div className={isAdmin || (isTransportManager && !isAdmin) ? 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center' : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
+          <header className={`${borderClass} bg-white/80 backdrop-blur-md pt-safe overflow-visible ${stickyClass} ${visibilityClass}`}>
+            <div className={isAdmin || (isTransportManager && !isAdmin) ? `w-full flex justify-between items-center overflow-visible ${adminHeaderToolbarSlot ? 'py-3.5 md:pl-0 md:pr-6 lg:pr-8 px-4' : 'px-4 py-3 sm:px-6 lg:px-8'}` : isVmu ? 'max-w-4xl mx-auto px-4 py-3 flex items-center gap-4' : 'w-full px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center'}>
               {isVmu && !isAdmin ? (
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
@@ -548,8 +589,14 @@ export default function HomePage() {
                 </>
               ) : (
                 <>
-              {/* Admin: nav left (hamburger + links), NotificationBell + Avatar right */}
-              <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
+              {/* Admin: logo column tracks sidebar width so toolbar (e.g. Rugby) stays separated and slides with collapse */}
+              <div
+                className={`flex min-w-0 flex-shrink-0 items-center gap-3 transition-[width] duration-200 ease-out ${
+                  adminHeaderToolbarSlot
+                    ? (sidebarCollapsed ? 'md:w-16 md:justify-center md:gap-0' : 'md:w-64')
+                    : ''
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setMobileSidebarOpen(true)}
@@ -560,7 +607,7 @@ export default function HomePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
-                {isAdminPage && (
+                {isAdminPage && adminSection !== 'shunter-month' && (
                   <span className="md:hidden font-semibold text-slate-800 truncate">
                     {currentAdminSectionLabel || 'Admin'}
                   </span>
@@ -572,10 +619,15 @@ export default function HomePage() {
                   <span className="md:hidden font-semibold text-slate-800">Notifications</span>
                 )}
                 <DesktopNavAppIcon />
-                <span className="hidden md:inline text-sm font-semibold tracking-tight text-slate-700">
+                <span
+                  className={`text-sm font-semibold tracking-tight text-slate-700 ${
+                    adminHeaderToolbarSlot && sidebarCollapsed ? 'hidden' : 'hidden md:inline'
+                  }`}
+                >
                   Yard Rota
                 </span>
               </div>
+              {adminHeaderToolbarSlot}
               <div className="flex items-center space-x-2 flex-shrink-0">
                 {myRotaFilterSlot}
                 {performanceFilterSlot}
