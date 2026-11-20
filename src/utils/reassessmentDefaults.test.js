@@ -6,6 +6,7 @@ import {
   firstLoginYmd,
   isAutoDueAssessment,
   isReassessmentEligibleRole,
+  pickPreferredDueRow,
 } from './reassessmentDefaults';
 
 describe('reassessmentDefaults', () => {
@@ -41,5 +42,25 @@ describe('reassessmentDefaults', () => {
     expect(payload.profile_snapshot.source).toBe(AUTO_DUE_SOURCE);
     expect(payload.created_by).toBe('admin1');
     expect(isAutoDueAssessment(payload)).toBe(true);
+  });
+
+  it('prefers real assessment over auto_due placeholder', () => {
+    const auto = {
+      id: 'a1',
+      next_due_date: '2026-05-01',
+      profile_snapshot: { source: AUTO_DUE_SOURCE },
+    };
+    const real = {
+      id: 'r1',
+      next_due_date: '2027-11-01',
+      profile_snapshot: {},
+    };
+    expect(pickPreferredDueRow(auto, real).id).toBe('r1');
+    expect(pickPreferredDueRow(real, auto).id).toBe('r1');
+    expect(pickPreferredDueRow(auto, {
+      id: 'a2',
+      next_due_date: '2026-04-01',
+      profile_snapshot: { source: AUTO_DUE_SOURCE },
+    }).id).toBe('a2');
   });
 });

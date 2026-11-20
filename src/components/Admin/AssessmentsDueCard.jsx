@@ -7,6 +7,7 @@ import { useToast } from '../ui/ToastContext';
 import {
   backfillMissingReassessmentDefaults,
   isReassessmentEligibleRole,
+  pickPreferredDueRow,
 } from '../../utils/reassessmentDefaults';
 
 function personName(snapshot, profiles) {
@@ -44,14 +45,19 @@ export default function AssessmentsDueCard({ onOpenUser, users }) {
         .order('next_due_date', { ascending: true });
       if (fetchError) throw fetchError;
 
-      // One row per eligible user — soonest due wins. Exclude admin/vmu/TM/transport.
+      // One row per eligible user. Prefer real assessments over auto_due placeholders,
+      // then soonest due. Exclude admin/vmu/TM/transport.
       const byUser = new Map();
       (data || []).forEach((row) => {
         const role = row.profiles?.role;
         if (!isReassessmentEligibleRole(role)) return;
-        if (!byUser.has(row.user_id)) byUser.set(row.user_id, row);
+        byUser.set(row.user_id, pickPreferredDueRow(byUser.get(row.user_id), row));
       });
-      setRows([...byUser.values()]);
+      setRows(
+        [...byUser.values()].sort((a, b) =>
+          String(a.next_due_date || '').localeCompare(String(b.next_due_date || '')),
+        ),
+      );
     } catch (err) {
       console.error('[AssessmentsDueCard] load failed', err);
       setError(err.message || 'Failed to load');

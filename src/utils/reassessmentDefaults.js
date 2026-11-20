@@ -125,6 +125,43 @@ export async function backfillMissingReassessmentDefaults(supabase, {
 }
 
 /**
+ * Remove placeholder auto_due rows for a user (e.g. after a real assessment is saved).
+ * @returns {number} deleted count
+ */
+export async function deleteAutoDuePlaceholdersForUser(supabase, userId) {
+  if (!supabase || !userId) return 0;
+  const { data, error } = await supabase
+    .from('shunter_assessments')
+    .select('id, profile_snapshot')
+    .eq('user_id', userId);
+  if (error) throw error;
+  const ids = (data || []).filter(isAutoDueAssessment).map((row) => row.id);
+  if (ids.length === 0) return 0;
+  const { error: deleteError } = await supabase
+    .from('shunter_assessments')
+    .delete()
+    .in('id', ids);
+  if (deleteError) throw deleteError;
+  return ids.length;
+}
+
+/**
+ * When collapsing many assessment rows to one due-soon entry per user,
+ * prefer a real assessment over an auto_due placeholder; then soonest due.
+ */
+export function pickPreferredDueRow(existing, candidate) {
+  if (!existing) return candidate;
+  if (!candidate) return existing;
+  const existingAuto = isAutoDueAssessment(existing);
+  const candidateAuto = isAutoDueAssessment(candidate);
+  if (existingAuto && !candidateAuto) return candidate;
+  if (!existingAuto && candidateAuto) return existing;
+  const a = existing.next_due_date || '';
+  const b = candidate.next_due_date || '';
+  return b < a ? candidate : existing;
+}
+
+/**
  * Ensure one default due row exists for a single eligible user.
  * @returns {object|null} inserted row or null if skipped
  */
