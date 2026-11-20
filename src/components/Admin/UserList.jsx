@@ -7,6 +7,7 @@ import { useAdminStatus } from '../../hooks/useAdminStatus';
 import UserEditForm from './UserEditForm';
 import UserViolationsPanel from './UserViolationsPanel';
 import UserAssessmentsPanel from './UserAssessmentsPanel';
+import { isReassessmentEligibleRole } from '../../utils/reassessmentDefaults';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
@@ -497,12 +498,16 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     setFilters((prev) => ({ ...prev, shift: 'all' }));
     setSearchQuery('');
     setExpandedUserId(focusUserId);
-    const tab =
+    let tab =
       focusTab === 'violations' || focusTab === 'assessments' ? focusTab : 'details';
+    const target = users.find((u) => u.id === focusUserId);
+    if (tab === 'assessments' && target && !isReassessmentEligibleRole(target.role)) {
+      tab = 'details';
+    }
     setUserPanel(tab);
     setFormDirty(false);
     onFocusConsumed?.();
-  }, [focusUserId, focusTab, onFocusConsumed]);
+  }, [focusUserId, focusTab, onFocusConsumed, users]);
 
   const applyPendingNav = () => {
     const pending = pendingNavRef.current;
@@ -1039,20 +1044,22 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               </span>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => requestPanelChange('assessments')}
-            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
-              userPanel === 'assessments' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
-            }`}
-          >
-            Assessments
-            {typeof selectedAssessmentCount === 'number' && selectedAssessmentCount > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
-                {selectedAssessmentCount}
-              </span>
-            )}
-          </button>
+          {isReassessmentEligibleRole(selectedUser.role) && (
+            <button
+              type="button"
+              onClick={() => requestPanelChange('assessments')}
+              className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+                userPanel === 'assessments' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
+              }`}
+            >
+              Assessments
+              {typeof selectedAssessmentCount === 'number' && selectedAssessmentCount > 0 && (
+                <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
+                  {selectedAssessmentCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className={`border-b border-gray-200 px-5 py-3 ${userPanel === 'details' ? '' : 'hidden'}`}>

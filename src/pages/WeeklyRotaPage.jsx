@@ -7,7 +7,7 @@ import { format, addDays, subDays, isSameDay, getWeek, parseISO } from 'date-fns
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import AttendanceStatusModal from '../components/Attendance/AttendanceStatusModal';
-import { attendanceLabel } from '../utils/attendanceStatus';
+import { attendanceLabel, shouldUnassignAfterAttendance } from '../utils/attendanceStatus';
 import { useToast } from '../components/ui/ToastContext';
 import { Sun, Moon, Cloud, X, AlertCircle, RefreshCw, MapPin, ChevronDown } from 'lucide-react';
 import { safeLocalStorage } from '../utils/safeStorage';
@@ -590,7 +590,10 @@ const WeeklyRotaPage = () => {
     setAttendanceSaving(true);
     const slot = attendanceModalSlot;
     const slotId = slot.id;
-    const shouldRemoveFromRota = removalAfterAttendanceRef.current;
+    // My Rota tracked removal: no-show / sick / other always unassign (same outcome as
+    // planner deep-link). Clear (Present) only drops the attendance row.
+    const shouldRemoveFromRota =
+      removalAfterAttendanceRef.current || shouldUnassignAfterAttendance(status);
     try {
       if (status === null) {
         const { error: delError } = await supabase
@@ -670,6 +673,7 @@ const WeeklyRotaPage = () => {
             ...prev,
             [slotId]: note ? { status, note } : { status },
           }));
+          toast.success('Attendance saved.');
         }
         removalAfterAttendanceRef.current = false;
       }

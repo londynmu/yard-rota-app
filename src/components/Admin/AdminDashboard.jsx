@@ -319,7 +319,7 @@ function attendanceWindowTone(present, maxPresent) {
   };
 }
 
-export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
+export default function AdminDashboard({ onOpen, onOpenUserAssessment, users }) {
   const [loading, setLoading] = useState(true);
   const [best, setBest] = useState(null);
   const [leader, setLeader] = useState(null);
@@ -362,7 +362,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
 
   return (
     <div className="space-y-6">
-      <AssessmentsDueCard onOpenUser={onOpenUserAssessment} />
+      <AssessmentsDueCard onOpenUser={onOpenUserAssessment} users={users} />
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <SummaryCard
@@ -468,4 +468,5 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment }) {
 AdminDashboard.propTypes = {
   onOpen: PropTypes.func.isRequired,
   onOpenUserAssessment: PropTypes.func,
+  users: PropTypes.arrayOf(PropTypes.object),
 };

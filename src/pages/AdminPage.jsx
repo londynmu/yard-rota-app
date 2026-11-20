@@ -293,6 +293,7 @@ export default function AdminPage() {
           <AdminDashboard
             onOpen={setActiveSection}
             onOpenUserAssessment={openUserAssessments}
+            users={users}
           />
         );
       case 'users':
@@ -348,6 +349,7 @@ export default function AdminPage() {
           <AdminDashboard
             onOpen={setActiveSection}
             onOpenUserAssessment={openUserAssessments}
+            users={users}
           />
         );
     }
