@@ -209,6 +209,20 @@ function AvailabilityDialog({
   const showCarouselArrows = carouselScrollable && !carouselArrowsDismissed;
   const saveDisabled = isSaving || isSubmitting || selectedDates.length === 0;
 
+  // Comment attaches on save only when exactly one day is selected (see useAvailabilityEditor).
+  const commentTargetYmd = selectedDates.length === 1 ? selectedDates[0] : clickedDateYmd;
+  const commentDayLabel = useMemo(() => {
+    try {
+      return format(new Date(`${commentTargetYmd}T12:00:00`), 'EEEE d MMMM');
+    } catch {
+      return format(date, 'EEEE d MMMM');
+    }
+  }, [commentTargetYmd, date]);
+  const commentFieldLabel =
+    selectedDates.length === 1
+      ? `Comment for ${commentDayLabel}`
+      : `Comment for ${commentDayLabel} (select one day to save)`;
+
   return (
     <div
       className="fixed inset-0 z-[60] overflow-y-auto bg-rota-modal-overlay"
@@ -343,7 +357,8 @@ function AvailabilityDialog({
                 className="mb-1.5 block text-sm font-medium text-rota-text-muted"
                 htmlFor="availability-comment"
               >
-                Comments (optional)
+                {commentFieldLabel}
+                <span className="font-normal text-slate-400"> (optional)</span>
               </label>
               <textarea
                 id="availability-comment"

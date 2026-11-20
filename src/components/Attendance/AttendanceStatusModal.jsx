@@ -61,7 +61,10 @@ function AttendanceStatusModal({ open, onClose, slot, currentStatus, currentNote
 
         <p className="text-charcoal font-semibold mb-1">{name}</p>
         {dateStr && <p className="text-sm text-slate-600 mb-1">{dateStr}</p>}
-        {timeStr && <p className="text-sm text-slate-600 mb-4">{timeStr}</p>}
+        {timeStr && <p className="text-sm text-slate-600 mb-1">{timeStr}</p>}
+        <p className="mb-4 text-xs text-slate-500">
+          Saving No show, Sick, or Other records the absence and removes this person from the rota for this slot.
+        </p>
 
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Attendance status">
           {ATTENDANCE_OPTIONS.map((opt) => (

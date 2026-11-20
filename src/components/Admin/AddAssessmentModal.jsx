@@ -9,6 +9,7 @@ import {
   ASSESSMENT_IMAGES_BUCKET,
   buildAssessmentImagePath,
 } from '../../utils/assessmentImageUrl';
+import { deleteAutoDuePlaceholdersForUser } from '../../utils/reassessmentDefaults';
 
 function todayYmd() {
   return format(new Date(), 'yyyy-MM-dd');
@@ -98,6 +99,13 @@ export default function AddAssessmentModal({ open, onClose, user, onSuccess }) {
         .single();
 
       if (insertError) throw insertError;
+
+      // Real assessment replaces any default schedule placeholder for this user.
+      try {
+        await deleteAutoDuePlaceholdersForUser(supabase, user.id);
+      } catch (cleanupErr) {
+        console.warn('[AddAssessmentModal] could not clear auto_due placeholders', cleanupErr);
+      }
 
       const imagePaths = [];
       for (let i = 0; i < images.length; i += 1) {
