@@ -20,37 +20,43 @@ export default function AttendancePage({ onOpenUserViolations }) {
     try {
       const byUser = {};
 
-      // 1) Attendance
+      // 1) Attendance (snapshot survives rota delete after tracked removal)
       const { data: attendanceData, error: attError } = await supabase
         .from('attendance')
-        .select('scheduled_rota_id, status, recorded_at');
+        .select('id, scheduled_rota_id, status, recorded_at, user_id, date');
 
       if (attError) throw attError;
 
       if (attendanceData && attendanceData.length > 0) {
-        const rotaIds = [...new Set(attendanceData.map((a) => a.scheduled_rota_id))];
-        const { data: rotaData, error: rotaError } = await supabase
-          .from('scheduled_rota')
-          .select('id, user_id, date')
-          .in('id', rotaIds);
+        const rotaIds = [...new Set(attendanceData.map((a) => a.scheduled_rota_id).filter(Boolean))];
+        let rotaMap = {};
+        if (rotaIds.length > 0) {
+          const { data: rotaData, error: rotaError } = await supabase
+            .from('scheduled_rota')
+            .select('id, user_id, date')
+            .in('id', rotaIds);
+          if (rotaError) throw rotaError;
+          rotaMap = (rotaData || []).reduce((acc, r) => {
+            acc[r.id] = r;
+            return acc;
+          }, {});
+        }
 
-        if (rotaError) throw rotaError;
-        const rotaMap = (rotaData || []).reduce((acc, r) => {
-          acc[r.id] = r;
-          return acc;
-        }, {});
-
+        const attendanceIds = attendanceData.map((a) => a.id).filter(Boolean);
         const { data: notesData, error: notesError } = await supabase
           .from('attendance_notes')
-          .select('scheduled_rota_id, note')
-          .in('scheduled_rota_id', rotaIds);
+          .select('attendance_id, scheduled_rota_id, note')
+          .in('attendance_id', attendanceIds);
         if (notesError) console.warn('[AttendancePage] Could not load attendance notes:', notesError);
-        const noteByRotaId = (notesData || []).reduce((acc, n) => {
-          acc[n.scheduled_rota_id] = n.note;
+        const noteByAttendanceId = (notesData || []).reduce((acc, n) => {
+          if (n.attendance_id) acc[n.attendance_id] = n.note;
           return acc;
         }, {});
 
-        const attUserIds = [...new Set(attendanceData.map((a) => rotaMap[a.scheduled_rota_id]?.user_id).filter(Boolean))];
+        const attUserIds = [...new Set(attendanceData.map((a) => {
+          const rota = a.scheduled_rota_id ? rotaMap[a.scheduled_rota_id] : null;
+          return a.user_id || rota?.user_id || null;
+        }).filter(Boolean))];
         let profilesMap = {};
         if (attUserIds.length > 0) {
           const { data: profilesData, error: profError } = await supabase
@@ -65,8 +71,8 @@ export default function AttendancePage({ onOpenUserViolations }) {
         }
 
         attendanceData.forEach((row) => {
-          const rota = rotaMap[row.scheduled_rota_id];
-          const uid = rota?.user_id;
+          const rota = row.scheduled_rota_id ? rotaMap[row.scheduled_rota_id] : null;
+          const uid = row.user_id || rota?.user_id;
           if (!uid) return;
           if (!byUser[uid]) {
             byUser[uid] = {
@@ -81,9 +87,9 @@ export default function AttendancePage({ onOpenUserViolations }) {
             };
           }
           const rec = {
-            date: rota?.date,
+            date: row.date || rota?.date,
             status: row.status,
-            note: noteByRotaId[row.scheduled_rota_id] || null,
+            note: noteByAttendanceId[row.id] || null,
             recorded_at: row.recorded_at,
           };
           byUser[uid].records.push(rec);

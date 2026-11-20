@@ -254,23 +254,26 @@ describe('default CC agency helpers', () => {
     { id: 'hng', name: 'H&G', email: 'ravi@hng.test' },
     {
       id: 'own',
-      name: 'Evri4you',
+      name: 'Evri',
       email: 'tide@end.test\nadine@own.test',
     },
-    { id: 'dead', name: 'Every4You', email: '', is_active: false },
+    { id: 'dead', name: 'Evri', email: '', is_active: false },
+    { id: 'legacy', name: 'Evri4you', email: 'legacy@own.test' },
   ];
 
-  test('matches Evri4you and Every4You spellings', () => {
-    expect(isDefaultCcAgencyName('Evri4you')).toBe(true);
-    expect(isDefaultCcAgencyName('Every4You')).toBe(true);
-    expect(isDefaultCcAgencyName('every 4 you')).toBe(true);
+  test('matches Evri only', () => {
+    expect(isDefaultCcAgencyName('Evri')).toBe(true);
+    expect(isDefaultCcAgencyName('evri')).toBe(true);
+    expect(isDefaultCcAgencyName('Evri4you')).toBe(false);
+    expect(isDefaultCcAgencyName('Every4You')).toBe(false);
+    expect(isDefaultCcAgencyName('Every')).toBe(false);
     expect(isDefaultCcAgencyName('H&G')).toBe(false);
   });
 
   test('finds active own agency with email', () => {
     expect(findDefaultCcAgency(agencies)).toEqual({
       id: 'own',
-      name: 'Evri4you',
+      name: 'Evri',
       email: 'tide@end.test\nadine@own.test',
     });
   });
@@ -293,7 +296,7 @@ describe('default CC agency helpers', () => {
     expect(resolved).toEqual([
       {
         id: 'own',
-        name: 'Evri4you',
+        name: 'Evri',
         email: 'tide@end.test\nadine@own.test',
       },
     ]);

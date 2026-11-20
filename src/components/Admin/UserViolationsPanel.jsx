@@ -13,7 +13,7 @@ const CATEGORY_LABELS = {
 
 /**
  * Per-user attendance + disciplinary notes for the Admin Users Violations tab.
- * Mirrors ProfilePage load pattern (scheduled_rota → attendance; shunter_violations by user_id).
+ * Loads attendance by snapshot user_id (survives rota unassign) plus shunter_violations.
  */
 export default function UserViolationsPanel({ userId, users = [], onCountChange }) {
   const [loading, setLoading] = useState(true);
@@ -29,45 +29,52 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
     setLoading(true);
     setError(null);
     try {
-      const { data: rotaData, error: rotaErr } = await supabase
-        .from('scheduled_rota')
-        .select('id, date')
-        .eq('user_id', userId);
-      if (rotaErr) throw rotaErr;
+      const { data: attData, error: attErr } = await supabase
+        .from('attendance')
+        .select('id, scheduled_rota_id, status, recorded_at, date')
+        .eq('user_id', userId)
+        .order('recorded_at', { ascending: false });
+      if (attErr) throw attErr;
 
-      const rotaIds = (rotaData || []).map((r) => r.id);
-      const rotaDateMap = (rotaData || []).reduce((acc, r) => {
-        acc[r.id] = r.date;
-        return acc;
-      }, {});
-
-      let attList = [];
-      if (rotaIds.length > 0) {
-        const { data: attData, error: attErr } = await supabase
-          .from('attendance')
-          .select('scheduled_rota_id, status, recorded_at')
-          .in('scheduled_rota_id', rotaIds)
-          .order('recorded_at', { ascending: false });
-        if (attErr) throw attErr;
-
+      const attRows = attData || [];
+      const attendanceIds = attRows.map((a) => a.id).filter(Boolean);
+      let noteByAttendanceId = {};
+      if (attendanceIds.length > 0) {
         const { data: notesData, error: notesErr } = await supabase
           .from('attendance_notes')
-          .select('scheduled_rota_id, note')
-          .in('scheduled_rota_id', rotaIds);
+          .select('attendance_id, note')
+          .in('attendance_id', attendanceIds);
         if (notesErr) {
           console.warn('[UserViolationsPanel] Could not load attendance notes:', notesErr);
         }
-        const noteByRotaId = (notesData || []).reduce((acc, n) => {
-          acc[n.scheduled_rota_id] = n.note;
+        noteByAttendanceId = (notesData || []).reduce((acc, n) => {
+          if (n.attendance_id) acc[n.attendance_id] = n.note;
           return acc;
         }, {});
-
-        attList = (attData || []).map((a) => ({
-          date: rotaDateMap[a.scheduled_rota_id],
-          status: a.status,
-          note: noteByRotaId[a.scheduled_rota_id] || null,
-        }));
       }
+
+      // Fallback dates from live rota when snapshot date is missing (pre-migration rows)
+      const missingDateRotaIds = attRows
+        .filter((a) => !a.date && a.scheduled_rota_id)
+        .map((a) => a.scheduled_rota_id);
+      let rotaDateMap = {};
+      if (missingDateRotaIds.length > 0) {
+        const { data: rotaData, error: rotaErr } = await supabase
+          .from('scheduled_rota')
+          .select('id, date')
+          .in('id', missingDateRotaIds);
+        if (rotaErr) throw rotaErr;
+        rotaDateMap = (rotaData || []).reduce((acc, r) => {
+          acc[r.id] = r.date;
+          return acc;
+        }, {});
+      }
+
+      const attList = attRows.map((a) => ({
+        date: a.date || rotaDateMap[a.scheduled_rota_id] || null,
+        status: a.status,
+        note: noteByAttendanceId[a.id] || null,
+      }));
       setAttendanceRecords(attList);
 
       const { data: violData, error: violErr } = await supabase

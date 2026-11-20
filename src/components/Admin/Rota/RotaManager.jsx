@@ -472,7 +472,7 @@ const RotaManager = ({ user }) => {
     });
     setShowAssignModal(false);
     setSelectedSlot(null);
-    toast.info('Near shift start — set absence reason on My Rota instead of silent remove.');
+    toast.info('Near shift start — set absence reason on My Rota; the person is then removed from this slot.');
     navigate(path);
   };
 

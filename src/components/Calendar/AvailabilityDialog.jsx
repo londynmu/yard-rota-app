@@ -95,6 +95,7 @@ function AvailabilityDialog({
   const [activeStatus, setActiveStatus] = useState('available');
   const [selectedDates, setSelectedDates] = useState([]);
   const [dayStatusByDate, setDayStatusByDate] = useState({});
+  const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [carouselArrowsDismissed, setCarouselArrowsDismissed] = useState(false);
   const [carouselScrollable, setCarouselScrollable] = useState(false);
@@ -137,6 +138,7 @@ function AvailabilityDialog({
     }
     setDayStatusByDate(seededStatuses);
     setActiveStatus(seededStatuses[clickedDateYmd] || initialData?.status || 'available');
+    setComment(initialData?.comment || '');
     setCarouselArrowsDismissed(false);
   }, [availabilityByDate, clickedDateYmd, dateOptions, initialData, initialSelectedDates]);
 
@@ -189,12 +191,13 @@ function AvailabilityDialog({
       status: dayStatusByDate[dateString] || availabilityByDate?.[dateString]?.status || activeStatus,
     }));
 
+    const trimmedComment = comment.trim();
     setIsSubmitting(true);
     const didSave = await onSave({
       date: clickedDateYmd,
       entries,
-      comment: '',
-      applyComment: false,
+      comment: trimmedComment,
+      applyComment: Boolean(trimmedComment),
     });
     setIsSubmitting(false);
 
@@ -333,6 +336,23 @@ function AvailabilityDialog({
                   </div>
                 </>
               )}
+            </div>
+
+            <div className="mt-3">
+              <label
+                className="mb-1.5 block text-sm font-medium text-rota-text-muted"
+                htmlFor="availability-comment"
+              >
+                Comments (optional)
+              </label>
+              <textarea
+                id="availability-comment"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                rows={2}
+                placeholder="Add any notes about this day..."
+                className="w-full resize-none rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-sm text-charcoal placeholder:text-slate-400 focus:border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              />
             </div>
 
             <div className="mt-4 flex gap-2 border-t border-slate-200/80 pt-3">

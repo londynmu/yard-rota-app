@@ -504,7 +504,7 @@ export default function AdditionalBookingsPanel({
           <div className="relative flex max-h-[min(80vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg p-4 shadow-2xl sm:p-6">
             <h3 className="mb-1 shrink-0 text-xl font-semibold text-rota-text-primary">CC</h3>
             <p className="mb-3 shrink-0 text-xs text-rota-text-muted">
-              Evri4you is copied by default. Addresses already in To are skipped for that email.
+              Evri is copied by default. Addresses already in To are skipped for that email.
             </p>
             <ul className="min-h-0 flex-1 divide-y divide-rota-toolbar-border overflow-y-auto overscroll-contain rounded-lg border border-rota-toolbar-border">
               {ccPickerAgencies.map((agency) => {

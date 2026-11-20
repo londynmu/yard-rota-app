@@ -274,29 +274,32 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     if (!user?.id || !supabaseClient || simplifiedView) return;
     const fetchAttendance = async () => {
       try {
-        const { data: rotaData, error: rotaErr } = await supabaseClient
-          .from('scheduled_rota')
-          .select('id, date')
-          .eq('user_id', user.id);
-        if (rotaErr) throw rotaErr;
-        const rotaIds = (rotaData || []).map((r) => r.id);
-        const rotaDateMap = (rotaData || []).reduce((acc, r) => {
-          acc[r.id] = r.date;
-          return acc;
-        }, {});
-        let attList = [];
-        if (rotaIds.length > 0) {
-          const { data: attData, error: attErr } = await supabaseClient
-            .from('attendance')
-            .select('scheduled_rota_id, status, recorded_at')
-            .in('scheduled_rota_id', rotaIds)
-            .order('recorded_at', { ascending: false });
-          if (attErr) throw attErr;
-          attList = (attData || []).map((a) => ({
-            date: rotaDateMap[a.scheduled_rota_id],
-            status: a.status,
-          }));
+        const { data: attData, error: attErr } = await supabaseClient
+          .from('attendance')
+          .select('id, scheduled_rota_id, status, recorded_at, date')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false });
+        if (attErr) throw attErr;
+        const attRows = attData || [];
+        const missingDateRotaIds = attRows
+          .filter((a) => !a.date && a.scheduled_rota_id)
+          .map((a) => a.scheduled_rota_id);
+        let rotaDateMap = {};
+        if (missingDateRotaIds.length > 0) {
+          const { data: rotaData, error: rotaErr } = await supabaseClient
+            .from('scheduled_rota')
+            .select('id, date')
+            .in('id', missingDateRotaIds);
+          if (rotaErr) throw rotaErr;
+          rotaDateMap = (rotaData || []).reduce((acc, r) => {
+            acc[r.id] = r.date;
+            return acc;
+          }, {});
         }
+        const attList = attRows.map((a) => ({
+          date: a.date || rotaDateMap[a.scheduled_rota_id] || null,
+          status: a.status,
+        }));
         setAttendanceRecords(attList);
       } catch (err) {
         console.error('Error fetching attendance:', err);
