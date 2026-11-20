@@ -144,6 +144,7 @@ const WeeklyRotaPage = () => {
   const [showBlockedRemovalModal, setShowBlockedRemovalModal] = useState(false);
   const [pendingAttendanceDeepLink, setPendingAttendanceDeepLink] = useState(null);
   const pendingAttendanceAfterBlockRef = useRef(null);
+  const removalAfterAttendanceRef = useRef(false);
   const deepLinkHandledRef = useRef(false);
   const isDesktop = useIsDesktop();
   const [filterHost, setFilterHost] = useState(null);
@@ -294,13 +295,16 @@ const WeeklyRotaPage = () => {
 
     if (blockedRemoval) {
       pendingAttendanceAfterBlockRef.current = match || null;
+      removalAfterAttendanceRef.current = Boolean(match);
       setShowBlockedRemovalModal(true);
       if (!match && userId) {
         toast.warning('Could not find that person on My Rota for this filter. Pick them from the list.');
       }
     } else if (match) {
+      removalAfterAttendanceRef.current = false;
       setAttendanceModalSlot(match);
     } else if (userId) {
+      removalAfterAttendanceRef.current = false;
       toast.warning('Could not find that person on My Rota for this filter. Pick them from the list.');
     }
 
@@ -584,46 +588,90 @@ const WeeklyRotaPage = () => {
   const handleAttendanceSave = useCallback(async (status, note = '') => {
     if (!attendanceModalSlot || !user) return;
     setAttendanceSaving(true);
-    const slotId = attendanceModalSlot.id;
+    const slot = attendanceModalSlot;
+    const slotId = slot.id;
+    const shouldRemoveFromRota = removalAfterAttendanceRef.current;
     try {
       if (status === null) {
         const { error: delError } = await supabase
           .from('attendance')
           .delete()
-          .eq('scheduled_rota_id', attendanceModalSlot.id);
+          .eq('scheduled_rota_id', slotId);
         if (delError) throw delError;
         setAttendanceBySlotId((prev) => {
           const next = { ...prev };
-          delete next[attendanceModalSlot.id];
+          delete next[slotId];
           return next;
         });
+        removalAfterAttendanceRef.current = false;
       } else {
-        const { error: upsertError } = await supabase
+        const snapshot = {
+          scheduled_rota_id: slotId,
+          status,
+          recorded_by: user.id,
+          user_id: slot.user_id || null,
+          date: slot.date || null,
+          location: slot.location || null,
+          shift_type: slot.shift_type || null,
+          start_time: slot.start_time || null,
+          end_time: slot.end_time || null,
+        };
+
+        const { data: attRow, error: upsertError } = await supabase
           .from('attendance')
-          .upsert(
-            {
-              scheduled_rota_id: attendanceModalSlot.id,
-              status,
-              recorded_by: user.id,
-            },
-            { onConflict: 'scheduled_rota_id' }
-          );
+          .upsert(snapshot, { onConflict: 'scheduled_rota_id' })
+          .select('id')
+          .single();
         if (upsertError) throw upsertError;
 
-        const { error: noteError } = note
-          ? await supabase
-            .from('attendance_notes')
-            .upsert(
-              { scheduled_rota_id: slotId, note, updated_by: user.id, updated_at: new Date().toISOString() },
-              { onConflict: 'scheduled_rota_id' }
-            )
-          : await supabase.from('attendance_notes').delete().eq('scheduled_rota_id', slotId);
-        if (noteError) throw noteError;
+        const attendanceId = attRow?.id;
+        if (attendanceId) {
+          const { error: noteError } = note
+            ? await supabase
+              .from('attendance_notes')
+              .upsert(
+                {
+                  attendance_id: attendanceId,
+                  scheduled_rota_id: slotId,
+                  note,
+                  updated_by: user.id,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'attendance_id' }
+              )
+            : await supabase.from('attendance_notes').delete().eq('attendance_id', attendanceId);
+          if (noteError) throw noteError;
+        }
 
-        setAttendanceBySlotId((prev) => ({
-          ...prev,
-          [slotId]: note ? { status, note } : { status },
-        }));
+        if (shouldRemoveFromRota && slot.user_id) {
+          const { error: unassignError } = await supabase
+            .from('scheduled_rota')
+            .delete()
+            .eq('id', slotId)
+            .eq('user_id', slot.user_id);
+          if (unassignError) throw unassignError;
+
+          setDailyRotaData((prev) => {
+            const daySlots = prev[slot.date];
+            if (!daySlots) return prev;
+            return {
+              ...prev,
+              [slot.date]: daySlots.filter((row) => row.id !== slotId),
+            };
+          });
+          setAttendanceBySlotId((prev) => {
+            const next = { ...prev };
+            delete next[slotId];
+            return next;
+          });
+          toast.success('Attendance saved and person removed from this rota slot.');
+        } else {
+          setAttendanceBySlotId((prev) => ({
+            ...prev,
+            [slotId]: note ? { status, note } : { status },
+          }));
+        }
+        removalAfterAttendanceRef.current = false;
       }
       setAttendanceModalSlot(null);
     } catch (e) {
@@ -1305,8 +1353,8 @@ const WeeklyRotaPage = () => {
           the person silently from the rota planner.
         </p>
         <p className="text-sm text-slate-600 mb-4">
-          Next, mark attendance with a reason (for example No show or Sick) so the
-          absence stays visible.
+          Next, mark attendance with a reason (No show, Sick, or Other). After you
+          save, the person is removed from this slot so you can reassign them.
         </p>
         <div className="flex justify-end gap-2">
           <button
@@ -1322,7 +1370,10 @@ const WeeklyRotaPage = () => {
       {attendanceModalSlot && (
         <AttendanceStatusModal
           open={!!attendanceModalSlot}
-          onClose={() => setAttendanceModalSlot(null)}
+          onClose={() => {
+            removalAfterAttendanceRef.current = false;
+            setAttendanceModalSlot(null);
+          }}
           slot={attendanceModalSlot}
           currentStatus={attendanceBySlotId[attendanceModalSlot.id]?.status ?? null}
           currentNote={attendanceBySlotId[attendanceModalSlot.id]?.note ?? ''}

@@ -7,9 +7,9 @@ export const MAILTO_BODY_SAFE_LIMIT = 1800;
 
 /**
  * Own agency always offered as default CC on agency/rota emails.
- * DB name is Evri4you; also accept Every4You spelling.
+ * Match the agencies row named Evri (formerly Evri4you / Every4You).
  */
-export const DEFAULT_CC_AGENCY_NAME = 'Evri4you';
+export const DEFAULT_CC_AGENCY_NAME = 'Evri';
 
 /**
  * @param {unknown} name
@@ -20,7 +20,7 @@ export function isDefaultCcAgencyName(name) {
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
-  return key === 'evri4you' || key === 'every4you';
+  return key === 'evri';
 }
 
 /**
@@ -44,7 +44,7 @@ export function findDefaultCcAgency(agencies) {
 }
 
 /**
- * Default CC agency ids (Evri4you), excluding primary To ids when provided.
+ * Default CC agency ids (Evri), excluding primary To ids when provided.
  * @param {Array<{ id?: string, name?: string, email?: string, is_active?: boolean }>|null|undefined} agencies
  * @param {{ excludeAgencyIds?: Array<string|null|undefined> }} [opts]
  * @returns {string[]}

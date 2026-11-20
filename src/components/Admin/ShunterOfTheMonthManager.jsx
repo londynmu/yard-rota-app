@@ -688,7 +688,7 @@ export default function ShunterOfTheMonthManager({ users, onAwardsChange }) {
                             </p>
                             {group.hasEmail && defaultCcEmails.length > 0 && (
                               <p className="text-[11px] text-rota-text-muted">
-                                CC: Evri4you ({defaultCcEmails.join(', ')})
+                                CC: Evri ({defaultCcEmails.join(', ')})
                               </p>
                             )}
                             <ul className="mt-1.5 space-y-0.5">

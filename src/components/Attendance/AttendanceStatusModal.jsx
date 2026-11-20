@@ -7,7 +7,7 @@ const SELECTED_CLASS = 'border-sky-100 bg-sky-50 text-sky-900';
 const UNSELECTED_CLASS = 'text-slate-600 hover:bg-slate-50 border-slate-200/80';
 
 /**
- * Modal to mark attendance for a slot: No show / Sick / Late / Other, with an optional reason
+ * Modal to mark attendance for a slot: No show / Sick / Other, with an optional reason
  * (required for Other). Call onSave(status, note) to save, onSave(null) to clear (Present).
  */
 function AttendanceStatusModal({ open, onClose, slot, currentStatus, currentNote, onSave, saving }) {

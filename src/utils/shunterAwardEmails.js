@@ -128,7 +128,7 @@ export function buildShunterAwardEmail({ monthKey, winners }) {
  *   userId?: string,
  * }>} awards
  * @param {string} monthKey
- * @param {{ ccEmails?: string[] }} [opts] Default CC emails (e.g. Evri4you); skipped when already To.
+ * @param {{ ccEmails?: string[] }} [opts] Default CC emails (e.g. Evri); skipped when already To.
  */
 export function groupShunterAwardsByAgency(awards, monthKey, opts = {}) {
   const groups = new Map();
