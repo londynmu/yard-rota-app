@@ -123,7 +123,7 @@ class AdminShellScreen extends StatelessWidget {
 
   Future<void> _open(BuildContext context, AdminSection section) async {
     if (!session.isAdmin) {
-      AppToast.show(context, 'Administrative privileges required.');
+      AppToast.warning(context, 'Administrative privileges required.');
       return;
     }
     final screen = switch (section) {

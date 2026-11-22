@@ -1,0 +1,31 @@
+---
+description: Always reuse existing page styles and theme tokens — never invent new UI styling
+alwaysApply: true
+---
+
+# Reuse Existing UI Styles
+
+Applies to the **whole** `yard-rota-app` workspace, including **`apps/yard_rota_flutter`** and the web app under `src/`.
+
+## Hard rule
+
+1. **ALWAYS** reuse existing styles, layouts, and components from screens that already look right — especially **Info**, **Breaks**, **Calendar**, and shared chrome on those flows.
+2. **NEVER** invent new custom colours, opacities, card shells, paddings, typography scales, or one-off widgets when an existing pattern or token can be reused.
+3. Prefer shared theme tokens and project UI primitives over local hex values or ad-hoc decoration.
+
+## Flutter (`apps/yard_rota_flutter`)
+
+- Colours / spacing / radii / strokes / motion: `lib/core/theme/app_tokens.dart` (`AppPrimitives`, `AppColorsScheme`, `AppSpacing`, `AppRadius`, `AppAvailabilityTones`, etc.).
+- Cards / toasts / badges / buttons: `lib/core/ui/` (`AppCard`, `AppToast`, `StatusBadge`, …).
+- Match the **tinted `AppCard` shell** used on Info / Breaks / Calendar (wash + accent border + `titleSmall` / `bodySmall` typography) instead of plain or transparent list rows.
+- Do **not** add new design tokens in feature widgets unless they belong in `app_tokens.dart` and are clearly shared (see also `flutter-figma-tokens.mdc`).
+
+## Web (`src/`)
+
+- Follow `.cursor/rules/use-only-project-ui-components.mdc` and `.cursor/rules/modern-page-design-system.mdc`.
+- Tokens and classes from `tailwind.config.js` / `src/index.css` (`card-modern`, `admin-section-*`, etc.).
+- Card sections: `.cursor/rules/shunter-card-visual-reference.mdc`.
+
+## Before shipping UI
+
+Ask: “Which existing screen already does this?” Copy that pattern. Only introduce something new when the owner explicitly asks for a new look.

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +11,8 @@ import '../../../core/platform/device_capabilities.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_button.dart';
+import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/precheck_signed_image.dart';
 import '../data/pre_check_repository.dart';
@@ -38,6 +39,7 @@ class PreCheckScreen extends StatefulWidget {
 class _PreCheckScreenState extends State<PreCheckScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final Map<String, GlobalKey> _itemKeys = <String, GlobalKey>{};
+  final TextEditingController _tugSearchController = TextEditingController();
 
   PreCheckStep _step = PreCheckStep.select;
   PreCheckInitialData? _initialData;
@@ -60,11 +62,19 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   String _duringShiftDescription = '';
   List<PreCheckPhoto> _duringShiftPhotos = const <PreCheckPhoto>[];
   String? _duringShiftFormSessionId;
+  String _tugSearchQuery = '';
+  String? _expandedTugId;
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _tugSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -130,7 +140,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       });
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Known defects could not be loaded.');
+        AppToast.error(context, 'Known defects could not be loaded.');
       }
       setState(() {
         _step = PreCheckStep.form;
@@ -155,14 +165,14 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       final tug = await widget.repository.fetchTugByQrToken(token);
       if (tug == null) {
         if (mounted) {
-          AppToast.show(context, 'Invalid or inactive QR code.');
+          AppToast.error(context, 'Invalid or inactive QR code.');
         }
         return;
       }
       await _startCheck(tug);
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'QR code could not be resolved.');
+        AppToast.error(context, 'QR code could not be resolved.');
       }
     }
   }
@@ -201,12 +211,12 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       return;
     }
     if (_schemaStatus == PreCheckSchemaStatus.mismatch) {
-      AppToast.show(context, 'Please update the app before submitting.');
+      AppToast.warning(context, 'Please update the app before submitting.');
       return;
     }
     final tug = _selectedTug;
     if (tug == null) {
-      AppToast.show(context, 'Please select a tug.');
+      AppToast.warning(context, 'Please select a tug.');
       return;
     }
     setState(() {
@@ -230,7 +240,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       });
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Error submitting PreCheck. Please try again.');
+        AppToast.error(context, 'Error submitting PreCheck. Please try again.');
       }
     } finally {
       if (mounted) {
@@ -247,7 +257,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       return;
     }
     if (_duringShiftDescription.trim().isEmpty) {
-      AppToast.show(context, 'Please describe what happened.');
+      AppToast.warning(context, 'Please describe what happened.');
       return;
     }
     setState(() {
@@ -271,7 +281,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       });
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Error submitting report. Please try again.');
+        AppToast.error(context, 'Error submitting report. Please try again.');
       }
     } finally {
       if (mounted) {
@@ -296,11 +306,11 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         );
       });
       if (mounted) {
-        AppToast.show(context, 'PreCheck queue synced.');
+        AppToast.success(context, 'PreCheck queue synced.');
       }
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'PreCheck sync failed.');
+        AppToast.error(context, 'PreCheck sync failed.');
       }
     }
   }
@@ -325,41 +335,10 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colors = context.appColors;
     final mq = MediaQuery.of(context);
-    final topInset = mq.padding.top + kToolbarHeight;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('PreCheck'),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [
-                          colors.bgPrimary.withValues(alpha: 0.0),
-                          colors.bgPrimary.withValues(alpha: 0.28),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 0.42),
-                        ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -371,22 +350,22 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
                 darkWallpaper: widget.darkHomeWallpaper,
               ),
               fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
             ),
           ),
           Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  topInset,
-                  AppSpacing.lg,
-                  mq.padding.bottom + AppSpacing.lg,
-                ),
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildBody(),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                mq.padding.top + AppSpacing.sm,
+                AppSpacing.lg,
+                // Sit flush above the shell glass nav (SafeArea + nav height).
+                mq.viewPadding.bottom + AppComponentTokens.bottomNavHeight,
               ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildBody(),
             ),
           ),
         ],
@@ -394,13 +373,29 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     );
   }
 
+  /// Vertically centres [child] in the available area; scrolls when taller.
+  Widget _centeredScrollBody({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: child),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildBody() {
     if (_errorMessage != null) {
-      return _MessageCard(
-        title: 'PreCheck unavailable',
-        message: _errorMessage!,
-        actionLabel: 'Retry',
-        onAction: _bootstrap,
+      return _centeredScrollBody(
+        child: _MessageCard(
+          title: 'PreCheck unavailable',
+          message: _errorMessage!,
+          actionLabel: 'Retry',
+          onAction: _bootstrap,
+        ),
       );
     }
     return switch (_step) {
@@ -412,31 +407,153 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     };
   }
 
-  Widget _buildSelect() {
-    final tugs = _tugs;
+  List<PreCheckTug> get _filteredTugs {
+    final query = _tugSearchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _tugs;
+    }
+    return _tugs.where((tug) {
+      final haystack = [
+        tug.label,
+        tug.tugNumber,
+        tug.displayName ?? '',
+        tug.secondaryLabel,
+        tug.locationName ?? '',
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
 
-    return ListView(
-      children: [
-        _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
-        const SizedBox(height: AppSpacing.md),
-        if (DeviceCapabilities.supportsQrScanner) ...[
-          _PreCheckSolidButton(label: 'Scan QR Code', onPressed: _scanQr),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        Text('Select Tug', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.md),
-        if (tugs.isEmpty)
-          const _MessageCard(
-            title: 'No tugs available',
-            message: 'There are no active tugs available right now.',
-          )
-        else
-          ...tugs.map(
-            (tug) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _TugCard(tug: tug, onStart: () => _startCheck(tug)),
+  Widget _buildSelectSearchBar() {
+    final colors = context.appColors;
+    final canScan = DeviceCapabilities.supportsQrScanner;
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.xxs,
+        AppSpacing.xs,
+        AppSpacing.xxs,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 18, color: colors.textSecondary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: TextField(
+              controller: _tugSearchController,
+              onChanged: (value) => setState(() => _tugSearchQuery = value),
+              textInputAction: TextInputAction.search,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w400,
+                fontSize: 13,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search tug',
+                hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textTertiary,
+                  fontWeight: FontWeight.w400,
+                ),
+                isDense: true,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.xs,
+                ),
+              ),
             ),
           ),
+          if (canScan)
+            Theme(
+              data: Theme.of(context).copyWith(
+                textButtonTheme: TextButtonThemeData(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    textStyle: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+              child: AppButton(
+                label: 'Scan QR',
+                onPressed: _scanQr,
+                variant: AppButtonVariant.ghost,
+                isExpanded: false,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelect() {
+    final tugs = _filteredTugs;
+    final colors = context.appColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Search + Scan QR stay pinned at the top while the list scrolls.
+        _buildSelectSearchBar(),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: _centeredScrollBody(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _QueueBanner(
+                  status: _initialData?.queueStatus,
+                  onSync: _syncNow,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Select Tug',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (_tugs.isEmpty)
+                  const _MessageCard(
+                    title: 'No tugs available',
+                    message: 'There are no active tugs available right now.',
+                  )
+                else if (tugs.isEmpty)
+                  const _MessageCard(
+                    title: 'No matching tugs',
+                    message: 'Try a different search or clear the filter.',
+                  )
+                else
+                  ...tugs.map(
+                    (tug) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _TugCard(
+                        tug: tug,
+                        expanded: _expandedTugId == tug.id,
+                        onToggle: () => setState(() {
+                          _expandedTugId =
+                              _expandedTugId == tug.id ? null : tug.id;
+                        }),
+                        onStart: () => _startCheck(tug),
+                        history: _expandedTugId == tug.id
+                            ? _TugCheckHistoryPanel(
+                                repository: widget.repository,
+                                tugId: tug.id,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -444,51 +561,59 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   Widget _buildCompleted() {
     final checks =
         _initialData?.shiftChecks ?? const <PreCheckSubmissionSummary>[];
-    return ListView(
-      children: [
-        _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
-        const SizedBox(height: AppSpacing.md),
-        _ToneCard(
-          tone: _Tone.success,
-          child: Column(
-            children: [
-              for (var i = 0; i < checks.length; i++)
-                _CompletedRow(
-                  check: checks[i],
-                  showDivider: i > 0,
-                  damageEnabled: _initialData?.duringShiftDamageEnabled ?? true,
-                  onReportDamage: () {
-                    _selectedTug = PreCheckTug(
-                      id: checks[i].tugId,
-                      tugNumber: checks[i].tugNumber,
-                      displayName: checks[i].tugDisplayName,
-                    );
-                    setState(() => _step = PreCheckStep.duringShift);
-                  },
-                ),
-            ],
+    return _centeredScrollBody(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
+          const SizedBox(height: AppSpacing.md),
+          _ToneCard(
+            tone: _Tone.success,
+            child: Column(
+              children: [
+                for (var i = 0; i < checks.length; i++)
+                  _CompletedRow(
+                    check: checks[i],
+                    showDivider: i > 0,
+                    damageEnabled:
+                        _initialData?.duringShiftDamageEnabled ?? true,
+                    onReportDamage: () {
+                      _selectedTug = PreCheckTug(
+                        id: checks[i].tugId,
+                        tugNumber: checks[i].tugNumber,
+                        displayName: checks[i].tugDisplayName,
+                      );
+                      setState(() => _step = PreCheckStep.duringShift);
+                    },
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        _PreCheckSolidButton(
-          label: 'Check Another Tug',
-          onPressed: () => setState(() {
-            _selectedTug = null;
-            _step = PreCheckStep.select;
-          }),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Check Another Tug',
+            onPressed: () => setState(() {
+              _selectedTug = null;
+              _step = PreCheckStep.select;
+            }),
+            variant: AppButtonVariant.secondary,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildForm() {
     final tug = _selectedTug;
     if (tug == null) {
-      return _MessageCard(
-        title: 'No tug selected',
-        message: 'Please go back and select a tug.',
-        actionLabel: 'Select Tug',
-        onAction: () => setState(() => _step = PreCheckStep.select),
+      return _centeredScrollBody(
+        child: _MessageCard(
+          title: 'No tug selected',
+          message: 'Please go back and select a tug.',
+          actionLabel: 'Select Tug',
+          onAction: () => setState(() => _step = PreCheckStep.select),
+        ),
       );
     }
     final outside = _items.where((item) => item.category == 'outside').toList();
@@ -504,97 +629,118 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       defectsByItem: _defectsByItem,
     );
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
-              if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const _WarningCard(
-                  title: 'Your app is outdated',
-                  message:
-                      'Please update the app before submitting this PreCheck.',
-                ),
-              ] else if (_schemaStatus == PreCheckSchemaStatus.error) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const _WarningCard(
-                  title: 'Version check unavailable',
-                  message:
-                      'The latest form version could not be verified. Your current form will be used.',
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-            ],
-          ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _StickyHeaderDelegate(
-            child: _TugHeader(
-              tug: tug,
-              progress: progress,
-              onChangeTug: () {
-                setState(() {
-                  _selectedTug = null;
-                  _step = PreCheckStep.select;
-                });
-              },
+    return _centeredScrollBody(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
+          if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _WarningCard(
+              title: 'Your app is outdated',
+              message:
+                  'Please update the app before submitting this PreCheck.',
             ),
+          ] else if (_schemaStatus == PreCheckSchemaStatus.error) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const _WarningCard(
+              title: 'Version check unavailable',
+              message:
+                  'The latest form version could not be verified. Your current form will be used.',
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          _TugHeader(
+            tug: tug,
+            progress: progress,
+            onChangeTug: () {
+              setState(() {
+                _selectedTug = null;
+                _step = PreCheckStep.select;
+              });
+            },
+            onMarkAllOk: _submitting ? null : _markAllItemsOk,
           ),
-        ),
-        SliverList.list(
-          children: [
+          const SizedBox(height: AppSpacing.lg),
+          _buildSection('Outside Check', outside),
+          const SizedBox(height: AppSpacing.lg),
+          _buildSection('Inside Check', inside),
+          if (_remarksEnabled) ...[
             const SizedBox(height: AppSpacing.lg),
-            _buildSection('Outside Check', outside),
-            const SizedBox(height: AppSpacing.lg),
-            _buildSection('Inside Check', inside),
-            if (_remarksEnabled) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _RemarksCard(
-                remarks: _draft.remarks,
-                photos: _draft.remarksPhotos,
-                onRemarksChanged: (value) =>
-                    _persistDraft(_draft.copyWith(remarks: value)),
-                onAddPhoto: () => _addPhotos(
-                  current: _draft.remarksPhotos,
-                  maxImages: 3,
-                  source: ImageSource.gallery,
-                  onChanged: (photos) =>
-                      _persistDraft(_draft.copyWith(remarksPhotos: photos)),
-                ),
-                onTakePhoto: () => _addPhotos(
-                  current: _draft.remarksPhotos,
-                  maxImages: 3,
-                  source: ImageSource.camera,
-                  onChanged: (photos) =>
-                      _persistDraft(_draft.copyWith(remarksPhotos: photos)),
-                ),
-                onRemovePhoto: (photo) => _persistDraft(
-                  _draft.copyWith(
-                    remarksPhotos: _draft.remarksPhotos
-                        .where((entry) => entry.id != photo.id)
-                        .toList(),
-                  ),
+            _RemarksCard(
+              remarks: _draft.remarks,
+              photos: _draft.remarksPhotos,
+              onRemarksChanged: (value) =>
+                  _persistDraft(_draft.copyWith(remarks: value)),
+              onAddPhoto: () => _addPhotos(
+                current: _draft.remarksPhotos,
+                maxImages: 3,
+                source: ImageSource.gallery,
+                onChanged: (photos) =>
+                    _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+              ),
+              onTakePhoto: () => _addPhotos(
+                current: _draft.remarksPhotos,
+                maxImages: 3,
+                source: ImageSource.camera,
+                onChanged: (photos) =>
+                    _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+              ),
+              onRemovePhoto: (photo) => _persistDraft(
+                _draft.copyWith(
+                  remarksPhotos: _draft.remarksPhotos
+                      .where((entry) => entry.id != photo.id)
+                      .toList(),
                 ),
               ),
-            ],
-            if (_showValidationWarning && !validation.isValid) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _ValidationWarning(result: validation),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            _PreCheckSolidButton(
-              label: _submitting ? 'Submitting...' : 'Submit Pre-Shift Check',
-              onPressed: _submitting ? null : _submitPreShift,
             ),
-            const SizedBox(height: AppSpacing.giant),
           ],
-        ),
-      ],
+          if (_showValidationWarning && !validation.isValid) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _ValidationWarning(result: validation),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          AppButton(
+            label: _submitting ? 'Submitting...' : 'Submit Pre-Shift Check',
+            onPressed: _submitting ? null : _submitPreShift,
+            variant: AppButtonVariant.secondary,
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _markAllItemsOk() async {
+    final states = Map<String, PreCheckItemState>.from(_draft.itemStates);
+    final resolved = <String>{..._draft.markedResolvedDamageIds};
+
+    for (final item in _items) {
+      final defects = _defectsByItem[item.key] ?? const <PreCheckKnownDefect>[];
+      for (final defect in defects) {
+        resolved.add(defect.id);
+      }
+      if (defects.length <= 1) {
+        states[item.key] = const PreCheckItemState(
+          status: PreCheckItemStatus.ok,
+        );
+      } else {
+        for (final defect in defects) {
+          final key = '${item.key}::${defect.id}';
+          states[key] = const PreCheckItemState(status: PreCheckItemStatus.ok);
+        }
+        states.remove('${item.key}::new');
+      }
+    }
+
+    await _persistDraft(
+      _draft.copyWith(
+        itemStates: states,
+        markedResolvedDamageIds: resolved.toList(growable: false),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _showValidationWarning = false);
   }
 
   Widget _buildSection(String title, List<PreCheckItemDefinition> items) {
@@ -603,18 +749,25 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       draft: _draft,
       defectsByItem: _defectsByItem,
     );
+    final colors = context.appColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
             Expanded(
-              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: colors.textPrimary,
+                ),
+              ),
             ),
             Text(
               '${progress.checked}/${progress.total}',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: context.appColors.textSecondary,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -623,7 +776,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         for (final item in items)
           Padding(
             key: _itemKeys.putIfAbsent(item.key, GlobalKey.new),
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: _CheckItemCard(
               item: item,
               draft: _draft,
@@ -644,78 +797,93 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   Widget _buildDuringShift() {
     final tug = _selectedTug;
     if (tug == null) {
-      return const _MessageCard(
-        title: 'No tug selected',
-        message: 'Please select a tug before reporting damage.',
+      return _centeredScrollBody(
+        child: const _MessageCard(
+          title: 'No tug selected',
+          message: 'Please select a tug before reporting damage.',
+        ),
       );
     }
     if (!(_initialData?.duringShiftDamageEnabled ?? true)) {
-      return _MessageCard(
-        title: 'Damage reporting disabled',
-        message:
-            'Damage reporting is currently disabled by admin. Please contact your supervisor.',
-        actionLabel: 'Back',
-        onAction: () => setState(() => _step = PreCheckStep.completed),
+      return _centeredScrollBody(
+        child: _MessageCard(
+          title: 'Damage reporting disabled',
+          message:
+              'Damage reporting is currently disabled by admin. Please contact your supervisor.',
+          actionLabel: 'Back',
+          onAction: () => setState(() => _step = PreCheckStep.completed),
+        ),
       );
     }
-    return ListView(
-      children: [
-        _ToneCard(
-          tone: _Tone.danger,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Damage Report for ${tug.label}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: context.appColors.danger,
-                  fontWeight: FontWeight.w800,
+    return _centeredScrollBody(
+      child: _ToneCard(
+        tone: _Tone.danger,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Damage Report for ${tug.label}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Color.alphaBlend(
+                  context.appColors.danger.withValues(alpha: 0.55),
+                  context.appColors.textPrimary,
                 ),
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'What happened? *',
-                  hintText: 'Describe the damage or incident...',
-                ),
-                onChanged: (value) => _duringShiftDescription = value,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'What happened? *',
+                hintText: 'Describe the damage or incident...',
               ),
-              const SizedBox(height: AppSpacing.md),
-              _PhotoActions(
-                photos: _duringShiftPhotos,
+              onChanged: (value) => _duringShiftDescription = value,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _PhotoActions(
+              photos: _duringShiftPhotos,
+              maxImages: 5,
+              onTakePhoto: () => _addPhotos(
+                current: _duringShiftPhotos,
                 maxImages: 5,
-                onTakePhoto: () => _addPhotos(
-                  current: _duringShiftPhotos,
-                  maxImages: 5,
-                  source: ImageSource.camera,
-                  onChanged: (photos) =>
-                      setState(() => _duringShiftPhotos = photos),
-                ),
-                onAddGallery: () => _addPhotos(
-                  current: _duringShiftPhotos,
-                  maxImages: 5,
-                  source: ImageSource.gallery,
-                  onChanged: (photos) =>
-                      setState(() => _duringShiftPhotos = photos),
-                ),
-                onRemove: (photo) => setState(
-                  () => _duringShiftPhotos = _duringShiftPhotos
-                      .where((entry) => entry.id != photo.id)
-                      .toList(),
-                ),
+                source: ImageSource.camera,
+                onChanged: (photos) =>
+                    setState(() => _duringShiftPhotos = photos),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _PreCheckSolidButton(
-                label: _submitting ? 'Submitting...' : 'Submit Damage Report',
-                tone: _Tone.danger,
-                onPressed: _submitting ? null : _submitDuringShift,
+              onAddGallery: () => _addPhotos(
+                current: _duringShiftPhotos,
+                maxImages: 5,
+                source: ImageSource.gallery,
+                onChanged: (photos) =>
+                    setState(() => _duringShiftPhotos = photos),
               ),
-            ],
-          ),
+              onRemove: (photo) => setState(
+                () => _duringShiftPhotos = _duringShiftPhotos
+                    .where((entry) => entry.id != photo.id)
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label:
+                  _submitting ? 'Submitting...' : 'Submit Damage Report',
+              variant: AppButtonVariant.secondary,
+              onPressed: _submitting ? null : _submitDuringShift,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: _submitting
+                  ? null
+                  : () => setState(() => _step = PreCheckStep.completed),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -742,53 +910,66 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         ? "Back to today's checks"
         : "Back to today's checks";
 
-    return ListView(
-      children: [
-        _ToneCard(
-          tone: queued ? _Tone.warning : _Tone.success,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSpacing.sm),
-              Text(message),
-              const SizedBox(height: AppSpacing.lg),
-              _PreCheckSolidButton(
-                label: primaryLabel,
+    return _centeredScrollBody(
+      child: _ToneCard(
+        tone: queued ? _Tone.warning : _Tone.success,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: context.appColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.appColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: primaryLabel,
+              variant: AppButtonVariant.secondary,
+              onPressed: () => setState(() {
+                _lastSubmission = null;
+                _lastSubmitType = null;
+                if (isDamageReport) {
+                  _step = _initialData?.shiftChecks.isNotEmpty ?? false
+                      ? PreCheckStep.completed
+                      : PreCheckStep.select;
+                } else {
+                  _selectedTug = null;
+                  _step = PreCheckStep.completed;
+                }
+              }),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (!isDamageReport) ...[
+              AppButton(
+                label: 'Check Another Tug',
                 onPressed: () => setState(() {
                   _lastSubmission = null;
                   _lastSubmitType = null;
-                  if (isDamageReport) {
-                    _step = _initialData?.shiftChecks.isNotEmpty ?? false
-                        ? PreCheckStep.completed
-                        : PreCheckStep.select;
-                  } else {
-                    _selectedTug = null;
-                    _step = PreCheckStep.completed;
-                  }
+                  _selectedTug = null;
+                  _step = PreCheckStep.select;
                 }),
+                variant: AppButtonVariant.secondary,
               ),
               const SizedBox(height: AppSpacing.sm),
-              if (!isDamageReport) ...[
-                _PreCheckSolidButton(
-                  label: 'Check Another Tug',
-                  onPressed: () => setState(() {
-                    _lastSubmission = null;
-                    _lastSubmitType = null;
-                    _selectedTug = null;
-                    _step = PreCheckStep.select;
-                  }),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              _PreCheckSolidButton(
-                label: 'Back',
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
             ],
-          ),
+            AppButton(
+              label: 'Back',
+              onPressed: () => Navigator.of(context).maybePop(),
+              variant: AppButtonVariant.ghost,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -819,7 +1000,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     required ValueChanged<List<PreCheckPhoto>> onChanged,
   }) async {
     if (current.length >= maxImages) {
-      AppToast.show(context, 'Maximum $maxImages images allowed.');
+      AppToast.warning(context, 'Maximum $maxImages images allowed.');
       return;
     }
     try {
@@ -846,7 +1027,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       onChanged(next);
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Unable to open camera or gallery.');
+        AppToast.error(context, 'Unable to open camera or gallery.');
       }
     }
   }
@@ -888,121 +1069,114 @@ class _CheckItemCardState extends State<_CheckItemCard> {
     final state =
         widget.draft.itemStates[widget.item.key] ?? const PreCheckItemState();
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: effective == PreCheckItemStatus.repairNeeded
-              ? colors.danger.withValues(alpha: 0.5)
-              : hasDefects
-              ? colors.warning.withValues(alpha: 0.5)
-              : colors.borderDefault,
-          width: AppStroke.medium,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: 0.12),
-            blurRadius: AppElevation.level4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppPreCheckCard.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.item.label,
-              style: Theme.of(context).textTheme.titleMedium,
+    final Color? borderColor = effective == PreCheckItemStatus.repairNeeded
+        ? colors.danger.withValues(alpha: 0.28)
+        : hasDefects
+        ? colors.warning.withValues(alpha: 0.28)
+        : null;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      color: colors.bgElevated,
+      borderColor: borderColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.item.label,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
             ),
-            if (widget.item.tooltip?.isNotEmpty ?? false) ...[
-              const SizedBox(height: AppSpacing.xs),
+          ),
+          if (widget.item.tooltip?.isNotEmpty ?? false) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              widget.item.tooltip!,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+            ),
+          ],
+          if (widget.acknowledgedDefects.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            for (final (index, defect) in widget.acknowledgedDefects.indexed)
+              _acknowledgedDefectPanel(
+                defect,
+                isLast: index == widget.acknowledgedDefects.length - 1,
+              ),
+          ],
+          if (hasDefects) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ...widget.defects.map(_knownDefectPanel),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          if (hasDefects && !_showKnownDefectActions)
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionPill(
+                    label: 'Fixed?',
+                    tone: _Tone.success,
+                    onTap: () => _markAllFixed(),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: _ActionPill(
+                    label: 'Still exists',
+                    tone: _Tone.warning,
+                    onTap: () =>
+                        setState(() => _showKnownDefectActions = true),
+                  ),
+                ),
+              ],
+            )
+          else if (hasDefects)
+            _knownDefectActions()
+          else ...[
+            if (widget.acknowledgedDefects.isNotEmpty) ...[
               Text(
-                widget.item.tooltip!,
+                'Any other issue apart from this?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'If not, tap OK. Tap Issue only for a new problem.',
+                textAlign: TextAlign.center,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
+              const SizedBox(height: AppSpacing.sm),
             ],
-            if (widget.acknowledgedDefects.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              for (final (index, defect) in widget.acknowledgedDefects.indexed)
-                _acknowledgedDefectPanel(
-                  defect,
-                  isLast: index == widget.acknowledgedDefects.length - 1,
-                ),
-            ],
-            if (hasDefects) ...[
-              const SizedBox(height: AppSpacing.md),
-              ...widget.defects.map(_knownDefectPanel),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            if (hasDefects && !_showKnownDefectActions)
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionPill(
-                      label: 'Fixed?',
-                      tone: _Tone.success,
-                      onTap: () => _markAllFixed(),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _ActionPill(
-                      label: 'Still exists',
-                      tone: _Tone.warning,
-                      onTap: () =>
-                          setState(() => _showKnownDefectActions = true),
-                    ),
-                  ),
-                ],
-              )
-            else if (hasDefects)
-              _knownDefectActions()
-            else ...[
-              if (widget.acknowledgedDefects.isNotEmpty) ...[
-                Text(
-                  'Any other issue apart from this?',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'If not, tap OK. Tap Issue only for a new problem.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              _standardActions(state),
-            ],
-            if (effective == PreCheckItemStatus.repairNeeded &&
-                state.linkedDamageId == null)
-              _IssueDetails(
-                stateKey: widget.item.key,
-                state: state,
-                onNotesChanged: (value) =>
-                    _updateState(widget.item.key, state.copyWith(notes: value)),
-                onTakePhoto: () =>
-                    widget.onAddPhoto(widget.item.key, ImageSource.camera),
-                onAddGallery: () =>
-                    widget.onAddPhoto(widget.item.key, ImageSource.gallery),
-                onRemovePhoto: (photo) => _updateState(
-                  widget.item.key,
-                  state.copyWith(
-                    photos: state.photos
-                        .where((entry) => entry.id != photo.id)
-                        .toList(),
-                  ),
+            _standardActions(state),
+          ],
+          if (effective == PreCheckItemStatus.repairNeeded &&
+              state.linkedDamageId == null)
+            _IssueDetails(
+              stateKey: widget.item.key,
+              state: state,
+              onNotesChanged: (value) =>
+                  _updateState(widget.item.key, state.copyWith(notes: value)),
+              onTakePhoto: () =>
+                  widget.onAddPhoto(widget.item.key, ImageSource.camera),
+              onAddGallery: () =>
+                  widget.onAddPhoto(widget.item.key, ImageSource.gallery),
+              onRemovePhoto: (photo) => _updateState(
+                widget.item.key,
+                state.copyWith(
+                  photos: state.photos
+                      .where((entry) => entry.id != photo.id)
+                      .toList(),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -1035,12 +1209,12 @@ class _CheckItemCardState extends State<_CheckItemCard> {
   }) {
     final colors = context.appColors;
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: colors.bgSecondary.withValues(alpha: 0.74),
+        color: colors.bgElevated,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1223,7 @@ class _CheckItemCardState extends State<_CheckItemCard> {
             title,
             style: Theme.of(
               context,
-            ).textTheme.labelLarge?.copyWith(color: accent),
+            ).textTheme.labelMedium?.copyWith(color: accent, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
@@ -1074,7 +1248,7 @@ class _CheckItemCardState extends State<_CheckItemCard> {
               footnote,
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
             ),
           ],
         ],
@@ -1341,22 +1515,28 @@ class _PhotoActions extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _PreCheckSolidButton(
+                child: AppButton(
                   label: 'Take Photo',
                   onPressed: onTakePhoto,
+                  variant: AppButtonVariant.secondary,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _PreCheckSolidButton(
+                child: AppButton(
                   label: 'Gallery',
                   onPressed: onAddGallery,
+                  variant: AppButtonVariant.secondary,
                 ),
               ),
             ],
           )
         else
-          _PreCheckSolidButton(label: 'Choose Photo', onPressed: onAddGallery),
+          AppButton(
+            label: 'Choose Photo',
+            onPressed: onAddGallery,
+            variant: AppButtonVariant.secondary,
+          ),
         if (photos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -1445,13 +1625,20 @@ class _RemarksCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return _ToneCard(
       tone: _Tone.neutral,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Remarks', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Remarks',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           TextField(
             minLines: 2,
             maxLines: 4,
@@ -1462,7 +1649,7 @@ class _RemarksCard extends StatelessWidget {
             ),
             onChanged: onRemarksChanged,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           _PhotoActions(
             photos: photos,
             maxImages: 3,
@@ -1525,7 +1712,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
       await _controller.toggleTorch();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Torch is not available on this device.');
+        AppToast.warning(context, 'Torch is not available on this device.');
       }
     }
   }
@@ -1595,62 +1782,51 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.bgElevated.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(
-                      color: colors.borderDefault.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Point the camera at the tug QR code',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: colors.textPrimary,
-                                fontWeight: FontWeight.w700,
+                child: AppCard(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Point the camera at the tug QR code',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ValueListenableBuilder<MobileScannerState>(
+                        valueListenable: _controller,
+                        builder: (context, state, child) {
+                          final torchAvailable =
+                              state.torchState != TorchState.unavailable;
+                          final torchOn = state.torchState == TorchState.on;
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: AppButton(
+                                  label: torchOn ? 'Torch on' : 'Torch',
+                                  onPressed: torchAvailable
+                                      ? _toggleTorch
+                                      : null,
+                                  variant: AppButtonVariant.secondary,
+                                ),
                               ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        ValueListenableBuilder<MobileScannerState>(
-                          valueListenable: _controller,
-                          builder: (context, state, child) {
-                            final torchAvailable =
-                                state.torchState != TorchState.unavailable;
-                            final torchOn = state.torchState == TorchState.on;
-                            return Row(
-                              children: [
-                                Expanded(
-                                  child: _PreCheckSolidButton(
-                                    label: torchOn ? 'Torch on' : 'Torch',
-                                    icon: torchOn
-                                        ? Icons.flashlight_on
-                                        : Icons.flashlight_off,
-                                    onPressed: torchAvailable
-                                        ? _toggleTorch
-                                        : null,
-                                  ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: AppButton(
+                                  label: 'Cancel',
+                                  onPressed: () =>
+                                      Navigator.of(context).maybePop(),
+                                  variant: AppButtonVariant.secondary,
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: _PreCheckSolidButton(
-                                    label: 'Cancel',
-                                    onPressed: () =>
-                                        Navigator.of(context).maybePop(),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1670,42 +1846,18 @@ String? _extractQrToken(String value) {
   return match?.group(1);
 }
 
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _StickyHeaderDelegate({required this.child});
-
-  final Widget child;
-
-  @override
-  double get maxExtent => AppPreCheckCard.stickyHeaderExtent;
-
-  @override
-  double get minExtent => AppPreCheckCard.stickyHeaderExtent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) {
-    return child != oldDelegate.child;
-  }
-}
-
 class _TugHeader extends StatelessWidget {
   const _TugHeader({
     required this.tug,
     required this.progress,
     required this.onChangeTug,
+    this.onMarkAllOk,
   });
 
   final PreCheckTug tug;
   final PreCheckProgress progress;
   final VoidCallback onChangeTug;
+  final VoidCallback? onMarkAllOk;
 
   @override
   Widget build(BuildContext context) {
@@ -1713,52 +1865,64 @@ class _TugHeader extends StatelessWidget {
     final percent = progress.total == 0
         ? 0.0
         : progress.checked / progress.total;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+    return ColoredBox(
       color: Colors.transparent,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.bgElevated.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: colors.borderDefault),
-          boxShadow: [
-            BoxShadow(
-              color: colors.shadow.withValues(alpha: 0.14),
-              blurRadius: AppElevation.level4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+        child: AppCard(
           padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tug.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tug.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: colors.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        LinearProgressIndicator(
+                          value: percent,
+                          color: colors.textSecondary,
+                          backgroundColor: colors.borderDefault,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          '${progress.checked}/${progress.total} checked • ${progress.issueCount} issue${progress.issueCount == 1 ? '' : 's'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    LinearProgressIndicator(value: percent),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      '${progress.checked}/${progress.total} checked • ${progress.issueCount} issue${progress.issueCount == 1 ? '' : 's'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  AppButton(
+                    label: 'Change Tug',
+                    onPressed: onChangeTug,
+                    variant: AppButtonVariant.secondary,
+                    isExpanded: false,
+                  ),
+                ],
               ),
-              _PreCheckSolidButton(
-                label: 'Change Tug',
-                onPressed: onChangeTug,
-                expanded: false,
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: 'Mark all OK',
+                onPressed: onMarkAllOk,
+                variant: AppButtonVariant.secondary,
               ),
             ],
           ),
@@ -1769,55 +1933,478 @@ class _TugHeader extends StatelessWidget {
 }
 
 class _TugCard extends StatelessWidget {
-  const _TugCard({required this.tug, required this.onStart});
+  const _TugCard({
+    required this.tug,
+    required this.expanded,
+    required this.onToggle,
+    required this.onStart,
+    this.history,
+  });
 
   final PreCheckTug tug;
+  final bool expanded;
+  final VoidCallback onToggle;
   final VoidCallback onStart;
+  final Widget? history;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return _ToneCard(
-      tone: _Tone.neutral,
-      child: Row(
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      borderColor: expanded ? colors.borderStrong : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: AppPreCheckCard.tugAvatarSize,
-            height: AppPreCheckCard.tugAvatarSize,
-            decoration: BoxDecoration(
-              color: colors.bgSecondary,
-              borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(color: colors.borderDefault),
+          Material(
+            color: colors.bgElevated,
+            child: InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: colors.bgSecondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Icon(
+                        Icons.local_shipping_outlined,
+                        color: colors.textSecondary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            tug.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.textPrimary,
+                                  fontSize: 14,
+                                ),
+                          ),
+                          if (tug.secondaryLabel.isNotEmpty)
+                            Text(
+                              tug.secondaryLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colors.textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      color: colors.textSecondary,
+                    ),
+                    if (expanded) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      AppButton(
+                        label: 'Start Check',
+                        onPressed: onStart,
+                        variant: AppButtonVariant.secondary,
+                        isExpanded: false,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
-            child: Icon(
-              Icons.local_shipping_outlined,
+          ),
+          if (expanded && history != null) ...[
+            Divider(height: 1, color: colors.borderDefault),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.sm,
+                AppSpacing.sm,
+                AppSpacing.sm,
+                AppSpacing.sm,
+              ),
+              child: history!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TugCheckHistoryPanel extends StatefulWidget {
+  const _TugCheckHistoryPanel({
+    required this.repository,
+    required this.tugId,
+  });
+
+  final PreCheckRepository repository;
+  final String tugId;
+
+  @override
+  State<_TugCheckHistoryPanel> createState() => _TugCheckHistoryPanelState();
+}
+
+class _TugCheckHistoryPanelState extends State<_TugCheckHistoryPanel> {
+  bool _loading = true;
+  bool _showAll = false;
+  String? _expandedCheckId;
+  List<PreCheckTugHistoryEntry> _checks = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TugCheckHistoryPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tugId != widget.tugId) {
+      _showAll = false;
+      _expandedCheckId = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final checks = await widget.repository.fetchTugCheckHistory(widget.tugId);
+      if (!mounted) return;
+      // Open the newest defective check so problem photos are visible (PWA).
+      String? autoExpandId;
+      for (final check in checks) {
+        if (check.problems.any((problem) => problem.imageUrls.isNotEmpty)) {
+          autoExpandId = check.id;
+          break;
+        }
+      }
+      autoExpandId ??= checks
+          .where((check) => check.hasDefects)
+          .map((check) => check.id)
+          .firstOrNull;
+      setState(() {
+        _checks = checks;
+        _expandedCheckId = autoExpandId;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _checks = const [];
+        _expandedCheckId = null;
+        _loading = false;
+      });
+    }
+  }
+
+  String _formatDate(DateTime value) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = value.day.toString().padLeft(2, '0');
+    final month = months[value.month - 1];
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day $month $hour:$minute';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Check History (30 days)',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: colors.textSecondary,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (_checks.isEmpty)
+          Text(
+            'No checks in the last 30 days',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colors.textSecondary,
-              size: 20,
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tug.label, style: Theme.of(context).textTheme.titleMedium),
-                if (tug.secondaryLabel.isNotEmpty)
-                  Text(
-                    tug.secondaryLabel,
-                    style: Theme.of(context).textTheme.bodySmall,
+          )
+        else ...[
+          for (final check in (_showAll ? _checks : _checks.take(5)))
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: _TugHistoryCheckRow(
+                entry: check,
+                timeLabel: _formatDate(check.checkTime),
+                expanded: _expandedCheckId == check.id,
+                onToggle: check.hasDefects
+                    ? () => setState(() {
+                        _expandedCheckId = _expandedCheckId == check.id
+                            ? null
+                            : check.id;
+                      })
+                    : null,
+              ),
+            ),
+          if (_checks.length > 5 && !_showAll)
+            AppButton(
+              label: 'Show all ${_checks.length} entries',
+              onPressed: () => setState(() => _showAll = true),
+              variant: AppButtonVariant.ghost,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+void _openHistoryPhoto(BuildContext context, String url) {
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return Dialog(
+        insetPadding: const EdgeInsets.all(AppSpacing.lg),
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Center(
+                child: PrecheckSignedImage(
+                  url: url,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: AppSpacing.sm,
+              right: AppSpacing.sm,
+              child: IconButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class _TugHistoryCheckRow extends StatelessWidget {
+  const _TugHistoryCheckRow({
+    required this.entry,
+    required this.timeLabel,
+    required this.expanded,
+    this.onToggle,
+  });
+
+  final PreCheckTugHistoryEntry entry;
+  final String timeLabel;
+  final bool expanded;
+  final VoidCallback? onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final accent = entry.hasDefects ? colors.danger : colors.success;
+    final wash = entry.hasDefects ? colors.dangerBg : colors.successBg;
+    final isPreShift = entry.checkType == PreCheckType.preShift;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      color: Color.alphaBlend(
+        wash.withValues(alpha: 0.28),
+        colors.bgElevated,
+      ),
+      borderColor: accent.withValues(alpha: 0.22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.checkerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: colors.textPrimary,
+                              ),
+                        ),
+                        Text(
+                          timeLabel,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
-              ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.bgSecondary,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      border: Border.all(color: colors.borderDefault),
+                    ),
+                    child: Text(
+                      isPreShift ? 'Pre-Shift' : 'During Shift',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (entry.hasDefects) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Icon(
+                      expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 18,
+                      color: colors.textSecondary,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          SizedBox(
-            width: 84,
-            child: _PreCheckSolidButton(
-              label: 'Start',
-              onPressed: onStart,
-              expanded: false,
+          if (expanded && entry.hasDefects) ...[
+            Divider(height: 1, color: colors.borderDefault),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Problems',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (final problem in entry.problems)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: AppCard(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              problem.itemName,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: colors.textPrimary,
+                                  ),
+                            ),
+                            if (problem.description.isNotEmpty)
+                              Text(
+                                problem.description,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            if (problem.imageUrls.isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
+                                children: [
+                                  for (final url in problem.imageUrls)
+                                    Material(
+                                      color: colors.bgSecondary,
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.sm,
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: InkWell(
+                                        onTap: () => _openHistoryPhoto(
+                                          context,
+                                          url,
+                                        ),
+                                        child: PrecheckSignedImage(
+                                          url: url,
+                                          width: 72,
+                                          height: 72,
+                                          fit: BoxFit.cover,
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.sm,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1868,20 +2455,26 @@ class _CompletedRow extends StatelessWidget {
         if (showDivider) Divider(color: colors.borderDefault),
         Row(
           children: [
-            Icon(Icons.check_circle_outline, color: colors.success),
+            Icon(
+              Icons.check_circle_outline,
+              color: Color.alphaBlend(
+                colors.success.withValues(alpha: 0.55),
+                colors.textSecondary,
+              ),
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 check.tugLabel,
-                style: Theme.of(context).textTheme.titleSmall,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
               ),
             ),
             if (damageEnabled)
-              _PreCheckSolidButton(
+              AppButton(
                 label: 'Report Damage',
                 onPressed: onReportDamage,
-                tone: _Tone.danger,
-                expanded: false,
+                variant: AppButtonVariant.secondary,
+                isExpanded: false,
               ),
           ],
         ),
@@ -1928,24 +2521,44 @@ class _WarningCard extends StatelessWidget {
       tone: _Tone.warning,
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: colors.warning),
-          const SizedBox(width: AppSpacing.md),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Color.alphaBlend(
+              colors.warning.withValues(alpha: 0.55),
+              colors.textSecondary,
+            ),
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleSmall),
-                Text(message, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
-          if (actionLabel != null)
-            _PreCheckSolidButton(
+          if (actionLabel != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            AppButton(
               label: actionLabel!,
               onPressed: onAction,
-              tone: _Tone.warning,
-              expanded: false,
+              variant: AppButtonVariant.secondary,
+              isExpanded: false,
             ),
+          ],
         ],
       ),
     );
@@ -1967,17 +2580,33 @@ class _MessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return _ToneCard(
       tone: _Tone.neutral,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
-          Text(message),
+          Text(
+            message,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
           if (actionLabel != null) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _PreCheckSolidButton(label: actionLabel!, onPressed: onAction),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: actionLabel!,
+              onPressed: onAction,
+              variant: AppButtonVariant.secondary,
+            ),
           ],
         ],
       ),
@@ -1986,77 +2615,6 @@ class _MessageCard extends StatelessWidget {
 }
 
 enum _Tone { neutral, success, warning, danger }
-
-class _PreCheckSolidButton extends StatelessWidget {
-  const _PreCheckSolidButton({
-    required this.label,
-    this.onPressed,
-    this.tone = _Tone.neutral,
-    this.icon,
-    this.expanded = true,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-  final _Tone tone;
-  final IconData? icon;
-  final bool expanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final foreground = switch (tone) {
-      _Tone.success => colors.success,
-      _Tone.warning => colors.warning,
-      _Tone.danger => colors.danger,
-      _Tone.neutral => colors.textPrimary,
-    };
-    final background = switch (tone) {
-      _Tone.success => colors.successBg,
-      _Tone.warning => colors.warningBg,
-      _Tone.danger => colors.dangerBg,
-      _Tone.neutral => colors.bgSecondary,
-    };
-    final border = switch (tone) {
-      _Tone.success => colors.success.withValues(alpha: 0.34),
-      _Tone.warning => colors.warning.withValues(alpha: 0.34),
-      _Tone.danger => colors.danger.withValues(alpha: 0.34),
-      _Tone.neutral => colors.borderDefault,
-    };
-    final child = icon == null
-        ? Text(label)
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18),
-              const SizedBox(width: AppSpacing.xs),
-              Text(label),
-            ],
-          );
-    final button = FilledButton(
-      onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: background,
-        disabledBackgroundColor: colors.bgTertiary,
-        foregroundColor: foreground,
-        disabledForegroundColor: colors.textDisabled,
-        minimumSize: const Size(0, AppComponentTokens.buttonHeightSm),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(color: border),
-        ),
-        textStyle: AppTypography.labelLarge,
-        elevation: 0,
-      ),
-      child: child,
-    );
-    if (!expanded) {
-      return button;
-    }
-    return SizedBox(width: double.infinity, child: button);
-  }
-}
 
 class _ToneCard extends StatelessWidget {
   const _ToneCard({required this.tone, required this.child});
@@ -2067,33 +2625,32 @@ class _ToneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final toneColor = switch (tone) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = switch (tone) {
       _Tone.success => colors.success,
       _Tone.warning => colors.warning,
       _Tone.danger => colors.danger,
       _Tone.neutral => colors.borderDefault,
     };
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: tone == _Tone.neutral
-              ? colors.borderDefault
-              : toneColor.withValues(alpha: 0.34),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: 0.12),
-            blurRadius: AppElevation.level4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppPreCheckCard.cardPadding),
-        child: child,
-      ),
+    final wash = switch (tone) {
+      _Tone.success => colors.successBg,
+      _Tone.warning => colors.warningBg,
+      _Tone.danger => colors.dangerBg,
+      _Tone.neutral => colors.bgElevated,
+    };
+    final fill = tone == _Tone.neutral
+        ? null
+        : Color.alphaBlend(
+            wash.withValues(alpha: isDark ? 0.28 : 0.32),
+            colors.bgElevated,
+          );
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      color: fill,
+      borderColor: tone == _Tone.neutral
+          ? null
+          : accent.withValues(alpha: 0.22),
+      child: child,
     );
   }
 }
@@ -2116,33 +2673,46 @@ class _ActionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final color = switch (tone) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final raw = switch (tone) {
       _Tone.success => colors.success,
       _Tone.warning => colors.warning,
       _Tone.danger => colors.danger,
       _Tone.neutral => colors.textSecondary,
     };
+    // Mute selected accents so pills stay quiet like Home / My Rota.
+    final color = Color.alphaBlend(
+      raw.withValues(alpha: 0.5),
+      colors.textPrimary,
+    );
     return Opacity(
       opacity: enabled ? 1 : AppOpacity.disabled,
       child: Material(
         color: selected
-            ? color.withValues(alpha: 0.14)
-            : colors.bgSecondary.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+            ? color.withValues(alpha: isDark ? 0.14 : 0.08)
+            : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: selected
+              ? BorderSide(color: color.withValues(alpha: 0.28))
+              : BorderSide.none,
+        ),
         child: InkWell(
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              vertical: AppPreCheckCard.actionVerticalPadding,
+              vertical: AppSpacing.xs,
               horizontal: AppSpacing.sm,
             ),
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: enabled ? color : colors.textDisabled,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: enabled
+                    ? (selected ? color : colors.textPrimary)
+                    : colors.textDisabled,
+                fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
               ),
             ),
           ),

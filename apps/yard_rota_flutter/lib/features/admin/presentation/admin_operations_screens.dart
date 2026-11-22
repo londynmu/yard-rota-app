@@ -72,7 +72,7 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
         _rota = result[3];
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load attendance issues.');
+      if (mounted) AppToast.error(context, 'Could not load attendance issues.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -223,10 +223,10 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () async {
                 if (userId.isEmpty || body.text.trim().isEmpty) {
-                  AppToast.show(
+                  AppToast.warning(
                     dialogContext,
                     'Select a user and enter a description.',
                   );
@@ -246,7 +246,7 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.show(dialogContext, 'Could not add violation.');
+                    AppToast.error(dialogContext, 'Could not add violation.');
                   }
                 }
               },
@@ -258,7 +258,7 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
     );
     body.dispose();
     if (saved == true) {
-      if (mounted) AppToast.show(context, 'Violation added.');
+      if (mounted) AppToast.success(context, 'Violation added.');
       await _load();
     }
   }
@@ -303,7 +303,7 @@ class _PerformanceImportScreenState extends State<PerformanceImportScreen> {
       );
       if (mounted) setState(() => _history = history);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load import history.');
+      if (mounted) AppToast.error(context, 'Could not load import history.');
     }
   }
 
@@ -317,14 +317,14 @@ class _PerformanceImportScreenState extends State<PerformanceImportScreen> {
       );
       if (!mounted) return;
       setState(() => _rows = rows);
-      AppToast.show(
+      AppToast.warning(
         context,
         '${rows.where((row) => row.matched).length} matched, '
         '${rows.where((row) => !row.matched).length} unmatched.',
       );
     } catch (error) {
       if (mounted) {
-        AppToast.show(
+        AppToast.error(
           context,
           error is FormatException
               ? error.message
@@ -345,14 +345,14 @@ class _PerformanceImportScreenState extends State<PerformanceImportScreen> {
         rows: _rows,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Performance records imported.');
+      AppToast.success(context, 'Performance records imported.');
       setState(() {
         _rows = const [];
         _csv.clear();
       });
       await _loadHistory();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not import performance data.');
+      if (mounted) AppToast.error(context, 'Could not import performance data.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -474,7 +474,7 @@ class _ActivityAdminScreenState extends State<ActivityAdminScreen> {
       );
       if (mounted) setState(() => _rows = rows);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load activity.');
+      if (mounted) AppToast.error(context, 'Could not load activity.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -626,7 +626,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
       );
       if (mounted) setState(() => _sections = rows);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load induction sections.');
+      if (mounted) AppToast.error(context, 'Could not load induction sections.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -699,7 +699,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
         );
       }
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not reorder sections.');
+      if (mounted) AppToast.error(context, 'Could not reorder sections.');
       await _load();
     }
   }
@@ -747,7 +747,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
                       final bytes = await image.readAsBytes();
                       if (bytes.length > 5 * 1024 * 1024) {
                         if (dialogContext.mounted) {
-                          AppToast.show(
+                          AppToast.warning(
                             dialogContext,
                             'Image must be 5 MB or smaller.',
                           );
@@ -765,7 +765,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
                             '\n\n![${title.text.trim().isEmpty ? 'Guide image' : title.text.trim()}]($url)\n\n';
                       } catch (_) {
                         if (dialogContext.mounted) {
-                          AppToast.show(dialogContext, 'Image upload failed.');
+                          AppToast.error(dialogContext, 'Image upload failed.');
                         }
                       }
                     },
@@ -779,10 +779,10 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () async {
                 if (title.text.trim().isEmpty) {
-                  AppToast.show(dialogContext, 'Title is required.');
+                  AppToast.warning(dialogContext, 'Title is required.');
                   return;
                 }
                 try {
@@ -801,7 +801,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.show(dialogContext, 'Could not save section.');
+                    AppToast.error(dialogContext, 'Could not save section.');
                   }
                 }
               },
@@ -825,7 +825,7 @@ class _InductionAdminScreenState extends State<InductionAdminScreen> {
       );
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete section.');
+      if (mounted) AppToast.error(context, 'Could not delete section.');
     }
   }
 }
@@ -902,7 +902,7 @@ class _AwardsAdminScreenState extends State<AwardsAdminScreen> {
             ?.toString();
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load awards.');
+      if (mounted) AppToast.error(context, 'Could not load awards.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1000,7 +1000,7 @@ class _AwardsAdminScreenState extends State<AwardsAdminScreen> {
           'awarded_by': widget.session.userId,
         },
       );
-      if (mounted) AppToast.show(context, 'Award saved.');
+      if (mounted) AppToast.success(context, 'Award saved.');
       await _load();
     } catch (_) {
       // Fall back to update if the month/period unique row already exists.
@@ -1018,7 +1018,7 @@ class _AwardsAdminScreenState extends State<AwardsAdminScreen> {
         );
         await _load();
       } else if (mounted) {
-        AppToast.show(context, 'Could not save award.');
+        AppToast.error(context, 'Could not save award.');
       }
     }
   }
@@ -1032,7 +1032,7 @@ class _AwardsAdminScreenState extends State<AwardsAdminScreen> {
       );
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete award.');
+      if (mounted) AppToast.error(context, 'Could not delete award.');
     }
   }
 }
@@ -1090,7 +1090,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
         _settings = result[2] as Map<String, String>;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load settings.');
+      if (mounted) AppToast.error(context, 'Could not load settings.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1288,7 +1288,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel'),
               ),
-              FilledButton(
+              TextButton(
                 onPressed: () async {
                   try {
                     await onSave();
@@ -1297,7 +1297,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
                     }
                   } catch (_) {
                     if (dialogContext.mounted) {
-                      AppToast.show(dialogContext, 'Could not save changes.');
+                      AppToast.error(dialogContext, 'Could not save changes.');
                     }
                   }
                 },
@@ -1319,7 +1319,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
       );
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not update status.');
+      if (mounted) AppToast.error(context, 'Could not update status.');
     }
   }
 
@@ -1328,7 +1328,7 @@ class _SettingsAdminScreenState extends State<SettingsAdminScreen> {
       await widget.repository.saveSetting(widget.session, key, value);
       setState(() => _settings = {..._settings, key: value.toString()});
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not save setting.');
+      if (mounted) AppToast.error(context, 'Could not save setting.');
     }
   }
 

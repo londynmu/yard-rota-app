@@ -8,6 +8,7 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../data/availability_repository.dart';
 import '../data/calendar_repository.dart';
 import 'availability_sheet.dart';
@@ -141,10 +142,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     if (monthFailed && _monthData != null) {
-      AppToast.show(context, 'Calendar refresh failed. Showing cached data.');
+      AppToast.error(context, 'Calendar refresh failed. Showing cached data.');
     }
     if (availabilityFailed && _availabilityByDate.isNotEmpty) {
-      AppToast.show(
+      AppToast.error(
         context,
         'Availability refresh failed. Showing local data.',
       );
@@ -216,7 +217,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
     if (normalized.isBefore(todayStart)) {
-      AppToast.show(
+      AppToast.warning(
         context,
         'You can only set availability for today and future dates.',
       );
@@ -263,12 +264,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _availabilityByDate = refreshed;
       });
-      AppToast.show(context, 'Availability saved.');
+      AppToast.success(context, 'Availability saved.');
     } catch (_) {
       if (!mounted) {
         return;
       }
-      AppToast.show(context, 'Failed to save availability. Please try again.');
+      AppToast.error(context, 'Failed to save availability. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -319,6 +320,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() => _calendarHiddenForAvailabilityModal = true);
 
     try {
+      final media = MediaQuery.of(context);
+      // Compact sheet: still above the bottom nav, but capped so it does
+      // not fill nearly the whole screen.
+      final sheetTop = rect?.top ??
+          (media.padding.top +
+              AppComponentTokens.appBarHeight +
+              AppSpacing.sm);
+      final sheetLeft = rect?.left ?? AppSpacing.lg;
+      final sheetWidth = rect?.width ?? (media.size.width - AppSpacing.lg * 2);
+      final sheetBottom =
+          media.size.height -
+          media.padding.bottom -
+          AppComponentTokens.bottomNavHeight -
+          AppSpacing.sm;
+      final sheetHeight = (sheetBottom - sheetTop).clamp(
+        media.size.height * 0.48,
+        media.size.height * 0.72,
+      );
+
       if (rect == null) {
         return await showDialog<SaveAvailabilityRequest>(
           context: context,
@@ -327,16 +347,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
               ),
               backgroundColor: Colors.transparent,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.72,
                   maxWidth: 420,
                 ),
-                child: AvailabilitySheet(
-                  anchorDate: anchorDate,
-                  availabilityByDate: availability,
+                child: SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.68,
+                  child: AvailabilitySheet(
+                    anchorDate: anchorDate,
+                    availabilityByDate: availability,
+                  ),
                 ),
               ),
             );
@@ -344,7 +368,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       }
 
-      final slot = rect;
       return await showGeneralDialog<SaveAvailabilityRequest>(
         context: context,
         barrierDismissible: true,
@@ -367,10 +390,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               Positioned(
-                left: slot.left,
-                top: slot.top,
-                width: slot.width,
-                height: slot.height,
+                left: sheetLeft,
+                top: sheetTop,
+                width: sheetWidth,
+                height: sheetHeight,
                 child: Material(
                   color: Colors.transparent,
                   elevation: 6,
@@ -560,57 +583,65 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onHorizontalDragUpdate: _handleCalendarDragUpdate,
         onHorizontalDragEnd: _handleCalendarDragEnd,
         child: AppCard(
-          surfaceOpacity: AppOpacity.homeCard,
+          surfaceOpacity: 0.5,
           child: Column(
             children: [
               Row(
                 children: [
                   IconButton(
-                    onPressed: _isMonthSwitching ? null : () => _shiftMonth(-1),
-                    icon: const Icon(Icons.chevron_left),
-                    tooltip: 'Previous month',
+                  onPressed: _isMonthSwitching ? null : () => _shiftMonth(-1),
+                  icon: navBarIcon(
+                    Icons.chevron_left,
+                    color: colors.textSecondary,
+                    size: AppNavPill.bottomIconSize,
                   ),
-                  Expanded(
-                    child: Text(
-                      '$monthLabel ${data.year}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _isMonthSwitching ? null : () => _shiftMonth(1),
-                    icon: const Icon(Icons.chevron_right),
-                    tooltip: 'Next month',
-                  ),
-                ],
-              ),
-              if (_isSavingAvailability)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  tooltip: 'Previous month',
+                ),
+                Expanded(
                   child: Text(
-                    'Saving availability...',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.textSecondary,
-                    ),
+                    '$monthLabel ${data.year}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: _weekdayLabels
-                    .map(
-                      (label) => Expanded(
-                        child: Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(color: colors.textSecondary),
-                        ),
-                      ),
-                    )
-                    .toList(growable: false),
+                IconButton(
+                  onPressed: _isMonthSwitching ? null : () => _shiftMonth(1),
+                  icon: navBarIcon(
+                    Icons.chevron_right,
+                    color: colors.textSecondary,
+                    size: AppNavPill.bottomIconSize,
+                  ),
+                  tooltip: 'Next month',
+                ),
+              ],
+            ),
+            if (_isSavingAvailability)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  'Saving availability...',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              AnimatedSwitcher(
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: _weekdayLabels
+                  .map(
+                    (label) => Expanded(
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: colors.textSecondary),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AnimatedSwitcher(
                 duration: const Duration(milliseconds: 240),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
@@ -659,29 +690,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           : (tones.border ?? colors.borderDefault);
                       final borderWidth = isToday ? 2.0 : 1.0;
 
+                      final hasComment =
+                          availability?.comment?.trim().isNotEmpty ?? false;
+
                       Widget dayCell = InkWell(
                         splashFactory: NoSplash.splashFactory,
                         overlayColor: WidgetStateProperty.all(
                           Colors.transparent,
                         ),
-                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                         onTap: () => _handleDayTap(date),
                         child: Container(
-                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: tones.background ?? colors.bgSecondary,
-                            borderRadius: BorderRadius.circular(AppRadius.full),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                             border: Border.all(
                               color: borderColor,
                               width: borderWidth,
                             ),
                           ),
-                          child: Text(
-                            '$day',
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: tones.text ?? colors.textPrimary,
+                          // Stack must fill the cell — otherwise Positioned
+                          // is relative to the day number, not the cell.
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Center(
+                                child: Text(
+                                  '$day',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color:
+                                            tones.text ?? colors.textPrimary,
+                                      ),
                                 ),
+                              ),
+                              if (hasComment)
+                                const Positioned(
+                                  right: 2,
+                                  bottom: 2,
+                                  child: Icon(
+                                    Icons.chat_bubble,
+                                    size: 9,
+                                    color: AppPrimitives.amber500,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -748,31 +803,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
       AvailabilityStatus.holiday => 'Holiday',
       null => 'No availability set',
     };
-    return '$day · $status';
+    final comment = entry?.comment?.trim();
+    if (comment == null || comment.isEmpty) {
+      return '$day · $status';
+    }
+    return '$day · $status · $comment';
   }
 
   _AvailabilityColors _availabilityColors(
     AppColorsScheme colors,
     AvailabilityStatus? status,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (status) {
       case AvailabilityStatus.available:
         return _AvailabilityColors(
-          background: colors.successBg,
-          border: colors.success,
-          text: colors.success,
+          background: AppAvailabilityTones.availableBg(colors),
+          border: AppAvailabilityTones.available(colors),
+          text: AppAvailabilityTones.available(colors),
         );
       case AvailabilityStatus.unavailable:
         return _AvailabilityColors(
-          background: colors.dangerBg,
-          border: colors.danger,
-          text: colors.danger,
+          background: AppAvailabilityTones.unavailableBg(isDark: isDark),
+          border: AppAvailabilityTones.unavailable(isDark: isDark),
+          text: AppAvailabilityTones.unavailable(isDark: isDark),
         );
       case AvailabilityStatus.holiday:
         return _AvailabilityColors(
-          background: colors.infoBg,
-          border: colors.info,
-          text: colors.info,
+          background: AppAvailabilityTones.holidayBg(isDark: isDark),
+          border: AppAvailabilityTones.holiday(isDark: isDark),
+          text: AppAvailabilityTones.holiday(isDark: isDark),
         );
       case null:
         return const _AvailabilityColors();

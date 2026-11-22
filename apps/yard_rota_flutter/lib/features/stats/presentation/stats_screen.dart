@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +7,9 @@ import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_modal_actions.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../data/stats_repository.dart';
 import '../domain/stats_models.dart';
 
@@ -104,7 +105,7 @@ class _StatsScreenState extends State<StatsScreen> {
           _loading = false;
           _refreshing = false;
         });
-        AppToast.show(context, 'Stats refresh failed. Showing saved data.');
+        AppToast.error(context, 'Stats refresh failed. Showing saved data.');
         return;
       }
       setState(() {
@@ -113,7 +114,7 @@ class _StatsScreenState extends State<StatsScreen> {
         _error =
             'Stats could not be loaded. Connect to the internet and try again.';
       });
-      AppToast.show(context, _error!);
+      AppToast.error(context, _error!);
     }
   }
 
@@ -176,91 +177,31 @@ class _StatsScreenState extends State<StatsScreen> {
     required T selected,
     required String Function(T value) labelFor,
   }) {
+    final colors = context.appColors;
     return showModalBottomSheet<T>(
       context: context,
-      backgroundColor: context.appColors.bgElevated,
+      isScrollControlled: true,
+      backgroundColor: colors.bgElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        side: BorderSide(color: colors.borderDefault),
       ),
-      builder: (ctx) {
-        final colors = ctx.appColors;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (final option in options)
-                  ListTile(
-                    title: Text(
-                      labelFor(option),
-                      style: TextStyle(
-                        color: option == selected
-                            ? colors.primary
-                            : colors.textPrimary,
-                        fontWeight: option == selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () => Navigator.pop(ctx, option),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (_) => _StatsPickerSheet<T>(
+        title: title,
+        options: options,
+        selected: selected,
+        labelFor: labelFor,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
-    final topContentInset = mq.padding.top + kToolbarHeight;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [
-                          colors.bgPrimary.withValues(alpha: 0.0),
-                          colors.bgPrimary.withValues(alpha: 0.28),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 0.42),
-                        ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        title: const Text('Stats'),
-      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -280,7 +221,7 @@ class _StatsScreenState extends State<StatsScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                topContentInset,
+                mq.padding.top + AppSpacing.sm,
                 AppSpacing.lg,
                 mq.padding.bottom + AppSpacing.lg,
               ),
@@ -367,8 +308,6 @@ class _StatsContent extends StatelessWidget {
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _SavedDataLabel(data: current),
-                          const SizedBox(height: AppSpacing.sm),
                           if (!current.currentUserHasYardId) ...[
                             const _EmptyState(
                               title: 'Yard System ID required',
@@ -403,6 +342,147 @@ class _StatsContent extends StatelessWidget {
   }
 }
 
+/// Compact picker — same shell as My Rota filter sheets.
+class _StatsPickerSheet<T> extends StatefulWidget {
+  const _StatsPickerSheet({
+    required this.title,
+    required this.options,
+    required this.selected,
+    required this.labelFor,
+  });
+
+  final String title;
+  final List<T> options;
+  final T selected;
+  final String Function(T value) labelFor;
+
+  @override
+  State<_StatsPickerSheet<T>> createState() => _StatsPickerSheetState<T>();
+}
+
+class _StatsPickerSheetState<T> extends State<_StatsPickerSheet<T>> {
+  late T _selected = widget.selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppAvailabilityTones.award(isDark: isDark);
+    final accentWash = AppAvailabilityTones.awardBg(isDark: isDark);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: colors.borderDefault,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+              ),
+            ),
+            Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final option in widget.options)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                        child: Material(
+                          color: option == _selected
+                              ? Color.alphaBlend(
+                                  accentWash.withValues(alpha: 0.85),
+                                  colors.bgElevated,
+                                )
+                              : colors.bgElevated,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            onTap: () => setState(() => _selected = option),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
+                                border: Border.all(
+                                  color: option == _selected
+                                      ? accent.withValues(alpha: 0.45)
+                                      : colors.borderDefault,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      widget.labelFor(option),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: option == _selected
+                                                ? accent
+                                                : colors.textPrimary,
+                                            fontWeight: option == _selected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                          ),
+                                    ),
+                                  ),
+                                  if (option == _selected)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 20,
+                                      color: accent,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppModalActions(
+              onCancel: () => Navigator.of(context).pop(),
+              onConfirm: () => Navigator.of(context).pop(_selected),
+              confirmLabel: 'Done',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Same quiet track shell as My Rota / Home Calendar–Breaks–Info.
 class _StatsFilterBar extends StatelessWidget {
   const _StatsFilterBar({
     required this.range,
@@ -422,26 +502,31 @@ class _StatsFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _FilterButton(label: range.label, onTap: onRange),
+    final colors = context.appColors;
+    return Container(
+      height: AppHomeTabs.segmentHeight + AppHomeTabs.trackPadding * 2,
+      padding: const EdgeInsets.all(AppHomeTabs.trackPadding),
+      decoration: BoxDecoration(
+        color: colors.bgElevated,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(
+          color: colors.borderDefault.withValues(alpha: 0.45),
+          width: AppStroke.thin,
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _FilterButton(label: sort.label, onTap: onSort),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _FilterButton(label: shift.label, onTap: onShift),
-        ),
-      ],
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _FilterSegment(label: range.label, onTap: onRange)),
+          Expanded(child: _FilterSegment(label: sort.label, onTap: onSort)),
+          Expanded(child: _FilterSegment(label: shift.label, onTap: onShift)),
+        ],
+      ),
     );
   }
 }
 
-class _FilterButton extends StatelessWidget {
-  const _FilterButton({required this.label, required this.onTap});
+class _FilterSegment extends StatelessWidget {
+  const _FilterSegment({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -449,62 +534,36 @@ class _FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Material(
-        color: colors.bgElevated.withValues(alpha: 0.82),
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 44),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.borderDefault),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = bottomNavLabelColor(
+      colors,
+      selected: false,
+      isDark: isDark,
+    );
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTypography.labelSmall.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w400,
+                fontSize: AppNavPill.bottomLabelFontSize,
               ),
             ),
           ),
         ),
       ),
     );
-  }
-}
-
-class _SavedDataLabel extends StatelessWidget {
-  const _SavedDataLabel({required this.data});
-
-  final StatsDashboardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final label = data.isFromCache ? 'Saved data' : 'Updated';
-    return Text(
-      '$label ${_formatTime(data.fetchedAt)}',
-      textAlign: TextAlign.right,
-      style: Theme.of(
-        context,
-      ).textTheme.labelMedium?.copyWith(color: colors.textSecondary),
-    );
-  }
-
-  String _formatTime(DateTime date) {
-    final h = date.hour.toString().padLeft(2, '0');
-    final m = date.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
 

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/assets/app_assets.dart';
 import '../../../core/config/app_links.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/home_wallpaper.dart';
+import '../../../core/theme/home_wallpaper_storage.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/menu_group.dart';
 
-/// Shared frame for every screen shown before the app opens: always dark, on
-/// the hex wallpaper, with an Account-style header card.
+/// Shared frame for every screen shown before the app opens: light theme on
+/// the default ribbed-flow wallpaper, with an Account-style header card.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -68,9 +69,9 @@ class AuthLoadingScreen extends StatelessWidget {
   }
 }
 
-/// Forces the dark theme and draws the hex wallpaper behind [child]. The
-/// wallpaper sits outside the Scaffold so it does not jump when the keyboard
-/// resizes the body.
+/// Light theme + default ribbed-flow wallpaper behind [child].
+/// Wallpaper sits outside the Scaffold so it does not jump when the keyboard
+/// resizes the body. Matches the app-wide cold-start defaults.
 class AuthTheme extends StatelessWidget {
   const AuthTheme({super.key, required this.child});
 
@@ -78,18 +79,20 @@ class AuthTheme extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppTheme.dark();
+    final theme = AppTheme.light();
+    final colors = AppColorsScheme.light;
+    final wallpaperPath = kDefaultLightHomeWallpaper.assetPath;
     return Theme(
       data: theme,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value:
-            theme.appBarTheme.systemOverlayStyle ?? SystemUiOverlayStyle.light,
+            theme.appBarTheme.systemOverlayStyle ?? SystemUiOverlayStyle.dark,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            const ColoredBox(color: AppPrimitives.black),
+            ColoredBox(color: colors.bgPrimary),
             Image.asset(
-              AppAssets.homeDarkFigma559,
+              wallpaperPath,
               fit: BoxFit.cover,
               gaplessPlayback: true,
               excludeFromSemantics: true,
@@ -100,10 +103,10 @@ class AuthTheme extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppColorsScheme.dark.bgPrimary.withValues(
+                    colors.bgPrimary.withValues(
                       alpha: AppAuthScreen.scrimTopAlpha,
                     ),
-                    AppColorsScheme.dark.bgPrimary.withValues(
+                    colors.bgPrimary.withValues(
                       alpha: AppAuthScreen.scrimBottomAlpha,
                     ),
                   ],
@@ -280,7 +283,7 @@ class AuthTextAction extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          foregroundColor: colors.primary,
+          foregroundColor: colors.textSecondary,
           minimumSize: const Size(0, AppComponentTokens.minTouchTarget),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           textStyle: AppTypography.labelLarge,

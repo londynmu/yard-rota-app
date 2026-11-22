@@ -56,7 +56,7 @@ class _TransportDashboardScreenState extends State<TransportDashboardScreen> {
       });
       await _load();
     } catch (error) {
-      if (mounted) AppToast.show(context, 'Could not load dashboard.');
+      if (mounted) AppToast.error(context, 'Could not load dashboard.');
       setState(() => _loading = false);
     }
   }
@@ -75,7 +75,7 @@ class _TransportDashboardScreenState extends State<TransportDashboardScreen> {
       );
       if (mounted) setState(() => _entries = rows);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load staffing data.');
+      if (mounted) AppToast.error(context, 'Could not load staffing data.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

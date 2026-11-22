@@ -37,15 +37,22 @@ Future<void> _bootstrap() async {
   }
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  // Read theme prefs before any frame so MaterialApp / AuthTheme start light.
+  final initialThemeMode = await readSavedThemeMode();
+  final initialLightWallpaper = await readSavedLightHomeWallpaper();
+  final initialDarkWallpaper = await readSavedDarkHomeWallpaper();
+
+  // Dark status-bar icons on a light splash (avoids a black system chrome gap).
+  if (initialThemeMode != ThemeMode.dark) {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+  }
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
 
   final localDb = await AppLocalDatabase.openDefault();
-  final initialThemeMode = await readSavedThemeMode();
-  final initialLightWallpaper = await readSavedLightHomeWallpaper();
-  final initialDarkWallpaper = await readSavedDarkHomeWallpaper();
 
   runApp(
     YardRotaApp(

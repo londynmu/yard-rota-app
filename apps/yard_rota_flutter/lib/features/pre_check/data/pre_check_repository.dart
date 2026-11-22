@@ -125,6 +125,291 @@ class PreCheckRepository {
     );
   }
 
+  /// PWA TugCheckHistory: last 30 days of checks for a tug (who / when / type).
+  Future<List<PreCheckTugHistoryEntry>> fetchTugCheckHistory(
+    String tugId,
+  ) async {
+    if (tugId.isEmpty) {
+      return const <PreCheckTugHistoryEntry>[];
+    }
+    final thirtyDaysAgo = DateTime.now().toUtc().subtract(
+      const Duration(days: 30),
+    );
+    final results = await Future.wait<dynamic>([
+      _client
+          .from('precheck_submissions')
+          .select('''
+            id,
+            check_time,
+            created_at,
+            check_type,
+            profiles:user_id(first_name, last_name),
+            precheck_items(id, status, item_name, notes),
+            precheck_damages(id, item_id, item_key, description, image_urls, source)
+          ''')
+          .eq('tug_id', tugId)
+          .gte('check_time', thirtyDaysAgo.toIso8601String())
+          .order('check_time', ascending: false),
+      _client
+          .from('precheck_check_items')
+          .select('item_key, label')
+          .eq('is_active', true),
+      // Later checks often re-flag body_damage without new damage rows.
+      // Load open tug damages (with photos) to fill those history problems.
+      _client
+          .from('precheck_damages')
+          .select('''
+            id,
+            item_id,
+            item_key,
+            description,
+            image_urls,
+            source,
+            repair_status,
+            last_reported_at,
+            created_at,
+            precheck_items(item_name)
+          ''')
+          .eq('tug_id', tugId)
+          .neq('repair_status', 'resolved')
+          .order('last_reported_at', ascending: false),
+    ]);
+
+    final labelRows = (results[1] as List<dynamic>)
+        .whereType<Map<String, dynamic>>();
+    final labels = <String, String>{
+      for (final row in labelRows)
+        if ((row['item_key']?.toString() ?? '').isNotEmpty)
+          row['item_key'].toString(): row['label']?.toString() ?? '',
+    };
+
+    final openPhotosByItemKey = _openDamagePhotosByItemKey(
+      (results[2] as List<dynamic>).whereType<Map<String, dynamic>>(),
+    );
+
+    final checkRows = (results[0] as List<dynamic>)
+        .whereType<Map<String, dynamic>>();
+    return checkRows
+        .map(
+          (row) => _mapTugHistoryEntry(
+            row,
+            labels,
+            openPhotosByItemKey: openPhotosByItemKey,
+          ),
+        )
+        .where((entry) => entry.id.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Latest non-resolved damage photos keyed by checklist item (body_damage…).
+  Map<String, ({String description, List<String> imageUrls})>
+  _openDamagePhotosByItemKey(Iterable<Map<String, dynamic>> rows) {
+    final out = <String, ({String description, List<String> imageUrls})>{};
+    for (final row in rows) {
+      final itemJoin = row['precheck_items'];
+      final itemMap = itemJoin is Map<String, dynamic> ? itemJoin : null;
+      final itemKey =
+          (row['item_key']?.toString() ?? itemMap?['item_name']?.toString() ?? '')
+              .trim();
+      if (itemKey.isEmpty) continue;
+      final urls = _parseImageUrls(row['image_urls']);
+      if (urls.isEmpty) continue;
+      // Rows are newest-first; keep the first photo set per key.
+      out.putIfAbsent(
+        itemKey,
+        () => (
+          description: row['description']?.toString() ?? '',
+          imageUrls: urls,
+        ),
+      );
+    }
+    return out;
+  }
+
+  PreCheckTugHistoryEntry _mapTugHistoryEntry(
+    Map<String, dynamic> row,
+    Map<String, String> labels, {
+    Map<String, ({String description, List<String> imageUrls})>
+        openPhotosByItemKey =
+        const {},
+  }) {
+    final profile = row['profiles'];
+    final profileMap = profile is Map<String, dynamic> ? profile : null;
+    final first = profileMap?['first_name']?.toString().trim() ?? '';
+    final last = profileMap?['last_name']?.toString().trim() ?? '';
+    final checker = '$first $last'.trim();
+    final checkTypeRaw = row['check_type']?.toString() ?? '';
+    final checkType = checkTypeRaw == PreCheckType.duringShift.dbValue
+        ? PreCheckType.duringShift
+        : PreCheckType.preShift;
+    final checkTimeRaw =
+        row['check_time']?.toString() ?? row['created_at']?.toString();
+    final checkTime =
+        DateTime.tryParse(checkTimeRaw ?? '')?.toLocal() ?? DateTime.now();
+
+    return PreCheckTugHistoryEntry(
+      id: row['id']?.toString() ?? '',
+      checkTime: checkTime,
+      checkType: checkType,
+      checkerName: checker.isEmpty ? 'Unknown user' : checker,
+      problems: _mergeHistoryProblems(
+        row,
+        labels,
+        openPhotosByItemKey: openPhotosByItemKey,
+      ),
+    );
+  }
+
+  List<PreCheckTugHistoryProblem> _mergeHistoryProblems(
+    Map<String, dynamic> row,
+    Map<String, String> labels, {
+    Map<String, ({String description, List<String> imageUrls})>
+        openPhotosByItemKey =
+        const {},
+  }) {
+    final items = (row['precheck_items'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .where((item) => item['status']?.toString() == 'repair_needed')
+        .toList();
+    final damages = _uniqueHistoryDamages(
+      (row['precheck_damages'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(),
+    );
+    final usedDamageIds = <String>{};
+
+    String normalize(String? value) => (value ?? '').trim().toLowerCase();
+
+    List<Map<String, dynamic>> damagesForItem(Map<String, dynamic> item) {
+      final itemId = item['id']?.toString() ?? '';
+      final itemKey = item['item_name']?.toString() ?? '';
+      final note = normalize(item['notes']?.toString());
+      final matched = <Map<String, dynamic>>[];
+      for (final damage in damages) {
+        final id = damage['id']?.toString() ?? '';
+        if (usedDamageIds.contains(id)) continue;
+        final byItemId =
+            itemId.isNotEmpty && damage['item_id']?.toString() == itemId;
+        final byItemKey =
+            itemKey.isNotEmpty && damage['item_key']?.toString() == itemKey;
+        final byNote =
+            note.isNotEmpty &&
+            normalize(damage['description']?.toString()) == note;
+        if (byItemId || byItemKey || byNote) {
+          matched.add(damage);
+        }
+      }
+      return matched;
+    }
+
+    String formatItemName(String? raw) {
+      final key = raw ?? '';
+      final labeled = labels[key];
+      if (labeled != null && labeled.isNotEmpty) return labeled;
+      return key
+          .replaceAll('_', ' ')
+          .split(' ')
+          .where((part) => part.isNotEmpty)
+          .map(
+            (part) =>
+                '${part[0].toUpperCase()}${part.length > 1 ? part.substring(1) : ''}',
+          )
+          .join(' ');
+    }
+
+    final fromItems = <PreCheckTugHistoryProblem>[];
+    for (final item in items) {
+      final itemKey = item['item_name']?.toString() ?? '';
+      final matchedDamages = damagesForItem(item);
+      for (final damage in matchedDamages) {
+        usedDamageIds.add(damage['id']?.toString() ?? '');
+      }
+      var urls = <String>[
+        for (final damage in matchedDamages)
+          ..._parseImageUrls(damage['image_urls']),
+      ];
+      var description = matchedDamages.isNotEmpty
+          ? matchedDamages
+                .map((d) => d['description']?.toString() ?? '')
+                .where((d) => d.trim().isNotEmpty)
+                .join('\n')
+          : item['notes']?.toString() ?? '';
+
+      // Fallback: same item still open on the tug with photos (common for
+      // body_damage re-confirmed on later shifts without new uploads).
+      if (urls.isEmpty && itemKey.isNotEmpty) {
+        final open = openPhotosByItemKey[itemKey];
+        if (open != null) {
+          urls = open.imageUrls;
+          if (description.trim().isEmpty) {
+            description = open.description;
+          }
+        }
+      }
+
+      fromItems.add(
+        PreCheckTugHistoryProblem(
+          key: 'item-${item['id']}',
+          itemName: formatItemName(itemKey),
+          itemKey: itemKey,
+          description: description,
+          imageUrls: urls,
+        ),
+      );
+    }
+
+    final unmatched = damages
+        .where((damage) {
+          final id = damage['id']?.toString() ?? '';
+          if (usedDamageIds.contains(id)) return false;
+          final source = damage['source']?.toString() ?? 'check_item';
+          return source != 'remarks';
+        })
+        .map((damage) {
+          final itemKey = damage['item_key']?.toString() ?? '';
+          return PreCheckTugHistoryProblem(
+            key: 'damage-${damage['id']}',
+            itemName: itemKey.isEmpty
+                ? 'Damage report'
+                : formatItemName(itemKey),
+            itemKey: itemKey,
+            description: damage['description']?.toString() ?? '',
+            imageUrls: _parseImageUrls(damage['image_urls']),
+          );
+        });
+
+    return [...fromItems, ...unmatched];
+  }
+
+  List<String> _parseImageUrls(dynamic raw) {
+    if (raw is! List) {
+      return const <String>[];
+    }
+    return raw
+        .map((entry) => entry?.toString().trim() ?? '')
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<Map<String, dynamic>> _uniqueHistoryDamages(
+    List<Map<String, dynamic>> damages,
+  ) {
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final damage in damages) {
+      final urls = _parseImageUrls(damage['image_urls']).join('|');
+      final key = [
+        (damage['item_id']?.toString() ?? '').trim().toLowerCase(),
+        (damage['description']?.toString() ?? '').trim().toLowerCase(),
+        urls.trim().toLowerCase(),
+      ].join('|');
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      out.add(damage);
+    }
+    return out;
+  }
+
   Future<List<PreCheckItemDefinition>> fetchCheckItems() async {
     try {
       final rows = await _client

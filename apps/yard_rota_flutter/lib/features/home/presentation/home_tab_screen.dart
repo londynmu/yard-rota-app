@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/network/models.dart';
@@ -12,10 +14,11 @@ import '../../calendar/data/availability_repository.dart';
 import '../../calendar/data/calendar_repository.dart';
 import '../../calendar/presentation/calendar_screen.dart';
 import '../../induction/presentation/induction_guide_screen.dart';
+import '../../my_rota/data/my_rota_repository.dart';
+import '../../my_rota/presentation/your_shifts_this_week_card.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 import '../../today/presentation/today_screen.dart';
 import '../data/stage_one_repository.dart';
-import 'my_day_card.dart';
 
 enum HomeSection { calendar, breaks, info }
 
@@ -29,9 +32,10 @@ class HomeTabScreen extends StatefulWidget {
     required this.lightHomeWallpaper,
     required this.darkHomeWallpaper,
     required this.onOpenPreCheck,
-    required this.onOpenMyRota,
     required this.onTrack,
     this.stageOneRepository,
+    this.myRotaRepository,
+    this.onOpenMyRota,
   });
 
   final UserSession session;
@@ -40,25 +44,63 @@ class HomeTabScreen extends StatefulWidget {
   final LightHomeWallpaper lightHomeWallpaper;
   final DarkHomeWallpaper darkHomeWallpaper;
   final VoidCallback onOpenPreCheck;
-  final VoidCallback onOpenMyRota;
   final void Function(String path, String title) onTrack;
   final StageOneRepository? stageOneRepository;
+  final MyRotaRepository? myRotaRepository;
+  final VoidCallback? onOpenMyRota;
 
   @override
   State<HomeTabScreen> createState() => HomeTabScreenState();
 }
 
-class HomeTabScreenState extends State<HomeTabScreen> {
+class HomeTabScreenState extends State<HomeTabScreen>
+    with WidgetsBindingObserver {
   HomeSection _section = HomeSection.calendar;
   final Set<HomeSection> _visited = <HomeSection>{HomeSection.calendar};
-  final GlobalKey<MyDayCardState> _myDayKey = GlobalKey<MyDayCardState>();
   int _unreadNotifications = 0;
   int _infoGeneration = 0;
+  bool _needsPreCheck = false;
+  Timer? _preCheckTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUnreadNotifications();
+    _loadPreCheckReminder();
+    // Re-check so the card appears when rota start_time is reached.
+    _preCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _loadPreCheckReminder();
+    });
+  }
+
+  @override
+  void dispose() {
+    _preCheckTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadPreCheckReminder();
+    }
+  }
+
+  Future<void> _loadPreCheckReminder() async {
+    final repository = widget.stageOneRepository;
+    if (repository == null) return;
+    try {
+      final needs = await repository.needsPreCheck(
+        userId: widget.session.userId,
+      );
+      if (!mounted) return;
+      if (needs == _needsPreCheck) return;
+      setState(() => _needsPreCheck = needs);
+    } catch (_) {
+      // Reminder is optional; calendar still works without it.
+    }
   }
 
   void showCalendar() => _selectSection(HomeSection.calendar);
@@ -79,7 +121,7 @@ class HomeTabScreenState extends State<HomeTabScreen> {
 
   Future<void> _loadUnreadNotifications() async {
     final repository = widget.stageOneRepository;
-    if (repository == null) return;
+    if (repository == null || !widget.session.isPrivileged) return;
     try {
       final notifications = await repository.loadNotifications();
       if (!mounted) return;
@@ -102,6 +144,8 @@ class HomeTabScreenState extends State<HomeTabScreen> {
         builder: (_) => NotificationsScreen(
           repository: repository,
           session: widget.session,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
         ),
       ),
     );
@@ -114,7 +158,11 @@ class HomeTabScreenState extends State<HomeTabScreen> {
     widget.onTrack('/yard-guide', 'Yard induction guide');
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => InductionGuideScreen(repository: repository),
+        builder: (_) => InductionGuideScreen(
+          repository: repository,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
+        ),
       ),
     );
   }
@@ -144,7 +192,9 @@ class HomeTabScreenState extends State<HomeTabScreen> {
                     selected: _section,
                     onSelected: _selectSection,
                     unreadNotifications: _unreadNotifications,
-                    onBellPressed: widget.stageOneRepository == null
+                    onBellPressed:
+                        widget.stageOneRepository == null ||
+                            !widget.session.isPrivileged
                         ? null
                         : _openNotifications,
                   ),
@@ -184,23 +234,39 @@ class HomeTabScreenState extends State<HomeTabScreen> {
     final repository = widget.stageOneRepository;
     switch (section) {
       case HomeSection.calendar:
-        return CalendarScreen(
-          embedded: true,
-          displayName: widget.session.displayName,
-          calendarRepository: widget.calendarRepository,
-          availabilityRepository: widget.availabilityRepository,
-          lightHomeWallpaper: widget.lightHomeWallpaper,
-          darkHomeWallpaper: widget.darkHomeWallpaper,
-          footer: repository == null
-              ? null
-              : MyDayCard(
-                  key: _myDayKey,
-                  repository: repository,
-                  userId: widget.session.userId,
-                  onOpenMyRota: widget.onOpenMyRota,
-                  onOpenBreaks: () => _selectSection(HomeSection.breaks),
+        final myRota = widget.myRotaRepository;
+        // PreCheck banner stays pinned above the calendar (outside its scroll)
+        // whenever the daily check is still outstanding — not dismissible.
+        // SizedBox.expand gives the Column a bounded height so Expanded works
+        // inside IndexedStack.
+        return SizedBox.expand(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_needsPreCheck) ...[
+                PreCheckReminderCard(onOpen: widget.onOpenPreCheck),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              Expanded(
+                child: CalendarScreen(
+                  embedded: true,
+                  displayName: widget.session.displayName,
+                  calendarRepository: widget.calendarRepository,
+                  availabilityRepository: widget.availabilityRepository,
+                  lightHomeWallpaper: widget.lightHomeWallpaper,
+                  darkHomeWallpaper: widget.darkHomeWallpaper,
+                  onRefresh: _loadPreCheckReminder,
+                  footer: myRota == null
+                      ? null
+                      : YourShiftsThisWeekCard(
+                          repository: myRota,
+                          session: widget.session,
+                          onOpenMyRota: widget.onOpenMyRota,
+                        ),
                 ),
-          onRefresh: () async => _myDayKey.currentState?.reload(),
+              ),
+            ],
+          ),
         );
       case HomeSection.breaks:
         if (repository == null) {
@@ -223,8 +289,6 @@ class HomeTabScreenState extends State<HomeTabScreen> {
               TodayPanel(
                 key: ValueKey<int>(_infoGeneration),
                 repository: repository,
-                session: widget.session,
-                onOpenPreCheck: widget.onOpenPreCheck,
                 onOpenGuide: _openGuide,
               ),
             ],
@@ -256,11 +320,12 @@ class _HomeSectionBar extends StatelessWidget {
       height: AppHomeTabs.segmentHeight + AppHomeTabs.trackPadding * 2,
       padding: const EdgeInsets.all(AppHomeTabs.trackPadding),
       decoration: BoxDecoration(
-        color: colors.bgPrimary.withValues(
-          alpha: AppOpacity.segmentedTrackFill,
-        ),
+        color: colors.bgPrimary.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: colors.borderDefault),
+        border: Border.all(
+          color: colors.borderDefault.withValues(alpha: 0.45),
+          width: AppStroke.thin,
+        ),
       ),
       child: Row(
         children: [
@@ -297,51 +362,82 @@ class _HomeSectionSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final (label, icon) = switch (section) {
       HomeSection.calendar => ('Calendar', Icons.calendar_month_outlined),
       HomeSection.breaks => ('Breaks', Icons.free_breakfast_outlined),
       HomeSection.info => ('Info', Icons.info_outline),
     };
-    final foreground = navPillForeground(colors, selected: selected);
+    final foreground = bottomNavIconColor(
+      colors,
+      selected: selected,
+      isDark: isDark,
+    );
+    final labelColor = bottomNavLabelColor(
+      colors,
+      selected: selected,
+      isDark: isDark,
+    );
 
     return Semantics(
       button: true,
       selected: selected,
-      child: AnimatedContainer(
-        duration: AppMotion.normal,
-        curve: AppMotion.emphasized,
-        decoration: navPillDecoration(colors, selected: selected),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            customBorder: const StadiumBorder(),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: AppHomeTabs.segmentIconSize,
-                    color: foreground,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: foreground,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    navBarIcon(
+                      icon,
+                      size: AppHomeTabs.segmentIconSize,
+                      color: foreground,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: labelColor,
+                          fontWeight: FontWeight.w400,
+                          fontSize: AppNavPill.bottomLabelFontSize,
+                        ),
                       ),
                     ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppNavPill.bottomIndicatorInset,
                   ),
-                ],
-              ),
+                  child: AnimatedContainer(
+                    duration: AppMotion.normal,
+                    curve: AppMotion.emphasized,
+                    margin: const EdgeInsets.only(top: AppSpacing.xxs),
+                    width: double.infinity,
+                    height: AppNavPill.bottomIndicatorHeight,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? colors.primary.withValues(
+                              alpha: isDark
+                                  ? AppNavPill.bottomIndicatorAlpha
+                                  : AppNavPill.bottomIndicatorAlphaLight,
+                            )
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -359,6 +455,12 @@ class _BellSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bellColor = bottomNavIconColor(
+      colors,
+      selected: false,
+      isDark: isDark,
+    );
     return SizedBox(
       width: AppHomeTabs.bellSegmentWidth,
       child: Tooltip(
@@ -380,10 +482,10 @@ class _BellSegment extends StatelessWidget {
                   label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
                   backgroundColor: colors.danger,
                   textColor: colors.onDanger,
-                  child: Icon(
+                  child: navBarIcon(
                     Icons.notifications_none_outlined,
-                    size: AppHomeTabs.segmentIconSize + AppSpacing.xs,
-                    color: colors.textSecondary,
+                    size: AppHomeTabs.segmentIconSize,
+                    color: bellColor,
                   ),
                 ),
               ),

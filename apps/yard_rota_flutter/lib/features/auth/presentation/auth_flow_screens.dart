@@ -47,16 +47,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _email.text.trim();
     final password = _password.text;
     if (!email.contains('@')) {
-      AppToast.show(context, 'Enter a valid email address.');
+      AppToast.warning(context, 'Enter a valid email address.');
       return;
     }
     final passwordError = passwordRuleError(password);
     if (passwordError != null) {
-      AppToast.show(context, passwordError);
+      AppToast.error(context, passwordError);
       return;
     }
     if (password != _confirmation.text) {
-      AppToast.show(context, 'Passwords do not match.');
+      AppToast.warning(context, 'Passwords do not match.');
       return;
     }
     setState(() => _loading = true);
@@ -69,12 +69,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (result.requiresEmailConfirmation) {
         setState(() => _confirmationSentTo = email);
       } else {
-        AppToast.show(context, 'Account created. Complete your profile.');
+        AppToast.success(context, 'Account created. Complete your profile.');
         widget.onBackToLogin();
       }
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Could not create your account. Try again.');
+        AppToast.error(context, 'Could not create your account. Try again.');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -178,7 +178,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit() async {
     final email = _email.text.trim();
     if (!email.contains('@')) {
-      AppToast.show(context, 'Enter a valid email address.');
+      AppToast.warning(context, 'Enter a valid email address.');
       return;
     }
     setState(() => _loading = true);
@@ -277,22 +277,22 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _submit() async {
     final passwordError = passwordRuleError(_password.text);
     if (passwordError != null) {
-      AppToast.show(context, passwordError);
+      AppToast.error(context, passwordError);
       return;
     }
     if (_password.text != _confirmation.text) {
-      AppToast.show(context, 'Passwords do not match.');
+      AppToast.warning(context, 'Passwords do not match.');
       return;
     }
     setState(() => _loading = true);
     try {
       await widget.apiClient.updatePassword(password: _password.text);
       if (!mounted) return;
-      AppToast.show(context, 'Password updated successfully.');
+      AppToast.success(context, 'Password updated successfully.');
       widget.onComplete();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'The reset link is invalid or has expired.');
+        AppToast.error(context, 'The reset link is invalid or has expired.');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -382,7 +382,7 @@ class _WaitingForApprovalScreenState extends State<WaitingForApprovalScreen> {
       await widget.onRefresh();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Could not refresh your account status.');
+        AppToast.error(context, 'Could not refresh your account status.');
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -391,8 +391,8 @@ class _WaitingForApprovalScreenState extends State<WaitingForApprovalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // AuthScaffold forces dark, while this context still has the app theme.
-    const colors = AppColorsScheme.dark;
+    // AuthScaffold forces light; use matching semantic colours for icons.
+    const colors = AppColorsScheme.light;
     final rejected = widget.session.isRejected;
     return AuthScaffold(
       title: rejected ? 'Account access denied' : 'Profile awaiting approval',

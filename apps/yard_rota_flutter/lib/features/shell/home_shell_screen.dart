@@ -187,38 +187,28 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
   _NavDestination _destinationFor(ShellTab tab, {required bool isAdmin}) {
     return switch (tab) {
-      ShellTab.home => const _NavDestination(
-        'Home',
-        Icons.home_outlined,
-        Icons.home_rounded,
-      ),
+      ShellTab.home => const _NavDestination('Home', Icons.home_outlined),
       ShellTab.myRota => const _NavDestination(
         'My Rota',
         Icons.calendar_view_week_outlined,
-        Icons.calendar_view_week_rounded,
       ),
       ShellTab.stats => const _NavDestination(
         'Stats',
         Icons.query_stats_outlined,
-        Icons.query_stats_rounded,
       ),
       ShellTab.preCheck => const _NavDestination(
         'PreCheck',
         Icons.fact_check_outlined,
-        Icons.fact_check_rounded,
       ),
-      ShellTab.account =>
-        isAdmin
-            ? const _NavDestination(
-                'Admin',
-                Icons.admin_panel_settings_outlined,
-                Icons.admin_panel_settings_rounded,
-              )
-            : const _NavDestination(
-                'Account',
-                Icons.person_outline_rounded,
-                Icons.person_rounded,
-              ),
+      ShellTab.account => isAdmin
+          ? const _NavDestination(
+              'Admin',
+              Icons.admin_panel_settings_outlined,
+            )
+          : const _NavDestination(
+              'Account',
+              Icons.person_outline_rounded,
+            ),
     };
   }
 
@@ -230,6 +220,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         calendarRepository: widget.calendarRepository,
         availabilityRepository: widget.availabilityRepository,
         stageOneRepository: widget.stageOneRepository,
+        myRotaRepository: widget.myRotaRepository,
         lightHomeWallpaper: widget.lightHomeWallpaper,
         darkHomeWallpaper: widget.darkHomeWallpaper,
         onOpenPreCheck: () => _select(ShellTab.preCheck),
@@ -252,7 +243,6 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       ShellTab.account => AccountMenuScreen(
         apiClient: widget.apiClient,
         session: widget.session,
-        stageOneRepository: widget.stageOneRepository,
         stageTwoRepository: widget.stageTwoRepository,
         stageThreeRepository: widget.stageThreeRepository,
         onLogout: widget.onLogout,
@@ -292,11 +282,10 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 }
 
 class _NavDestination {
-  const _NavDestination(this.label, this.icon, this.selectedIcon);
+  const _NavDestination(this.label, this.icon);
 
   final String label;
   final IconData icon;
-  final IconData selectedIcon;
 }
 
 class _ShellNavItem extends StatelessWidget {
@@ -313,6 +302,17 @@ class _ShellNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = bottomNavIconColor(
+      colors,
+      selected: selected,
+      isDark: isDark,
+    );
+    final labelColor = bottomNavLabelColor(
+      colors,
+      selected: selected,
+      isDark: isDark,
+    );
     return Semantics(
       button: true,
       selected: selected,
@@ -323,26 +323,46 @@ class _ShellNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: AppMotion.normal,
-              curve: AppMotion.emphasized,
+            SizedBox(
               width: AppNavPill.bottomPillWidth,
               height: AppNavPill.bottomPillHeight,
-              decoration: navPillDecoration(colors, selected: selected),
-              child: Icon(
-                selected ? destination.selectedIcon : destination.icon,
+              child: navBarIcon(
+                destination.icon,
                 size: AppNavPill.bottomIconSize,
-                color: navPillForeground(colors, selected: selected),
+                color: iconColor,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppNavPill.bottomIndicatorInset,
+              ),
+              child: AnimatedContainer(
+                duration: AppMotion.normal,
+                curve: AppMotion.emphasized,
+                margin: const EdgeInsets.only(top: AppSpacing.xxs),
+                width: double.infinity,
+                height: AppNavPill.bottomIndicatorHeight,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? colors.primary.withValues(
+                          alpha: isDark
+                              ? AppNavPill.bottomIndicatorAlpha
+                              : AppNavPill.bottomIndicatorAlphaLight,
+                        )
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               destination.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.labelMedium.copyWith(
-                color: selected ? colors.primary : colors.textSecondary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              style: AppTypography.labelSmall.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w400,
+                fontSize: AppNavPill.bottomLabelFontSize,
               ),
             ),
           ],

@@ -46,7 +46,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           : await widget.repository.loadUsers(widget.session);
       if (mounted) setState(() => _users = users);
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load users.');
+      if (mounted) AppToast.error(context, 'Could not load users.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -173,13 +173,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     try {
       await widget.repository.setAccountStatus(widget.session, user.id, status);
       if (!mounted) return;
-      AppToast.show(
+      AppToast.warning(
         context,
         status == AccountStatus.approved ? 'User approved.' : 'User rejected.',
       );
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not update approval.');
+      if (mounted) AppToast.error(context, 'Could not update approval.');
     }
   }
 
@@ -192,10 +192,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     if (update == null) return;
     try {
       await widget.repository.updateUser(widget.session, user.id, update);
-      if (mounted) AppToast.show(context, 'Profile updated.');
+      if (mounted) AppToast.success(context, 'Profile updated.');
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not update profile.');
+      if (mounted) AppToast.error(context, 'Could not update profile.');
     }
   }
 
@@ -215,7 +215,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          OutlinedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Add'),
           ),
@@ -230,9 +230,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         userId: user.id,
         body: body,
       );
-      if (mounted) AppToast.show(context, 'Violation added.');
+      if (mounted) AppToast.success(context, 'Violation added.');
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not add violation.');
+      if (mounted) AppToast.error(context, 'Could not add violation.');
     }
   }
 
@@ -247,7 +247,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel'),
             ),
-            OutlinedButton(
+            TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Confirm'),
             ),
@@ -261,7 +261,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       return;
     }
     await widget.repository.deactivateUser(widget.session, user.id);
-    if (mounted) AppToast.show(context, 'User deactivated.');
+    if (mounted) AppToast.success(context, 'User deactivated.');
     await _load();
   }
 
@@ -276,17 +276,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
     try {
       await widget.repository.deleteUser(widget.session, user.id);
-      if (mounted) AppToast.show(context, 'User deleted.');
+      if (mounted) AppToast.success(context, 'User deleted.');
       await _load();
     } on StageTwoSelfDeletionException {
       if (mounted) {
-        AppToast.show(
+        AppToast.warning(
           context,
           'Use Delete account in your profile to delete your own account.',
         );
       }
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete user.');
+      if (mounted) AppToast.error(context, 'Could not delete user.');
     }
   }
 }
@@ -359,10 +359,10 @@ class _UserCard extends StatelessWidget {
                       onPressed: onDeactivate,
                       child: const Text('Deactivate'),
                     ),
-                    OutlinedButton(
-                      onPressed: onDelete,
-                      child: const Text('Delete'),
-                    ),
+                    TextButton(
+              onPressed: onDelete,
+              child: const Text('Delete'),
+            ),
                   ],
           ),
         ],
@@ -513,7 +513,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        OutlinedButton(
+        TextButton(
           onPressed: () => Navigator.pop(
             context,
             AdminProfileUpdate(
