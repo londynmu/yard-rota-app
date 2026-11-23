@@ -211,6 +211,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _shiftMonth(monthDelta);
   }
 
+  Future<Map<String, AvailabilityEntry>> _loadAvailabilityForSheetMonth(
+    DateTime month,
+  ) {
+    return widget.availabilityRepository.loadForMonth(
+      monthDate: month,
+      modalAnchorDate: DateTime(month.year, month.month, 1),
+    );
+  }
+
   Future<void> _handleDayTap(DateTime date) async {
     final normalized = DateTime(date.year, date.month, date.day);
 
@@ -360,6 +369,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: AvailabilitySheet(
                     anchorDate: anchorDate,
                     availabilityByDate: availability,
+                    loadMonth: _loadAvailabilityForSheetMonth,
                   ),
                 ),
               ),
@@ -403,6 +413,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: AvailabilitySheet(
                     anchorDate: anchorDate,
                     availabilityByDate: availability,
+                    loadMonth: _loadAvailabilityForSheetMonth,
                   ),
                 ),
               ),

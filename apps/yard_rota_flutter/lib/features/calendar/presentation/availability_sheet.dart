@@ -12,10 +12,15 @@ class AvailabilitySheet extends StatefulWidget {
     super.key,
     required this.anchorDate,
     required this.availabilityByDate,
+    this.loadMonth,
   });
 
   final DateTime anchorDate;
   final Map<String, AvailabilityEntry> availabilityByDate;
+
+  /// Loads remote/local availability when the sheet month changes.
+  final Future<Map<String, AvailabilityEntry>> Function(DateTime month)?
+  loadMonth;
 
   @override
   State<AvailabilitySheet> createState() => _AvailabilitySheetState();
@@ -252,9 +257,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
         Row(
           children: [
             IconButton(
-              onPressed: () => setState(() {
-                _visibleMonth = DateTime(year, month - 1);
-              }),
+              onPressed: () => _shiftSheetMonth(-1),
               icon: const Icon(Icons.chevron_left),
               tooltip: 'Previous month',
               visualDensity: VisualDensity.compact,
@@ -269,9 +272,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               ),
             ),
             IconButton(
-              onPressed: () => setState(() {
-                _visibleMonth = DateTime(year, month + 1);
-              }),
+              onPressed: () => _shiftSheetMonth(1),
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next month',
               visualDensity: VisualDensity.compact,
@@ -385,14 +386,33 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     );
   }
 
-  Future<void> _openNoteEditor(String ymd) async {
-    // Long-press includes the day in the save set without painting status.
-    if (!_selectedDates.contains(ymd)) {
-      setState(() {
-        _selectedDates = <String>[..._selectedDates, ymd];
-      });
+  Future<void> _shiftSheetMonth(int delta) async {
+    final next = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+    setState(() => _visibleMonth = next);
+    final loader = widget.loadMonth;
+    if (loader == null) return;
+    try {
+      final map = await loader(next);
+      if (!mounted) return;
+      setState(() => _mergeAvailability(map));
+    } catch (_) {
+      // Keep whatever we already have for this month.
     }
+  }
 
+  void _mergeAvailability(Map<String, AvailabilityEntry> map) {
+    for (final entry in map.entries) {
+      _statusByDate.putIfAbsent(entry.key, () => entry.value.status);
+      final comment = (entry.value.comment ?? '').trim();
+      if (comment.isNotEmpty && !_commentEdited.contains(entry.key)) {
+        _commentsByDate.putIfAbsent(entry.key, () => comment);
+      }
+    }
+  }
+
+  Future<void> _openNoteEditor(String ymd) async {
+    // Do not add the day to the save set on long-press alone — cancel would
+    // still leave it selected and Save would paint `_activeStatus`.
     final initial = _commentsByDate[ymd] ?? '';
     final result = await showDialog<String>(
       context: context,
@@ -414,6 +434,13 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
         _commentsByDate.remove(ymd);
       } else {
         _commentsByDate[ymd] = trimmed;
+      }
+      // Notes save with an existing status only; unset days need a paint tap.
+      final hasStatus =
+          _statusByDate.containsKey(ymd) ||
+          widget.availabilityByDate.containsKey(ymd);
+      if (hasStatus && !_selectedDates.contains(ymd)) {
+        _selectedDates = <String>[..._selectedDates, ymd];
       }
     });
   }

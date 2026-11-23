@@ -58,10 +58,19 @@ class AvailabilityRepository {
       final comment = item.applyComment
           ? (item.comment ?? '')
           : request.comment;
+      // Status-only paint must not wipe an existing local note (INSERT OR REPLACE).
+      String? localComment = applyComment ? comment : null;
+      if (!applyComment) {
+        final existing = await _localDb.readAvailabilityRange(
+          startYmd: item.dateYmd,
+          endYmd: item.dateYmd,
+        );
+        localComment = existing[item.dateYmd]?.comment;
+      }
       await _localDb.upsertAvailabilityLocal(
         dateYmd: item.dateYmd,
         status: item.status,
-        comment: applyComment ? comment : null,
+        comment: localComment,
         syncState: 'pending',
       );
       await _localDb.enqueueAvailabilityUpsert(
@@ -110,10 +119,18 @@ class AvailabilityRepository {
 
           try {
             await _apiClient.saveAvailability(request: saveRequest);
+            String? localComment = applyComment ? comment : null;
+            if (!applyComment) {
+              final existing = await _localDb.readAvailabilityRange(
+                startYmd: dateYmd,
+                endYmd: dateYmd,
+              );
+              localComment = existing[dateYmd]?.comment;
+            }
             await _localDb.upsertAvailabilityLocal(
               dateYmd: dateYmd,
               status: status,
-              comment: applyComment ? comment : null,
+              comment: localComment,
               syncState: 'synced',
             );
             await _localDb.markOutboxSynced(record.id);
