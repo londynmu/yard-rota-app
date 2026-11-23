@@ -1,7 +1,10 @@
 # WhatsApp rota send to shunters (ops)
 
-Manual admin send after creating / editing a week in Rota Planner.
+Manual admin send after creating / editing a week in Rota Planner, plus an optional
+**Friday 18:00 Europe/London cron** that sends the same `shunter_week` template for the
+upcoming Sat→Fri week (inactive until smoke + owner approval).
 **Agencies stay on email** (`Export & Send`) — no WhatsApp to agencies.
+**Assignment ping** stays manual (emergency only) — no cron.
 
 ## Code delivered in repo
 
@@ -139,3 +142,35 @@ npx supabase functions deploy twilio-whatsapp-status --project-ref jkjvtvwedjiup
 6. On the phone: fixed Sat→Fri bullet lines; Friday-only shows six `• —` then the Friday line; trailing fixed line after “Sent by …”.
 7. Re-open the modal: those people show **Sent** (checkbox disabled). Optional: **Notify one shift** for a single assignment (ping template unchanged).
 8. Confirm status updates in Twilio and `rota_whatsapp_sends`.
+
+## Friday cron (after owner approval)
+
+Migration: `20261123140000_rota_whatsapp_friday_cron.sql` (trigger=`cron` + job `rota-whatsapp-friday-week`, **active=false**).
+
+1. Deploy updated `send-rota-whatsapp` (cron / service_role may send `shunter_week` only).
+2. Smoke (service role or `x-cron-secret`):
+
+```bash
+curl -sS -X POST \
+  "$SUPABASE_URL/functions/v1/send-rota-whatsapp" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"preview","kind":"shunter_week"}'
+```
+
+Omit `week_start` — Edge picks the next Sat→Fri week from London “tomorrow”. Then `action":"send"` for 1–2 people if preview looks right (or rely on empty `user_ids` = all ready after a dry preview).
+
+3. Enable cron only after a good smoke (SQL, owner-approved):
+
+```sql
+SELECT cron.alter_job(
+  (SELECT jobid FROM cron.job WHERE jobname = 'rota-whatsapp-friday-week' LIMIT 1),
+  active := true
+);
+```
+
+Job schedule is `0 17,18 * * 5` UTC with a London Friday-18:00 guard (GMT/BST safe).
+
+## Related: FCM assignment digests
+
+Separate from WhatsApp. Mid-week “you've been added to N shifts” push at **10:00 and 16:00** London — see migration `20261123141000_rota_assignment_push_digest.sql` and Edge `send-rota-assignment-push`. Cron starts inactive; enable after FCM smoke. Removals do not notify.

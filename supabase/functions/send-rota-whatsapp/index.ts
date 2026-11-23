@@ -1,5 +1,5 @@
-// Admin-only: send rota WhatsApp to shunters (week summary or assignment ping).
-// Agencies stay on email — this function never targets agencies.
+// Admin or Friday cron: rota WhatsApp to shunters (week summary).
+// Assignment ping stays admin-only. Agencies stay on email.
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -23,6 +23,7 @@ import {
   ROTA_WA_DAY_OFF,
   ROTA_WA_RESEND_COOLDOWN_MS,
   shunterWeekIdempotencyKey,
+  upcomingRotaWeekStartIso,
 } from "../_shared/rotaWhatsApp.ts";
 
 type MessageKind = "shunter_week" | "assignment_ping";
@@ -142,7 +143,10 @@ serve(async (req) => {
   if (!gate.ok) {
     return json(gate.status, { error: gate.error });
   }
-  if (gate.mode !== "admin" || !gate.userId) {
+
+  const isAdmin = gate.mode === "admin" && Boolean(gate.userId);
+  const isAutomation = gate.mode === "cron" || gate.mode === "service_role";
+  if (!isAdmin && !isAutomation) {
     return json(403, { error: "Admin only" });
   }
 
@@ -160,6 +164,19 @@ serve(async (req) => {
     ? "assignment_ping"
     : "shunter_week";
 
+  // Cron / service_role: week summary only (no assignment ping, no force resend).
+  if (!isAdmin) {
+    if (kind === "assignment_ping") {
+      return json(403, { error: "Assignment ping is admin only" });
+    }
+    if (Boolean(body.force_resend)) {
+      return json(403, { error: "force_resend is admin only" });
+    }
+    if (action !== "send" && action !== "preview" && action !== "check_ready") {
+      return json(400, { error: "Unsupported action for cron" });
+    }
+  }
+
   const contentKind = kind === "assignment_ping" ? "rota_ping" : "rota_shunter";
   const twilio = loadTwilioMessagingConfig(contentKind);
 
@@ -175,12 +192,17 @@ serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  const { data: creatorProfile } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name")
-    .eq("id", gate.userId)
-    .maybeSingle();
-  const creatorName = formatCreatorDisplayName(creatorProfile || {});
+  let creatorName = "Yard Rota";
+  let creatorUserId: string | null = null;
+  if (isAdmin && gate.userId) {
+    creatorUserId = gate.userId;
+    const { data: creatorProfile } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name")
+      .eq("id", gate.userId)
+      .maybeSingle();
+    creatorName = formatCreatorDisplayName(creatorProfile || {});
+  }
   const now = Date.now();
 
   // ---------- assignment_ping ----------
@@ -310,7 +332,7 @@ serve(async (req) => {
         user_id: profile.id,
         scheduled_rota_id: rotaId,
         recipient_e164: phone,
-        creator_user_id: gate.userId,
+        creator_user_id: creatorUserId,
         creator_name: creatorName,
         status: "queued",
         provider: "twilio",
@@ -377,7 +399,10 @@ serve(async (req) => {
   }
 
   // ---------- shunter_week ----------
-  const weekStart = String(body.week_start || "").trim().slice(0, 10);
+  let weekStart = String(body.week_start || "").trim().slice(0, 10);
+  if (!weekStart && isAutomation) {
+    weekStart = upcomingRotaWeekStartIso();
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
     return json(400, { error: "week_start (yyyy-MM-dd Saturday) is required" });
   }
@@ -555,7 +580,11 @@ serve(async (req) => {
     const idempotencyKey = isResend
       ? adminResendIdempotencyKey(baseKey, now)
       : baseKey;
-    const trigger = isResend ? "admin_resend" : "ui";
+    const trigger = isResend
+      ? "admin_resend"
+      : isAutomation
+      ? "cron"
+      : "ui";
 
     const { data: ledgerRow, error: insertError } = await supabase
       .from("rota_whatsapp_sends")
@@ -565,7 +594,7 @@ serve(async (req) => {
         user_id: person.user_id,
         scheduled_rota_id: null,
         recipient_e164: phone,
-        creator_user_id: gate.userId,
+        creator_user_id: creatorUserId,
         creator_name: creatorName,
         status: "queued",
         provider: "twilio",

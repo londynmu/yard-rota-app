@@ -312,3 +312,38 @@ export function formatCreatorDisplayName(profile: {
 export function isValidPhoneE164(value: string): boolean {
   return /^\+[1-9]\d{7,14}$/.test(value);
 }
+
+/** London calendar date (yyyy-MM-dd) for an instant. */
+export function londonDateIso(now: Date | number | string = new Date()): string {
+  const instant = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(instant.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+}
+
+/**
+ * Next rota week start (Saturday) for the Friday evening cron.
+ * From tomorrow in Europe/London, pick the next Saturday on or after that date.
+ */
+export function upcomingRotaWeekStartIso(
+  now: Date | number | string = new Date(),
+): string {
+  const today = londonDateIso(now);
+  const match = today.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  const tomorrow = new Date(Date.UTC(y, m - 1, d + 1));
+  const dow = tomorrow.getUTCDay();
+  const add = (6 - dow + 7) % 7;
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + add);
+  const yy = tomorrow.getUTCFullYear();
+  const mm = String(tomorrow.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(tomorrow.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}

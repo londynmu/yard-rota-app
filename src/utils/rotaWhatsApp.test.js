@@ -18,7 +18,26 @@ import {
   ROTA_WA_DAY_OFF,
   shunterWeekIdempotencyKey,
   summarizeRotaWhatsAppPreview,
+  upcomingRotaWeekStartIso,
 } from './rotaWhatsApp';
+
+describe('upcomingRotaWeekStartIso', () => {
+  it('on Friday London picks tomorrow Saturday', () => {
+    // 2026-11-20 18:00 Europe/London = Friday
+    const friday = new Date('2026-11-20T18:00:00Z');
+    expect(upcomingRotaWeekStartIso(friday)).toBe('2026-11-21');
+  });
+
+  it('on Saturday London picks the following Saturday', () => {
+    const saturday = new Date('2026-11-21T12:00:00Z');
+    expect(upcomingRotaWeekStartIso(saturday)).toBe('2026-11-28');
+  });
+
+  it('on Wednesday London picks the coming Saturday', () => {
+    const wednesday = new Date('2026-11-18T12:00:00Z');
+    expect(upcomingRotaWeekStartIso(wednesday)).toBe('2026-11-21');
+  });
+});
 
 describe('rotaWhatsApp idempotency keys', () => {
   it('builds week and ping keys', () => {
