@@ -13,6 +13,7 @@ import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
 import '../../auth/presentation/auth_scaffold.dart';
+import '../../push/push_messaging_service.dart';
 import 'delete_account_flow.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class ProfileScreen extends StatefulWidget {
     required this.onProfileSaved,
     this.onLogout,
     this.isRequired = false,
+    this.pushMessaging,
   });
 
   final ApiClient apiClient;
@@ -30,6 +32,7 @@ class ProfileScreen extends StatefulWidget {
   final ValueChanged<UserProfile> onProfileSaved;
   final Future<void> Function()? onLogout;
   final bool isRequired;
+  final PushMessagingService? pushMessaging;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -38,6 +41,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
+  late final PushMessagingService _pushMessaging;
   String _shift = 'day';
   String? _startTime;
   String? _location;
@@ -45,6 +49,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarUrl;
   bool _loading = true;
   bool _saving = false;
+  bool _pushOptIn = true;
+  bool _pushBusy = false;
   List<LocationOption> _locations = const [];
   List<AgencyOption> _agencies = const [];
   List<AttendanceHistoryItem> _attendance = const [];
@@ -53,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _pushMessaging = widget.pushMessaging ?? PushMessagingService();
     _load();
   }
 
@@ -71,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         widget.apiClient.getActiveAgencies(),
         if (!widget.isRequired) widget.apiClient.getOwnAttendanceHistory(),
         if (!widget.isRequired) widget.apiClient.getOwnViolationHistory(),
+        if (!widget.isRequired) _pushMessaging.fetchPushOptIn(),
       ]);
       if (!mounted) return;
       final profile = results[0] as UserProfile;
@@ -87,6 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!widget.isRequired) {
           _attendance = results[3] as List<AttendanceHistoryItem>;
           _violations = results[4] as List<ViolationHistoryItem>;
+          _pushOptIn = results[5] as bool;
         }
       });
     } catch (_) {
@@ -95,6 +104,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _setPushOptIn(bool enabled) async {
+    setState(() {
+      _pushBusy = true;
+      _pushOptIn = enabled;
+    });
+    try {
+      await _pushMessaging.setPushOptIn(enabled);
+      if (mounted) {
+        AppToast.show(
+          context,
+          enabled
+              ? 'Push notifications enabled.'
+              : 'Push notifications disabled.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _pushOptIn = !enabled);
+        AppToast.show(context, 'Could not update push settings.');
+      }
+    } finally {
+      if (mounted) setState(() => _pushBusy = false);
     }
   }
 
@@ -204,6 +238,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _identityCard(),
                   const SizedBox(height: AppSpacing.md),
                   _preferencesCard(),
+                  const SizedBox(height: AppSpacing.md),
+                  _pushNotificationsCard(),
                   const SizedBox(height: AppSpacing.md),
                   _historyCard(),
                   const SizedBox(height: AppSpacing.lg),
@@ -350,6 +386,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.md),
           AppTextField(label: 'Last name', controller: _lastName),
         ],
+      ),
+    );
+  }
+
+  Widget _pushNotificationsCard() {
+    final colors = context.appColors;
+    return AppCard(
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(
+          'Push notifications',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        subtitle: Text(
+          _pushOptIn
+              ? 'On — break reminders on this device.'
+              : 'Off — you will not get break push alerts.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+        ),
+        value: _pushOptIn,
+        onChanged: (_saving || _pushBusy) ? null : _setPushOptIn,
       ),
     );
   }
