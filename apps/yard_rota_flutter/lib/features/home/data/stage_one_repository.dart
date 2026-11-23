@@ -71,6 +71,56 @@ class StageOneNotification {
   final bool isRead;
 }
 
+class PendingJoinRequest {
+  const PendingJoinRequest({
+    required this.id,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    this.createdAt,
+  });
+
+  final String id;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final DateTime? createdAt;
+
+  String get displayName {
+    final name = '$firstName $lastName'.trim();
+    return name.isEmpty ? (email.isEmpty ? 'Unknown' : email) : name;
+  }
+}
+
+class MissingTookPrecheck {
+  const MissingTookPrecheck({
+    required this.userId,
+    required this.rotaId,
+    required this.firstName,
+    required this.lastName,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  final String userId;
+  final String rotaId;
+  final String firstName;
+  final String lastName;
+  final String startTime;
+  final String endTime;
+
+  String get displayName {
+    final name = '$firstName $lastName'.trim();
+    return name.isEmpty ? 'Unknown' : name;
+  }
+
+  String get shiftWindow {
+    final start = startTime.isEmpty ? '??:??' : startTime;
+    final end = endTime.isEmpty ? '??:??' : endTime;
+    return '$start-$end';
+  }
+}
+
 class StageOneRepository {
   StageOneRepository(this._client);
 
@@ -392,6 +442,48 @@ class StageOneRepository {
     return rows.length;
   }
 
+  /// Join requests waiting for admin approval (`get_pending_users` RPC).
+  Future<List<PendingJoinRequest>> loadPendingJoinRequests() async {
+    final rows = await _client.rpc('get_pending_users');
+    final list = rows is List ? rows : const <dynamic>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(mapPendingJoinRequest)
+        .whereType<PendingJoinRequest>()
+        .toList(growable: false);
+  }
+
+  Future<void> setAccountStatus({
+    required String userId,
+    required String status,
+  }) async {
+    await _client
+        .from('profiles')
+        .update({'account_status': status})
+        .eq('id', userId);
+  }
+
+  /// On-shift shunters who have not completed a took pre-check.
+  Future<List<MissingTookPrecheck>> loadMissingTookPrechecks() async {
+    final rows = await _client.rpc('get_missing_precheck_reminders');
+    final list = rows is List ? rows : const <dynamic>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(mapMissingTookPrecheck)
+        .whereType<MissingTookPrecheck>()
+        .toList(growable: false);
+  }
+
+  /// Bell badge: unread pushes; admins also add join requests + missing took.
+  Future<int> loadNotificationBadgeCount({required bool isAdmin}) async {
+    final notifications = await loadNotifications();
+    final unread = notifications.where((item) => !item.isRead).length;
+    if (!isAdmin) return unread;
+    final pending = await pendingApprovalsCount();
+    final missing = await loadMissingTookPrechecks();
+    return unread + pending + missing.length;
+  }
+
   Future<void> trackPageVisit({
     required String userId,
     required String path,
@@ -495,6 +587,32 @@ class StageOneRepository {
       type: row['type']?.toString() ?? 'info',
       createdAt: createdAt,
       isRead: row['is_read'] == true,
+    );
+  }
+
+  static PendingJoinRequest? mapPendingJoinRequest(Map<String, dynamic> row) {
+    final id = row['id']?.toString() ?? '';
+    if (id.isEmpty) return null;
+    return PendingJoinRequest(
+      id: id,
+      firstName: row['first_name']?.toString() ?? '',
+      lastName: row['last_name']?.toString() ?? '',
+      email: row['email']?.toString() ?? '',
+      createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
+    );
+  }
+
+  static MissingTookPrecheck? mapMissingTookPrecheck(Map<String, dynamic> row) {
+    final userId = row['user_id']?.toString() ?? '';
+    final rotaId = row['rota_id']?.toString() ?? '';
+    if (userId.isEmpty) return null;
+    return MissingTookPrecheck(
+      userId: userId,
+      rotaId: rotaId,
+      firstName: row['first_name']?.toString() ?? '',
+      lastName: row['last_name']?.toString() ?? '',
+      startTime: _timeText(row['start_time']),
+      endTime: _timeText(row['end_time']),
     );
   }
 

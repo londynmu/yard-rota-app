@@ -8,7 +8,8 @@ import CountBadge from './ui/CountBadge';
 import { HOME_TAB_ACTIVE_CLASS, HOME_TAB_INACTIVE_CLASS } from './Home/homeTabStyles';
 
 /**
- * Admin alerts entry point: opens /notifications (pending sign-ups, missing pre-shift checks).
+ * Notification hub entry: opens /notifications (push inbox for all users;
+ * admins also see join requests and missing took pre-checks).
  * `header` = icon button for top headers; `segment` = square that matches the mobile top tab bars.
  */
 const NotificationBell = ({ variant = 'header' }) => {

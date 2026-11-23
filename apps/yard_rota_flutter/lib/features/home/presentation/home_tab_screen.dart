@@ -85,6 +85,7 @@ class HomeTabScreenState extends State<HomeTabScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _loadPreCheckReminder();
+      _loadUnreadNotifications();
     }
   }
 
@@ -124,15 +125,13 @@ class HomeTabScreenState extends State<HomeTabScreen>
 
   Future<void> _loadUnreadNotifications() async {
     final repository = widget.stageOneRepository;
-    if (repository == null || !widget.session.isPrivileged) return;
+    if (repository == null) return;
     try {
-      final notifications = await repository.loadNotifications();
+      final count = await repository.loadNotificationBadgeCount(
+        isAdmin: widget.session.isAdmin,
+      );
       if (!mounted) return;
-      setState(() {
-        _unreadNotifications = notifications
-            .where((item) => !item.isRead)
-            .length;
-      });
+      setState(() => _unreadNotifications = count);
     } catch (_) {
       // The badge is a hint only; the notifications screen reports errors.
     }
@@ -195,9 +194,7 @@ class HomeTabScreenState extends State<HomeTabScreen>
                     selected: _section,
                     onSelected: _selectSection,
                     unreadNotifications: _unreadNotifications,
-                    onBellPressed:
-                        widget.stageOneRepository == null ||
-                            !widget.session.isPrivileged
+                    onBellPressed: widget.stageOneRepository == null
                         ? null
                         : _openNotifications,
                   ),

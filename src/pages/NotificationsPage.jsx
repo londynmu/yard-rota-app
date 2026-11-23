@@ -11,12 +11,15 @@ import { formatUserName, getUserInitials } from '../utils/userName';
 const OUTLINE_BUTTON_CLASS =
   'flex-1 sm:flex-none px-4 py-2 rounded-lg border-2 bg-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
-function SectionCard({ title, count, children }) {
+function SectionCard({ title, count, children, action }) {
   return (
     <section className="card-modern">
       <div className="px-5 py-3.5 flex items-center justify-between gap-2 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 border-b border-slate-200/60">
         <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-        {count > 0 && <span className="text-xs text-slate-500 tabular-nums">{count}</span>}
+        <div className="flex items-center gap-2">
+          {count > 0 && <span className="text-xs text-slate-500 tabular-nums">{count}</span>}
+          {action}
+        </div>
       </div>
       <div className="p-3 space-y-2">{children}</div>
     </section>
@@ -27,6 +30,7 @@ SectionCard.propTypes = {
   title: PropTypes.string.isRequired,
   count: PropTypes.number,
   children: PropTypes.node,
+  action: PropTypes.node,
 };
 
 function PendingUserCard({ person, busy, onApprove, onReject }) {
@@ -106,13 +110,65 @@ function PendingUsersSkeleton() {
   );
 }
 
-/** Admin notifications: pending sign-ups (approve / reject inline) and on-shift shunters without a pre-shift check. */
+function InboxCard({ item }) {
+  const created = item.created_at
+    ? new Date(item.created_at).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    : '';
+
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 ${
+        item.is_read
+          ? 'border-slate-200/60 bg-white/70'
+          : 'border-blue-200/70 bg-gradient-to-r from-slate-50 to-blue-50/50'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-charcoal">{item.title || 'Notification'}</p>
+        {!item.is_read && (
+          <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+            New
+          </span>
+        )}
+      </div>
+      {item.message ? (
+        <p className="mt-1 text-xs text-slate-600 whitespace-pre-wrap">{item.message}</p>
+      ) : null}
+      {created ? <p className="mt-2 text-[11px] text-slate-500">{created}</p> : null}
+    </div>
+  );
+}
+
+InboxCard.propTypes = {
+  item: PropTypes.shape({
+    id: PropTypes.string,
+    title: PropTypes.string,
+    message: PropTypes.string,
+    is_read: PropTypes.bool,
+    created_at: PropTypes.string,
+  }).isRequired,
+};
+
+/** Shared notification hub: push inbox for everyone; join requests + missing took pre-checks for admins. */
 export default function NotificationsPage() {
   const toast = useToast();
-  const { missingPrechecks = [] } = useNotifications() || {};
+  const {
+    isAdmin,
+    missingPrechecks = [],
+    inboxNotifications = [],
+    unreadInboxCount = 0,
+    markInboxRead,
+  } = useNotifications() || {};
   const { pendingUsers, loading, error, approve, reject, reload } = usePendingApprovals();
   const [busyUserId, setBusyUserId] = useState(null);
   const [userToReject, setUserToReject] = useState(null);
+  const [markingRead, setMarkingRead] = useState(false);
 
   const runAction = async (person, action, successMessage, errorMessage) => {
     setBusyUserId(person.id);
@@ -133,8 +189,25 @@ export default function NotificationsPage() {
   const handleReject = (person) =>
     runAction(person, reject, `${formatUserName(person)} rejected.`, 'Could not reject the user. Please try again.');
 
-  const showApprovals = loading || Boolean(error) || pendingUsers.length > 0;
-  const allCaughtUp = !showApprovals && missingPrechecks.length === 0;
+  const handleMarkAllRead = async () => {
+    const unreadIds = inboxNotifications.filter((row) => !row.is_read).map((row) => row.id);
+    if (unreadIds.length === 0) return;
+    setMarkingRead(true);
+    try {
+      await markInboxRead?.(unreadIds);
+      toast.success('Notifications marked as read.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Notifications could not be updated.');
+    } finally {
+      setMarkingRead(false);
+    }
+  };
+
+  const showApprovals = isAdmin && (loading || Boolean(error) || pendingUsers.length > 0);
+  const showMissing = isAdmin && missingPrechecks.length > 0;
+  const showInbox = inboxNotifications.length > 0;
+  const allCaughtUp = !showApprovals && !showMissing && !showInbox;
 
   return (
     <div className="h-full overflow-y-auto bg-transparent px-4 py-6 md:px-6 pb-6">
@@ -168,16 +241,43 @@ export default function NotificationsPage() {
           </SectionCard>
         )}
 
-        {missingPrechecks.length > 0 && (
-          <SectionCard title="Pre-shift checks" count={missingPrechecks.length}>
+        {showMissing && (
+          <SectionCard title="Missing took pre-checks" count={missingPrechecks.length}>
             <MissingPrecheckReminder people={missingPrechecks} />
+          </SectionCard>
+        )}
+
+        {showInbox && (
+          <SectionCard
+            title="Recent notifications"
+            count={inboxNotifications.length}
+            action={
+              unreadInboxCount > 0 ? (
+                <button
+                  type="button"
+                  disabled={markingRead}
+                  onClick={handleMarkAllRead}
+                  className="shrink-0 px-3 py-1.5 rounded-lg border-2 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Mark all read
+                </button>
+              ) : null
+            }
+          >
+            {inboxNotifications.map((item) => (
+              <InboxCard key={item.id} item={item} />
+            ))}
           </SectionCard>
         )}
 
         {allCaughtUp && (
           <div className="card-modern px-6 py-10 text-center">
             <p className="text-base font-semibold text-charcoal">You&apos;re all caught up.</p>
-            <p className="mt-1 text-sm text-slate-500">New sign-ups and missing pre-shift checks will show up here.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {isAdmin
+                ? 'New sign-ups, missing took pre-checks, and push notifications will show up here.'
+                : 'Recent push notifications will show up here.'}
+            </p>
           </div>
         )}
       </div>

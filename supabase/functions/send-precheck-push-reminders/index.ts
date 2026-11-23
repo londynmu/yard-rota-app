@@ -8,6 +8,7 @@ import {
   loadFirebaseServiceAccount,
   sendFcmMessage,
 } from "../_shared/fcm.ts";
+import { recordPushInboxRow } from "../_shared/pushInbox.ts";
 
 const MAX_SENDS_PER_RUN = 50;
 
@@ -87,6 +88,16 @@ serve(async (req) => {
 
       if (result.ok) {
         sent += 1;
+        await recordPushInboxRow(admin, {
+          type: "precheck_reminder",
+          recipientId: row.user_id,
+          title,
+          message: body,
+          metadata: {
+            idempotency_key: row.idempotency_key,
+            rota_id: row.rota_id,
+          },
+        });
         await admin.from("precheck_push_sends").upsert(
           {
             user_id: row.user_id,
