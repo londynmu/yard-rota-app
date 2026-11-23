@@ -5,6 +5,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 // Release signing: copy android/key.properties.example to android/key.properties
@@ -22,6 +23,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications (Java 8+ APIs on older Android).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -32,8 +35,10 @@ android {
 
     defaultConfig {
         // Same ID as the previous Capacitor build so the Flutter app ships as an update.
+        // Must match google-services.json (com.yard.rota). Do not add a .dev suffix
+        // until a matching Firebase Android app exists for that package.
         applicationId = "com.yard.rota"
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 21)
         targetSdk = maxOf(flutter.targetSdkVersion, 35)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -52,9 +57,7 @@ android {
     }
 
     buildTypes {
-        // Separate package so a dev build can sit next to the release build on one phone.
         debug {
-            applicationIdSuffix = ".dev"
             manifestPlaceholders["appName"] = "Yard Rota Dev"
         }
         release {
@@ -68,6 +71,10 @@ android {
                 }
         }
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

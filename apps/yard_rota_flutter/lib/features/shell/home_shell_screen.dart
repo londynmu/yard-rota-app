@@ -17,6 +17,7 @@ import '../my_rota/presentation/my_rota_screen.dart';
 import '../pre_check/data/pre_check_repository.dart';
 import '../pre_check/presentation/pre_check_screen.dart';
 import '../profile/presentation/account_menu_screen.dart';
+import '../push/push_messaging_service.dart';
 import '../stage_three/data/stage_three_repository.dart';
 import '../stage_two/data/stage_two_repository.dart';
 import '../stats/data/stats_repository.dart';
@@ -39,6 +40,7 @@ class HomeShellScreen extends StatefulWidget {
     this.stageOneRepository,
     this.stageTwoRepository,
     this.stageThreeRepository,
+    this.pushMessaging,
     required this.onLogout,
     required this.onProfileSaved,
     required this.themeMode,
@@ -59,6 +61,7 @@ class HomeShellScreen extends StatefulWidget {
   final StageOneRepository? stageOneRepository;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
+  final PushMessagingService? pushMessaging;
   final Future<void> Function() onLogout;
   final ValueChanged<UserProfile> onProfileSaved;
   final ThemeMode themeMode;
@@ -89,6 +92,30 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     _trackingSessionId =
         'flutter_${DateTime.now().millisecondsSinceEpoch}_${widget.session.userId}';
     _track('/calendar', 'Calendar');
+    widget.pushMessaging?.setNavigationHandler(_onPushNavigate);
+  }
+
+  @override
+  void dispose() {
+    widget.pushMessaging?.setNavigationHandler(null);
+    super.dispose();
+  }
+
+  void _onPushNavigate(String type, Map<String, String> data) {
+    if (type != kPushTypeBreakReminder) return;
+    if (!mounted) return;
+    _openBreaksFromPush();
+  }
+
+  void _openBreaksFromPush() {
+    setState(() {
+      _current = ShellTab.home;
+      _visited.add(ShellTab.home);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _homeTabKey.currentState?.showBreaks();
+    });
   }
 
   void _select(ShellTab tab) {
@@ -245,6 +272,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         session: widget.session,
         stageTwoRepository: widget.stageTwoRepository,
         stageThreeRepository: widget.stageThreeRepository,
+        pushMessaging: widget.pushMessaging,
         onLogout: widget.onLogout,
         onProfileSaved: widget.onProfileSaved,
         themeMode: widget.themeMode,

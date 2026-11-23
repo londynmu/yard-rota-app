@@ -22,6 +22,7 @@ import 'features/home/data/stage_one_repository.dart';
 import 'features/my_rota/data/my_rota_repository.dart';
 import 'features/pre_check/data/pre_check_repository.dart';
 import 'features/profile/presentation/profile_screen.dart';
+import 'features/push/push_messaging_service.dart';
 import 'features/shell/main_shell.dart';
 import 'features/stats/data/stats_repository.dart';
 import 'features/stage_three/data/stage_three_repository.dart';
@@ -33,6 +34,7 @@ class YardRotaApp extends StatefulWidget {
     super.key,
     required ApiClient apiClient,
     AppLocalDatabase? localDb,
+    PushMessagingService? pushMessaging,
     PreCheckRepository? preCheckRepository,
     StageOneRepository? stageOneRepository,
     StageTwoRepository? stageTwoRepository,
@@ -42,6 +44,7 @@ class YardRotaApp extends StatefulWidget {
     this.initialDarkHomeWallpaper = DarkHomeWallpaper.nightMesh,
   }) : _apiClient = apiClient,
        _localDb = localDb,
+       _pushMessaging = pushMessaging,
        _preCheckRepository = preCheckRepository,
        _stageOneRepository = stageOneRepository,
        _stageTwoRepository = stageTwoRepository,
@@ -49,6 +52,7 @@ class YardRotaApp extends StatefulWidget {
 
   final ApiClient _apiClient;
   final AppLocalDatabase? _localDb;
+  final PushMessagingService? _pushMessaging;
   final PreCheckRepository? _preCheckRepository;
   final StageOneRepository? _stageOneRepository;
   final StageTwoRepository? _stageTwoRepository;
@@ -64,6 +68,7 @@ class YardRotaApp extends StatefulWidget {
 class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   late final ApiClient _apiClient;
   late final AppLocalDatabase _localDb;
+  late final PushMessagingService _pushMessaging;
   late final CalendarRepository _calendarRepository;
   late final AvailabilityRepository _availabilityRepository;
   late final MyRotaRepository _myRotaRepository;
@@ -95,6 +100,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     _startupStopwatch = Stopwatch()..start();
     _apiClient = widget._apiClient;
     _localDb = widget._localDb ?? AppLocalDatabase.inMemory();
+    _pushMessaging = widget._pushMessaging ?? PushMessagingService();
     _calendarRepository = CalendarRepository(
       apiClient: _apiClient,
       localDb: _localDb,
@@ -149,6 +155,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       final restored = await _apiClient.restoreSession();
       if (mounted && restored != null) {
         setState(() => _session = restored);
+        await _pushMessaging.syncTokenForCurrentUser();
       }
     }
   }
@@ -198,6 +205,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       _session = restored;
       _isBootstrapping = false;
     });
+    await _pushMessaging.syncTokenForCurrentUser();
     await _availabilityRepository.flushOutbox();
     _recordStartupSlo();
   }
@@ -225,6 +233,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       setState(() {
         _session = session;
       });
+      await _pushMessaging.syncTokenForCurrentUser();
       await _availabilityRepository.flushOutbox();
       loginStopwatch.stop();
       _recordMetric('auth.login_to_home', loginStopwatch.elapsed);
@@ -258,6 +267,9 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
   }
 
   Future<void> _handleLogout() async {
+    try {
+      await _pushMessaging.clearTokenForCurrentUser();
+    } catch (_) {}
     try {
       await RetryExecutor.run(
         task: _apiClient.signOut,
@@ -436,6 +448,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
           isRequired: true,
           onProfileSaved: _handleProfileSaved,
           onLogout: _handleLogout,
+          pushMessaging: _pushMessaging,
         ),
       );
     }
@@ -460,6 +473,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       stageOneRepository: _stageOneRepository,
       stageTwoRepository: _stageTwoRepository,
       stageThreeRepository: _stageThreeRepository,
+      pushMessaging: _pushMessaging,
       onLogout: _handleLogout,
       onProfileSaved: _handleProfileSaved,
       themeMode: _themeMode,

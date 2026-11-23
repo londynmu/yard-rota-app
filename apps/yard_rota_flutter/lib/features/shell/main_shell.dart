@@ -11,6 +11,7 @@ import '../home/presentation/home_hub_screen.dart';
 import '../home/data/stage_one_repository.dart';
 import '../my_rota/data/my_rota_repository.dart';
 import '../pre_check/data/pre_check_repository.dart';
+import '../push/push_messaging_service.dart';
 import '../stats/data/stats_repository.dart';
 import '../stage_three/data/stage_three_repository.dart';
 import '../stage_two/data/stage_two_repository.dart';
@@ -31,6 +32,7 @@ class MainShell extends StatelessWidget {
     this.stageOneRepository,
     this.stageTwoRepository,
     this.stageThreeRepository,
+    this.pushMessaging,
     required this.onLogout,
     required this.onProfileSaved,
     required this.themeMode,
@@ -51,6 +53,7 @@ class MainShell extends StatelessWidget {
   final StageOneRepository? stageOneRepository;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
+  final PushMessagingService? pushMessaging;
   final Future<void> Function() onLogout;
   final ValueChanged<UserProfile> onProfileSaved;
   final ThemeMode themeMode;
@@ -101,6 +104,7 @@ class MainShell extends StatelessWidget {
             stageOneRepository: stageOneRepository,
             stageTwoRepository: stageTwoRepository,
             stageThreeRepository: stageThreeRepository,
+            pushMessaging: pushMessaging,
             onLogout: onLogout,
             onProfileSaved: onProfileSaved,
             themeMode: themeMode,
@@ -136,6 +140,7 @@ class MainShell extends StatelessWidget {
           stageOneRepository: stageOneRepository,
           stageTwoRepository: stageTwoRepository,
           stageThreeRepository: stageThreeRepository,
+          pushMessaging: pushMessaging,
         ),
       ),
     );

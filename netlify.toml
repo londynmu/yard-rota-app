@@ -12,6 +12,9 @@ publish = "dist"
   VITE_SUPABASE_URL = "https://jkjvtvwedjiupxoibpld.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpranZ0dndlZGppdXB4b2licGxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0NDI0MDMsImV4cCI6MjA2MTAxODQwM30.J15XgpiHz-oKSghqctJ8Bll0BXdbKO_rexeav1lj8Gw"
   VITE_SITE_URL = "https://shunters.net"
+  # Firebase Android client config (AIza* key) — needed by Flutter, not a server secret.
+  # Without this omit, Netlify smart secret scanning fails the deploy preview.
+  SECRETS_SCAN_OMIT_PATHS = "apps/yard_rota_flutter/android/app/google-services.json"
 
 [[redirects]]
   from = "/*"

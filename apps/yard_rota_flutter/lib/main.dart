@@ -10,6 +10,7 @@ import 'core/network/supabase_config.dart';
 import 'core/platform/device_capabilities.dart';
 import 'core/theme/home_wallpaper_storage.dart';
 import 'core/theme/theme_mode_storage.dart';
+import 'features/push/push_messaging_service.dart';
 
 /// Pass with `--dart-define=SENTRY_DSN=...`. Sentry stays off when empty.
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
@@ -52,12 +53,17 @@ Future<void> _bootstrap() async {
     anonKey: SupabaseConfig.anonKey,
   );
 
+  final pushMessaging = PushMessagingService();
+  // Soft-fail: missing google-services match (e.g. .dev) must not block launch.
+  await pushMessaging.initialize();
+
   final localDb = await AppLocalDatabase.openDefault();
 
   runApp(
     YardRotaApp(
       apiClient: SupabaseApiClient(Supabase.instance.client),
       localDb: localDb,
+      pushMessaging: pushMessaging,
       initialThemeMode: initialThemeMode,
       initialLightHomeWallpaper: initialLightWallpaper,
       initialDarkHomeWallpaper: initialDarkWallpaper,

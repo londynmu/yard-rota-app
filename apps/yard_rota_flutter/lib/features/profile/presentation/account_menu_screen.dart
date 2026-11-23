@@ -12,6 +12,7 @@ import '../../../core/ui/glass_bar_surface.dart';
 import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
 import '../../admin/presentation/admin_shell_screen.dart';
+import '../../push/push_messaging_service.dart';
 import '../../stage_three/data/stage_three_repository.dart';
 import '../../stage_two/data/stage_two_repository.dart';
 import '../../transport/presentation/transport_dashboard_screen.dart';
@@ -37,6 +38,7 @@ class AccountMenuScreen extends StatelessWidget {
     required this.onDarkHomeWallpaperChanged,
     this.stageTwoRepository,
     this.stageThreeRepository,
+    this.pushMessaging,
   });
 
   final ApiClient apiClient;
@@ -53,6 +55,7 @@ class AccountMenuScreen extends StatelessWidget {
   onDarkHomeWallpaperChanged;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
+  final PushMessagingService? pushMessaging;
 
   void _push(BuildContext context, WidgetBuilder builder) {
     Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: builder));
@@ -235,6 +238,7 @@ class AccountMenuScreen extends StatelessWidget {
                     onLogout: onLogout,
                     lightHomeWallpaper: lightHomeWallpaper,
                     darkHomeWallpaper: darkHomeWallpaper,
+                    pushMessaging: pushMessaging,
                   ),
                 ),
               ),
