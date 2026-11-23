@@ -53,6 +53,16 @@ class InductionSection {
   final String body;
 }
 
+class NotificationShiftDetail {
+  const NotificationShiftDetail({
+    required this.id,
+    required this.label,
+  });
+
+  final String id;
+  final String label;
+}
+
 class StageOneNotification {
   const StageOneNotification({
     required this.id,
@@ -61,6 +71,8 @@ class StageOneNotification {
     required this.type,
     required this.createdAt,
     required this.isRead,
+    this.metadata = const <String, dynamic>{},
+    this.shiftDetails = const <NotificationShiftDetail>[],
   });
 
   final String id;
@@ -69,6 +81,24 @@ class StageOneNotification {
   final String type;
   final DateTime createdAt;
   final bool isRead;
+  final Map<String, dynamic> metadata;
+  final List<NotificationShiftDetail> shiftDetails;
+
+  StageOneNotification copyWith({
+    bool? isRead,
+    List<NotificationShiftDetail>? shiftDetails,
+  }) {
+    return StageOneNotification(
+      id: id,
+      title: title,
+      message: message,
+      type: type,
+      createdAt: createdAt,
+      isRead: isRead ?? this.isRead,
+      metadata: metadata,
+      shiftDetails: shiftDetails ?? this.shiftDetails,
+    );
+  }
 }
 
 class PendingJoinRequest {
@@ -416,14 +446,56 @@ class StageOneRepository {
   Future<List<StageOneNotification>> loadNotifications() async {
     final rows = await _client
         .from('notifications')
-        .select('id,title,message,type,is_read,created_at')
+        .select('id,title,message,type,is_read,created_at,metadata')
         .order('created_at', ascending: false)
         .limit(100);
-    return rows
+    final mapped = rows
         .whereType<Map<String, dynamic>>()
         .map(mapNotification)
         .whereType<StageOneNotification>()
         .toList(growable: false);
+    return enrichNotificationsWithShiftDetails(mapped);
+  }
+
+  /// Fill shift lines from metadata.shifts, else look up scheduled_rota ids.
+  Future<List<StageOneNotification>> enrichNotificationsWithShiftDetails(
+    List<StageOneNotification> notifications,
+  ) async {
+    final missingIds = <String>{};
+    for (final item in notifications) {
+      if (item.shiftDetails.isNotEmpty) continue;
+      final ids = item.metadata['scheduled_rota_ids'];
+      if (ids is! List) continue;
+      for (final id in ids) {
+        final text = id?.toString() ?? '';
+        if (text.isNotEmpty) missingIds.add(text);
+      }
+    }
+    if (missingIds.isEmpty) return notifications;
+
+    final rows = await _client
+        .from('scheduled_rota')
+        .select('id,date,location,shift_type,start_time,end_time')
+        .inFilter('id', missingIds.toList());
+    final byId = <String, NotificationShiftDetail>{};
+    for (final row in rows.whereType<Map<String, dynamic>>()) {
+      final detail = mapNotificationShiftDetail(row);
+      if (detail != null) byId[detail.id] = detail;
+    }
+
+    return [
+      for (final item in notifications)
+        item.shiftDetails.isNotEmpty
+            ? item
+            : item.copyWith(
+                shiftDetails: [
+                  for (final id
+                      in (item.metadata['scheduled_rota_ids'] as List? ??
+                          const []))
+                    if (byId[id?.toString()] != null) byId[id.toString()]!,
+                ],
+              ),
+    ];
   }
 
   Future<void> markNotificationsRead(List<String> ids) async {
@@ -432,6 +504,12 @@ class StageOneRepository {
         .from('notifications')
         .update({'is_read': true})
         .inFilter('id', ids);
+  }
+
+  /// Deletes own inbox rows that are already read (RLS scopes by recipient).
+  Future<void> deleteReadNotifications(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _client.from('notifications').delete().inFilter('id', ids);
   }
 
   Future<int> pendingApprovalsCount() async {
@@ -580,6 +658,9 @@ class StageOneRepository {
     final title = row['title']?.toString() ?? '';
     final createdAt = DateTime.tryParse(row['created_at']?.toString() ?? '');
     if (id.isEmpty || title.isEmpty || createdAt == null) return null;
+    final metadata = row['metadata'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(row['metadata'] as Map<String, dynamic>)
+        : <String, dynamic>{};
     return StageOneNotification(
       id: id,
       title: title,
@@ -587,7 +668,61 @@ class StageOneRepository {
       type: row['type']?.toString() ?? 'info',
       createdAt: createdAt,
       isRead: row['is_read'] == true,
+      metadata: metadata,
+      shiftDetails: shiftDetailsFromMetadata(metadata),
     );
+  }
+
+  static List<NotificationShiftDetail> shiftDetailsFromMetadata(
+    Map<String, dynamic> metadata,
+  ) {
+    final shifts = metadata['shifts'];
+    if (shifts is! List) return const [];
+    return shifts
+        .whereType<Map>()
+        .map((raw) {
+          final map = Map<String, dynamic>.from(raw);
+          final id = map['id']?.toString() ?? '';
+          final label = map['label']?.toString().trim().isNotEmpty == true
+              ? map['label']!.toString().trim()
+              : formatNotificationShiftLabel(map);
+          if (label.isEmpty) return null;
+          return NotificationShiftDetail(id: id, label: label);
+        })
+        .whereType<NotificationShiftDetail>()
+        .toList(growable: false);
+  }
+
+  static NotificationShiftDetail? mapNotificationShiftDetail(
+    Map<String, dynamic> row,
+  ) {
+    final id = row['id']?.toString() ?? '';
+    if (id.isEmpty) return null;
+    final label = formatNotificationShiftLabel(row);
+    if (label.isEmpty) return null;
+    return NotificationShiftDetail(id: id, label: label);
+  }
+
+  static String formatNotificationShiftLabel(Map<String, dynamic> row) {
+    final dateRaw = row['date']?.toString() ?? '';
+    final date = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(dateRaw);
+    final dateLabel = date == null
+        ? dateRaw
+        : '${date.group(3)}/${date.group(2)}/${date.group(1)}';
+    final location = row['location']?.toString().trim().isNotEmpty == true
+        ? row['location']!.toString().trim()
+        : 'Unknown';
+    final shift = row['shift_type']?.toString().trim().isNotEmpty == true
+        ? row['shift_type']!.toString().trim()
+        : 'shift';
+    final start = _timeText(row['start_time']).isEmpty
+        ? '??:??'
+        : _timeText(row['start_time']);
+    final end = _timeText(row['end_time']).isEmpty
+        ? '??:??'
+        : _timeText(row['end_time']);
+    if (dateLabel.isEmpty) return '';
+    return '$dateLabel · $location · $shift · $start-$end';
   }
 
   static PendingJoinRequest? mapPendingJoinRequest(Map<String, dynamic> row) {

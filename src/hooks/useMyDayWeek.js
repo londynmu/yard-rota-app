@@ -176,18 +176,20 @@ export function useMyDayWeek() {
     const todayYmd = toLocalYmd(now);
     const weekStart = getWeekStart(now);
 
+    // Home week strip: only today + upcoming days (hide past Sat/Sun/etc.).
     const days = Array.from({ length: 7 }, (_, index) => {
       const date = addDays(weekStart, index);
       const ymd = toLocalYmd(date);
+      if (ymd < todayYmd) return null;
       const slot = slots.find((s) => s.date === ymd);
       return {
         ymd,
         date,
         isToday: ymd === todayYmd,
-        isPast: ymd < todayYmd,
+        isPast: false,
         shift: slot ? describeSlot(slot, absenceBySlotId) : null,
       };
-    });
+    }).filter(Boolean);
 
     const currentSlot = pickCurrentSlot(slots, now);
     const nextSlot = currentSlot ? null : slots.find((slot) => shiftWindow(slot).start > now) || null;

@@ -64,3 +64,62 @@ export function groupRotaAssignmentPushTargets(rows) {
     count: bucket.scheduled_rota_ids.length,
   }));
 }
+
+function timeHm(value) {
+  const raw = String(value ?? '');
+  return raw.length >= 5 ? raw.slice(0, 5) : raw;
+}
+
+function dateGb(value) {
+  const raw = String(value ?? '');
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (!m) return raw;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/** Human line for inbox: "24/11/2026 · NRC · day · 07:00-17:00" */
+export function formatRotaShiftDetailLabel(row) {
+  const date = dateGb(row?.date);
+  const location = String(row?.location ?? '').trim() || 'Unknown';
+  const shift = String(row?.shift_type ?? '').trim() || 'shift';
+  const start = timeHm(row?.start_time) || '??:??';
+  const end = timeHm(row?.end_time) || '??:??';
+  return `${date} · ${location} · ${shift} · ${start}-${end}`;
+}
+
+export function mapRotaShiftDetails(rows) {
+  return (rows || [])
+    .map((row) => {
+      const id = String(row?.id || '');
+      if (!id) return null;
+      return {
+        id,
+        date: String(row.date ?? ''),
+        location: String(row.location ?? ''),
+        shift_type: String(row.shift_type ?? ''),
+        start_time: timeHm(row.start_time),
+        end_time: timeHm(row.end_time),
+        label: formatRotaShiftDetailLabel(row),
+      };
+    })
+    .filter(Boolean);
+}
+
+/** Prefer metadata.shifts snapshot; otherwise build labels from live rota rows. */
+export function resolveNotificationShiftLabels(metadata, rotaRowsById = {}) {
+  const snapshot = Array.isArray(metadata?.shifts) ? metadata.shifts : [];
+  if (snapshot.length > 0) {
+    return snapshot
+      .map((row) => String(row?.label || formatRotaShiftDetailLabel(row) || '').trim())
+      .filter(Boolean);
+  }
+  const ids = Array.isArray(metadata?.scheduled_rota_ids)
+    ? metadata.scheduled_rota_ids
+    : [];
+  return ids
+    .map((id) => {
+      const row = rotaRowsById[id];
+      return row ? formatRotaShiftDetailLabel(row) : null;
+    })
+    .filter(Boolean);
+}

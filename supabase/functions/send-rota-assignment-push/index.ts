@@ -11,6 +11,7 @@ import {
 import {
   formatRotaAssignmentDigestBody,
   groupRotaAssignmentPushTargets,
+  mapRotaShiftDetails,
   ROTA_ASSIGNMENT_PUSH_TYPE,
   type AssignmentPushRow,
 } from "../_shared/rotaAssignmentPush.ts";
@@ -89,6 +90,13 @@ serve(async (req) => {
 
       if (result.ok) {
         sent += 1;
+        const { data: slotRows } = await admin
+          .from("scheduled_rota")
+          .select("id,date,location,shift_type,start_time,end_time")
+          .in("id", group.scheduled_rota_ids);
+        const shifts = mapRotaShiftDetails(
+          (slotRows || []) as Array<Record<string, unknown>>,
+        );
         await recordPushInboxRow(admin, {
           type: ROTA_ASSIGNMENT_PUSH_TYPE,
           recipientId: group.user_id,
@@ -98,6 +106,8 @@ serve(async (req) => {
             idempotency_keys: group.idempotency_keys,
             scheduled_rota_ids: group.scheduled_rota_ids,
             count: group.count,
+            // Snapshot for inbox list (survives if rota rows change later).
+            shifts,
           },
         });
         for (let i = 0; i < group.scheduled_rota_ids.length; i += 1) {

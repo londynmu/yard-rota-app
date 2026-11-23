@@ -155,7 +155,8 @@ export default function MyDayWeekCard() {
       <Link
         to="/my-rota"
         aria-label="My shifts this week, open My Rota"
-        className="grid grid-cols-7 gap-1 p-2 transition-colors hover:bg-slate-50/70"
+        className="grid gap-1 p-2 transition-colors hover:bg-slate-50/70"
+        style={{ gridTemplateColumns: `repeat(${Math.max(days.length, 1)}, minmax(0, 1fr))` }}
       >
         {days.map((day) => (
           <DayCell key={day.ymd} day={day} />

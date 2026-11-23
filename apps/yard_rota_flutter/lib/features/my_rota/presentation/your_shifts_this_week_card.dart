@@ -68,7 +68,8 @@ class _YourShiftsThisWeekCardState extends State<YourShiftsThisWeekCard> {
         data.slotsByDateYmd,
       );
       final days = _groupUserShifts(
-        weekYmds: myRotaWeekDateYmds(weekStart),
+        // Home card: only remaining days this week (hide past Sat/Sun/etc.).
+        weekYmds: myRotaUpcomingWeekDateYmds(weekStartSaturday: weekStart),
         slotsByDate: merged,
         userId: widget.session.userId,
       );
