@@ -30,6 +30,20 @@ List<String> myRotaWeekDateYmds(DateTime weekStartSaturday) {
   });
 }
 
+/// Calendar days in the Sat–Fri week that are still today or later (local).
+/// Used by the home "Your shifts this week" card so past Sat/Sun/etc. drop out.
+List<String> myRotaUpcomingWeekDateYmds({
+  required DateTime weekStartSaturday,
+  DateTime? now,
+}) {
+  final today = myRotaDateOnly(now ?? DateTime.now());
+  final todayYmd = myRotaToYmd(today);
+  return [
+    for (final ymd in myRotaWeekDateYmds(weekStartSaturday))
+      if (ymd.compareTo(todayYmd) >= 0) ymd,
+  ];
+}
+
 DateTime? myRotaParseYmdLocal(String ymd) {
   final parts = ymd.split('-');
   if (parts.length != 3) {

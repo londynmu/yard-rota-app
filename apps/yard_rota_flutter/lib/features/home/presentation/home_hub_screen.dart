@@ -233,26 +233,16 @@ class _HomeHubScreenState extends State<HomeHubScreen>
 
   void _onPushNavigate(String type, Map<String, String> data) {
     if (!mounted) return;
-    if (type == kPushTypeRotaAssignmentDigest) {
-      _openMyRotaFromPush();
-      return;
+    switch (pushNavigationTargetForType(type)) {
+      case PushNavigationTarget.breaks:
+        _openBreaksFromPush();
+      case PushNavigationTarget.preCheck:
+        _openPreCheckFromPush();
+      case PushNavigationTarget.notifications:
+        _openNotificationsFromPush();
+      case null:
+        break;
     }
-    if (type != kPushTypeBreakReminder) return;
-    _openBreaksFromPush();
-  }
-
-  Future<void> _openMyRotaFromPush() async {
-    _track('/my-rota', 'My Rota');
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => MyRotaScreen(
-          repository: widget.myRotaRepository,
-          session: widget.session,
-          lightHomeWallpaper: widget.lightHomeWallpaper,
-          darkHomeWallpaper: widget.darkHomeWallpaper,
-        ),
-      ),
-    );
   }
 
   Future<void> _openBreaksFromPush() async {
@@ -264,6 +254,38 @@ class _HomeHubScreenState extends State<HomeHubScreen>
         builder: (context) => BreaksScreen(
           repository: stageOneRepository,
           session: widget.session,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPreCheckFromPush() async {
+    final repository = widget.preCheckRepository;
+    if (repository == null) return;
+    _track('/precheck', 'PreCheck');
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => PreCheckScreen(
+          repository: repository,
+          session: widget.session,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openNotificationsFromPush() async {
+    final stageOneRepository = widget.stageOneRepository;
+    if (stageOneRepository == null) return;
+    _track('/notifications', 'Notifications');
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => NotificationsScreen(
+          repository: stageOneRepository,
+          session: widget.session,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
         ),
       ),
     );

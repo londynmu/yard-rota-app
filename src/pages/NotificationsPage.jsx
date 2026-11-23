@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../lib/NotificationContext';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import MissingPrecheckReminder from '../components/User/MissingPrecheckReminder';
 import usePendingApprovals from '../hooks/usePendingApprovals';
 import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
+import { pathForPushNotificationType } from '../utils/pushNotificationRoutes';
 import { formatUserName, getUserInitials } from '../utils/userName';
 
 const OUTLINE_BUTTON_CLASS =
@@ -110,7 +112,7 @@ function PendingUsersSkeleton() {
   );
 }
 
-function InboxCard({ item }) {
+function InboxCard({ item, onOpen }) {
   const created = item.created_at
     ? new Date(item.created_at).toLocaleString('en-GB', {
       day: '2-digit',
@@ -120,55 +122,105 @@ function InboxCard({ item }) {
       minute: '2-digit',
     })
     : '';
+  // List shows push body only — never titles like "Yard Rota" / "Rota update".
+  // System tray push text is unchanged (still short title + body from FCM).
+  const body = (item.message || '').trim();
+  const fallbackTitle = (item.title || '').trim();
+  const primary = body || fallbackTitle || 'Notification';
+  const shiftLabels = Array.isArray(item.shift_labels) ? item.shift_labels : [];
+  const targetPath = pathForPushNotificationType(item.type);
+  const interactive = Boolean(targetPath && onOpen);
+  const shellClass = `rounded-xl border px-4 py-3 text-left w-full ${
+    item.is_read
+      ? 'border-slate-200/60 bg-white/70'
+      : 'border-blue-200/70 bg-gradient-to-r from-slate-50 to-blue-50/50'
+  }${interactive ? ' cursor-pointer hover:border-blue-300/80 transition-colors' : ''}`;
 
-  return (
-    <div
-      className={`rounded-xl border px-4 py-3 ${
-        item.is_read
-          ? 'border-slate-200/60 bg-white/70'
-          : 'border-blue-200/70 bg-gradient-to-r from-slate-50 to-blue-50/50'
-      }`}
-    >
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-charcoal">{item.title || 'Notification'}</p>
+        <p className="text-sm font-semibold text-charcoal whitespace-pre-wrap">{primary}</p>
         {!item.is_read && (
           <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
             New
           </span>
         )}
       </div>
-      {item.message ? (
-        <p className="mt-1 text-xs text-slate-600 whitespace-pre-wrap">{item.message}</p>
+      {shiftLabels.length > 0 ? (
+        <ul className="mt-1.5 space-y-0.5">
+          {shiftLabels.map((label) => (
+            <li key={label} className="text-xs text-slate-600">
+              {label}
+            </li>
+          ))}
+        </ul>
       ) : null}
       {created ? <p className="mt-2 text-[11px] text-slate-500">{created}</p> : null}
-    </div>
+    </>
+  );
+
+  if (!interactive) {
+    return <div className={shellClass}>{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      className={shellClass}
+      onClick={() => onOpen(item)}
+    >
+      {content}
+    </button>
   );
 }
 
 InboxCard.propTypes = {
   item: PropTypes.shape({
     id: PropTypes.string,
+    type: PropTypes.string,
     title: PropTypes.string,
     message: PropTypes.string,
     is_read: PropTypes.bool,
     created_at: PropTypes.string,
+    shift_labels: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
+  onOpen: PropTypes.func,
 };
 
 /** Shared notification hub: push inbox for everyone; join requests + missing took pre-checks for admins. */
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const toast = useToast();
   const {
     isAdmin,
     missingPrechecks = [],
     inboxNotifications = [],
     unreadInboxCount = 0,
+    readInboxCount = 0,
     markInboxRead,
+    deleteReadInbox,
   } = useNotifications() || {};
   const { pendingUsers, loading, error, approve, reject, reload } = usePendingApprovals();
   const [busyUserId, setBusyUserId] = useState(null);
   const [userToReject, setUserToReject] = useState(null);
   const [markingRead, setMarkingRead] = useState(false);
+  const [clearingRead, setClearingRead] = useState(false);
+  const [confirmClearRead, setConfirmClearRead] = useState(false);
+
+  const handleOpenInboxItem = async (item) => {
+    const path = pathForPushNotificationType(item?.type);
+    if (!path) return;
+    if (item?.id && !item.is_read) {
+      try {
+        await markInboxRead?.([item.id]);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    // Rota digests already land on this page — keep details visible.
+    if (path === '/notifications') return;
+    navigate(path);
+  };
 
   const runAction = async (person, action, successMessage, errorMessage) => {
     setBusyUserId(person.id);
@@ -201,6 +253,21 @@ export default function NotificationsPage() {
       toast.error('Notifications could not be updated.');
     } finally {
       setMarkingRead(false);
+    }
+  };
+
+  const handleClearRead = async () => {
+    if (readInboxCount === 0) return;
+    setClearingRead(true);
+    try {
+      await deleteReadInbox?.();
+      toast.success('Read notifications cleared.');
+      setConfirmClearRead(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Read notifications could not be cleared.');
+    } finally {
+      setClearingRead(false);
     }
   };
 
@@ -251,21 +318,33 @@ export default function NotificationsPage() {
           <SectionCard
             title="Recent notifications"
             count={inboxNotifications.length}
-            action={
-              unreadInboxCount > 0 ? (
-                <button
-                  type="button"
-                  disabled={markingRead}
-                  onClick={handleMarkAllRead}
-                  className="shrink-0 px-3 py-1.5 rounded-lg border-2 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  Mark all read
-                </button>
-              ) : null
-            }
+            action={(
+              <div className="flex items-center gap-2">
+                {readInboxCount > 0 ? (
+                  <button
+                    type="button"
+                    disabled={clearingRead}
+                    onClick={() => setConfirmClearRead(true)}
+                    className="shrink-0 px-3 py-1.5 rounded-lg border-2 border-red-500 bg-white text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    Clear read
+                  </button>
+                ) : null}
+                {unreadInboxCount > 0 ? (
+                  <button
+                    type="button"
+                    disabled={markingRead}
+                    onClick={handleMarkAllRead}
+                    className="shrink-0 px-3 py-1.5 rounded-lg border-2 border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    Mark all read
+                  </button>
+                ) : null}
+              </div>
+            )}
           >
             {inboxNotifications.map((item) => (
-              <InboxCard key={item.id} item={item} />
+              <InboxCard key={item.id} item={item} onOpen={handleOpenInboxItem} />
             ))}
           </SectionCard>
         )}
@@ -289,6 +368,20 @@ export default function NotificationsPage() {
         title="Reject user"
         message={`Are you sure you want to reject ${formatUserName(userToReject, 'this user')}?`}
         confirmText="Reject"
+        isDestructive
+      />
+
+      <ConfirmDialog
+        isOpen={confirmClearRead}
+        onClose={() => setConfirmClearRead(false)}
+        onConfirm={handleClearRead}
+        title="Clear read notifications"
+        message={
+          readInboxCount === 1
+            ? 'Delete 1 read notification? This action cannot be undone.'
+            : `Delete ${readInboxCount} read notifications? This action cannot be undone.`
+        }
+        confirmText={clearingRead ? 'Deleting…' : 'Delete'}
         isDestructive
       />
     </div>

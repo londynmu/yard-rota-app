@@ -524,10 +524,15 @@ const WeeklyRotaPage = () => {
 
   const yourShiftDays = useMemo(() => {
     if (!user?.id) return [];
+    const todayYmd = format(new Date(), 'yyyy-MM-dd');
+    const currentWeekStartYmd = format(getWeekStart(new Date()), 'yyyy-MM-dd');
+    const viewingCurrentWeek = format(weekStart, 'yyyy-MM-dd') === currentWeekStartYmd;
     const days = [];
     for (let index = 0; index < 7; index += 1) {
       const dateObj = addDays(weekStart, index);
       const dateStr = format(dateObj, 'yyyy-MM-dd');
+      // Current week home/My Rota card: hide days that already passed (e.g. Sat/Sun).
+      if (viewingCurrentWeek && dateStr < todayYmd) continue;
       const slots = (dailyRotaData[dateStr] || [])
         .filter((slot) => slot.user_id === user.id && slot.profiles)
         .map((slot) => ({

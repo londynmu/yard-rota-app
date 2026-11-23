@@ -31,6 +31,35 @@ void main() {
     });
   });
 
+  group('myRotaUpcomingWeekDateYmds', () {
+    test('drops Saturday and Sunday once Monday has started', () {
+      final weekStart = DateTime(2025, 1, 4); // Saturday
+      final monday = DateTime(2025, 1, 6);
+      final ymds = myRotaUpcomingWeekDateYmds(
+        weekStartSaturday: weekStart,
+        now: monday,
+      );
+      expect(ymds, [
+        '2025-01-06',
+        '2025-01-07',
+        '2025-01-08',
+        '2025-01-09',
+        '2025-01-10',
+      ]);
+    });
+
+    test('keeps today when it is still Sunday', () {
+      final weekStart = DateTime(2025, 1, 4);
+      final sunday = DateTime(2025, 1, 5);
+      final ymds = myRotaUpcomingWeekDateYmds(
+        weekStartSaturday: weekStart,
+        now: sunday,
+      );
+      expect(ymds.first, '2025-01-05');
+      expect(ymds.contains('2025-01-04'), isFalse);
+    });
+  });
+
   group('myRotaPresentCount', () {
     test('excludes slots with attendance or without profile names', () {
       final slots = [

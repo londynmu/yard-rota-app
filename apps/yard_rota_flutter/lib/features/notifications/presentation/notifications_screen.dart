@@ -75,18 +75,73 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllRead() async {
-    final unread = (_notifications ?? const <StageOneNotification>[])
-        .where((item) => !item.isRead)
-        .map((item) => item.id)
-        .toList();
+    final current = _notifications ?? const <StageOneNotification>[];
+    final unread = current.where((item) => !item.isRead).toList();
     if (unread.isEmpty) return;
+    // Keep title/message/shift details — only flip isRead.
+    setState(() {
+      _notifications = [
+        for (final item in current) item.copyWith(isRead: true),
+      ];
+    });
     try {
-      await widget.repository.markNotificationsRead(unread);
-      await _load();
+      await widget.repository.markNotificationsRead(
+        unread.map((item) => item.id).toList(),
+      );
       if (mounted) AppToast.success(context, 'Notifications marked as read.');
     } catch (_) {
       if (mounted) {
         AppToast.error(context, 'Notifications could not be updated.');
+        await _load();
+      }
+    }
+  }
+
+  Future<void> _confirmClearRead() async {
+    final current = _notifications ?? const <StageOneNotification>[];
+    final readCount = current.where((item) => item.isRead).length;
+    if (readCount == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear read notifications'),
+        content: Text(
+          readCount == 1
+              ? 'Delete 1 read notification? This action cannot be undone.'
+              : 'Delete $readCount read notifications? This action cannot be undone.',
+        ),
+        actions: appDialogActions(
+          context: dialogContext,
+          onCancel: () => Navigator.of(dialogContext).pop(false),
+          onConfirm: () => Navigator.of(dialogContext).pop(true),
+          confirmLabel: 'Delete',
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      await _clearRead();
+    }
+  }
+
+  Future<void> _clearRead() async {
+    final current = _notifications ?? const <StageOneNotification>[];
+    final readIds = current
+        .where((item) => item.isRead)
+        .map((item) => item.id)
+        .toList(growable: false);
+    if (readIds.isEmpty) return;
+    setState(() {
+      _notifications = current.where((item) => !item.isRead).toList();
+    });
+    try {
+      await widget.repository.deleteReadNotifications(readIds);
+      if (mounted) {
+        AppToast.success(context, 'Read notifications cleared.');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, 'Read notifications could not be cleared.');
+        await _load();
       }
     }
   }
@@ -170,6 +225,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final notifications = _notifications;
     final unreadCount =
         notifications?.where((item) => !item.isRead).length ?? 0;
+    final readCount =
+        notifications?.where((item) => item.isRead).length ?? 0;
     final showAdminEmpty =
         _isAdmin &&
         _pendingUsers.isEmpty &&
@@ -218,6 +275,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             title: const Text('Notifications'),
             actions: [
+              if (readCount > 0)
+                IconButton(
+                  tooltip: 'Clear read',
+                  onPressed: _confirmClearRead,
+                  icon: const Icon(Icons.delete_outline),
+                ),
               if (unreadCount > 0)
                 IconButton(
                   tooltip: 'Mark all as read',
@@ -277,6 +340,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           _SectionHeader(
                             title: 'Recent notifications',
                             count: notifications.length,
+                            trailing: readCount > 0
+                                ? TextButton(
+                                    onPressed: _confirmClearRead,
+                                    child: const Text('Clear read'),
+                                  )
+                                : null,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           for (var i = 0; i < notifications.length; i++) ...[
@@ -571,7 +640,8 @@ class _NotificationCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item.title,
+                          // List shows push body only — never "Yard Rota" / "Rota update".
+                          item.message.isNotEmpty ? item.message : item.title,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w600,
@@ -590,16 +660,19 @@ class _NotificationCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (item.message.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      item.message,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                        fontWeight: FontWeight.w400,
-                        height: 1.35,
+                  if (item.shiftDetails.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    for (var i = 0; i < item.shiftDetails.length; i++) ...[
+                      if (i > 0) const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        item.shiftDetails[i].label,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                          fontWeight: FontWeight.w400,
+                          height: 1.35,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                   const SizedBox(height: AppSpacing.xs),
                   Text(

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatRotaAssignmentDigestBody,
+  formatRotaShiftDetailLabel,
   groupRotaAssignmentPushTargets,
+  resolveNotificationShiftLabels,
   ROTA_ASSIGNMENT_PUSH_TYPE,
 } from './rotaAssignmentPush';
 
@@ -56,5 +58,41 @@ describe('rotaAssignmentPush', () => {
     expect(u1.fcm_token).toBe('tok-a');
     const u2 = groups.find((g) => g.user_id === 'u2');
     expect(u2.count).toBe(1);
+  });
+
+  it('formats shift detail labels for the inbox list', () => {
+    expect(
+      formatRotaShiftDetailLabel({
+        date: '2026-11-24',
+        location: 'NRC',
+        shift_type: 'day',
+        start_time: '07:00:00',
+        end_time: '17:00:00',
+      }),
+    ).toBe('24/11/2026 · NRC · day · 07:00-17:00');
+  });
+
+  it('prefers metadata.shifts snapshot over live rota lookup', () => {
+    expect(
+      resolveNotificationShiftLabels({
+        shifts: [{ label: '24/11/2026 · NRC · day · 07:00-17:00' }],
+        scheduled_rota_ids: ['r1'],
+      }),
+    ).toEqual(['24/11/2026 · NRC · day · 07:00-17:00']);
+
+    expect(
+      resolveNotificationShiftLabels(
+        { scheduled_rota_ids: ['r1'] },
+        {
+          r1: {
+            date: '2026-11-25',
+            location: 'Rugby',
+            shift_type: 'night',
+            start_time: '17:45:00',
+            end_time: '06:00:00',
+          },
+        },
+      ),
+    ).toEqual(['25/11/2026 · Rugby · night · 17:45-06:00']);
   });
 });

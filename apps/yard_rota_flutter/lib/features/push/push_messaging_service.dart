@@ -14,8 +14,24 @@ const String kPushChannelName = 'Break reminders';
 /// FCM / local-notification `data.type` for break reminders.
 const String kPushTypeBreakReminder = 'break_reminder';
 
+/// FCM `data.type` for missing / unfinished took pre-check nudges.
+const String kPushTypePrecheckReminder = 'precheck_reminder';
+
 /// FCM `data.type` for rota assignment digests (added-to-shift).
 const String kPushTypeRotaAssignmentDigest = 'rota_assignment_digest';
+
+/// Where a push tap should land in the signed-in shell.
+enum PushNavigationTarget { breaks, preCheck, notifications }
+
+/// Maps FCM `data.type` to an in-app destination. System tray text stays short.
+PushNavigationTarget? pushNavigationTargetForType(String type) {
+  return switch (type) {
+    kPushTypeBreakReminder => PushNavigationTarget.breaks,
+    kPushTypePrecheckReminder => PushNavigationTarget.preCheck,
+    kPushTypeRotaAssignmentDigest => PushNavigationTarget.notifications,
+    _ => null,
+  };
+}
 
 /// Called when the user opens a push (tap). [type] is `data.type`.
 typedef PushNavigationHandler =

@@ -14,6 +14,7 @@ import '../home/data/stage_one_repository.dart';
 import '../home/presentation/home_tab_screen.dart';
 import '../my_rota/data/my_rota_repository.dart';
 import '../my_rota/presentation/my_rota_screen.dart';
+import '../notifications/presentation/notifications_screen.dart';
 import '../pre_check/data/pre_check_repository.dart';
 import '../pre_check/presentation/pre_check_screen.dart';
 import '../profile/presentation/account_menu_screen.dart';
@@ -103,12 +104,16 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
   void _onPushNavigate(String type, Map<String, String> data) {
     if (!mounted) return;
-    if (type == kPushTypeRotaAssignmentDigest) {
-      _select(ShellTab.myRota);
-      return;
+    switch (pushNavigationTargetForType(type)) {
+      case PushNavigationTarget.breaks:
+        _openBreaksFromPush();
+      case PushNavigationTarget.preCheck:
+        _select(ShellTab.preCheck);
+      case PushNavigationTarget.notifications:
+        _openNotificationsFromPush();
+      case null:
+        break;
     }
-    if (type != kPushTypeBreakReminder) return;
-    _openBreaksFromPush();
   }
 
   void _openBreaksFromPush() {
@@ -120,6 +125,22 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       if (!mounted) return;
       _homeTabKey.currentState?.showBreaks();
     });
+  }
+
+  Future<void> _openNotificationsFromPush() async {
+    final repository = widget.stageOneRepository;
+    if (repository == null) return;
+    _track('/notifications', 'Notifications');
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationsScreen(
+          repository: repository,
+          session: widget.session,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
+        ),
+      ),
+    );
   }
 
   void _select(ShellTab tab) {

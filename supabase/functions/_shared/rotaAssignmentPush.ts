@@ -70,3 +70,62 @@ export function groupRotaAssignmentPushTargets(
     count: bucket.scheduled_rota_ids.length,
   }));
 }
+
+export type RotaShiftDetail = {
+  id: string;
+  date: string;
+  location: string;
+  shift_type: string;
+  start_time: string;
+  end_time: string;
+  label: string;
+};
+
+function timeHm(value: unknown): string {
+  const raw = String(value ?? "");
+  return raw.length >= 5 ? raw.slice(0, 5) : raw;
+}
+
+function dateGb(value: unknown): string {
+  const raw = String(value ?? "");
+  // YYYY-MM-DD -> DD/MM/YYYY
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (!m) return raw;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/** Human line for inbox: "24/11/2026 · NRC · day · 07:00-17:00" */
+export function formatRotaShiftDetailLabel(row: {
+  date?: unknown;
+  location?: unknown;
+  shift_type?: unknown;
+  start_time?: unknown;
+  end_time?: unknown;
+}): string {
+  const date = dateGb(row.date);
+  const location = String(row.location ?? "").trim() || "Unknown";
+  const shift = String(row.shift_type ?? "").trim() || "shift";
+  const start = timeHm(row.start_time) || "??:??";
+  const end = timeHm(row.end_time) || "??:??";
+  return `${date} · ${location} · ${shift} · ${start}-${end}`;
+}
+
+export function mapRotaShiftDetails(
+  rows: Array<Record<string, unknown>> | null | undefined,
+): RotaShiftDetail[] {
+  return (rows || [])
+    .map((row) => {
+      const id = String(row.id ?? "");
+      if (!id) return null;
+      return {
+        id,
+        date: String(row.date ?? ""),
+        location: String(row.location ?? ""),
+        shift_type: String(row.shift_type ?? ""),
+        start_time: timeHm(row.start_time),
+        end_time: timeHm(row.end_time),
+        label: formatRotaShiftDetailLabel(row),
+      };
+    })
+    .filter((row): row is RotaShiftDetail => row != null);
+}

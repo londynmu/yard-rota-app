@@ -2,6 +2,10 @@ import React, { createContext, useState, useContext, useEffect, useMemo, useCall
 import PropTypes from 'prop-types';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
+import {
+  mapRotaShiftDetails,
+  resolveNotificationShiftLabels,
+} from '../utils/rotaAssignmentPush';
 
 const NotificationContext = createContext();
 
@@ -81,11 +85,44 @@ export const NotificationProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('id,title,message,type,is_read,created_at')
+        .select('id,title,message,type,is_read,created_at,metadata')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
-      setInboxNotifications(data || []);
+      const rows = data || [];
+      const missingIds = [];
+      for (const row of rows) {
+        const meta = row.metadata || {};
+        if (Array.isArray(meta.shifts) && meta.shifts.length > 0) continue;
+        for (const id of meta.scheduled_rota_ids || []) {
+          if (id) missingIds.push(id);
+        }
+      }
+      let rotaById = {};
+      if (missingIds.length > 0) {
+        const uniqueIds = [...new Set(missingIds)];
+        const { data: rotaRows, error: rotaError } = await supabase
+          .from('scheduled_rota')
+          .select('id,date,location,shift_type,start_time,end_time')
+          .in('id', uniqueIds);
+        if (rotaError) throw rotaError;
+        rotaById = Object.fromEntries(
+          (rotaRows || []).map((row) => [row.id, row]),
+        );
+      }
+      setInboxNotifications(
+        rows.map((row) => {
+          const metadata = row.metadata || {};
+          const snapshot = Array.isArray(metadata.shifts)
+            ? mapRotaShiftDetails(metadata.shifts)
+            : [];
+          const shift_labels =
+            snapshot.length > 0
+              ? snapshot.map((s) => s.label)
+              : resolveNotificationShiftLabels(metadata, rotaById);
+          return { ...row, metadata, shift_labels };
+        }),
+      );
     } catch (error) {
       console.warn('Could not load notification inbox:', error);
       setInboxNotifications([]);
@@ -95,13 +132,39 @@ export const NotificationProvider = ({ children }) => {
   const markInboxRead = useCallback(async (ids) => {
     const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
     if (list.length === 0) return;
+    const idSet = new Set(list);
+    // Optimistic: flip is_read only — never clear title/message.
+    setInboxNotifications((prev) =>
+      prev.map((row) => (idSet.has(row.id) ? { ...row, is_read: true } : row)),
+    );
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .in('id', list);
-    if (error) throw error;
+    if (error) {
+      await refreshInboxNotifications();
+      throw error;
+    }
     await refreshInboxNotifications();
   }, [refreshInboxNotifications]);
+
+  const deleteReadInbox = useCallback(async () => {
+    const readIds = inboxNotifications
+      .filter((row) => row.is_read && row.id)
+      .map((row) => row.id);
+    if (readIds.length === 0) return;
+    const idSet = new Set(readIds);
+    setInboxNotifications((prev) => prev.filter((row) => !idSet.has(row.id)));
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .in('id', readIds);
+    if (error) {
+      await refreshInboxNotifications();
+      throw error;
+    }
+    await refreshInboxNotifications();
+  }, [inboxNotifications, refreshInboxNotifications]);
 
   // Admin alerts: poll on an interval and refresh as soon as the app is visible again (PWA resume)
   useEffect(() => {
@@ -156,6 +219,11 @@ export const NotificationProvider = ({ children }) => {
     [inboxNotifications],
   );
 
+  const readInboxCount = useMemo(
+    () => inboxNotifications.filter((row) => row.is_read).length,
+    [inboxNotifications],
+  );
+
   const alertCount = isAdmin
     ? unreadInboxCount + pendingApprovals + missingPrechecks.length
     : unreadInboxCount;
@@ -166,11 +234,13 @@ export const NotificationProvider = ({ children }) => {
     missingPrechecks,
     inboxNotifications,
     unreadInboxCount,
+    readInboxCount,
     alertCount,
     refreshPendingApprovals,
     refreshMissingPrechecks,
     refreshInboxNotifications,
     markInboxRead,
+    deleteReadInbox,
     isAdmin,
     isVmu,
     isTransportManager,
@@ -180,11 +250,13 @@ export const NotificationProvider = ({ children }) => {
     missingPrechecks,
     inboxNotifications,
     unreadInboxCount,
+    readInboxCount,
     alertCount,
     refreshPendingApprovals,
     refreshMissingPrechecks,
     refreshInboxNotifications,
     markInboxRead,
+    deleteReadInbox,
     isAdmin,
     isVmu,
     isTransportManager,
