@@ -8,8 +8,6 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_scaffold.dart';
-import '../../../core/ui/nav_pill.dart';
-import '../../../core/ui/status_badge.dart';
 import '../../home/data/stage_one_repository.dart';
 import '../domain/break_models.dart';
 
@@ -75,7 +73,8 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
     _now = DateTime.now();
     _windowKey = _epochKey(_now);
     _load();
-    _minuteTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+    // Tick every second so Active / Upcoming countdowns stay live.
+    _minuteTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final now = DateTime.now();
       final nextKey = _epochKey(now);
@@ -185,9 +184,14 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
   void _setFilters(BreakFilters filters) => setState(() => _filters = filters);
 
   Future<void> _pickLocation() async {
+    final colors = context.appColors;
     final picked = await showModalBottomSheet<_LocationChoice>(
       context: context,
       showDragHandle: true,
+      backgroundColor: colors.bgElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
       builder: (sheetContext) =>
           _LocationSheet(locations: _locations, selected: _filters.location),
     );
@@ -230,6 +234,7 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
       now: _now,
       filters: _filters,
     );
+    final groups = _groupBreaksByTime(visible);
 
     final content = <Widget>[
       _BreakFilterRow(
@@ -239,20 +244,18 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
         onToggleShift: (shift) => _setFilters(_filters.toggleShift(shift)),
         onReset: () => _setFilters(_defaults),
       ),
-      const SizedBox(height: AppSpacing.sm),
+      const SizedBox(height: AppSpacing.xs),
       if (visible.isEmpty)
         _EmptyBreaks(
           filters: _filters,
           onShowAll: () => _setFilters(const BreakFilters()),
         )
       else
-        ...visible.map(
-          (entry) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: _BreakCard(
-              entry: entry,
-              isCurrentUser: entry.breakItem.userId == widget.session.userId,
-            ),
+        ...groups.map(
+          (group) => _BreakTimeGroup(
+            group: group,
+            currentUserId: widget.session.userId,
+            now: _now,
           ),
         ),
     ];
@@ -283,45 +286,113 @@ class _LocationSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    Widget option(String label, String? value) {
+    final slate = _slateAccent(context);
+
+    Widget option({
+      required String label,
+      required String? value,
+      required IconData icon,
+    }) {
       final isSelected = value == selected;
-      return ListTile(
-        leading: Icon(
-          value == null ? Icons.public_rounded : Icons.place_outlined,
-          color: isSelected ? colors.primary : colors.textSecondary,
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xxs,
         ),
-        title: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: colors.textPrimary,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            onTap: () => Navigator.of(context).pop(_LocationChoice(value)),
+            child: AnimatedContainer(
+              duration: AppMotion.fast,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? slate.bg
+                    : colors.bgSecondary.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: isSelected
+                      ? slate.border
+                      : colors.borderSubtle,
+                  width: isSelected ? AppStroke.medium : AppStroke.thin,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected ? slate.fg : colors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isSelected ? slate.fg : colors.textPrimary,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (isSelected)
+                    Icon(Icons.check_rounded, size: 20, color: slate.fg),
+                ],
+              ),
+            ),
           ),
         ),
-        trailing: isSelected
-            ? Icon(Icons.check_rounded, color: colors.primary)
-            : null,
-        onTap: () => Navigator.of(context).pop(_LocationChoice(value)),
       );
     }
 
     return SafeArea(
       child: ListView(
         shrinkWrap: true,
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              0,
+              AppSpacing.xs,
               AppSpacing.lg,
               AppSpacing.sm,
             ),
-            child: Text(
-              'Location',
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Location',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Filter breaks by hub',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
-          option('All locations', null),
-          for (final location in locations) option(location, location),
+          option(
+            label: 'All locations',
+            value: null,
+            icon: Icons.public_rounded,
+          ),
+          for (final location in locations)
+            option(
+              label: location,
+              value: location,
+              icon: Icons.place_outlined,
+            ),
         ],
       ),
     );
@@ -347,10 +418,10 @@ class _BreakFilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      // Room for the selected pill glow, which would otherwise be clipped.
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
+          // Location / sort control — always muted, never highlighted.
           _FilterPill(
             label: filters.location ?? 'All locations',
             icon: Icons.place_outlined,
@@ -360,15 +431,16 @@ class _BreakFilterRow extends StatelessWidget {
             onTap: onPickLocation,
           ),
           for (final shift in BreakShift.values) ...[
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.xs),
             _FilterPill(
               label: shift.label,
+              // Only active shift filters are highlighted (e.g. Night by default).
               selected: filters.includes(shift),
               onTap: () => onToggleShift(shift),
             ),
           ],
           if (canReset) ...[
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.xs),
             _FilterPill(
               label: 'Reset',
               icon: Icons.restart_alt_rounded,
@@ -381,6 +453,28 @@ class _BreakFilterRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Muted slate only — filter bar stays neutral (no green / amber / violet).
+_ShiftAccent _slateAccent(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return _ShiftAccent(
+    fg: AppAvailabilityTones.unavailable(isDark: isDark),
+    bg: AppAvailabilityTones.unavailableBg(isDark: isDark),
+    border: AppAvailabilityTones.unavailable(isDark: isDark),
+  );
+}
+
+class _ShiftAccent {
+  const _ShiftAccent({
+    required this.fg,
+    required this.bg,
+    required this.border,
+  });
+
+  final Color fg;
+  final Color bg;
+  final Color border;
 }
 
 class _FilterPill extends StatelessWidget {
@@ -403,14 +497,22 @@ class _FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final foreground = selected ? colors.onPrimary : colors.textPrimary;
-    final decoration = selected
-        ? navPillDecoration(colors, selected: true)
-        : BoxDecoration(
-            color: colors.bgElevated.withValues(alpha: AppOpacity.subtle),
-            borderRadius: BorderRadius.circular(AppRadius.full),
-            border: Border.all(color: colors.borderDefault),
-          );
+    final slate = _slateAccent(context);
+    // Selected = soft slate wash; unselected = quiet elevated chip. No bright accents.
+    final foreground = selected ? slate.fg : colors.textPrimary;
+    final decoration = BoxDecoration(
+      color: selected
+          ? slate.bg
+          : colors.bgElevated.withValues(alpha: AppOpacity.subtle),
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      border: Border.all(
+        color: selected
+            ? slate.border.withValues(alpha: 0.55)
+            : colors.borderDefault,
+        width: AppStroke.thin,
+      ),
+    );
+
     return Semantics(
       button: true,
       selected: selected,
@@ -419,7 +521,7 @@ class _FilterPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.normal,
         curve: AppMotion.emphasized,
-        height: AppNavPill.chipHeight,
+        height: AppNavPill.chipHeightCompact,
         decoration: decoration,
         child: Material(
           type: MaterialType.transparency,
@@ -427,21 +529,21 @@ class _FilterPill extends StatelessWidget {
             customBorder: const StadiumBorder(),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon case final icon?) ...[
                     Icon(
                       icon,
-                      size: AppNavPill.chipIconSize,
-                      color: selected ? foreground : colors.primary,
+                      size: AppNavPill.chipIconSizeCompact,
+                      color: selected ? slate.fg : colors.textSecondary,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: AppSpacing.xxs),
                   ],
                   Text(
                     label,
-                    style: AppTypography.labelLarge.copyWith(
+                    style: AppTypography.labelSmall.copyWith(
                       color: foreground,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                     ),
@@ -449,7 +551,7 @@ class _FilterPill extends StatelessWidget {
                   if (trailingIcon case final trailingIcon?)
                     Icon(
                       trailingIcon,
-                      size: AppNavPill.chipIconSize + AppSpacing.xs,
+                      size: AppNavPill.chipIconSizeCompact + 2,
                       color: colors.textSecondary,
                     ),
                 ],
@@ -484,17 +586,22 @@ class _EmptyBreaks extends StatelessWidget {
         : 'No active or upcoming breaks for $scope.';
 
     return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
       surfaceOpacity: AppOpacity.subtle,
       child: Column(
         children: [
-          Icon(Icons.free_breakfast_outlined, color: colors.textTertiary),
-          const SizedBox(height: AppSpacing.sm),
+          Icon(
+            Icons.free_breakfast_outlined,
+            size: 22,
+            color: colors.textTertiary,
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             message,
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           if (!filters.showsEverything) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -511,71 +618,329 @@ class _EmptyBreaks extends StatelessWidget {
   }
 }
 
-class _BreakCard extends StatelessWidget {
-  const _BreakCard({required this.entry, required this.isCurrentUser});
+class _BreakTimeBucket {
+  const _BreakTimeBucket({required this.label, required this.entries});
 
-  final VisibleBreak entry;
-  final bool isCurrentUser;
+  final String label;
+  final List<VisibleBreak> entries;
+}
+
+/// Group visible breaks by wall-clock window (e.g. 20:00–21:00).
+List<_BreakTimeBucket> _groupBreaksByTime(List<VisibleBreak> visible) {
+  final buckets = <String, List<VisibleBreak>>{};
+  final order = <String>[];
+  for (final entry in visible) {
+    final label =
+        '${_formatHm(entry.start)}–${_formatHm(entry.end)}';
+    final list = buckets.putIfAbsent(label, () {
+      order.add(label);
+      return <VisibleBreak>[];
+    });
+    list.add(entry);
+  }
+  for (final list in buckets.values) {
+    list.sort(
+      (a, b) => a.breakItem.displayName.compareTo(b.breakItem.displayName),
+    );
+  }
+  return [
+    for (final label in order)
+      _BreakTimeBucket(label: label, entries: buckets[label]!),
+  ];
+}
+
+String _formatHm(DateTime value) =>
+    '${value.hour.toString().padLeft(2, '0')}:'
+    '${value.minute.toString().padLeft(2, '0')}';
+
+class _BreakTimeGroup extends StatelessWidget {
+  const _BreakTimeGroup({
+    required this.group,
+    required this.currentUserId,
+    required this.now,
+  });
+
+  final _BreakTimeBucket group;
+  final String currentUserId;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final item = entry.breakItem;
-    final end = _timeLabel(entry.end);
-    return AppCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            entry.isActive ? Icons.timer_outlined : Icons.schedule_outlined,
-            color: entry.isActive ? colors.success : colors.info,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${item.displayName}${isCurrentUser ? ' (You)' : ''}',
-                  style: Theme.of(context).textTheme.titleMedium,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasActive = group.entries.any(
+      (entry) => _isBreakActive(entry, now),
+    );
+    // Same card shell as Info Guide / Shunter of the Month:
+    // tinted wash + accent border + rounded AppCard.
+    // Active → green; upcoming → award teal (same as Shunter of the Month).
+    final accent = hasActive
+        ? AppAvailabilityTones.available(colors)
+        : AppAvailabilityTones.award(isDark: isDark);
+    final wash = hasActive
+        ? AppAvailabilityTones.availableBg(colors)
+        : AppAvailabilityTones.awardBg(isDark: isDark);
+    final border = accent.withValues(alpha: isDark ? 0.35 : 0.28);
+    final headerFg = Color.alphaBlend(
+      accent.withValues(alpha: isDark ? 0.45 : 0.35),
+      colors.textPrimary,
+    );
+    final headerBg = Color.alphaBlend(
+      accent.withValues(alpha: isDark ? 0.14 : 0.08),
+      colors.bgElevated,
+    );
+    final sample = group.entries.first;
+    final countdown = _breakCountdownLabel(sample, now);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        color: Color.alphaBlend(
+          wash.withValues(alpha: isDark ? 0.45 : 0.7),
+          colors.bgElevated,
+        ),
+        borderColor: border,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: headerBg,
+                border: Border(
+                  bottom: BorderSide(
+                    color: border,
+                    width: AppStroke.hairline,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${item.startTime}–$end • ${item.shift.label}'
-                  '${item.location == null ? '' : ' • ${item.location}'}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-                ),
-                if (entry.isActive) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  LinearProgressIndicator(
-                    value: _progress(entry),
-                    color: colors.success,
-                    backgroundColor: colors.successBg,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      group.label,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: headerFg,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    countdown,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: headerFg,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
+              ),
+            ),
+            for (var i = 0; i < group.entries.length; i++)
+              _BreakPersonRow(
+                entry: group.entries[i],
+                isCurrentUser:
+                    group.entries[i].breakItem.userId == currentUserId,
+                now: now,
+                showDivider: i < group.entries.length - 1,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+bool _isBreakActive(VisibleBreak entry, DateTime now) =>
+    !now.isBefore(entry.start) && now.isBefore(entry.end);
+
+/// English countdown labels for Active / Upcoming rows.
+String _breakCountdownLabel(VisibleBreak entry, DateTime now) {
+  if (_isBreakActive(entry, now)) {
+    final left = entry.end.difference(now);
+    if (left.inSeconds <= 0) return 'Ending…';
+    if (left.inMinutes < 1) return 'Less than 1 min left';
+    final mins = left.inMinutes;
+    return mins == 1 ? '1 min left' : '$mins min left';
+  }
+  final until = entry.start.difference(now);
+  if (until.inSeconds <= 0) return 'Starting…';
+  if (until.inMinutes < 1) return 'Starting soon';
+  final mins = until.inMinutes;
+  if (mins < 60) {
+    return mins == 1 ? 'in 1 min' : 'in $mins min';
+  }
+  final hours = mins ~/ 60;
+  final rem = mins % 60;
+  if (rem == 0) {
+    return hours == 1 ? 'in 1 h' : 'in $hours h';
+  }
+  return 'in ${hours}h ${rem}m';
+}
+
+class _BreakPersonRow extends StatelessWidget {
+  const _BreakPersonRow({
+    required this.entry,
+    required this.isCurrentUser,
+    required this.now,
+    this.showDivider = false,
+  });
+
+  final VisibleBreak entry;
+  final bool isCurrentUser;
+  final DateTime now;
+
+  /// Inset hairline under the row (iOS Settings separators start after leading).
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final item = entry.breakItem;
+    final isActive = _isBreakActive(entry, now);
+    final progressFg = AppAvailabilityTones.available(colors);
+    final progressBg = AppAvailabilityTones.availableBg(colors);
+
+    // Highlight + You chip only for the signed-in user (no status badges).
+    final mineFill = isCurrentUser
+        ? Color.alphaBlend(
+            colors.primary.withValues(alpha: isDark ? 0.18 : 0.08),
+            colors.bgElevated,
+          )
+        : Colors.transparent;
+
+    // md + strip ≈ header lg inset — names share the header text column.
+    const contentInset = AppSpacing.md;
+
+    return ColoredBox(
+      color: mineFill,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (isCurrentUser)
+                  Container(
+                    width: AppPreCheckCard.accentStripWidth,
+                    color: colors.primary,
+                  )
+                else
+                  const SizedBox(width: AppPreCheckCard.accentStripWidth),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: contentInset,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      fontWeight: isCurrentUser
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
+                                      color: colors.textPrimary,
+                                      height: 1.2,
+                                    ),
+                              ),
+                            ),
+                            if (isCurrentUser) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              _YouChip(colors: colors),
+                            ],
+                          ],
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.full),
+                            child: LinearProgressIndicator(
+                              value: _breakProgress(entry, now),
+                              minHeight: 3,
+                              color: progressFg,
+                              backgroundColor: progressBg,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          StatusBadge(
-            label: entry.isActive ? 'Active' : 'Upcoming',
-            variant: entry.isActive ? BadgeVariant.success : BadgeVariant.info,
-          ),
+          if (showDivider)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppPreCheckCard.accentStripWidth + contentInset,
+              ),
+              child: Divider(
+                height: 1,
+                thickness: AppStroke.hairline,
+                color: colors.borderSubtle,
+              ),
+            ),
         ],
       ),
     );
   }
+}
 
-  double _progress(VisibleBreak value) {
-    final total = value.end.difference(value.start).inSeconds;
-    if (total <= 0) return 0;
-    return DateTime.now().difference(value.start).inSeconds.clamp(0, total) /
-        total;
+double _breakProgress(VisibleBreak entry, DateTime now) {
+  final total = entry.end.difference(entry.start).inSeconds;
+  if (total <= 0) return 0;
+  return now.difference(entry.start).inSeconds.clamp(0, total) / total;
+}
+
+/// Compact “You” marker — second cue so “mine” is not colour-only.
+class _YouChip extends StatelessWidget {
+  const _YouChip({required this.colors});
+
+  final AppColorsScheme colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: AppNavPill.subtleFillAlpha),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.45),
+          width: AppStroke.hairline,
+        ),
+      ),
+      child: Text(
+        'You',
+        style: AppTypography.labelSmall.copyWith(
+          color: colors.primary,
+          fontWeight: FontWeight.w500,
+          fontSize: 10,
+          height: 1.1,
+        ),
+      ),
+    );
   }
-
-  String _timeLabel(DateTime value) =>
-      '${value.hour.toString().padLeft(2, '0')}:'
-      '${value.minute.toString().padLeft(2, '0')}';
 }

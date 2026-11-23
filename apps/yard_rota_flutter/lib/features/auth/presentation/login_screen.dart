@@ -41,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final message = widget.errorMessage;
     if (message != null && message != oldWidget.errorMessage) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) AppToast.show(context, message);
+        if (mounted) AppToast.warning(context, message);
       });
     }
   }
@@ -58,12 +58,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      AppToast.show(context, 'Email and password are required.');
+      AppToast.warning(context, 'Email and password are required.');
       return;
     }
 
     if (!email.contains('@')) {
-      AppToast.show(context, 'Please enter a valid email address.');
+      AppToast.warning(context, 'Please enter a valid email address.');
       return;
     }
 

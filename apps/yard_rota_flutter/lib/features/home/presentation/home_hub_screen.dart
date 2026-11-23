@@ -373,7 +373,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     if (spec.isPreCheck) {
       final repository = widget.preCheckRepository;
       if (repository == null) {
-        AppToast.show(context, 'PreCheck is unavailable. Try again later.');
+        AppToast.error(context, 'PreCheck is unavailable. Try again later.');
         return;
       }
       _track('/precheck', 'PreCheck');
@@ -412,6 +412,8 @@ class _HomeHubScreenState extends State<HomeHubScreen>
             session: widget.session,
             onProfileSaved: widget.onProfileSaved,
             onLogout: widget.onLogout,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
         ),
       );
@@ -434,8 +436,11 @@ class _HomeHubScreenState extends State<HomeHubScreen>
       _track('/yard-guide', 'Yard induction guide');
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (context) =>
-              InductionGuideScreen(repository: stageOneRepository),
+          builder: (context) => InductionGuideScreen(
+            repository: stageOneRepository,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
+          ),
         ),
       );
       return;
@@ -447,6 +452,8 @@ class _HomeHubScreenState extends State<HomeHubScreen>
           builder: (context) => NotificationsScreen(
             repository: stageOneRepository,
             session: widget.session,
+            lightHomeWallpaper: widget.lightHomeWallpaper,
+            darkHomeWallpaper: widget.darkHomeWallpaper,
           ),
         ),
       );
@@ -501,7 +508,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     if (!context.mounted) {
       return;
     }
-    AppToast.show(context, '${spec.title} is unavailable. Try again later.');
+    AppToast.error(context, '${spec.title} is unavailable. Try again later.');
   }
 
   void _track(String path, String title) {

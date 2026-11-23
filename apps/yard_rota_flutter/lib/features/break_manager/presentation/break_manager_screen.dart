@@ -10,6 +10,7 @@ import '../../../core/network/models.dart';
 import '../../../core/network/my_rota_models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_modal_actions.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/share_origin.dart';
@@ -64,7 +65,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
       });
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not open Break Manager.');
+      if (mounted) AppToast.error(context, 'Could not open Break Manager.');
       setState(() => _loading = false);
     }
   }
@@ -107,7 +108,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
         _attendance = attendance;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load break schedule.');
+      if (mounted) AppToast.error(context, 'Could not load break schedule.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -268,10 +269,10 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
           draft: draft,
         );
       }
-      if (mounted) AppToast.show(context, 'Break slot saved.');
+      if (mounted) AppToast.success(context, 'Break slot saved.');
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not save break slot.');
+      if (mounted) AppToast.error(context, 'Could not save break slot.');
     }
   }
 
@@ -290,7 +291,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Cancel'),
               ),
-              OutlinedButton(
+              TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Delete'),
               ),
@@ -301,11 +302,11 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
     if (!confirmed) return;
     try {
       await widget.repository.deleteBreakSlot(widget.session, slot);
-      if (mounted) AppToast.show(context, 'Break slot deleted.');
+      if (mounted) AppToast.success(context, 'Break slot deleted.');
       await _load();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Could not delete break slot. Try again.');
+        AppToast.error(context, 'Could not delete break slot. Try again.');
       }
     }
   }
@@ -360,10 +361,10 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
         slot: slot,
         userId: selected.id,
       );
-      if (mounted) AppToast.show(context, 'Break assigned.');
+      if (mounted) AppToast.success(context, 'Break assigned.');
       await _load();
     } catch (error) {
-      if (mounted) AppToast.show(context, error.toString());
+      if (mounted) AppToast.error(context, error.toString());
     }
   }
 
@@ -379,7 +380,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Cancel'),
               ),
-              OutlinedButton(
+              TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Remove'),
               ),
@@ -393,11 +394,11 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
         session: widget.session,
         assignmentRowId: assignment.rowId,
       );
-      if (mounted) AppToast.show(context, 'Break unassigned.');
+      if (mounted) AppToast.success(context, 'Break unassigned.');
       await _load();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Could not remove break. Try again.');
+        AppToast.error(context, 'Could not remove break. Try again.');
       }
     }
   }
@@ -439,7 +440,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
         ),
       );
     }
-    if (mounted) AppToast.show(context, 'Standard slots added.');
+    if (mounted) AppToast.success(context, 'Standard slots added.');
     await _load();
   }
 
@@ -464,7 +465,7 @@ class _BreakManagerScreenState extends State<BreakManagerScreen> {
         ),
       );
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not share break image.');
+      if (mounted) AppToast.error(context, 'Could not share break image.');
     }
   }
 }
@@ -594,26 +595,21 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
         AppTextField(controller: _type, label: 'Break type'),
       ],
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      OutlinedButton(
-        onPressed: () => Navigator.pop(
-          context,
-          BreakSlotDraft(
-            dateYmd: widget.slot?.dateYmd ?? widget.dateYmd,
-            shift: widget.slot?.shift ?? widget.shift,
-            location: widget.slot?.location ?? widget.location,
-            startTime: _start.text,
-            durationMinutes: int.tryParse(_duration.text) ?? 15,
-            breakType: _type.text,
-            capacity: int.tryParse(_capacity.text) ?? 1,
-          ),
+    actions: appDialogActions(
+      context: context,
+      onCancel: () => Navigator.pop(context),
+      onConfirm: () => Navigator.pop(
+        context,
+        BreakSlotDraft(
+          dateYmd: widget.slot?.dateYmd ?? widget.dateYmd,
+          shift: widget.slot?.shift ?? widget.shift,
+          location: widget.slot?.location ?? widget.location,
+          startTime: _start.text,
+          durationMinutes: int.tryParse(_duration.text) ?? 15,
+          breakType: _type.text,
+          capacity: int.tryParse(_capacity.text) ?? 1,
         ),
-        child: const Text('Save'),
       ),
-    ],
+    ),
   );
 }

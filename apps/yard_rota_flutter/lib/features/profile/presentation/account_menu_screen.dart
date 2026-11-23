@@ -5,18 +5,18 @@ import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/glass_bar_surface.dart';
 import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
 import '../../admin/presentation/admin_shell_screen.dart';
-import '../../home/data/stage_one_repository.dart';
-import '../../induction/presentation/induction_guide_screen.dart';
 import '../../stage_three/data/stage_three_repository.dart';
 import '../../stage_two/data/stage_two_repository.dart';
 import '../../transport/presentation/transport_dashboard_screen.dart';
 import '../../vmu/presentation/vmu_shell_screen.dart';
+import 'profile_option_sheet.dart';
 import 'profile_screen.dart';
 import 'themes_screen.dart';
 
@@ -35,7 +35,6 @@ class AccountMenuScreen extends StatelessWidget {
     required this.darkHomeWallpaper,
     required this.onLightHomeWallpaperChanged,
     required this.onDarkHomeWallpaperChanged,
-    this.stageOneRepository,
     this.stageTwoRepository,
     this.stageThreeRepository,
   });
@@ -52,7 +51,6 @@ class AccountMenuScreen extends StatelessWidget {
   onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
   onDarkHomeWallpaperChanged;
-  final StageOneRepository? stageOneRepository;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
 
@@ -62,26 +60,73 @@ class AccountMenuScreen extends StatelessWidget {
 
   void _openOrWarn(BuildContext context, String title, WidgetBuilder? builder) {
     if (builder == null) {
-      AppToast.show(context, '$title is unavailable. Try again later.');
+      AppToast.error(context, '$title is unavailable. Try again later.');
       return;
     }
     _push(context, builder);
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    final colors = context.appColors;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You will need to sign in again to use the app.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+        backgroundColor: colors.bgElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: profileDialogShape(colors),
+        title: Text(
+          'Log out?',
+          style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colors.textPrimary,
           ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Log out'),
+        ),
+        content: Text(
+          'You will need to sign in again to use the app.',
+          style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+            color: colors.textSecondary,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: AppComponentTokens.buttonHeightMd,
+                  child: AppButton(
+                    label: 'Cancel',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: SizedBox(
+                  height: AppComponentTokens.buttonHeightMd,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.danger,
+                      side: BorderSide(
+                        color: colors.danger,
+                        width: AppStroke.medium,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
+                    child: const Text('Log out'),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -96,7 +141,6 @@ class AccountMenuScreen extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final topInset = mq.padding.top + AppComponentTokens.appBarHeight;
     final isAdmin = session.isAdmin;
-    final stageOne = stageOneRepository;
     final stageTwo = stageTwoRepository;
     final stageThree = stageThreeRepository;
 
@@ -189,6 +233,8 @@ class AccountMenuScreen extends StatelessWidget {
                     session: session,
                     onProfileSaved: onProfileSaved,
                     onLogout: onLogout,
+                    lightHomeWallpaper: lightHomeWallpaper,
+                    darkHomeWallpaper: darkHomeWallpaper,
                   ),
                 ),
               ),
@@ -208,21 +254,17 @@ class AccountMenuScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (stageOne != null)
-                MenuTile(
-                  icon: Icons.menu_book_outlined,
-                  title: 'Shunter Guide',
-                  subtitle: 'Yard induction guide',
-                  onTap: () => _push(
-                    context,
-                    (_) => InductionGuideScreen(repository: stageOne),
-                  ),
-                ),
               MenuTile(
                 icon: Icons.info_outline,
                 title: 'About',
                 subtitle: 'Version, support and privacy',
-                onTap: () => _push(context, (_) => const AboutScreen()),
+                onTap: () => _push(
+                  context,
+                  (_) => AboutScreen(
+                    lightHomeWallpaper: lightHomeWallpaper,
+                    darkHomeWallpaper: darkHomeWallpaper,
+                  ),
+                ),
               ),
             ],
           ),

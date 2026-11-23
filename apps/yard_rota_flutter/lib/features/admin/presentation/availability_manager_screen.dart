@@ -57,7 +57,7 @@ class _AvailabilityManagerScreenState extends State<AvailabilityManagerScreen> {
             values[1] as Map<String, Map<String, AdminAvailability>>;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load availability.');
+      if (mounted) AppToast.error(context, 'Could not load availability.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -206,10 +206,10 @@ class _AvailabilityManagerScreenState extends State<AvailabilityManagerScreen> {
         status: result.$1,
         comment: result.$2,
       );
-      if (mounted) AppToast.show(context, 'Availability updated.');
+      if (mounted) AppToast.success(context, 'Availability updated.');
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not update availability.');
+      if (mounted) AppToast.error(context, 'Could not update availability.');
     }
   }
 }
@@ -293,7 +293,7 @@ class _AvailabilityDialogState extends State<_AvailabilityDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      OutlinedButton(
+      TextButton(
         onPressed: () => Navigator.pop(context, (_status, _comment.text)),
         child: const Text('Save'),
       ),

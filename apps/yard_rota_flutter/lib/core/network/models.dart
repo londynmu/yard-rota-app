@@ -145,7 +145,6 @@ class UserProfile {
       firstName.trim().isNotEmpty &&
       lastName.trim().isNotEmpty &&
       shiftPreference.trim().isNotEmpty &&
-      (customStartTime?.trim().isNotEmpty ?? false) &&
       (preferredLocation?.trim().isNotEmpty ?? false) &&
       (agencyId?.trim().isNotEmpty ?? false);
 }
@@ -155,21 +154,41 @@ class UpdateProfileRequest {
     required this.firstName,
     required this.lastName,
     required this.shiftPreference,
-    required this.customStartTime,
     required this.preferredLocation,
     required this.agencyId,
+    this.customStartTime,
     this.avatarUrl,
     this.completeProfile = false,
+
+    /// Optional messaging fields (written via a separate UPDATE — SELECT is
+    /// revoked on these columns, so they must not appear in the upsert).
+    this.phoneE164,
+    this.whatsappOptIn,
+    this.updateMessaging = false,
   });
 
   final String firstName;
   final String lastName;
   final String shiftPreference;
-  final String customStartTime;
+  /// Soft preference only — may be null when the user leaves it blank.
+  final String? customStartTime;
   final String preferredLocation;
   final String agencyId;
   final String? avatarUrl;
   final bool completeProfile;
+  final String? phoneE164;
+  final bool? whatsappOptIn;
+
+  /// When true, [phoneE164] / [whatsappOptIn] are written after the upsert
+  /// (including clearing phone when [phoneE164] is null).
+  final bool updateMessaging;
+}
+
+class WhatsAppMessaging {
+  const WhatsAppMessaging({this.phoneE164, this.whatsappOptIn = false});
+
+  final String? phoneE164;
+  final bool whatsappOptIn;
 }
 
 class AvatarUpload {
@@ -337,10 +356,19 @@ class AvailabilityEntry {
 }
 
 class SaveAvailabilityItem {
-  const SaveAvailabilityItem({required this.dateYmd, required this.status});
+  const SaveAvailabilityItem({
+    required this.dateYmd,
+    required this.status,
+    this.comment,
+    this.applyComment = false,
+  });
 
   final String dateYmd;
   final AvailabilityStatus status;
+
+  /// When [applyComment] is true, this day's comment is written (may be empty).
+  final String? comment;
+  final bool applyComment;
 }
 
 class SaveAvailabilityRequest {

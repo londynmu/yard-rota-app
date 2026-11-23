@@ -48,7 +48,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
         _tablets = result[1] as List<TugTablet>;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load fleet data.');
+      if (mounted) AppToast.error(context, 'Could not load fleet data.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -225,7 +225,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () async {
                 try {
                   await widget.repository.saveTug(
@@ -241,7 +241,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
                   }
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.show(dialogContext, 'Could not save tug.');
+                    AppToast.error(dialogContext, 'Could not save tug.');
                   }
                 }
               },
@@ -254,7 +254,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
     number.dispose();
     name.dispose();
     if (saved == true) {
-      if (mounted) AppToast.show(context, 'Tug saved.');
+      if (mounted) AppToast.success(context, 'Tug saved.');
       await _load();
     }
   }
@@ -301,10 +301,10 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () async {
                 if (tugId.isEmpty || serial.text.trim().isEmpty) {
-                  AppToast.show(
+                  AppToast.warning(
                     dialogContext,
                     'Select a tug and enter a serial number.',
                   );
@@ -320,7 +320,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.show(dialogContext, 'Could not save tablet.');
+                    AppToast.error(dialogContext, 'Could not save tablet.');
                   }
                 }
               },
@@ -336,7 +336,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
 
   Future<void> _showQr(TugRecord tug) async {
     if (tug.qrToken?.isNotEmpty != true) {
-      AppToast.show(context, 'Regenerate the QR code first.');
+      AppToast.warning(context, 'Regenerate the QR code first.');
       return;
     }
     final url = AppLinks.tugPreCheck(tug.qrToken!).toString();
@@ -370,10 +370,10 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
     if (!confirmed) return;
     try {
       await widget.repository.regenerateTugQr(widget.session, tug.id);
-      if (mounted) AppToast.show(context, 'QR code regenerated.');
+      if (mounted) AppToast.success(context, 'QR code regenerated.');
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not regenerate QR code.');
+      if (mounted) AppToast.error(context, 'Could not regenerate QR code.');
     }
   }
 
@@ -385,7 +385,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
       await widget.repository.deleteTug(widget.session, tug.id);
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete tug.');
+      if (mounted) AppToast.error(context, 'Could not delete tug.');
     }
   }
 
@@ -400,7 +400,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
       await widget.repository.deleteTablet(widget.session, tablet.id);
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete tablet.');
+      if (mounted) AppToast.error(context, 'Could not delete tablet.');
     }
   }
 
@@ -415,7 +415,7 @@ class _FleetAdminScreenState extends State<FleetAdminScreen> {
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel'),
               ),
-              FilledButton(
+              TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Confirm'),
               ),
@@ -466,7 +466,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
         _settings = result[1] as Map<String, String>;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load check items.');
+      if (mounted) AppToast.error(context, 'Could not load check items.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -541,7 +541,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
           await widget.repository.saveSetting(widget.session, key, value);
           setState(() => _settings = {..._settings, key: value.toString()});
         } catch (_) {
-          if (mounted) AppToast.show(context, 'Could not save option.');
+          if (mounted) AppToast.error(context, 'Could not save option.');
         }
       },
     );
@@ -608,7 +608,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
       );
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not update check item.');
+      if (mounted) AppToast.error(context, 'Could not update check item.');
     }
   }
 
@@ -620,7 +620,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
       await widget.repository.reorderCheckItems(widget.session, item, other);
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not reorder items.');
+      if (mounted) AppToast.error(context, 'Could not reorder items.');
     }
   }
 
@@ -673,10 +673,10 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () async {
                 if (key.text.trim().isEmpty || label.text.trim().isEmpty) {
-                  AppToast.show(dialogContext, 'Key and label are required.');
+                  AppToast.warning(dialogContext, 'Key and label are required.');
                   return;
                 }
                 try {
@@ -703,7 +703,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.show(dialogContext, 'Could not save check item.');
+                    AppToast.error(dialogContext, 'Could not save check item.');
                   }
                 }
               },
@@ -731,7 +731,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancel'),
               ),
-              FilledButton(
+              TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('Delete'),
               ),
@@ -744,7 +744,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
       await widget.repository.deleteCheckItem(widget.session, item.id);
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not delete check item.');
+      if (mounted) AppToast.error(context, 'Could not delete check item.');
     }
   }
 
@@ -767,7 +767,7 @@ class _CheckItemsAdminScreenState extends State<CheckItemsAdminScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          TextButton(
             onPressed: () async {
               final value = parseConfirmationCount(controller.text);
               await widget.repository.saveSetting(

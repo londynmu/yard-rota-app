@@ -76,7 +76,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
       if (!mounted) {
         return;
       }
-      AppToast.show(
+      AppToast.warning(
         context,
         'Wallpaper changed.',
         duration: _wallpaperToastDuration,
@@ -86,7 +86,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
         return;
       }
       setState(() => _selectedLight = widget.lightHomeWallpaper);
-      AppToast.show(
+      AppToast.error(
         context,
         'Could not save wallpaper. Try again.',
         duration: _wallpaperToastDuration,
@@ -104,7 +104,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
       if (!mounted) {
         return;
       }
-      AppToast.show(
+      AppToast.warning(
         context,
         'Wallpaper changed.',
         duration: _wallpaperToastDuration,
@@ -114,7 +114,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
         return;
       }
       setState(() => _selectedDark = widget.darkHomeWallpaper);
-      AppToast.show(
+      AppToast.error(
         context,
         'Could not save wallpaper. Try again.',
         duration: _wallpaperToastDuration,
@@ -200,7 +200,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
                         return;
                       }
                       setState(() => _selectedThemeMode = widget.themeMode);
-                      AppToast.show(
+                      AppToast.error(
                         context,
                         'Could not save theme. Try again.',
                         duration: _wallpaperToastDuration,
@@ -263,7 +263,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
   }
 }
 
-/// M3 baseline segmented control; dimensions from [AppM3SegmentedButton] / [AppOpacity].
+/// Slim pill theme-mode selector (Light / Dark / System).
 class _ThemesModeM3SegmentedBar extends StatelessWidget {
   const _ThemesModeM3SegmentedBar({
     required this.selected,
@@ -273,15 +273,16 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
   final ThemeMode selected;
   final Future<void> Function(ThemeMode mode) onSelect;
 
+  static const double _trackHeight = 32;
+  static const double _trackPadding = 2;
+  static const double _iconSize = 14;
+  static const double _labelSize = 12;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final textStyle = Theme.of(context).textTheme.labelLarge;
-    final r = AppM3SegmentedButton.slotCornerRadius;
-    final tight = r * AppM3SegmentedButton.slotAdjacentCornerTightRatio;
-    final mid = r * AppM3SegmentedButton.slotMiddleCornerRatio;
 
-    Widget segment(int index, ThemeMode mode) {
+    Widget segment(ThemeMode mode) {
       final isSelected = selected == mode;
       final (IconData icon, String label) = switch (mode) {
         ThemeMode.light => (Icons.light_mode_outlined, 'Light'),
@@ -289,95 +290,52 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
         ThemeMode.system => (Icons.brightness_auto_outlined, 'System'),
       };
 
-      BorderRadius slotRadius() {
-        if (!isSelected) {
-          return BorderRadius.circular(r);
-        }
-        if (index == 0) {
-          return BorderRadius.horizontal(
-            left: Radius.circular(r),
-            right: Radius.circular(tight),
-          );
-        }
-        if (index == 2) {
-          return BorderRadius.horizontal(
-            left: Radius.circular(tight),
-            right: Radius.circular(r),
-          );
-        }
-        return BorderRadius.circular(mid);
-      }
-
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onSelect(mode),
-          borderRadius: slotRadius(),
-          child: AnimatedContainer(
-            duration: AppMotion.normal,
-            curve: AppMotion.emphasized,
-            decoration: BoxDecoration(
-              color: isSelected ? colors.bgElevated : Colors.transparent,
-              borderRadius: slotRadius(),
-              border: isSelected
-                  ? Border.all(
-                      color: colors.borderStrong,
-                      width: AppStroke.medium,
-                    )
-                  : null,
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: colors.shadow.withValues(
-                          alpha: AppM3SegmentedButton.selectedShadowAlpha,
-                        ),
-                        blurRadius: AppM3SegmentedButton.selectedShadowBlur,
-                        offset: Offset(
-                          0,
-                          AppM3SegmentedButton.selectedShadowOffsetY,
-                        ),
-                      ),
-                    ]
-                  : null,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    size: AppM3SegmentedButton.iconSize,
-                    color: isSelected
-                        ? colors.textPrimary
-                        : colors.textSecondary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textStyle?.copyWith(
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: isSelected
-                            ? colors.textPrimary
-                            : colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  if (isSelected) ...[
-                    const SizedBox(width: AppSpacing.xs),
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => onSelect(mode),
+            child: AnimatedContainer(
+              duration: AppMotion.fast,
+              curve: AppMotion.emphasized,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colors.bgElevated.withValues(alpha: 0.92)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Icon(
-                      Icons.check,
-                      size: AppM3SegmentedButton.selectionCheckIconSize,
-                      color: colors.textPrimary,
+                      icon,
+                      size: _iconSize,
+                      color: isSelected
+                          ? colors.textPrimary
+                          : colors.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.labelSmall.copyWith(
+                          fontSize: _labelSize,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? colors.textPrimary
+                              : colors.textTertiary,
+                        ),
+                      ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -387,29 +345,31 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
 
     return Semantics(
       label: 'Theme appearance',
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.bgPrimary.withValues(
-            alpha: AppOpacity.segmentedTrackFill,
-          ),
-          borderRadius: BorderRadius.circular(
-            AppM3SegmentedButton.trackCornerRadius,
-          ),
-          border: Border.all(color: colors.borderDefault),
-        ),
-        child: SizedBox(
-          height: AppM3SegmentedButton.trackHeight,
-          child: Padding(
-            padding: const EdgeInsets.all(AppM3SegmentedButton.trackPadding),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: segment(0, ThemeMode.light)),
-                VerticalDivider(width: 1, thickness: 1, color: colors.divider),
-                Expanded(child: segment(1, ThemeMode.dark)),
-                VerticalDivider(width: 1, thickness: 1, color: colors.divider),
-                Expanded(child: segment(2, ThemeMode.system)),
-              ],
+      child: Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.bgPrimary.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(AppRadius.full),
+              border: Border.all(
+                color: colors.borderDefault.withValues(alpha: 0.45),
+                width: AppStroke.thin,
+              ),
+            ),
+            child: SizedBox(
+              height: _trackHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(_trackPadding),
+                child: Row(
+                  children: [
+                    segment(ThemeMode.light),
+                    segment(ThemeMode.dark),
+                    segment(ThemeMode.system),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

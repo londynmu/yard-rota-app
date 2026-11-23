@@ -22,6 +22,17 @@ abstract class ApiClient {
   Future<void> deleteAccount({required String password});
   Future<UserProfile> getProfile();
   Future<UserProfile> updateProfile({required UpdateProfileRequest request});
+
+  /// Reads own messaging fields via RPC (SELECT on columns is revoked).
+  Future<WhatsAppMessaging> getOwnMessaging();
+
+  /// Writes [phoneE164] / optional [whatsappOptIn] via UPDATE (not upsert).
+  /// SELECT on these columns is revoked — use this after [updateProfile].
+  Future<void> updateOwnMessaging({
+    String? phoneE164,
+    bool? whatsappOptIn,
+  });
+
   Future<String> uploadAvatar({required AvatarUpload upload});
   Future<List<AgencyOption>> getActiveAgencies();
   Future<List<AttendanceHistoryItem>> getOwnAttendanceHistory();

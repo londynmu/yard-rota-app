@@ -94,7 +94,7 @@ Hard delivery rules live in `.cursor/rules/git-workflow.mdc`. Local quality gate
 
 1. The owner describes the task (ideally with a screenshot).
 2. Create a **new branch from `flutter`** — never commit on `flutter` or `main`. One task = one branch = one PR.
-3. Make the change. Follow `.cursor/rules/` (design system, toasts, break logic, commit format).
+3. Make the change. Follow `.cursor/rules/` (design system, toasts, break logic, commit format). **Always reuse existing UI styles** from Info / Breaks / Calendar and shared theme tokens — see `.cursor/rules/reuse-existing-ui-styles.mdc` (never invent new colours or card styles when an existing pattern fits).
 4. Run the quality checklist before push/PR: lint, tests, build, browser check for UI.
 5. Commit (`[type] short description`), push, open a PR into `flutter` **only after local checks pass**.
 6. Wait for **green GitHub CI** (and Netlify deploy preview when expected). Then send the owner the PR link, preview link if any, what changed, how you verified, and what to check.
