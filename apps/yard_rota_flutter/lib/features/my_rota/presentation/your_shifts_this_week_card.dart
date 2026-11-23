@@ -140,13 +140,15 @@ class _YourShiftsThisWeekCardState extends State<YourShiftsThisWeekCard> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: _loading
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    child: Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                // Static placeholder (no ticker) so widget tests using
+                // pumpAndSettle are not blocked by an indeterminate spinner.
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Text(
+                      'Loading…',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   )
