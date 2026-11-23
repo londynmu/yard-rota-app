@@ -332,6 +332,16 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     );
   }
 
+  /// Clears the shell glass bottom nav (parent uses `extendBody: true`).
+  /// Form Submit sits in a sticky footer above this inset.
+  double _shellBottomClearance(MediaQueryData mq) {
+    final systemBottom = mq.viewPadding.bottom;
+    final reportedBottom = mq.padding.bottom;
+    final navClearance = systemBottom + AppComponentTokens.bottomNavHeight;
+    return (reportedBottom > navClearance ? reportedBottom : navClearance) +
+        AppSpacing.md;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -360,8 +370,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
                 AppSpacing.lg,
                 mq.padding.top + AppSpacing.sm,
                 AppSpacing.lg,
-                // Sit flush above the shell glass nav (SafeArea + nav height).
-                mq.viewPadding.bottom + AppComponentTokens.bottomNavHeight,
+                _shellBottomClearance(mq),
               ),
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -629,85 +638,94 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       defectsByItem: _defectsByItem,
     );
 
-    return _centeredScrollBody(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _QueueBanner(status: _initialData?.queueStatus, onSync: _syncNow),
-          if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
-            const SizedBox(height: AppSpacing.sm),
-            const _WarningCard(
-              title: 'Your app is outdated',
-              message:
-                  'Please update the app before submitting this PreCheck.',
-            ),
-          ] else if (_schemaStatus == PreCheckSchemaStatus.error) ...[
-            const SizedBox(height: AppSpacing.sm),
-            const _WarningCard(
-              title: 'Version check unavailable',
-              message:
-                  'The latest form version could not be verified. Your current form will be used.',
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          _TugHeader(
-            tug: tug,
-            progress: progress,
-            onChangeTug: () {
-              setState(() {
-                _selectedTug = null;
-                _step = PreCheckStep.select;
-              });
-            },
-            onMarkAllOk: _submitting ? null : _markAllItemsOk,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSection('Outside Check', outside),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSection('Inside Check', inside),
-          if (_remarksEnabled) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _RemarksCard(
-              remarks: _draft.remarks,
-              photos: _draft.remarksPhotos,
-              onRemarksChanged: (value) =>
-                  _persistDraft(_draft.copyWith(remarks: value)),
-              onAddPhoto: () => _addPhotos(
-                current: _draft.remarksPhotos,
-                maxImages: 3,
-                source: ImageSource.gallery,
-                onChanged: (photos) =>
-                    _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+    // Sticky Submit above the shell nav — scrolling alone still hid the button
+    // under the glass bottom menu on some devices.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            children: [
+              _QueueBanner(
+                status: _initialData?.queueStatus,
+                onSync: _syncNow,
               ),
-              onTakePhoto: () => _addPhotos(
-                current: _draft.remarksPhotos,
-                maxImages: 3,
-                source: ImageSource.camera,
-                onChanged: (photos) =>
-                    _persistDraft(_draft.copyWith(remarksPhotos: photos)),
-              ),
-              onRemovePhoto: (photo) => _persistDraft(
-                _draft.copyWith(
-                  remarksPhotos: _draft.remarksPhotos
-                      .where((entry) => entry.id != photo.id)
-                      .toList(),
+              if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
+                const SizedBox(height: AppSpacing.sm),
+                const _WarningCard(
+                  title: 'Your app is outdated',
+                  message:
+                      'Please update the app before submitting this PreCheck.',
                 ),
+              ] else if (_schemaStatus == PreCheckSchemaStatus.error) ...[
+                const SizedBox(height: AppSpacing.sm),
+                const _WarningCard(
+                  title: 'Version check unavailable',
+                  message:
+                      'The latest form version could not be verified. Your current form will be used.',
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              _TugHeader(
+                tug: tug,
+                progress: progress,
+                onChangeTug: () {
+                  setState(() {
+                    _selectedTug = null;
+                    _step = PreCheckStep.select;
+                  });
+                },
+                onMarkAllOk: _submitting ? null : _markAllItemsOk,
               ),
-            ),
-          ],
-          if (_showValidationWarning && !validation.isValid) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _ValidationWarning(result: validation),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          AppButton(
-            label: _submitting ? 'Submitting...' : 'Submit Pre-Shift Check',
-            onPressed: _submitting ? null : _submitPreShift,
-            variant: AppButtonVariant.secondary,
+              const SizedBox(height: AppSpacing.lg),
+              _buildSection('Outside Check', outside),
+              const SizedBox(height: AppSpacing.lg),
+              _buildSection('Inside Check', inside),
+              if (_remarksEnabled) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _RemarksCard(
+                  remarks: _draft.remarks,
+                  photos: _draft.remarksPhotos,
+                  onRemarksChanged: (value) =>
+                      _persistDraft(_draft.copyWith(remarks: value)),
+                  onAddPhoto: () => _addPhotos(
+                    current: _draft.remarksPhotos,
+                    maxImages: 3,
+                    source: ImageSource.gallery,
+                    onChanged: (photos) =>
+                        _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+                  ),
+                  onTakePhoto: () => _addPhotos(
+                    current: _draft.remarksPhotos,
+                    maxImages: 3,
+                    source: ImageSource.camera,
+                    onChanged: (photos) =>
+                        _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+                  ),
+                  onRemovePhoto: (photo) => _persistDraft(
+                    _draft.copyWith(
+                      remarksPhotos: _draft.remarksPhotos
+                          .where((entry) => entry.id != photo.id)
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+              if (_showValidationWarning && !validation.isValid) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _ValidationWarning(result: validation),
+              ],
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: _submitting ? 'Submitting...' : 'Submit Pre-Shift Check',
+          onPressed: _submitting ? null : _submitPreShift,
+          variant: AppButtonVariant.secondary,
+        ),
+      ],
     );
   }
 
@@ -815,75 +833,84 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
         ),
       );
     }
-    return _centeredScrollBody(
-      child: _ToneCard(
-        tone: _Tone.danger,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Damage Report for ${tug.label}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Color.alphaBlend(
-                  context.appColors.danger.withValues(alpha: 0.55),
-                  context.appColors.textPrimary,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            children: [
+              _ToneCard(
+                tone: _Tone.danger,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Damage Report for ${tug.label}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Color.alphaBlend(
+                          context.appColors.danger.withValues(alpha: 0.55),
+                          context.appColors.textPrimary,
+                        ),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextField(
+                      minLines: 3,
+                      maxLines: 6,
+                      decoration: const InputDecoration(
+                        labelText: 'What happened? *',
+                        hintText: 'Describe the damage or incident...',
+                      ),
+                      onChanged: (value) => _duringShiftDescription = value,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _PhotoActions(
+                      photos: _duringShiftPhotos,
+                      maxImages: 5,
+                      onTakePhoto: () => _addPhotos(
+                        current: _duringShiftPhotos,
+                        maxImages: 5,
+                        source: ImageSource.camera,
+                        onChanged: (photos) =>
+                            setState(() => _duringShiftPhotos = photos),
+                      ),
+                      onAddGallery: () => _addPhotos(
+                        current: _duringShiftPhotos,
+                        maxImages: 5,
+                        source: ImageSource.gallery,
+                        onChanged: (photos) =>
+                            setState(() => _duringShiftPhotos = photos),
+                      ),
+                      onRemove: (photo) => setState(
+                        () => _duringShiftPhotos = _duringShiftPhotos
+                            .where((entry) => entry.id != photo.id)
+                            .toList(),
+                      ),
+                    ),
+                  ],
                 ),
-                fontWeight: FontWeight.w500,
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              minLines: 3,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'What happened? *',
-                hintText: 'Describe the damage or incident...',
-              ),
-              onChanged: (value) => _duringShiftDescription = value,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _PhotoActions(
-              photos: _duringShiftPhotos,
-              maxImages: 5,
-              onTakePhoto: () => _addPhotos(
-                current: _duringShiftPhotos,
-                maxImages: 5,
-                source: ImageSource.camera,
-                onChanged: (photos) =>
-                    setState(() => _duringShiftPhotos = photos),
-              ),
-              onAddGallery: () => _addPhotos(
-                current: _duringShiftPhotos,
-                maxImages: 5,
-                source: ImageSource.gallery,
-                onChanged: (photos) =>
-                    setState(() => _duringShiftPhotos = photos),
-              ),
-              onRemove: (photo) => setState(
-                () => _duringShiftPhotos = _duringShiftPhotos
-                    .where((entry) => entry.id != photo.id)
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppButton(
-              label:
-                  _submitting ? 'Submitting...' : 'Submit Damage Report',
-              variant: AppButtonVariant.secondary,
-              onPressed: _submitting ? null : _submitDuringShift,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: _submitting
-                  ? null
-                  : () => setState(() => _step = PreCheckStep.completed),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: _submitting ? 'Submitting...' : 'Submit Damage Report',
+          variant: AppButtonVariant.secondary,
+          onPressed: _submitting ? null : _submitDuringShift,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
+          onPressed: _submitting
+              ? null
+              : () => setState(() => _step = PreCheckStep.completed),
+        ),
+      ],
     );
   }
 
