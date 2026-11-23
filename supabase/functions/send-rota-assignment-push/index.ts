@@ -14,6 +14,7 @@ import {
   ROTA_ASSIGNMENT_PUSH_TYPE,
   type AssignmentPushRow,
 } from "../_shared/rotaAssignmentPush.ts";
+import { recordPushInboxRow } from "../_shared/pushInbox.ts";
 
 const MAX_USERS_PER_RUN = 50;
 
@@ -88,6 +89,17 @@ serve(async (req) => {
 
       if (result.ok) {
         sent += 1;
+        await recordPushInboxRow(admin, {
+          type: ROTA_ASSIGNMENT_PUSH_TYPE,
+          recipientId: group.user_id,
+          title,
+          message: body,
+          metadata: {
+            idempotency_keys: group.idempotency_keys,
+            scheduled_rota_ids: group.scheduled_rota_ids,
+            count: group.count,
+          },
+        });
         for (let i = 0; i < group.scheduled_rota_ids.length; i += 1) {
           const scheduledRotaId = group.scheduled_rota_ids[i];
           const idempotencyKey = group.idempotency_keys[i];

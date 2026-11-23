@@ -804,9 +804,9 @@ export default function HomePage() {
             <Route
               path="/notifications"
               element={
-                <ProtectedAdminRoute>
+                <ProtectedRoute>
                   <NotificationsPage />
-                </ProtectedAdminRoute>
+                </ProtectedRoute>
               }
             />
             <Route 

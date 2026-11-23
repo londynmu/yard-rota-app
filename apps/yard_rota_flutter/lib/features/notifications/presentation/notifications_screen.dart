@@ -1,12 +1,14 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_modal_actions.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/status_badge.dart';
 import '../../home/data/stage_one_repository.dart';
@@ -31,7 +33,11 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   List<StageOneNotification>? _notifications;
-  int _pendingApprovals = 0;
+  List<PendingJoinRequest> _pendingUsers = const [];
+  List<MissingTookPrecheck> _missingTook = const [];
+  String? _busyUserId;
+
+  bool get _isAdmin => widget.session.isAdmin;
 
   @override
   void initState() {
@@ -42,17 +48,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _load() async {
     try {
       final notifications = await widget.repository.loadNotifications();
-      final pending = widget.session.isAdmin
-          ? await widget.repository.pendingApprovalsCount()
-          : 0;
+      var pending = const <PendingJoinRequest>[];
+      var missing = const <MissingTookPrecheck>[];
+      if (_isAdmin) {
+        pending = await widget.repository.loadPendingJoinRequests();
+        missing = await widget.repository.loadMissingTookPrechecks();
+      }
       if (!mounted) return;
       setState(() {
         _notifications = notifications;
-        _pendingApprovals = pending;
+        _pendingUsers = pending;
+        _missingTook = missing;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _notifications = const <StageOneNotification>[]);
+      setState(() {
+        _notifications = const <StageOneNotification>[];
+        _pendingUsers = const [];
+        _missingTook = const [];
+      });
       AppToast.error(
         context,
         'Notifications could not be loaded. Please retry.',
@@ -77,6 +91,72 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _setApproval(PendingJoinRequest person, String status) async {
+    setState(() => _busyUserId = person.id);
+    try {
+      await widget.repository.setAccountStatus(
+        userId: person.id,
+        status: status,
+      );
+      if (!mounted) return;
+      AppToast.success(
+        context,
+        status == 'approved'
+            ? '${person.displayName} approved.'
+            : '${person.displayName} rejected.',
+      );
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, 'Could not update approval. Please retry.');
+      }
+    } finally {
+      if (mounted) setState(() => _busyUserId = null);
+    }
+  }
+
+  Future<void> _confirmReject(PendingJoinRequest person) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reject user'),
+        content: Text(
+          'Are you sure you want to reject ${person.displayName}?',
+        ),
+        actions: appDialogActions(
+          context: dialogContext,
+          onCancel: () => Navigator.of(dialogContext).pop(false),
+          onConfirm: () => Navigator.of(dialogContext).pop(true),
+          confirmLabel: 'Reject',
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      await _setApproval(person, 'rejected');
+    }
+  }
+
+  Future<void> _copyMissingTookReminder() async {
+    if (_missingTook.isEmpty) return;
+    final lines = _missingTook
+        .map((person) => '- ${person.displayName} (${person.shiftWindow})')
+        .join('\n');
+    final intro = _missingTook.length == 1
+        ? 'This shunter is on shift and has not completed a pre-shift check:'
+        : 'These shunters are on shift and have not completed a pre-shift check:';
+    final text = [
+      'Pre-shift check reminder',
+      '',
+      intro,
+      '',
+      lines,
+      '',
+      'Please complete your tug check in the app.',
+    ].join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) AppToast.success(context, 'Reminder copied.');
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
@@ -90,9 +170,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final notifications = _notifications;
     final unreadCount =
         notifications?.where((item) => !item.isRead).length ?? 0;
+    final showAdminEmpty =
+        _isAdmin &&
+        _pendingUsers.isEmpty &&
+        _missingTook.isEmpty &&
+        (notifications?.isEmpty ?? false);
 
-    // Wallpaper behind Scaffold (same idea as AuthTheme): body then starts
-    // directly under the AppBar — no manual statusBar + toolbar inset.
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -158,18 +241,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       padding: EdgeInsets.zero,
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        if (widget.session.isAdmin &&
-                            _pendingApprovals > 0) ...[
-                          _PendingApprovalsBanner(count: _pendingApprovals),
-                          const SizedBox(height: AppSpacing.md),
+                        if (_isAdmin && _pendingUsers.isNotEmpty) ...[
+                          _SectionHeader(
+                            title: 'Waiting for approval',
+                            count: _pendingUsers.length,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          for (var i = 0; i < _pendingUsers.length; i++) ...[
+                            if (i > 0) const SizedBox(height: AppSpacing.sm),
+                            _PendingUserCard(
+                              person: _pendingUsers[i],
+                              busy: _busyUserId == _pendingUsers[i].id,
+                              onApprove: () =>
+                                  _setApproval(_pendingUsers[i], 'approved'),
+                              onReject: () =>
+                                  _confirmReject(_pendingUsers[i]),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
                         ],
-                        if (notifications.isEmpty)
-                          const _EmptyNotificationsCard()
-                        else
+                        if (_isAdmin && _missingTook.isNotEmpty) ...[
+                          _SectionHeader(
+                            title: 'Missing took pre-checks',
+                            count: _missingTook.length,
+                            trailing: TextButton(
+                              onPressed: _copyMissingTookReminder,
+                              child: const Text('Copy'),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _MissingTookCard(people: _missingTook),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                        if (notifications.isNotEmpty) ...[
+                          _SectionHeader(
+                            title: 'Recent notifications',
+                            count: notifications.length,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
                           for (var i = 0; i < notifications.length; i++) ...[
                             if (i > 0) const SizedBox(height: AppSpacing.md),
                             _NotificationCard(item: notifications[i]),
                           ],
+                        ] else if (!_isAdmin || showAdminEmpty)
+                          const _EmptyNotificationsCard(),
                       ],
                     ),
                   ),
@@ -180,10 +295,59 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-class _PendingApprovalsBanner extends StatelessWidget {
-  const _PendingApprovalsBanner({required this.count});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.count,
+    this.trailing,
+  });
 
+  final String title;
   final int count;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+        ),
+        Text(
+          '$count',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: colors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: AppSpacing.xs),
+          trailing!,
+        ],
+      ],
+    );
+  }
+}
+
+class _PendingUserCard extends StatelessWidget {
+  const _PendingUserCard({
+    required this.person,
+    required this.busy,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final PendingJoinRequest person;
+  final bool busy;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
@@ -191,11 +355,11 @@ class _PendingApprovalsBanner extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = AppAvailabilityTones.note(isDark: isDark);
     final wash = AppAvailabilityTones.noteBg(isDark: isDark);
-    final border = accent.withValues(alpha: isDark ? 0.35 : 0.28);
-    final titleFg = Color.alphaBlend(
-      accent.withValues(alpha: isDark ? 0.45 : 0.35),
-      colors.textPrimary,
-    );
+    final registered = person.createdAt == null
+        ? null
+        : '${person.createdAt!.day.toString().padLeft(2, '0')}/'
+              '${person.createdAt!.month.toString().padLeft(2, '0')}/'
+              '${person.createdAt!.year}';
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -203,43 +367,113 @@ class _PendingApprovalsBanner extends StatelessWidget {
         wash.withValues(alpha: isDark ? 0.45 : 0.7),
         colors.bgElevated,
       ),
-      borderColor: border,
+      borderColor: accent.withValues(alpha: isDark ? 0.35 : 0.28),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(
-                Icons.admin_panel_settings_outlined,
-                size: 20,
-                color: accent,
+            Text(
+              person.displayName,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                '$count user${count == 1 ? '' : 's'} pending approval',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: titleFg,
-                  height: 1.2,
+            if (person.email.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                person.email,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
                 ),
               ),
+            ],
+            if (registered != null) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Registered $registered',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textTertiary,
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: busy ? null : onReject,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.danger,
+                      side: BorderSide(color: colors.danger),
+                    ),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: busy ? null : onApprove,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppAvailabilityTones.available(colors),
+                      side: BorderSide(
+                        color: AppAvailabilityTones.available(colors),
+                      ),
+                    ),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
             ),
-            StatusBadge(
-              label: '$count',
-              variant: BadgeVariant.warning,
-              compact: true,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MissingTookCard extends StatelessWidget {
+  const _MissingTookCard({required this.people});
+
+  final List<MissingTookPrecheck> people;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppAvailabilityTones.note(isDark: isDark);
+    final wash = AppAvailabilityTones.noteBg(isDark: isDark);
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      color: Color.alphaBlend(
+        wash.withValues(alpha: isDark ? 0.45 : 0.7),
+        colors.bgElevated,
+      ),
+      borderColor: accent.withValues(alpha: isDark ? 0.35 : 0.28),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No took pre-check',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            for (var i = 0; i < people.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.xs),
+              Text(
+                '${people[i].displayName} (${people[i].shiftWindow})',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -294,7 +528,6 @@ class _NotificationCard extends StatelessWidget {
     final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tone = _toneFor(item.type, colors: colors, isDark: isDark);
-    // Same tinted AppCard shell as Info / Breaks / calendar over wallpaper.
     final washAlpha = item.isRead
         ? (isDark ? 0.35 : 0.55)
         : (isDark ? 0.45 : 0.7);
@@ -339,9 +572,7 @@ class _NotificationCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           item.title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
+                          style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: titleFg,
@@ -414,7 +645,7 @@ _NotificationTone _toneFor(
   required bool isDark,
 }) {
   return switch (type) {
-    'warning' => _NotificationTone(
+    'warning' || 'break_reminder' || 'precheck_reminder' => _NotificationTone(
       accent: AppAvailabilityTones.note(isDark: isDark),
       wash: AppAvailabilityTones.noteBg(isDark: isDark),
       icon: Icons.warning_amber_outlined,
@@ -426,7 +657,7 @@ _NotificationTone _toneFor(
       icon: Icons.error_outline,
       badge: BadgeVariant.danger,
     ),
-    'success' => _NotificationTone(
+    'success' || 'rota_assignment_digest' => _NotificationTone(
       accent: AppAvailabilityTones.available(colors),
       wash: AppAvailabilityTones.availableBg(colors),
       icon: Icons.check_circle_outline,

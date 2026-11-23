@@ -7,6 +7,7 @@ const NotificationContext = createContext();
 
 const PENDING_APPROVALS_POLL_MS = 30 * 1000;
 const MISSING_PRECHECKS_POLL_MS = 60 * 1000;
+const INBOX_POLL_MS = 60 * 1000;
 
 export function useNotifications() {
   return useContext(NotificationContext);
@@ -19,6 +20,7 @@ export const NotificationProvider = ({ children }) => {
   const [isTransportManager, setIsTransportManager] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [missingPrechecks, setMissingPrechecks] = useState([]);
+  const [inboxNotifications, setInboxNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Roles come from sessionProfile (filled by App.jsx profile gate) — avoids duplicate profiles fetch
@@ -71,6 +73,36 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [isAdmin]);
 
+  const refreshInboxNotifications = useCallback(async () => {
+    if (!userId) {
+      setInboxNotifications([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id,title,message,type,is_read,created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setInboxNotifications(data || []);
+    } catch (error) {
+      console.warn('Could not load notification inbox:', error);
+      setInboxNotifications([]);
+    }
+  }, [userId]);
+
+  const markInboxRead = useCallback(async (ids) => {
+    const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
+    if (list.length === 0) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .in('id', list);
+    if (error) throw error;
+    await refreshInboxNotifications();
+  }, [refreshInboxNotifications]);
+
   // Admin alerts: poll on an interval and refresh as soon as the app is visible again (PWA resume)
   useEffect(() => {
     if (!isAdmin) {
@@ -99,20 +131,65 @@ export const NotificationProvider = ({ children }) => {
     };
   }, [isAdmin, refreshPendingApprovals, refreshMissingPrechecks]);
 
-  const alertCount = isAdmin ? pendingApprovals + missingPrechecks.length : 0;
+  // Inbox (push history): all signed-in users
+  useEffect(() => {
+    if (!userId) {
+      setInboxNotifications([]);
+      return undefined;
+    }
+    refreshInboxNotifications();
+    const inboxInterval = setInterval(refreshInboxNotifications, INBOX_POLL_MS);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshInboxNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      clearInterval(inboxInterval);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [userId, refreshInboxNotifications]);
+
+  const unreadInboxCount = useMemo(
+    () => inboxNotifications.filter((row) => !row.is_read).length,
+    [inboxNotifications],
+  );
+
+  const alertCount = isAdmin
+    ? unreadInboxCount + pendingApprovals + missingPrechecks.length
+    : unreadInboxCount;
 
   // Memoize value object to prevent unnecessary re-renders of consumers
   const value = useMemo(() => ({
     pendingApprovals,
     missingPrechecks,
+    inboxNotifications,
+    unreadInboxCount,
     alertCount,
     refreshPendingApprovals,
     refreshMissingPrechecks,
+    refreshInboxNotifications,
+    markInboxRead,
     isAdmin,
     isVmu,
     isTransportManager,
     loading
-  }), [pendingApprovals, missingPrechecks, alertCount, refreshPendingApprovals, refreshMissingPrechecks, isAdmin, isVmu, isTransportManager, loading]);
+  }), [
+    pendingApprovals,
+    missingPrechecks,
+    inboxNotifications,
+    unreadInboxCount,
+    alertCount,
+    refreshPendingApprovals,
+    refreshMissingPrechecks,
+    refreshInboxNotifications,
+    markInboxRead,
+    isAdmin,
+    isVmu,
+    isTransportManager,
+    loading,
+  ]);
 
   return (
     <NotificationContext.Provider value={value}>
