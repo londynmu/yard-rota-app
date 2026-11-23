@@ -111,6 +111,16 @@ class MockApiClient implements ApiClient {
   }
 
   @override
+  Future<WhatsAppMessaging> getOwnMessaging() async =>
+      const WhatsAppMessaging();
+
+  @override
+  Future<void> updateOwnMessaging({
+    String? phoneE164,
+    bool? whatsappOptIn,
+  }) async {}
+
+  @override
   Future<String> uploadAvatar({required AvatarUpload upload}) async {
     return 'https://example.com/avatar.${upload.fileExtension}';
   }

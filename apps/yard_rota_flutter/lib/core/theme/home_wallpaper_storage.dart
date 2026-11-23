@@ -5,16 +5,27 @@ import 'home_wallpaper.dart';
 const String _kLightWallpaperKey = 'app_light_home_wallpaper';
 const String _kDarkWallpaperKey = 'app_dark_home_wallpaper';
 
+/// App default light wallpaper when nothing is saved yet.
+const LightHomeWallpaper kDefaultLightHomeWallpaper =
+    LightHomeWallpaper.ribbedFlow;
+
+/// App default dark wallpaper when nothing is saved yet.
+const DarkHomeWallpaper kDefaultDarkHomeWallpaper =
+    DarkHomeWallpaper.nightMesh;
+
 LightHomeWallpaper lightHomeWallpaperFromStorageValue(String? raw) {
-  return switch (raw) {
+  final key = raw?.trim();
+  if (key == null || key.isEmpty) {
+    return kDefaultLightHomeWallpaper;
+  }
+  return switch (key) {
     'ribbon_mesh' => LightHomeWallpaper.ribbonMesh,
     'perforated_mesh' => LightHomeWallpaper.perforatedMesh,
     'ribbed_flow' => LightHomeWallpaper.ribbedFlow,
     'contour_mesh' => LightHomeWallpaper.contourMesh,
     'layered_waves' => LightHomeWallpaper.layeredWaves,
     'classic' => LightHomeWallpaper.classic,
-    null => LightHomeWallpaper.classic,
-    _ => LightHomeWallpaper.classic,
+    _ => kDefaultLightHomeWallpaper,
   };
 }
 
@@ -36,14 +47,17 @@ String storageValueForLightHomeWallpaper(LightHomeWallpaper wallpaper) {
 }
 
 DarkHomeWallpaper darkHomeWallpaperFromStorageValue(String? raw) {
-  return switch (raw) {
+  final key = raw?.trim();
+  if (key == null || key.isEmpty) {
+    return kDefaultDarkHomeWallpaper;
+  }
+  return switch (key) {
     'glow_hex' => DarkHomeWallpaper.glowHexTerrain,
     'dimpled_metal' => DarkHomeWallpaper.dimpledMetal,
     'velvet_waves' => DarkHomeWallpaper.velvetWaves,
     'ridged_depth' => DarkHomeWallpaper.ridgedDepth,
     'night_mesh' => DarkHomeWallpaper.nightMesh,
-    null => DarkHomeWallpaper.nightMesh,
-    _ => DarkHomeWallpaper.nightMesh,
+    _ => kDefaultDarkHomeWallpaper,
   };
 }
 
@@ -63,10 +77,14 @@ String storageValueForDarkHomeWallpaper(DarkHomeWallpaper wallpaper) {
 }
 
 Future<LightHomeWallpaper> readSavedLightHomeWallpaper() async {
-  final prefs = await SharedPreferences.getInstance();
-  return lightHomeWallpaperFromStorageValue(
-    prefs.getString(_kLightWallpaperKey),
-  );
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return lightHomeWallpaperFromStorageValue(
+      prefs.getString(_kLightWallpaperKey),
+    );
+  } catch (_) {
+    return kDefaultLightHomeWallpaper;
+  }
 }
 
 Future<void> writeSavedLightHomeWallpaper(LightHomeWallpaper wallpaper) async {
@@ -78,8 +96,14 @@ Future<void> writeSavedLightHomeWallpaper(LightHomeWallpaper wallpaper) async {
 }
 
 Future<DarkHomeWallpaper> readSavedDarkHomeWallpaper() async {
-  final prefs = await SharedPreferences.getInstance();
-  return darkHomeWallpaperFromStorageValue(prefs.getString(_kDarkWallpaperKey));
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return darkHomeWallpaperFromStorageValue(
+      prefs.getString(_kDarkWallpaperKey),
+    );
+  } catch (_) {
+    return kDefaultDarkHomeWallpaper;
+  }
 }
 
 Future<void> writeSavedDarkHomeWallpaper(DarkHomeWallpaper wallpaper) async {

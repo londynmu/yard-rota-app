@@ -52,16 +52,22 @@ class AvailabilityRepository {
 
   Future<void> save({required SaveAvailabilityRequest request}) async {
     for (final item in request.items) {
+      final applyComment =
+          item.applyComment ||
+          (request.applyComment && request.items.length == 1);
+      final comment = item.applyComment
+          ? (item.comment ?? '')
+          : request.comment;
       await _localDb.upsertAvailabilityLocal(
         dateYmd: item.dateYmd,
         status: item.status,
-        comment: request.applyComment ? request.comment : null,
+        comment: applyComment ? comment : null,
         syncState: 'pending',
       );
       await _localDb.enqueueAvailabilityUpsert(
         item: item,
-        comment: request.comment,
-        applyComment: request.applyComment,
+        comment: comment,
+        applyComment: applyComment,
       );
     }
     unawaited(flushOutbox());

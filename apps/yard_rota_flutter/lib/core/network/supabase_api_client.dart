@@ -198,7 +198,9 @@ class SupabaseApiClient implements ApiClient {
       'first_name': request.firstName.trim(),
       'last_name': request.lastName.trim(),
       'shift_preference': request.shiftPreference,
-      'custom_start_time': request.customStartTime,
+      'custom_start_time': request.customStartTime?.trim().isEmpty ?? true
+          ? null
+          : request.customStartTime,
       'preferred_location': request.preferredLocation,
       'agency_id': request.agencyId,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
@@ -212,7 +214,57 @@ class SupabaseApiClient implements ApiClient {
     }
     try {
       await _client.from('profiles').upsert(payload);
+      // Messaging columns cannot be upserted (SELECT revoked); update separately.
+      if (request.updateMessaging) {
+        await updateOwnMessaging(
+          phoneE164: request.phoneE164,
+          whatsappOptIn: request.whatsappOptIn,
+        );
+      }
       return getProfile();
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<WhatsAppMessaging> getOwnMessaging() async {
+    try {
+      final raw = await _client.rpc('get_own_whatsapp_messaging');
+      final row = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : (raw is List && raw.isNotEmpty && raw.first is Map)
+          ? Map<String, dynamic>.from(raw.first as Map)
+          : <String, dynamic>{};
+      final phone = row['phone_e164']?.toString().trim();
+      return WhatsAppMessaging(
+        phoneE164: (phone == null || phone.isEmpty) ? null : phone,
+        whatsappOptIn: row['whatsapp_opt_in'] == true,
+      );
+    } on PostgrestException catch (error) {
+      throw TransientNetworkException(error.message);
+    } catch (error) {
+      throw TransientNetworkException(error.toString());
+    }
+  }
+
+  @override
+  Future<void> updateOwnMessaging({
+    String? phoneE164,
+    bool? whatsappOptIn,
+  }) async {
+    final userId = _currentUserId();
+    final payload = <String, dynamic>{
+      'phone_e164': phoneE164,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (whatsappOptIn != null) {
+      payload['whatsapp_opt_in'] = whatsappOptIn;
+    }
+    try {
+      await _client.from('profiles').update(payload).eq('id', userId);
     } on PostgrestException catch (error) {
       throw TransientNetworkException(error.message);
     } catch (error) {
@@ -474,8 +526,13 @@ class SupabaseApiClient implements ApiClient {
 
     for (final item in request.items) {
       final payload = <String, dynamic>{'status': item.status.dbValue};
-      if (request.applyComment && request.items.length == 1) {
-        payload['comment'] = request.comment.trim();
+      final applyComment =
+          item.applyComment ||
+          (request.applyComment && request.items.length == 1);
+      if (applyComment) {
+        payload['comment'] =
+            (item.applyComment ? (item.comment ?? '') : request.comment)
+                .trim();
       }
 
       final current = byDate[item.dateYmd];

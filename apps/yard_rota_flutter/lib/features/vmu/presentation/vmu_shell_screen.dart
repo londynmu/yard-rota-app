@@ -426,11 +426,11 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
         vmuNotes: notes.isEmpty ? null : notes,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Defect updated.');
+      AppToast.success(context, 'Defect updated.');
       await _loadActivity();
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, 'Could not update defect. Try again.');
+        AppToast.error(context, 'Could not update defect. Try again.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -475,7 +475,7 @@ class _DefectDetailScreenState extends State<DefectDetailScreen> {
                   }
                   if (!context.mounted) return;
                   if (signed == null || signed.isEmpty) {
-                    AppToast.show(context, 'Photo could not be opened.');
+                    AppToast.error(context, 'Photo could not be opened.');
                     return;
                   }
                   await showDialog<void>(
@@ -814,7 +814,7 @@ class _PreCheckManagementScreenState extends State<PreCheckManagementScreen> {
       );
       if (reports.isEmpty) {
         if (mounted) {
-          AppToast.show(context, 'No reports in the last seven days.');
+          AppToast.warning(context, 'No reports in the last seven days.');
         }
         return;
       }
@@ -825,7 +825,7 @@ class _PreCheckManagementScreenState extends State<PreCheckManagementScreen> {
         submissions: reports,
       );
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not create audit pack.');
+      if (mounted) AppToast.error(context, 'Could not create audit pack.');
     }
   }
 }
@@ -935,11 +935,11 @@ class PreCheckDetailScreen extends StatelessWidget {
                             status: status,
                           );
                           if (context.mounted) {
-                            AppToast.show(context, 'Fault status updated.');
+                            AppToast.success(context, 'Fault status updated.');
                           }
                         } catch (_) {
                           if (context.mounted) {
-                            AppToast.show(context, 'Could not update fault.');
+                            AppToast.error(context, 'Could not update fault.');
                           }
                         }
                       },
@@ -969,7 +969,7 @@ class PreCheckDetailScreen extends StatelessWidget {
         await PreCheckExportService.printSingle(submission);
       }
     } catch (_) {
-      if (context.mounted) AppToast.show(context, 'Could not export report.');
+      if (context.mounted) AppToast.error(context, 'Could not export report.');
     }
   }
 }

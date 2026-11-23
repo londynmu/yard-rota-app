@@ -3,14 +3,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const String _kThemeModeKey = 'app_theme_mode';
 
+/// App default when nothing is saved yet (cold start / first install).
+const ThemeMode kDefaultThemeMode = ThemeMode.light;
+
 ThemeMode themeModeFromStorageValue(String? raw) {
   switch (raw) {
     case 'light':
       return ThemeMode.light;
     case 'dark':
       return ThemeMode.dark;
-    default:
+    case 'system':
       return ThemeMode.system;
+    default:
+      // null / unknown → light (avoids a dark flash before prefs exist).
+      return kDefaultThemeMode;
   }
 }
 

@@ -593,3 +593,40 @@ String preCheckDateToYmd(DateTime date) {
   final d = date.day.toString().padLeft(2, '0');
   return '$y-$m-$d';
 }
+
+/// One row in the PWA-style tug check history (last 30 days).
+class PreCheckTugHistoryEntry {
+  const PreCheckTugHistoryEntry({
+    required this.id,
+    required this.checkTime,
+    required this.checkType,
+    required this.checkerName,
+    this.problems = const <PreCheckTugHistoryProblem>[],
+  });
+
+  final String id;
+  final DateTime checkTime;
+  final PreCheckType checkType;
+  final String checkerName;
+  final List<PreCheckTugHistoryProblem> problems;
+
+  bool get hasDefects => problems.isNotEmpty;
+}
+
+class PreCheckTugHistoryProblem {
+  const PreCheckTugHistoryProblem({
+    required this.key,
+    required this.itemName,
+    this.itemKey = '',
+    this.description = '',
+    this.imageUrls = const <String>[],
+  });
+
+  final String key;
+  final String itemName;
+
+  /// Checklist key (e.g. body_damage) — used to attach tug-level photos.
+  final String itemKey;
+  final String description;
+  final List<String> imageUrls;
+}

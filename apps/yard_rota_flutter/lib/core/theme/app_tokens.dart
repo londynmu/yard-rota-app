@@ -70,6 +70,14 @@ class AppPrimitives {
   static const cyan800 = Color(0xFF155E75);
   static const cyan900 = Color(0xFF164E63);
 
+  /// Outlook-style OOO / Deputy leave accent (Holiday).
+  static const violet50 = Color(0xFFF5F3FF);
+  static const violet100 = Color(0xFFEDE9FE);
+  static const violet500 = Color(0xFF8B5CF6);
+  static const violet600 = Color(0xFF7C3AED);
+  static const violet200 = Color(0xFFDDD6FE);
+  static const violet800 = Color(0xFF5B21B6);
+
   static const white = Color(0xFFFFFFFF);
   static const white40 = Color(0x66FFFFFF);
   static const black = Color(0xFF000000);
@@ -383,8 +391,9 @@ class AppGlassBar {
   static const double blurSigma = 18;
   static const double topFadeDarkAlpha = 0.28;
   static const double topFadeLightAlpha = 0.42;
-  static const double bottomDarkAlpha = 0.62;
-  static const double bottomLightAlpha = 0.72;
+  static const double bottomDarkAlpha = 0.36;
+  /// Slightly clearer frosted bar in light theme so nav items can contrast.
+  static const double bottomLightAlpha = 0.78;
 }
 
 /// Home tab top bar: Calendar / Breaks / Info segments and the bell.
@@ -394,12 +403,11 @@ class AppHomeTabs {
 
   static const double segmentHeight = 40;
   static const double trackPadding = 3;
-  static const double segmentIconSize = 18;
+  static const double segmentIconSize = 16;
   static const double bellSegmentWidth = 48;
 }
 
-/// Solid primary pill marking the selected item in the top bar, the bottom
-/// menu and filter chips.
+/// Selected-state chrome for top bar segments, bottom menu and filter chips.
 @immutable
 class AppNavPill {
   const AppNavPill._();
@@ -408,12 +416,42 @@ class AppNavPill {
   static const double glowAlpha = 0.35;
   static const double glowOffsetY = 2;
 
-  static const double bottomPillWidth = 56;
-  static const double bottomPillHeight = 32;
-  static const double bottomIconSize = 22;
+  /// Soft fill for subtle selected chips (top Home tabs).
+  static const double subtleFillAlpha = 0.12;
+
+  /// Selected underline under Home tabs / bottom menu (full label width).
+  static const double bottomIndicatorAlpha = 0.55;
+  static const double bottomIndicatorAlphaLight = 0.85;
+  static const double bottomIndicatorHeight = 2;
+  static const double bottomIndicatorInset = 6;
+
+  /// Light-theme opacities — softer than solid black so icons stay light.
+  static const double bottomIconSelectedLight = 0.72;
+  static const double bottomIconUnselectedLight = 0.48;
+  static const double bottomLabelSelectedLight = 0.78;
+  static const double bottomLabelUnselectedLight = 0.55;
+
+  static const double bottomIconSelectedDark = 0.72;
+  static const double bottomIconUnselectedDark = 0.42;
+  static const double bottomLabelSelectedDark = 0.78;
+  static const double bottomLabelUnselectedDark = 0.5;
+
+  static const double bottomLabelFontSize = 11;
+
+  static const double bottomPillWidth = 40;
+  static const double bottomPillHeight = 28;
+  static const double bottomIconSize = 20;
+
+  /// Thin stroke for top/bottom menu icons (Material Symbols axes when available).
+  static const double iconWeight = 300;
+  static const double iconGrade = -25;
 
   static const double chipHeight = 36;
   static const double chipIconSize = 16;
+
+  /// Dense filter chips (lists / secondary bars).
+  static const double chipHeightCompact = 28;
+  static const double chipIconSizeCompact = 14;
 }
 
 /// Screens shown before the app opens (login, sign-up, onboarding).
@@ -423,9 +461,9 @@ class AppAuthScreen {
 
   static const double contentMaxWidth = 420;
 
-  /// Dark scrim over the hex wallpaper so cards and text stay readable.
-  static const double scrimTopAlpha = 0.25;
-  static const double scrimBottomAlpha = 0.65;
+  /// Light wash over the default ribbed-flow wallpaper so cards stay readable.
+  static const double scrimTopAlpha = 0.12;
+  static const double scrimBottomAlpha = 0.35;
 }
 
 /// My Rota — compact vertical rhythm for shift lists (`MyRotaScreen` / day details).
@@ -486,9 +524,75 @@ class AppPreCheckCard {
   static const double accentStripWidth = 4;
   static const double actionVerticalPadding = AppSpacing.sm;
   static const double tugAvatarSize = 38;
-  static const double stickyHeaderExtent = 82;
+  static const double stickyHeaderExtent = 128;
   static const double qrFrameSize = 236;
   static const double knownDefectImageHeight = 120;
+}
+
+/// Calendar availability statuses — industry-aligned (WIW / Outlook / Deputy).
+@immutable
+class AppAvailabilityTones {
+  const AppAvailabilityTones._();
+
+  /// Available — green (When I Work / 7shifts).
+  static Color available(AppColorsScheme colors) => colors.success;
+  static Color availableBg(AppColorsScheme colors) => colors.successBg;
+
+  /// Unavailable — slate grey (When I Work), not alarm red.
+  static Color unavailable({required bool isDark}) =>
+      isDark ? AppPrimitives.slate300 : AppPrimitives.slate600;
+  static Color unavailableBg({required bool isDark}) =>
+      isDark ? AppPrimitives.slate700 : AppPrimitives.slate100;
+
+  /// Holiday — violet (Outlook out-of-office).
+  static Color holiday({required bool isDark}) =>
+      isDark ? AppPrimitives.violet200 : AppPrimitives.violet600;
+  static Color holidayBg({required bool isDark}) =>
+      isDark ? AppPrimitives.violet800.withValues(alpha: 0.45) : AppPrimitives.violet50;
+
+  /// Note / upcoming cue — amber (same as calendar note bubble).
+  static Color note({required bool isDark}) =>
+      isDark ? AppPrimitives.amber300 : AppPrimitives.amber600;
+  static Color noteBg({required bool isDark}) =>
+      isDark ? AppPrimitives.amber900.withValues(alpha: 0.45) : AppPrimitives.amber50;
+
+  /// Shunter of the Month — soft muted teal (readable on light and dark).
+  static Color award({required bool isDark}) =>
+      isDark ? AppPrimitives.cyan300 : AppPrimitives.cyan700;
+  static Color awardBg({required bool isDark}) =>
+      isDark
+          ? AppPrimitives.cyan900.withValues(alpha: 0.45)
+          : AppPrimitives.cyan50;
+}
+
+/// Soft semantic accents for Shunter Guide prose (`::color-*[…]` tokens).
+/// Tuned for readable body text on both light and dark themes — not badge fills.
+@immutable
+class AppGuideProseTones {
+  const AppGuideProseTones._();
+
+  static Color info({required bool isDark}) =>
+      isDark ? AppPrimitives.blue300 : AppPrimitives.blue700;
+
+  static Color warning({required bool isDark}) =>
+      isDark ? AppPrimitives.amber300 : AppPrimitives.amber700;
+
+  static Color danger({required bool isDark}) =>
+      isDark ? AppPrimitives.red300 : AppPrimitives.red700;
+
+  /// Soft emerald — pleasant success green in guide body copy.
+  static Color success({required bool isDark}) =>
+      isDark ? AppPrimitives.green300 : AppPrimitives.green700;
+
+  static Color? resolve(String token, {required bool isDark}) {
+    return switch (token) {
+      'info' => info(isDark: isDark),
+      'warning' => warning(isDark: isDark),
+      'danger' => danger(isDark: isDark),
+      'success' => success(isDark: isDark),
+      _ => null,
+    };
+  }
 }
 
 @immutable
@@ -569,6 +673,13 @@ class AppTypography {
     height: 1.3,
   );
 
+  /// Thin bottom-nav captions (Home / My Rota / …).
+  static const labelSmall = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    height: 1.25,
+  );
+
   static const caption = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w500,
@@ -601,5 +712,5 @@ class AppComponentTokens {
   static const listItemVerticalPadding = 10.0;
 
   static const appBarHeight = 60.0;
-  static const bottomNavHeight = 68.0;
+  static const bottomNavHeight = 56.0;
 }

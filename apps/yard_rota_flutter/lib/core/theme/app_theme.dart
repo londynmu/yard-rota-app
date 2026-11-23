@@ -135,6 +135,7 @@ class AppTheme {
         ),
       ),
 
+      // Neutral outline — no filled primary/blue CTAs app-wide.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(
@@ -149,19 +150,38 @@ class AppTheme {
             ),
           ),
           elevation: const WidgetStatePropertyAll(AppElevation.level0),
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
+          backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+          side: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
-              return colors.primaryDisabled;
+              return BorderSide(color: colors.borderSubtle);
             }
-            if (states.contains(WidgetState.pressed)) {
-              return colors.primaryPressed;
-            }
-            if (states.contains(WidgetState.hovered)) {
-              return colors.primaryHover;
-            }
-            return colors.primary;
+            return BorderSide(color: colors.borderDefault);
           }),
-          foregroundColor: WidgetStatePropertyAll(colors.onPrimary),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return colors.textTertiary;
+            }
+            return colors.textPrimary;
+          }),
+          textStyle: const WidgetStatePropertyAll(AppTypography.labelLarge),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(
+            Size(double.infinity, AppComponentTokens.buttonHeightMd),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+          ),
+          backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: colors.borderDefault),
+          ),
+          foregroundColor: WidgetStatePropertyAll(colors.textPrimary),
           textStyle: const WidgetStatePropertyAll(AppTypography.labelLarge),
         ),
       ),
@@ -184,6 +204,17 @@ class AppTheme {
           }),
           foregroundColor: WidgetStatePropertyAll(colors.textPrimary),
           textStyle: const WidgetStatePropertyAll(AppTypography.labelLarge),
+        ),
+      ),
+
+      // Dialog actions (Cancel / Save) stay neutral — no primary blue fill.
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: colors.textPrimary,
+          disabledForegroundColor: colors.textTertiary,
+          textStyle: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
 

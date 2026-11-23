@@ -39,8 +39,8 @@ class YardRotaApp extends StatefulWidget {
     StageOneRepository? stageOneRepository,
     StageTwoRepository? stageTwoRepository,
     StageThreeRepository? stageThreeRepository,
-    this.initialThemeMode = ThemeMode.system,
-    this.initialLightHomeWallpaper = LightHomeWallpaper.classic,
+    this.initialThemeMode = kDefaultThemeMode,
+    this.initialLightHomeWallpaper = kDefaultLightHomeWallpaper,
     this.initialDarkHomeWallpaper = DarkHomeWallpaper.nightMesh,
   }) : _apiClient = apiClient,
        _localDb = localDb,
@@ -286,6 +286,9 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     setState(() {
       _session = null;
       _loginError = null;
+      // Signed-out shell uses app defaults (saved prefs still win on next cold start).
+      _themeMode = kDefaultThemeMode;
+      _lightHomeWallpaper = kDefaultLightHomeWallpaper;
     });
     await _localDb.clearAllUserData();
   }

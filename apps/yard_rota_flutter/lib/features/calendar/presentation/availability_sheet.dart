@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
-import '../../../core/ui/app_button.dart';
+import '../../../core/ui/app_modal_actions.dart';
 
+/// Month grid + action panel: pick a status brush, paint days by tapping,
+/// notes via long-press modal (compact preview in the action panel).
 class AvailabilitySheet extends StatefulWidget {
   const AvailabilitySheet({
     super.key,
@@ -20,66 +22,55 @@ class AvailabilitySheet extends StatefulWidget {
 }
 
 class _AvailabilitySheetState extends State<AvailabilitySheet> {
-  late final List<DateTime> _dateOptions;
-
+  late DateTime _visibleMonth;
   late AvailabilityStatus _activeStatus;
   late List<String> _selectedDates;
   late Map<String, AvailabilityStatus> _statusByDate;
-
-  final ScrollController _dayCarouselController = ScrollController();
-  bool _dayCarouselArrowsDismissed = false;
+  late Map<String, String> _commentsByDate;
+  late Set<String> _commentEdited;
+  late final DateTime _today;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+    _visibleMonth = DateTime(widget.anchorDate.year, widget.anchorDate.month);
+    final clickedYmd = _toYmd(widget.anchorDate);
 
-    final anchorStart = DateTime(
-      widget.anchorDate.year,
-      widget.anchorDate.month,
-      widget.anchorDate.day,
-    );
-    final anchorEnd = DateTime(
-      widget.anchorDate.year,
-      widget.anchorDate.month + 1,
-      widget.anchorDate.day,
-    );
-    final daysInWindow = anchorEnd.difference(anchorStart).inDays + 1;
+    _statusByDate = <String, AvailabilityStatus>{
+      for (final entry in widget.availabilityByDate.entries)
+        entry.key: entry.value.status,
+    };
+    _commentsByDate = <String, String>{
+      for (final entry in widget.availabilityByDate.entries)
+        if ((entry.value.comment ?? '').trim().isNotEmpty)
+          entry.key: entry.value.comment!.trim(),
+    };
+    _commentEdited = <String>{};
 
-    _dateOptions = List<DateTime>.generate(
-      daysInWindow,
-      (index) => DateTime(
-        widget.anchorDate.year,
-        widget.anchorDate.month,
-        widget.anchorDate.day + index,
-      ),
-    );
-
-    final clickedDateYmd = _toYmd(widget.anchorDate);
-    final seededStatuses = <String, AvailabilityStatus>{};
-    for (final option in _dateOptions) {
-      final ymd = _toYmd(option);
-      final existing = widget.availabilityByDate[ymd];
-      if (existing != null) {
-        seededStatuses[ymd] = existing.status;
-      }
-    }
-
-    _selectedDates = <String>[clickedDateYmd];
-    _statusByDate = seededStatuses;
+    // Brush starts on the clicked day's current status; paint only on day taps.
+    _selectedDates = <String>[clickedYmd];
     _activeStatus =
-        seededStatuses[clickedDateYmd] ?? AvailabilityStatus.available;
+        _statusByDate[clickedYmd] ?? AvailabilityStatus.available;
   }
 
-  @override
-  void dispose() {
-    _dayCarouselController.dispose();
-    super.dispose();
+  /// Day shown in the compact note preview (single selection preferred).
+  String? get _previewNoteYmd {
+    if (_selectedDates.length == 1) return _selectedDates.first;
+    return null;
+  }
+
+  String get _previewNoteText {
+    final ymd = _previewNoteYmd;
+    if (ymd == null) return '';
+    return _commentsByDate[ymd]?.trim() ?? '';
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    const modalSurfaceOpacity = 0.5;
+    const modalSurfaceOpacity = 0.55;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -94,505 +85,467 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.borderDefault),
       ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.sm + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      // Slightly below geometric centre: optical balance with the
-                      // action bar and header weight reads more centred.
-                      child: Align(
-                        alignment: const Alignment(0, 0.95),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildStatusPicker(context),
-                            const SizedBox(height: AppSpacing.md),
-                            _buildDateCarousel(context),
-                            const SizedBox(height: AppSpacing.md),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.sm,
               ),
+              physics: const ClampingScrollPhysics(),
+              child: _buildMonthGrid(context),
             ),
-            _buildActions(context),
-          ],
-        ),
+          ),
+          _buildActionPanel(context),
+        ],
       ),
     );
   }
 
-  Widget _buildDateCarousel(BuildContext context) {
+  /// Sticky action panel under the month grid — transparent like the sheet.
+  Widget _buildActionPanel(BuildContext context) {
     final colors = context.appColors;
-    const carouselHeight = 132.0;
-    const dayCardWidth = 104.0;
-    const gutter = 22.0;
-
-    Widget sideArrow({required bool isLeft}) {
-      return Align(
-        alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
-        child: IgnorePointer(
-          child: SizedBox(
-            width: gutter,
-            height: carouselHeight,
-            child: Center(
-              child: Icon(
-                isLeft ? Icons.chevron_left : Icons.chevron_right,
-                size: 28,
-                color: colors.primary.withValues(alpha: 0.55),
-              ),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Set availability as',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: carouselHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final n = _dateOptions.length;
-          final totalContentWidth =
-              n * dayCardWidth + (n > 0 ? (n - 1) * AppSpacing.sm : 0);
-          final scrollable = totalContentWidth > constraints.maxWidth + 0.5;
-          final showArrows = scrollable && !_dayCarouselArrowsDismissed;
-
-          return Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              NotificationListener<ScrollNotification>(
-                onNotification: (ScrollNotification n) {
-                  if (_dayCarouselArrowsDismissed || !scrollable) {
-                    return false;
-                  }
-                  if (!n.metrics.hasPixels) {
-                    return false;
-                  }
-                  if (n is ScrollUpdateNotification &&
-                      (n.scrollDelta?.abs() ?? 0) > 0) {
-                    setState(() => _dayCarouselArrowsDismissed = true);
-                  }
-                  return false;
-                },
-                child: ListView.separated(
-                  controller: _dayCarouselController,
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: gutter),
-                  itemCount: n,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final optionDate = _dateOptions[index];
-                    final ymd = _toYmd(optionDate);
-                    final isSelected = _selectedDates.contains(ymd);
-                    final storedStatus =
-                        _statusByDate[ymd] ??
-                        widget.availabilityByDate[ymd]?.status;
-                    final tone = _toneForStatus(context, storedStatus);
-                    final hasSavedStatus = storedStatus != null;
-                    final cardColor = isSelected
-                        ? tone.background
-                        : hasSavedStatus
-                        ? tone.background.withValues(alpha: 0.55)
-                        : colors.bgPrimary.withValues(alpha: 0.65);
-                    final borderColor = isSelected
-                        ? tone.border
-                        : hasSavedStatus
-                        ? tone.border.withValues(alpha: 0.70)
-                        : colors.borderDefault;
-                    final dayTextColor = (isSelected || hasSavedStatus)
-                        ? tone.text
-                        : colors.textPrimary;
-
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      onTap: () => _toggleDate(ymd),
-                      child: AnimatedContainer(
-                        duration: AppMotion.normal,
-                        width: dayCardWidth,
-                        height: carouselHeight,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: borderColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.shadow.withValues(
-                                alpha: isSelected ? 0.16 : 0.08,
-                              ),
-                              blurRadius: isSelected ? 12 : 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              _weekdayLabel(optionDate),
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: (isSelected || hasSavedStatus)
-                                        ? dayTextColor.withValues(alpha: 0.82)
-                                        : colors.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.3,
-                                  ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              _ordinalDay(optionDate.day),
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: dayTextColor,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.05,
-                                  ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _monthShortLabel(optionDate),
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: (isSelected || hasSavedStatus)
-                                        ? dayTextColor.withValues(alpha: 0.78)
-                                        : colors.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.4,
-                                  ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              _statusLabelForDisplay(
-                                _statusByDate[ymd] ??
-                                    widget.availabilityByDate[ymd]?.status,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: colors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              if (showArrows) sideArrow(isLeft: true),
-              if (showArrows) sideArrow(isLeft: false),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusPicker(BuildContext context) {
-    final colors = context.appColors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          'Set availability as',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: colors.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: AppSpacing.sm),
+          Row(
             children: [
               for (var i = 0; i < AvailabilityStatus.values.length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.xs),
-                _buildFloatingStatusPill(context, AvailabilityStatus.values[i]),
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _buildStatusCard(
+                    context,
+                    AvailabilityStatus.values[i],
+                  ),
+                ),
               ],
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFloatingStatusPill(
-    BuildContext context,
-    AvailabilityStatus status,
-  ) {
-    final colors = context.appColors;
-    final selected = _activeStatus == status;
-    final tone = _toneForStatus(context, status);
-    final radius = BorderRadius.circular(AppRadius.sm);
-
-    return Material(
-      color: Colors.transparent,
-      elevation: 0,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: () => setState(() => _activeStatus = status),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: selected ? tone.background : colors.bgSecondary,
-            borderRadius: radius,
-            border: Border.all(
-              color: selected ? tone.border : colors.borderDefault,
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.shadow.withValues(alpha: selected ? 0.18 : 0.12),
-                blurRadius: selected ? 6 : 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 36),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _statusIcon(status),
-                    size: 14,
-                    color: selected ? tone.text : colors.textSecondary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    _statusLabel(status),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: selected ? tone.text : colors.textPrimary,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActions(BuildContext context) {
-    final colors = context.appColors;
-    return Container(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.borderSubtle)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: AppComponentTokens.buttonHeightMd,
-              child: AppButton(
-                label: 'Cancel',
-                variant: AppButtonVariant.secondary,
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: SizedBox(
-              height: AppComponentTokens.buttonHeightMd,
-              child: AppButton(
-                label: 'Save',
-                variant: AppButtonVariant.secondary,
-                onPressed: _selectedDates.isEmpty ? null : _save,
-              ),
-            ),
+          const SizedBox(height: AppSpacing.sm),
+          _buildNotePreview(context),
+          const SizedBox(height: AppSpacing.md),
+          AppModalActions(
+            onCancel: () => Navigator.of(context).pop(),
+            onConfirm: _selectedDates.isEmpty ? null : _save,
+            confirmEnabled: _selectedDates.isNotEmpty,
           ),
         ],
       ),
     );
   }
 
-  IconData _statusIcon(AvailabilityStatus status) {
-    switch (status) {
-      case AvailabilityStatus.available:
-        return Icons.check_circle_outline;
-      case AvailabilityStatus.unavailable:
-        return Icons.remove_circle_outline;
-      case AvailabilityStatus.holiday:
-        return Icons.beach_access_outlined;
+  /// Compact note strip — edit only via long-press on a day.
+  Widget _buildNotePreview(BuildContext context) {
+    final colors = context.appColors;
+    final ymd = _previewNoteYmd;
+    final note = _previewNoteText;
+    final hasNote = note.isNotEmpty;
+
+    final String label;
+    if (ymd == null) {
+      label = 'Hold a day to add a note';
+    } else if (hasNote) {
+      final clipped = note.length > 42 ? '${note.substring(0, 42)}…' : note;
+      label = clipped;
+    } else {
+      label = 'No note · hold day to add';
     }
+
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: hasNote ? colors.textPrimary : colors.textSecondary,
+        fontWeight: hasNote ? FontWeight.w500 : FontWeight.w400,
+      ),
+    );
   }
 
-  void _toggleDate(String ymd) {
-    final isSelected = _selectedDates.contains(ymd);
-    final existingStatus =
-        _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
+  Widget _buildStatusCard(BuildContext context, AvailabilityStatus status) {
+    final colors = context.appColors;
+    final selected = _activeStatus == status;
+    final tone = _toneForStatus(context, status);
+    final radius = BorderRadius.circular(AppRadius.sm);
+    final fg = selected ? tone.text : colors.textSecondary;
 
-    if (!isSelected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: () => setState(() {
+          // Brush only — days change when painted via tap.
+          _activeStatus = status;
+        }),
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          height: AppNavPill.chipHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: selected ? tone.background : colors.bgSecondary,
+            borderRadius: radius,
+            border: Border.all(
+              color: selected ? tone.border : colors.borderDefault,
+              width: selected ? AppStroke.medium : AppStroke.thin,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _statusIcon(status),
+                size: AppNavPill.chipIconSize,
+                color: fg,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  _statusLabel(status),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: selected ? tone.text : colors.textPrimary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthGrid(BuildContext context) {
+    final colors = context.appColors;
+    final year = _visibleMonth.year;
+    final month = _visibleMonth.month;
+    final daysInMonth = DateUtils.getDaysInMonth(year, month);
+    final leading = DateTime(year, month, 1).weekday - 1;
+    final totalCells = leading + daysInMonth;
+    final monthLabel = '${_monthName(month)} $year';
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => setState(() {
+                _visibleMonth = DateTime(year, month - 1);
+              }),
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Previous month',
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Text(
+                monthLabel,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () => setState(() {
+                _visibleMonth = DateTime(year, month + 1);
+              }),
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Next month',
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        Row(
+          children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+              .map(
+                (label) => Expanded(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: totalCells,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: 1,
+            crossAxisSpacing: AppSpacing.xs,
+            mainAxisSpacing: AppSpacing.xs,
+          ),
+          itemBuilder: (context, index) {
+            if (index < leading) return const SizedBox.shrink();
+            final day = index - leading + 1;
+            final date = DateTime(year, month, day);
+            final ymd = _toYmd(date);
+            final isPast = date.isBefore(_today);
+            final status =
+                _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
+            final hasComment =
+                (_commentsByDate[ymd]?.trim().isNotEmpty ?? false);
+            final tone = _toneForStatus(context, status);
+            final isToday = _isSameDay(date, _today);
+
+            // Days only wear status color — no selection ticks or blue overlays.
+            final Color fill;
+            final Color borderColor;
+            final Color textColor;
+            if (status != null) {
+              fill = tone.background;
+              borderColor = tone.border;
+              textColor = tone.text;
+            } else {
+              fill = colors.bgSecondary.withValues(alpha: 0.55);
+              borderColor = isToday ? colors.primary : colors.borderDefault;
+              textColor = colors.textPrimary;
+            }
+
+            return Opacity(
+              opacity: isPast ? 0.4 : 1,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  onTap: isPast ? null : () => _onDateTap(ymd),
+                  onLongPress: isPast ? null : () => _openNoteEditor(ymd),
+                  child: AnimatedContainer(
+                    duration: AppMotion.fast,
+                    decoration: BoxDecoration(
+                      color: fill,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(
+                        color: borderColor,
+                        width: isToday ? 2 : 1,
+                      ),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Center(
+                          child: Text(
+                            '$day',
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                        if (hasComment)
+                          const Positioned(
+                            right: 2,
+                            bottom: 2,
+                            child: Icon(
+                              Icons.chat_bubble,
+                              size: 9,
+                              color: AppPrimitives.amber500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openNoteEditor(String ymd) async {
+    // Long-press includes the day in the save set without painting status.
+    if (!_selectedDates.contains(ymd)) {
       setState(() {
         _selectedDates = <String>[..._selectedDates, ymd];
-        _statusByDate[ymd] = _activeStatus;
       });
-      return;
     }
 
-    if (existingStatus != _activeStatus) {
-      setState(() {
-        _statusByDate[ymd] = _activeStatus;
-      });
-      return;
-    }
+    final initial = _commentsByDate[ymd] ?? '';
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return _AvailabilityNoteDialog(
+          dateLabel: _friendlyDateLabel(_parseYmd(ymd)),
+          initialComment: initial,
+        );
+      },
+    );
 
-    if (_selectedDates.length == 1) {
-      return;
-    }
+    if (!mounted || result == null) return;
 
     setState(() {
-      _selectedDates = _selectedDates.where((date) => date != ymd).toList();
+      final trimmed = result.trim();
+      _commentEdited.add(ymd);
+      if (trimmed.isEmpty) {
+        _commentsByDate.remove(ymd);
+      } else {
+        _commentsByDate[ymd] = trimmed;
+      }
+    });
+  }
+
+  /// Select a day (or re-apply active status). Never deselects on second tap.
+  void _onDateTap(String ymd) {
+    setState(() {
+      if (!_selectedDates.contains(ymd)) {
+        _selectedDates = <String>[..._selectedDates, ymd];
+      }
+      _statusByDate[ymd] = _activeStatus;
     });
   }
 
   void _save() {
     final items = _selectedDates
-        .map(
-          (ymd) => SaveAvailabilityItem(
+        .map((ymd) {
+          final edited = _commentEdited.contains(ymd);
+          return SaveAvailabilityItem(
             dateYmd: ymd,
             status:
                 _statusByDate[ymd] ??
                 widget.availabilityByDate[ymd]?.status ??
                 _activeStatus,
-          ),
-        )
+            comment: edited ? (_commentsByDate[ymd] ?? '') : null,
+            applyComment: edited,
+          );
+        })
         .toList(growable: false);
 
+    // Request-level comment kept for older call sites / single-day PWA parity.
+    final singleEdited = items.length == 1 && items.first.applyComment;
     Navigator.of(context).pop(
-      SaveAvailabilityRequest(items: items, comment: '', applyComment: false),
+      SaveAvailabilityRequest(
+        items: items,
+        comment: singleEdited ? (items.first.comment ?? '') : '',
+        applyComment: singleEdited,
+      ),
     );
   }
 
+  IconData _statusIcon(AvailabilityStatus status) => switch (status) {
+    AvailabilityStatus.available => Icons.check_circle_outline,
+    AvailabilityStatus.unavailable => Icons.block_flipped,
+    AvailabilityStatus.holiday => Icons.beach_access_outlined,
+  };
+
+  String _statusLabel(AvailabilityStatus status) => switch (status) {
+    AvailabilityStatus.available => 'Available',
+    AvailabilityStatus.unavailable => 'Unavailable',
+    AvailabilityStatus.holiday => 'Holiday',
+  };
+
   _StatusTone _toneForStatus(BuildContext context, AvailabilityStatus? status) {
     final colors = context.appColors;
-
-    switch (status) {
-      case AvailabilityStatus.available:
-        return _StatusTone(
-          background: colors.successBg,
-          border: colors.success,
-          text: colors.success,
-        );
-      case AvailabilityStatus.unavailable:
-        return _StatusTone(
-          background: colors.dangerBg,
-          border: colors.danger,
-          text: colors.danger,
-        );
-      case AvailabilityStatus.holiday:
-        return _StatusTone(
-          background: colors.infoBg,
-          border: colors.info,
-          text: colors.info,
-        );
-      case null:
-        return _StatusTone(
-          background: colors.bgSecondary,
-          border: colors.borderDefault,
-          text: colors.textSecondary,
-        );
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return switch (status) {
+      AvailabilityStatus.available => _StatusTone(
+        background: AppAvailabilityTones.availableBg(colors),
+        border: AppAvailabilityTones.available(colors),
+        text: AppAvailabilityTones.available(colors),
+      ),
+      AvailabilityStatus.unavailable => _StatusTone(
+        background: AppAvailabilityTones.unavailableBg(isDark: isDark),
+        border: AppAvailabilityTones.unavailable(isDark: isDark),
+        text: AppAvailabilityTones.unavailable(isDark: isDark),
+      ),
+      AvailabilityStatus.holiday => _StatusTone(
+        background: AppAvailabilityTones.holidayBg(isDark: isDark),
+        border: AppAvailabilityTones.holiday(isDark: isDark),
+        text: AppAvailabilityTones.holiday(isDark: isDark),
+      ),
+      null => _StatusTone(
+        background: colors.bgSecondary,
+        border: colors.borderDefault,
+        text: colors.textSecondary,
+      ),
+    };
   }
 
-  String _statusLabel(AvailabilityStatus status) {
-    switch (status) {
-      case AvailabilityStatus.available:
-        return 'Available';
-      case AvailabilityStatus.unavailable:
-        return 'Unavailable';
-      case AvailabilityStatus.holiday:
-        return 'Holiday';
-    }
-  }
-
-  String _statusLabelForDisplay(AvailabilityStatus? status) {
-    if (status == null) {
-      return 'Not set';
-    }
-    return _statusLabel(status);
-  }
-
-  String _weekdayLabel(DateTime date) {
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return labels[date.weekday - 1];
-  }
-
-  String _ordinalDay(int day) {
-    if (day >= 11 && day <= 13) {
-      return '${day}th';
-    }
-    switch (day % 10) {
-      case 1:
-        return '${day}st';
-      case 2:
-        return '${day}nd';
-      case 3:
-        return '${day}rd';
-      default:
-        return '${day}th';
-    }
-  }
-
-  String _monthShortLabel(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+  String _friendlyDateLabel(DateTime date) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
     ];
-    return months[date.month - 1];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${weekdays[date.weekday - 1]} ${date.day} ${months[date.month - 1]}';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[month - 1];
+  }
+
+  DateTime _parseYmd(String ymd) {
+    final parts = ymd.split('-');
+    return DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
   }
 
   String _toYmd(DateTime date) {
@@ -601,6 +554,11 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
     final d = date.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
+
+  bool _isSameDay(DateTime left, DateTime right) =>
+      left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
 }
 
 class _StatusTone {
@@ -613,4 +571,123 @@ class _StatusTone {
   final Color background;
   final Color border;
   final Color text;
+}
+
+/// Note editor — calendar palette (amber note tone), no primary blue.
+class _AvailabilityNoteDialog extends StatefulWidget {
+  const _AvailabilityNoteDialog({
+    required this.dateLabel,
+    required this.initialComment,
+  });
+
+  final String dateLabel;
+  final String initialComment;
+
+  @override
+  State<_AvailabilityNoteDialog> createState() =>
+      _AvailabilityNoteDialogState();
+}
+
+class _AvailabilityNoteDialogState extends State<_AvailabilityNoteDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialComment);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final focus = AppAvailabilityTones.unavailable(isDark: isDark);
+    final radius = BorderRadius.circular(AppRadius.md);
+
+    return Dialog(
+      backgroundColor: colors.bgElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: colors.borderDefault),
+      ),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Note',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              widget.dateLabel,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _controller,
+              maxLines: 4,
+              cursorColor: focus,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w400,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Add a comment for this day…',
+                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textTertiary,
+                  fontWeight: FontWeight.w400,
+                ),
+                isDense: true,
+                filled: true,
+                fillColor: colors.bgSecondary,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppComponentTokens.inputHorizontalPadding,
+                  vertical: AppComponentTokens.inputVerticalPadding,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: radius,
+                  borderSide: BorderSide(color: colors.borderDefault),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: radius,
+                  borderSide: BorderSide(color: colors.borderDefault),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: radius,
+                  borderSide: BorderSide(
+                    color: focus,
+                    width: AppStroke.medium,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppModalActions(
+              onCancel: () => Navigator.of(context).pop(),
+              onConfirm: () => Navigator.of(context).pop(_controller.text),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

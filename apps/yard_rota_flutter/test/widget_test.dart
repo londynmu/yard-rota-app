@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yard_rota_flutter/app.dart';
 import 'package:yard_rota_flutter/core/ui/app_toast.dart';
 import 'package:yard_rota_flutter/core/network/models.dart';
@@ -14,6 +15,10 @@ import 'package:yard_rota_flutter/features/stats/domain/stats_models.dart';
 import 'support/mock_api_client.dart';
 
 void main() {
+  setUpAll(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
   testWidgets('shows login screen when no session is restored', (tester) async {
     await tester.pumpWidget(YardRotaApp(apiClient: _NoSessionClient()));
 
@@ -33,8 +38,9 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), 'user@yardrota.com');
     await tester.enterText(find.byType(TextField).at(1), 'yard123');
     await tester.pump();
-    final signInButton = tester.widget<ElevatedButton>(
-      find.byType(ElevatedButton),
+    // Primary AppButton is an OutlinedButton (neutral outline style).
+    final signInButton = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'Sign in'),
     );
     expect(signInButton.onPressed, isNotNull);
     await tester.tap(find.text('Sign in'));

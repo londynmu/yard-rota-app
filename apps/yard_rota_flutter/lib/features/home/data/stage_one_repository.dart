@@ -309,6 +309,9 @@ class StageOneRepository {
     _ => null,
   };
 
+  /// True while the user's shift window is active (same 1h buffer before
+  /// `start_time` as web [getShiftWindow] / [loadTodayShift]) until shift end,
+  /// and only when no pre-shift PreCheck exists for that window.
   Future<bool> needsPreCheck({required String userId, DateTime? now}) async {
     final instant = now ?? DateTime.now();
     final shift = await loadTodayShift(userId: userId, now: instant);
@@ -316,6 +319,9 @@ class StageOneRepository {
     final start = _dateTime(shift.dateYmd, shift.startTime);
     var end = _dateTime(shift.dateYmd, shift.endTime);
     if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
+    // Match web PreCheckReminder: show from 1h before start through shift end.
+    final windowStart = start.subtract(const Duration(hours: 1));
+    if (instant.isBefore(windowStart)) return false;
     if (instant.isAfter(end)) return false;
     final existing = await _client
         .from('precheck_submissions')
@@ -329,15 +335,11 @@ class StageOneRepository {
     return existing == null;
   }
 
+  /// Full award history (no 3-month cutoff) — same as web ShunterOfTheMonthCard.
   Future<List<MonthlyShunterAward>> loadRecentAwards({DateTime? now}) async {
-    final instant = now ?? DateTime.now();
-    final from = DateTime(instant.year, instant.month - 3, 1);
-    final to = DateTime(instant.year, instant.month, 1);
     final rows = await _client
         .from('monthly_shunter_awards')
         .select('id,award_month,period,profiles:user_id(first_name,last_name)')
-        .gte('award_month', BreakWindowLogic.toYmd(from))
-        .lte('award_month', BreakWindowLogic.toYmd(to))
         .order('award_month', ascending: false)
         .order('period');
     return rows

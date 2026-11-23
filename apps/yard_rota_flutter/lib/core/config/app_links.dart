@@ -37,6 +37,6 @@ Future<void> openAppLink(BuildContext context, Uri uri) async {
     mode: LaunchMode.externalApplication,
   ).catchError((_) => false);
   if (!opened && context.mounted) {
-    AppToast.show(context, 'Could not open the link. Try again later.');
+    AppToast.error(context, 'Could not open the link. Try again later.');
   }
 }

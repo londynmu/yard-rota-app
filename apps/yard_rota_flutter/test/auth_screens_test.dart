@@ -88,7 +88,7 @@ void main() {
     await tester.enterText(fields.at(0), 'new@yardrota.com');
     await tester.enterText(fields.at(1), 'Yard-Rota1');
     await tester.enterText(fields.at(2), 'Yard-Rota1');
-    final submit = find.widgetWithText(ElevatedButton, 'Create account');
+    final submit = find.widgetWithText(OutlinedButton, 'Create account');
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();

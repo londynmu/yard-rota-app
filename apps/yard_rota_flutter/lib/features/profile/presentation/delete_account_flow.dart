@@ -4,8 +4,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/network_policy.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import 'profile_option_sheet.dart';
 
 /// Asks for the password, deletes the signed-in account, then runs
 /// [onDeleted] (sign-out and local data wipe). Returns true when the account
@@ -25,7 +27,7 @@ Future<bool> confirmAndDeleteAccount(
     await apiClient.deleteAccount(password: password);
   } on AccountDeletionException catch (error) {
     if (context.mounted) {
-      AppToast.show(context, switch (error.reason) {
+      AppToast.error(context, switch (error.reason) {
         AccountDeletionFailure.incorrectPassword =>
           'Incorrect password. Try again.',
         AccountDeletionFailure.reauthRequired =>
@@ -37,7 +39,7 @@ Future<bool> confirmAndDeleteAccount(
     return false;
   } catch (_) {
     if (context.mounted) {
-      AppToast.show(context, 'Could not delete your account. Try again.');
+      AppToast.error(context, 'Could not delete your account. Try again.');
     }
     return false;
   }
@@ -72,18 +74,31 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final danger = context.appColors.danger;
+    final colors = context.appColors;
+    final canDelete = _password.text.isNotEmpty;
     return AlertDialog(
-      title: const Text('Delete account'),
+      backgroundColor: colors.bgElevated,
+      surfaceTintColor: Colors.transparent,
+      shape: profileDialogShape(colors),
+      title: Text(
+        'Delete account',
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: colors.textPrimary,
+        ),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Your name, email, photo, availability and notes will be '
             'permanently removed and you will be signed out. PreCheck and '
             'safety records stay on file without your name. This cannot be '
             'undone.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           AppTextField(
@@ -94,22 +109,47 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _submit(),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: AppComponentTokens.buttonHeightMd,
+                  child: AppButton(
+                    label: 'Cancel',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: SizedBox(
+                  height: AppComponentTokens.buttonHeightMd,
+                  child: OutlinedButton(
+                    onPressed: canDelete ? _submit : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.danger,
+                      disabledForegroundColor: colors.textTertiary,
+                      side: BorderSide(
+                        color: canDelete
+                            ? colors.danger
+                            : colors.borderDefault,
+                        width: AppStroke.medium,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
+                    child: const Text('Delete'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        OutlinedButton(
-          onPressed: _password.text.isEmpty ? null : _submit,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: danger,
-            side: BorderSide(color: danger),
-          ),
-          child: const Text('Delete account'),
-        ),
-      ],
+      actions: const [],
     );
   }
 }

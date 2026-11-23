@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/network/models.dart';
@@ -8,8 +6,11 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
+import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_modal_actions.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../data/my_rota_preferences.dart';
 import '../data/my_rota_repository.dart';
 import '../domain/my_rota_week_logic.dart';
@@ -128,33 +129,12 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
         _loading = false;
         _error = 'Failed to load. Check connection and try again.';
       });
-      AppToast.show(context, _error!);
+      AppToast.error(context, _error!);
     }
   }
 
   GlobalKey _fullRotaDayKey(String ymd) =>
       _fullRotaDayKeys.putIfAbsent(ymd, GlobalKey.new);
-
-  void _openFullRotaDay(String ymd) {
-    setState(() {
-      _expandedDayYmd = ymd;
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      final keyContext = _fullRotaDayKeys[ymd]?.currentContext;
-      if (keyContext == null) {
-        return;
-      }
-      Scrollable.ensureVisible(
-        keyContext,
-        duration: AppMotion.normal,
-        curve: AppMotion.emphasized,
-        alignment: 0.18,
-      );
-    });
-  }
 
   Future<void> _fetchWeek() async {
     setState(() {
@@ -194,7 +174,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
         _loading = false;
         _error = 'Failed to load rota.';
       });
-      AppToast.show(context, _error!);
+      AppToast.error(context, _error!);
     }
   }
 
@@ -202,6 +182,17 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     final end = _weekStartSaturday.add(const Duration(days: 6));
     String md(DateTime d) => '${d.day} ${_monthAbbr[d.month - 1]}';
     return '${md(_weekStartSaturday)} – ${md(end)}';
+  }
+
+  /// Same style as PWA `Week ${getWeek(weekStart)}` (Sunday-based local week).
+  String _weekFilterLabel() => 'Week ${_localWeekNumber(_weekStartSaturday)}';
+
+  static int _localWeekNumber(DateTime date) {
+    final local = DateTime(date.year, date.month, date.day);
+    final jan1 = DateTime(local.year, 1, 1);
+    final dayOfYear = local.difference(jan1).inDays;
+    final jan1SunOffset = jan1.weekday % 7; // Sun → 0
+    return ((dayOfYear + jan1SunOffset) / 7).floor() + 1;
   }
 
   String _shiftFilterLabel() {
@@ -229,193 +220,83 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     await writeSavedMyRotaShiftType(value);
   }
 
-  Future<void> _openWeekSheet() async {
-    await showModalBottomSheet<void>(
+  Future<T?> _showFilterSheet<T>({required WidgetBuilder builder}) {
+    final colors = context.appColors;
+    return showModalBottomSheet<T>(
       context: context,
-      backgroundColor: context.appColors.bgElevated,
+      isScrollControlled: true,
+      backgroundColor: colors.bgElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        side: BorderSide(color: colors.borderDefault),
       ),
-      builder: (ctx) {
-        final colors = ctx.appColors;
-        return Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Select week',
-                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _weekStartSaturday = myRotaWeekStartSaturday(
-                      _weekStartSaturday.subtract(const Duration(days: 7)),
-                    );
-                  });
-                  _fetchWeek();
-                },
-                child: const Text('Previous week'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _weekStartSaturday = myRotaWeekStartSaturday(
-                      DateTime.now(),
-                    );
-                  });
-                  _fetchWeek();
-                },
-                child: const Text('Current week'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _weekStartSaturday = _weekStartSaturday.add(
-                      const Duration(days: 7),
-                    );
-                  });
-                  _fetchWeek();
-                },
-                child: const Text('Next week'),
-              ),
-              SizedBox(
-                height: MediaQuery.paddingOf(ctx).bottom + AppSpacing.sm,
-              ),
-            ],
-          ),
-        );
-      },
+      builder: builder,
     );
+  }
+
+  Future<void> _openWeekSheet() async {
+    final picked = await _showFilterSheet<String>(
+      builder: (_) => _MyRotaPickerSheet(
+        title: 'Select week',
+        subtitle: _weekRangeLabel(),
+        options: const [
+          (value: 'prev', label: 'Previous week'),
+          (value: 'current', label: 'Current week'),
+          (value: 'next', label: 'Next week'),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (picked == 'prev') {
+        _weekStartSaturday = myRotaWeekStartSaturday(
+          _weekStartSaturday.subtract(const Duration(days: 7)),
+        );
+      } else if (picked == 'current') {
+        _weekStartSaturday = myRotaWeekStartSaturday(DateTime.now());
+      } else if (picked == 'next') {
+        _weekStartSaturday = _weekStartSaturday.add(const Duration(days: 7));
+      }
+    });
+    await _fetchWeek();
   }
 
   Future<void> _openLocationSheet() async {
-    if (_locations.isEmpty) {
-      return;
-    }
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.appColors.bgElevated,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+    if (_locations.isEmpty) return;
+    final picked = await _showFilterSheet<String>(
+      builder: (_) => _MyRotaPickerSheet(
+        title: 'Select location',
+        subtitle: 'Filter the rota list',
+        selectedValue: _locationName,
+        options: [
+          for (final loc in _locations) (value: loc.name, label: loc.name),
+        ],
       ),
-      builder: (ctx) {
-        final colors = ctx.appColors;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Select location',
-                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ListView(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    for (final loc in _locations)
-                      ListTile(
-                        title: Text(
-                          loc.name,
-                          style: TextStyle(
-                            color: loc.name == _locationName
-                                ? colors.primary
-                                : colors.textPrimary,
-                            fontWeight: loc.name == _locationName
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          setState(() => _locationName = loc.name);
-                          await _persistLocation(loc.name);
-                          _fetchWeek();
-                        },
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
+    if (picked == null || !mounted || picked == _locationName) return;
+    setState(() => _locationName = picked);
+    await _persistLocation(picked);
+    await _fetchWeek();
   }
 
   Future<void> _openShiftSheet() async {
-    Future<void> pick(String value) async {
-      Navigator.pop(context);
-      setState(() => _shiftFilter = value);
-      await _persistShift(value);
-      _fetchWeek();
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.appColors.bgElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+    final picked = await _showFilterSheet<String>(
+      builder: (_) => _MyRotaPickerSheet(
+        title: 'Select shift type',
+        subtitle: 'Filter the rota list',
+        selectedValue: _shiftFilter,
+        options: const [
+          (value: MyRotaRepository.kShiftAll, label: 'All shifts'),
+          (value: MyRotaRepository.kShiftDay, label: 'Day'),
+          (value: MyRotaRepository.kShiftAfternoon, label: 'Afternoon'),
+          (value: MyRotaRepository.kShiftNight, label: 'Night'),
+        ],
       ),
-      builder: (ctx) {
-        final colors = ctx.appColors;
-        Widget row(String value, String label) {
-          final sel = _shiftFilter == value;
-          return ListTile(
-            title: Text(
-              label,
-              style: TextStyle(
-                color: sel ? colors.primary : colors.textPrimary,
-                fontWeight: sel ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-            onTap: () => pick(value),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Select shift type',
-                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              row(MyRotaRepository.kShiftAll, 'All shifts'),
-              row(MyRotaRepository.kShiftDay, 'Day'),
-              row(MyRotaRepository.kShiftAfternoon, 'Afternoon'),
-              row(MyRotaRepository.kShiftNight, 'Night'),
-              SizedBox(height: MediaQuery.paddingOf(ctx).bottom),
-            ],
-          ),
-        );
-      },
     );
+    if (picked == null || !mounted || picked == _shiftFilter) return;
+    setState(() => _shiftFilter = picked);
+    await _persistShift(picked);
+    await _fetchWeek();
   }
 
   Future<void> _openAttendanceSheet(MyRotaSlot slot) async {
@@ -465,7 +346,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
       if (!mounted) {
         return;
       }
-      AppToast.show(context, 'Could not save attendance.');
+      AppToast.error(context, 'Could not save attendance.');
     }
   }
 
@@ -490,37 +371,10 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
     return null;
   }
 
-  List<_MyRotaUserShift> _userSlotsForWeek(List<String> weekYmds) {
-    final out = <_MyRotaUserShift>[];
-    for (final ymd in weekYmds) {
-      final date = _parseLocalYmd(ymd);
-      for (final slot in _slotsByDate[ymd] ?? const <MyRotaSlot>[]) {
-        if (_myRotaSameUserId(slot.userId, widget.session.userId) &&
-            slot.displayNameOrNull != null) {
-          out.add(_MyRotaUserShift(date: date, slot: slot));
-        }
-      }
-    }
-    out.sort((a, b) {
-      final dateCompare = a.date.compareTo(b.date);
-      if (dateCompare != 0) {
-        return dateCompare;
-      }
-      final startCompare = a.slot.startTime.compareTo(b.slot.startTime);
-      if (startCompare != 0) {
-        return startCompare;
-      }
-      return a.slot.endTime.compareTo(b.slot.endTime);
-    });
-    return out;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
-    final topContentInset = mq.padding.top + kToolbarHeight;
     final wallpaperPath = homeBackgroundAssetPath(
       brightness: isDark ? Brightness.dark : Brightness.light,
       lightWallpaper: widget.lightHomeWallpaper,
@@ -529,36 +383,6 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [
-                          colors.bgPrimary.withValues(alpha: 0.0),
-                          colors.bgPrimary.withValues(alpha: 0.28),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 0.42),
-                        ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        title: const Text('My Rota'),
-      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -574,7 +398,7 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                topContentInset,
+                mq.padding.top + AppSpacing.sm,
                 AppSpacing.lg,
                 mq.padding.bottom + AppSpacing.lg,
               ),
@@ -585,12 +409,11 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                   : LayoutBuilder(
                       builder: (context, _) {
                         final weekYmds = myRotaWeekDateYmds(_weekStartSaturday);
-                        final userSlots = _userSlotsForWeek(weekYmds);
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _FilterBar(
-                              weekLabel: _weekRangeLabel(),
+                              weekLabel: _weekFilterLabel(),
                               locationLabel: _locationName,
                               shiftLabel: _shiftFilterLabel(),
                               onWeek: _openWeekSheet,
@@ -612,42 +435,30 @@ class _MyRotaScreenState extends State<MyRotaScreen> {
                                     padding: const EdgeInsets.only(
                                       bottom: AppSpacing.lg,
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _YourShiftsSection(
-                                          shifts: userSlots,
-                                          attendance: _attendanceBySlotId,
-                                          onDayTap: _openFullRotaDay,
-                                        ),
-                                        const SizedBox(height: AppSpacing.lg),
-                                        _FullRotaSection(
-                                          weekYmds: weekYmds,
-                                          slotsByDate: _slotsByDate,
-                                          attendance: _attendanceBySlotId,
-                                          attendanceNotes:
-                                              _attendanceNoteBySlotId,
-                                          sessionUserId: widget.session.userId,
-                                          isAdmin: widget.session.isAdmin,
-                                          onSlotAdminTap: _openAttendanceSheet,
-                                          expandedDayYmd: _expandedDayYmd,
-                                          dayKeys: {
-                                            for (final ymd in weekYmds)
-                                              ymd: _fullRotaDayKey(ymd),
-                                          },
-                                          onToggleDay: (ymd) {
-                                            setState(() {
-                                              _expandedDayYmd =
-                                                  _expandedDayYmd == ymd
-                                                  ? null
-                                                  : ymd;
-                                            });
-                                          },
-                                          parseLocalYmd: _parseLocalYmd,
-                                          weekdayUpper: _weekdayUpper,
-                                        ),
-                                      ],
+                                    child: _FullRotaSection(
+                                      weekYmds: weekYmds,
+                                      slotsByDate: _slotsByDate,
+                                      attendance: _attendanceBySlotId,
+                                      attendanceNotes:
+                                          _attendanceNoteBySlotId,
+                                      sessionUserId: widget.session.userId,
+                                      isAdmin: widget.session.isAdmin,
+                                      onSlotAdminTap: _openAttendanceSheet,
+                                      expandedDayYmd: _expandedDayYmd,
+                                      dayKeys: {
+                                        for (final ymd in weekYmds)
+                                          ymd: _fullRotaDayKey(ymd),
+                                      },
+                                      onToggleDay: (ymd) {
+                                        setState(() {
+                                          _expandedDayYmd =
+                                              _expandedDayYmd == ymd
+                                              ? null
+                                              : ymd;
+                                        });
+                                      },
+                                      parseLocalYmd: _parseLocalYmd,
+                                      weekdayUpper: _weekdayUpper,
                                     ),
                                   ),
                                 ),
@@ -777,6 +588,7 @@ class _AttendanceSheetState extends State<_AttendanceSheet> {
                   Expanded(
                     child: AppButton(
                       label: 'Save',
+                      variant: AppButtonVariant.secondary,
                       onPressed: _canSave
                           ? () => Navigator.pop(
                               context,
@@ -804,409 +616,33 @@ class _ErrorBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppAvailabilityTones.award(isDark: isDark);
+    final wash = AppAvailabilityTones.awardBg(isDark: isDark);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.bgElevated.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: colors.borderDefault),
+        child: AppCard(
+          color: Color.alphaBlend(
+            wash.withValues(alpha: isDark ? 0.45 : 0.7),
+            colors.bgElevated,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: colors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MyRotaUserShift {
-  const _MyRotaUserShift({required this.date, required this.slot});
-
-  final DateTime date;
-  final MyRotaSlot slot;
-}
-
-class _MyRotaUserShiftDay {
-  const _MyRotaUserShiftDay({required this.date, required this.shifts});
-
-  final DateTime date;
-  final List<_MyRotaUserShift> shifts;
-}
-
-String _myRotaShortTime(String raw) {
-  if (raw.length >= 5) {
-    return raw.substring(0, 5);
-  }
-  return raw;
-}
-
-String _myRotaOrdinalSuffix(int day) {
-  if (day >= 11 && day <= 13) {
-    return 'th';
-  }
-  return switch (day % 10) {
-    1 => 'st',
-    2 => 'nd',
-    3 => 'rd',
-    _ => 'th',
-  };
-}
-
-class _OrdinalDateText extends StatelessWidget {
-  const _OrdinalDateText({
-    required this.day,
-    required this.style,
-    required this.suffixStyle,
-  });
-
-  final int day;
-  final TextStyle? style;
-  final TextStyle suffixStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: '$day'),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.top,
-            child: Transform.translate(
-              offset: const Offset(0, -3),
-              child: Text(_myRotaOrdinalSuffix(day), style: suffixStyle),
-            ),
-          ),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: style,
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _YourShiftsSection extends StatelessWidget {
-  const _YourShiftsSection({
-    required this.shifts,
-    required this.attendance,
-    required this.onDayTap,
-  });
-
-  final List<_MyRotaUserShift> shifts;
-  final Map<String, MyRotaAttendanceStatus> attendance;
-  final ValueChanged<String> onDayTap;
-
-  List<_MyRotaUserShiftDay> _groupByDay() {
-    final grouped = <String, List<_MyRotaUserShift>>{};
-    for (final shift in shifts) {
-      final ymd = myRotaToYmd(myRotaDateOnly(shift.date));
-      grouped.putIfAbsent(ymd, () => <_MyRotaUserShift>[]).add(shift);
-    }
-    final keys = grouped.keys.toList()..sort();
-    return [
-      for (final key in keys)
-        _MyRotaUserShiftDay(
-          date: grouped[key]!.first.date,
-          shifts: grouped[key]!
-            ..sort((a, b) => a.slot.startTime.compareTo(b.slot.startTime)),
-        ),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final shiftDays = _groupByDay();
-    if (shiftDays.isEmpty) {
-      return _YourShiftsCardShell(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            0,
-            AppSpacing.lg,
-            0,
-          ),
-          child: Text(
-            'No shifts for you this week',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
-          ),
-        ),
-      );
-    }
-    return _YourShiftDayList(
-      days: shiftDays,
-      attendance: attendance,
-      onDayTap: onDayTap,
-    );
-  }
-}
-
-class _YourShiftsCardShell extends StatelessWidget {
-  const _YourShiftsCardShell({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.bgElevated.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: colors.borderDefault),
-          boxShadow: [
-            BoxShadow(
-              color: colors.shadow.withValues(alpha: 0.12),
-              blurRadius: AppElevation.level4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: _SectionHeader(title: 'Your shifts this week'),
-            ),
-            child,
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _YourShiftDayList extends StatelessWidget {
-  const _YourShiftDayList({
-    required this.days,
-    required this.attendance,
-    required this.onDayTap,
-  });
-
-  final List<_MyRotaUserShiftDay> days;
-  final Map<String, MyRotaAttendanceStatus> attendance;
-  final ValueChanged<String> onDayTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return _YourShiftsCardShell(
-      child: Column(
-        children: [
-          for (var i = 0; i < days.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: AppStroke.hairline,
-                color: colors.divider.withValues(alpha: 0.72),
-              ),
-            _YourShiftDayRow(
-              day: days[i],
-              attendance: attendance,
-              onTap: () => onDayTap(myRotaToYmd(myRotaDateOnly(days[i].date))),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _YourShiftDayRow extends StatelessWidget {
-  const _YourShiftDayRow({
-    required this.day,
-    required this.attendance,
-    required this.onTap,
-  });
-
-  final _MyRotaUserShiftDay day;
-  final Map<String, MyRotaAttendanceStatus> attendance;
-  final VoidCallback onTap;
-
-  static const _weekdayFull = <String>[
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final firstShift = day.shifts.first.slot;
-    final weekday = _weekdayFull[day.date.weekday - 1];
-    final location = firstShift.location.trim();
-    final timeText =
-        '${_myRotaShortTime(firstShift.startTime)} - ${_myRotaShortTime(firstShift.endTime)}';
-    final hasTask = day.shifts.any((shift) {
-      final task = shift.slot.task?.trim();
-      return task != null && task.isNotEmpty;
-    });
-    final flaggedAttendance = day.shifts
-        .map((shift) => attendance[shift.slot.id])
-        .whereType<MyRotaAttendanceStatus>()
-        .toList();
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
+          borderColor: accent.withValues(alpha: isDark ? 0.35 : 0.28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: AppMyRotaListSpacing.dayHeaderWeekdayColumnWidth,
-                      child: Text(
-                        weekday,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: AppMyRotaListSpacing.dayHeaderDateColumnWidth,
-                      child: _OrdinalDateText(
-                        day: day.date.day,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        suffixStyle: AppTypography.caption.copyWith(
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          if (location.isNotEmpty) ...[
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: AppMyRotaListSpacing.locationInlineIconSize,
-                              color: colors.textSecondary,
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Expanded(
-                              child: Text(
-                                location,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      timeText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (hasTask) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: AppPrimitives.red500,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                    if (flaggedAttendance.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        flaggedAttendance.first.labelEnglish,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption.copyWith(
-                          color: colors.danger,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: colors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: 'Retry',
+                variant: AppButtonVariant.secondary,
+                onPressed: onRetry,
               ),
             ],
           ),
@@ -1247,88 +683,45 @@ class _FullRotaSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return _FullRotaCardShell(
-      child: Column(
-        children: [
-          for (var i = 0; i < weekYmds.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: AppStroke.hairline,
-                color: colors.divider.withValues(alpha: 0.72),
-              ),
-            Builder(
-              builder: (context) {
-                final ymd = weekYmds[i];
-                final dayDate = parseLocalYmd(ymd);
-                return _DayCard(
-                  key: dayKeys[ymd],
-                  headerWeekday: weekdayUpper[dayDate.weekday - 1],
-                  date: dayDate,
-                  dateYmd: ymd,
-                  slots: slotsByDate[ymd] ?? const [],
-                  attendance: attendance,
-                  attendanceNotes: attendanceNotes,
-                  sessionUserId: sessionUserId,
-                  isAdmin: isAdmin,
-                  onSlotAdminTap: onSlotAdminTap,
-                  expanded: expandedDayYmd == ymd,
-                  onToggle: () => onToggleDay(ymd),
-                );
-              },
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < weekYmds.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          Builder(
+            builder: (context) {
+              final ymd = weekYmds[i];
+              final dayDate = parseLocalYmd(ymd);
+              final slots = slotsByDate[ymd] ?? const <MyRotaSlot>[];
+              final userHasShift = slots.any(
+                (slot) =>
+                    _myRotaSameUserId(slot.userId, sessionUserId) &&
+                    slot.displayNameOrNull != null,
+              );
+              return _DayCard(
+                key: dayKeys[ymd],
+                headerWeekday: weekdayUpper[dayDate.weekday - 1],
+                date: dayDate,
+                dateYmd: ymd,
+                slots: slots,
+                attendance: attendance,
+                attendanceNotes: attendanceNotes,
+                sessionUserId: sessionUserId,
+                isAdmin: isAdmin,
+                onSlotAdminTap: onSlotAdminTap,
+                expanded: expandedDayYmd == ymd,
+                userHasShift: userHasShift,
+                onToggle: () => onToggleDay(ymd),
+              );
+            },
+          ),
         ],
-      ),
+      ],
     );
   }
 }
 
-class _FullRotaCardShell extends StatelessWidget {
-  const _FullRotaCardShell({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.bgElevated.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: colors.borderDefault),
-          boxShadow: [
-            BoxShadow(
-              color: colors.shadow.withValues(alpha: 0.12),
-              blurRadius: AppElevation.level4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: _SectionHeader(title: 'Full rota'),
-            ),
-            child,
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+/// Same quiet track shell as Home Calendar / Breaks / Info.
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.weekLabel,
@@ -1349,50 +742,223 @@ class _FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    Widget cell(String text, VoidCallback onTap) {
-      return Expanded(
-        child: Material(
-          color: colors.bgElevated.withValues(alpha: 0.82),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(
-                  color: colors.borderDefault.withValues(alpha: 0.72),
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
+    return Container(
+      height: AppHomeTabs.segmentHeight + AppHomeTabs.trackPadding * 2,
+      padding: const EdgeInsets.all(AppHomeTabs.trackPadding),
+      decoration: BoxDecoration(
+        color: colors.bgElevated,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(
+          color: colors.borderDefault.withValues(alpha: 0.45),
+          width: AppStroke.thin,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _FilterSegment(label: weekLabel, onTap: onWeek)),
+          Expanded(
+            child: _FilterSegment(label: locationLabel, onTap: onLocation),
+          ),
+          Expanded(child: _FilterSegment(label: shiftLabel, onTap: onShift)),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterSegment extends StatelessWidget {
+  const _FilterSegment({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = bottomNavLabelColor(
+      colors,
+      selected: false,
+      isDark: isDark,
+    );
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTypography.labelSmall.copyWith(
+                color: labelColor,
+                fontWeight: FontWeight.w400,
+                fontSize: AppNavPill.bottomLabelFontSize,
               ),
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    return Row(
-      children: [
-        cell(weekLabel, onWeek),
-        const SizedBox(width: AppSpacing.sm),
-        cell(locationLabel, onLocation),
-        const SizedBox(width: AppSpacing.sm),
-        cell(shiftLabel, onShift),
-      ],
+/// One filter sheet — elevated surface, dark text, teal selected (Home award).
+class _MyRotaPickerSheet extends StatefulWidget {
+  const _MyRotaPickerSheet({
+    required this.title,
+    required this.options,
+    this.subtitle,
+    this.selectedValue,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String? selectedValue;
+  final List<({String value, String label})> options;
+
+  @override
+  State<_MyRotaPickerSheet> createState() => _MyRotaPickerSheetState();
+}
+
+class _MyRotaPickerSheetState extends State<_MyRotaPickerSheet> {
+  late String? _selected = widget.selectedValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppAvailabilityTones.award(isDark: isDark);
+    final accentWash = AppAvailabilityTones.awardBg(isDark: isDark);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: colors.borderDefault,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+              ),
+            ),
+            Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            if (widget.subtitle != null) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                widget.subtitle!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final option in widget.options)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                        child: Material(
+                          color: option.value == _selected
+                              ? Color.alphaBlend(
+                                  accentWash.withValues(alpha: 0.85),
+                                  colors.bgElevated,
+                                )
+                              : colors.bgElevated,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            onTap: () =>
+                                setState(() => _selected = option.value),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
+                                border: Border.all(
+                                  color: option.value == _selected
+                                      ? accent.withValues(alpha: 0.45)
+                                      : colors.borderDefault,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      option.label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: option.value == _selected
+                                                ? accent
+                                                : colors.textPrimary,
+                                            fontWeight:
+                                                option.value == _selected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                          ),
+                                    ),
+                                  ),
+                                  if (option.value == _selected)
+                                    Icon(
+                                      Icons.check_rounded,
+                                      size: 20,
+                                      color: accent,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppModalActions(
+              onCancel: () => Navigator.of(context).pop(),
+              onConfirm: _selected == null
+                  ? null
+                  : () => Navigator.of(context).pop(_selected),
+              confirmLabel: 'Done',
+              confirmEnabled: _selected != null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1410,6 +976,7 @@ class _DayCard extends StatelessWidget {
     required this.isAdmin,
     required this.onSlotAdminTap,
     required this.expanded,
+    required this.userHasShift,
     required this.onToggle,
   });
 
@@ -1423,14 +990,18 @@ class _DayCard extends StatelessWidget {
   final bool isAdmin;
   final void Function(MyRotaSlot slot) onSlotAdminTap;
   final bool expanded;
+  final bool userHasShift;
   final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final today = myRotaDateOnly(DateTime.now());
     final isToday = myRotaDateOnly(date) == today;
-    final presentSlots = slots.where((s) => attendance[s.id] == null).toList();
+    final presentSlots = slots
+        .where((s) => s.displayNameOrNull != null && attendance[s.id] == null)
+        .toList();
 
     final dayCount = presentSlots.where((s) => s.shiftType == 'day').length;
     final aftCount = presentSlots
@@ -1438,200 +1009,130 @@ class _DayCard extends StatelessWidget {
         .length;
     final nightCount = presentSlots.where((s) => s.shiftType == 'night').length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppMyRotaListSpacing.dayCardHeaderAll),
-          child: Material(
-            color: Colors.transparent,
+    final accent = AppAvailabilityTones.award(isDark: isDark);
+    final accentWash = AppAvailabilityTones.awardBg(isDark: isDark);
+    // Solid elevated surface + dark text (Home neutrals) — no slate/gray wash.
+    final cardFill = colors.bgElevated;
+    final headerFill = isToday
+        ? Color.alphaBlend(
+            accentWash.withValues(alpha: isDark ? 0.55 : 0.85),
+            colors.bgElevated,
+          )
+        : colors.bgElevated;
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      color: cardFill,
+      borderColor: userHasShift
+          ? accent.withValues(alpha: 0.55)
+          : colors.borderDefault,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: headerFill,
             child: InkWell(
               onTap: onToggle,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                ),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(
-                          left: AppMyRotaListSpacing.dayCardHeaderTextLeadInset,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                SizedBox(
-                                  width: AppMyRotaListSpacing
-                                      .dayHeaderWeekdayColumnWidth,
-                                  child: Text(
-                                    headerWeekday,
-                                    textAlign: TextAlign.left,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                          color: colors.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.32,
-                                        ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: AppMyRotaListSpacing
-                                      .dayHeaderDateColumnWidth,
-                                  child: _OrdinalDateText(
-                                    day: date.day,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                          color: colors.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.32,
-                                        ),
-                                    suffixStyle: AppTypography.caption.copyWith(
-                                      color: colors.textPrimary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                    Text(
+                      '${headerWeekday.toUpperCase()} ${_ordinalUpper(date.day)}',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.6,
+                        height: 1.1,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    if (isToday) ...[
-                      _DayStatusChip(
-                        label: 'Today',
-                        fg: colors.info,
-                        bg: colors.infoBg,
-                        border: colors.borderDefault,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        right: AppMyRotaListSpacing.dayCardHeaderTextLeadInset,
-                      ),
-                      child: Align(
-                        alignment: Alignment.topRight,
-                        child: Wrap(
-                          alignment: WrapAlignment.end,
-                          spacing: AppMyRotaListSpacing.chipWrapSpacing,
-                          runSpacing: AppMyRotaListSpacing.chipWrapRunSpacing,
+                      if (dayCount > 0 || aftCount > 0 || nightCount > 0) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: AppSpacing.xxs,
+                          runSpacing: AppSpacing.xxs,
                           children: [
                             if (dayCount > 0)
                               _ShiftCountChip(
                                 icon: Icons.wb_sunny_outlined,
                                 count: dayCount,
-                                fg: colors.textPrimary,
-                                bg: AppPrimitives.amber200.withValues(
-                                  alpha: 0.42,
-                                ),
-                                border: AppPrimitives.amber300.withValues(
-                                  alpha: 0.32,
-                                ),
+                                fg: AppPrimitives.amber800,
+                                bg: AppPrimitives.amber50,
+                                border: AppPrimitives.amber200,
                               ),
                             if (aftCount > 0)
                               _ShiftCountChip(
                                 icon: Icons.cloud_outlined,
                                 count: aftCount,
-                                fg: colors.textPrimary,
-                                bg: AppPrimitives.amber100.withValues(
-                                  alpha: 0.44,
-                                ),
-                                border: AppPrimitives.amber300.withValues(
-                                  alpha: 0.28,
-                                ),
+                                fg: AppPrimitives.violet600,
+                                bg: AppPrimitives.violet50,
+                                border: AppPrimitives.violet200,
                               ),
                             if (nightCount > 0)
                               _ShiftCountChip(
                                 icon: Icons.nightlight_outlined,
                                 count: nightCount,
-                                fg: colors.textPrimary,
-                                bg: AppPrimitives.blue200.withValues(
-                                  alpha: 0.38,
-                                ),
-                                border: AppPrimitives.blue300.withValues(
-                                  alpha: 0.28,
-                                ),
+                                fg: AppPrimitives.blue800,
+                                bg: AppPrimitives.blue50,
+                                border: AppPrimitives.blue200,
                               ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+            Divider(
+              height: 1,
+              thickness: AppStroke.hairline,
+              color: colors.divider.withValues(alpha: 0.72),
+            ),
+            AnimatedSize(
+              duration: AppMotion.normal,
+              curve: AppMotion.ease,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: _DayDetailsBody(
+                        slots: slots,
+                        attendance: attendance,
+                        attendanceNotes: attendanceNotes,
+                        sessionUserId: sessionUserId,
+                        isAdmin: isAdmin,
+                        onSlotAdminTap: onSlotAdminTap,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
-        AnimatedSize(
-          duration: AppMotion.normal,
-          curve: AppMotion.ease,
-          alignment: Alignment.topCenter,
-          child: expanded
-              ? _DayDetailsBody(
-                  slots: slots,
-                  attendance: attendance,
-                  attendanceNotes: attendanceNotes,
-                  sessionUserId: sessionUserId,
-                  isAdmin: isAdmin,
-                  onSlotAdminTap: onSlotAdminTap,
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
     );
   }
-}
 
-class _DayStatusChip extends StatelessWidget {
-  const _DayStatusChip({
-    required this.label,
-    required this.fg,
-    required this.bg,
-    required this.border,
-  });
-
-  final String label;
-  final Color fg;
-  final Color bg;
-  final Color border;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(
-          color: border.withValues(alpha: 0.72),
-          width: AppStroke.hairline,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Text(
-          label,
-          style: AppTypography.caption.copyWith(
-            color: fg,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
+  static String _ordinalUpper(int day) {
+    final suffix = switch (day % 100) {
+      11 || 12 || 13 => 'TH',
+      _ => switch (day % 10) {
+        1 => 'ST',
+        2 => 'ND',
+        3 => 'RD',
+        _ => 'TH',
+      },
+    };
+    return '$day$suffix';
   }
 }
 
@@ -1657,23 +1158,26 @@ class _ShiftCountChip extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(
-          color: border.withValues(alpha: 0.46),
+          color: border.withValues(alpha: 0.6),
           width: AppStroke.hairline,
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
+          horizontal: AppSpacing.xs,
           vertical: AppSpacing.xxs,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: fg),
-            const SizedBox(width: AppSpacing.xs),
+            Icon(icon, size: 10, color: fg),
+            const SizedBox(width: 2),
             Text(
               '$count',
-              style: AppTypography.labelMedium.copyWith(color: fg),
+              style: AppTypography.caption.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -1706,72 +1210,20 @@ class _DayDetailsBody extends StatelessWidget {
         .where((slot) => slot.displayNameOrNull != null)
         .toList();
     if (slotsShown.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(AppMyRotaListSpacing.emptyStateInset),
-        child: Text(
-          'No shifts scheduled',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.bgElevated,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: colors.borderDefault),
         ),
-      );
-    }
-
-    Widget section(String shiftKey) {
-      final sectionSlots =
-          slotsShown.where((s) => s.shiftType == shiftKey).toList()
-            ..sort((a, b) {
-              final c = a.startTime.compareTo(b.startTime);
-              if (c != 0) {
-                return c;
-              }
-              return a.displayNameOrNull!.compareTo(b.displayNameOrNull!);
-            });
-      if (sectionSlots.isEmpty) {
-        return const SizedBox.shrink();
-      }
-
-      final byStart = <String, List<MyRotaSlot>>{};
-      for (final s in sectionSlots) {
-        final k = s.fmtTimeShort();
-        byStart.putIfAbsent(k, () => []).add(s);
-      }
-      final starts = byStart.keys.toList()..sort();
-
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.sm,
-          0,
-          AppSpacing.sm,
-          AppMyRotaListSpacing.sectionBottom,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.bgPrimary.withValues(alpha: 0.42),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var ti = 0; ti < starts.length; ti++) ...[
-                if (ti > 0)
-                  Divider(
-                    height: 1,
-                    thickness: AppStroke.hairline,
-                    color: colors.divider.withValues(alpha: 0.72),
-                  ),
-                _TimeGroup(
-                  startLabel: starts[ti],
-                  slots: byStart[starts[ti]]!,
-                  attendance: attendance,
-                  attendanceNotes: attendanceNotes,
-                  sessionUserId: sessionUserId,
-                  isAdmin: isAdmin,
-                  onSlotAdminTap: onSlotAdminTap,
-                ),
-              ],
-            ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Text(
+            'No shifts scheduled',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textPrimary),
           ),
         ),
       );
@@ -1779,7 +1231,140 @@ class _DayDetailsBody extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [section('day'), section('afternoon'), section('night')],
+      children: [
+        for (final key in const ['day', 'afternoon', 'night']) ...[
+          _ShiftTypeSection(
+            shiftKey: key,
+            slots: slotsShown,
+            attendance: attendance,
+            attendanceNotes: attendanceNotes,
+            sessionUserId: sessionUserId,
+            isAdmin: isAdmin,
+            onSlotAdminTap: onSlotAdminTap,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ShiftTypeSection extends StatelessWidget {
+  const _ShiftTypeSection({
+    required this.shiftKey,
+    required this.slots,
+    required this.attendance,
+    this.attendanceNotes = const {},
+    required this.sessionUserId,
+    required this.isAdmin,
+    required this.onSlotAdminTap,
+  });
+
+  final String shiftKey;
+  final List<MyRotaSlot> slots;
+  final Map<String, MyRotaAttendanceStatus> attendance;
+  final Map<String, String> attendanceNotes;
+  final String sessionUserId;
+  final bool isAdmin;
+  final void Function(MyRotaSlot slot) onSlotAdminTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final sectionSlots =
+        slots.where((s) => s.shiftType == shiftKey).toList()
+          ..sort((a, b) {
+            final c = a.startTime.compareTo(b.startTime);
+            if (c != 0) return c;
+            final end = a.endTime.compareTo(b.endTime);
+            if (end != 0) return end;
+            return a.displayNameOrNull!.compareTo(b.displayNameOrNull!);
+          });
+    if (sectionSlots.isEmpty) return const SizedBox.shrink();
+
+    final presentCount = sectionSlots
+        .where((s) => attendance[s.id] == null)
+        .length;
+    final (title, icon) = switch (shiftKey) {
+      'afternoon' => ('Afternoon shift', Icons.cloud_outlined),
+      'night' => ('Night shift', Icons.nightlight_outlined),
+      _ => ('Day shift', Icons.wb_sunny_outlined),
+    };
+
+    final byStart = <String, List<MyRotaSlot>>{};
+    for (final s in sectionSlots) {
+      byStart.putIfAbsent(s.fmtTimeShort(), () => []).add(s);
+    }
+    final starts = byStart.keys.toList()..sort();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xxs,
+              0,
+              AppSpacing.xxs,
+              AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 14, color: colors.textSecondary),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    style: AppTypography.caption.copyWith(
+                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$presentCount',
+                  style: AppTypography.caption.copyWith(
+                    color: colors.textTertiary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.bgElevated,
+              // No left/right edge strokes — those read as vertical ticks.
+              border: Border(
+                top: BorderSide(
+                  color: colors.borderDefault,
+                  width: AppStroke.hairline,
+                ),
+                bottom: BorderSide(
+                  color: colors.borderDefault,
+                  width: AppStroke.hairline,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final start in starts)
+                  _TimeGroup(
+                    startLabel: start,
+                    slots: byStart[start]!,
+                    attendance: attendance,
+                    attendanceNotes: attendanceNotes,
+                    sessionUserId: sessionUserId,
+                    isAdmin: isAdmin,
+                    onSlotAdminTap: onSlotAdminTap,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1805,37 +1390,54 @@ class _TimeGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final endFmt = slots.isEmpty
         ? ''
         : (slots.first.endTime.length >= 5
               ? slots.first.endTime.substring(0, 5)
               : slots.first.endTime);
-    final timeRange = '$startLabel–$endFmt';
+    final timeRange = '$startLabel - $endFmt';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < slots.length; i++)
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: isAdmin ? () => onSlotAdminTap(slots[i]) : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppMyRotaListSpacing.slotRowHorizontal,
-                  vertical: AppMyRotaListSpacing.slotRowVertical,
-                ),
-                child: _PersonRow(
-                  slot: slots[i],
-                  attendance: attendance[slots[i].id],
-                  note: isAdmin ? attendanceNotes[slots[i].id] : null,
-                  isYou: _myRotaSameUserId(slots[i].userId, sessionUserId),
-                  timeRange: timeRange,
-                  showTimeColumn: i == 0,
-                ),
-              ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm,
+            AppSpacing.sm,
+            AppSpacing.sm,
+            AppSpacing.xxs,
+          ),
+          child: Text(
+            timeRange,
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
+        ),
+        Divider(
+          height: 1,
+          thickness: AppStroke.hairline,
+          color: colors.divider.withValues(alpha: 0.72),
+        ),
+        for (var i = 0; i < slots.length; i++) ...[
+          if (i > 0)
+            Divider(
+              height: 1,
+              thickness: AppStroke.hairline,
+              color: colors.divider.withValues(alpha: 0.55),
+            ),
+          _PersonRow(
+            slot: slots[i],
+            attendance: attendance[slots[i].id],
+            note: isAdmin ? attendanceNotes[slots[i].id] : null,
+            isYou: _myRotaSameUserId(slots[i].userId, sessionUserId),
+            isAdmin: isAdmin,
+            onTap: isAdmin ? () => onSlotAdminTap(slots[i]) : null,
+          ),
+        ],
       ],
     );
   }
@@ -1847,16 +1449,16 @@ class _PersonRow extends StatelessWidget {
     required this.attendance,
     this.note,
     required this.isYou,
-    required this.timeRange,
-    required this.showTimeColumn,
+    required this.isAdmin,
+    this.onTap,
   });
 
   final MyRotaSlot slot;
   final MyRotaAttendanceStatus? attendance;
   final String? note;
   final bool isYou;
-  final String timeRange;
-  final bool showTimeColumn;
+  final bool isAdmin;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1865,151 +1467,120 @@ class _PersonRow extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final colors = context.appColors;
-    final nameStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      fontWeight: FontWeight.w500,
-      color: colors.textPrimary,
-    );
-    final nameLabel = isYou
-        ? ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.42,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: AppPrimitives.amber50,
-                borderRadius: BorderRadius.circular(AppRadius.full),
-                border: Border.all(
-                  color: AppPrimitives.amber200.withValues(alpha: 0.72),
-                  width: AppStroke.hairline,
-                ),
-              ),
-              child: Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: AppTypography.caption.copyWith(
-                  color: AppPrimitives.amber800,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          )
-        : Text(displayName, textAlign: TextAlign.right, style: nameStyle);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = AppAvailabilityTones.award(isDark: isDark);
+    final accentWash = AppAvailabilityTones.awardBg(isDark: isDark);
 
-    final timeBlock = showTimeColumn
-        ? Row(
-            children: [
-              Icon(
-                Icons.schedule_outlined,
-                size: AppMyRotaListSpacing.timeInlineIconSize,
-                color: colors.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  timeRange,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w500,
+    return Material(
+      color: isYou
+          ? Color.alphaBlend(
+              accentWash.withValues(alpha: 0.85),
+              colors.bgElevated,
+            )
+          : colors.bgElevated,
+      child: InkWell(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: isYou
+              ? BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: accent, width: 2),
                   ),
-                ),
-              ),
-            ],
-          )
-        : null;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: AppMyRotaListSpacing.timeColumnFixedWidth,
-          child: timeBlock ?? const SizedBox.shrink(),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xxs,
-                children: [
-                  CircleAvatar(
-                    radius: AppMyRotaListSpacing.personAvatarSize / 2,
-                    backgroundColor: colors.bgTertiary,
-                    backgroundImage:
-                        slot.avatarUrl == null || slot.avatarUrl!.isEmpty
-                        ? null
-                        : NetworkImage(slot.avatarUrl!),
-                    child: slot.avatarUrl == null || slot.avatarUrl!.isEmpty
-                        ? Text(
-                            displayName.substring(0, 1).toUpperCase(),
-                            style: AppTypography.caption.copyWith(
-                              color: colors.textSecondary,
-                            ),
-                          )
-                        : null,
-                  ),
-                  nameLabel,
-                  if (attendance != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: AppSpacing.xxs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.dangerBg,
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(
-                          color: colors.borderDefault.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      child: Text(
-                        attendance!.labelEnglish,
-                        style: AppTypography.caption.copyWith(
-                          color: colors.danger,
-                        ),
+                )
+              : const BoxDecoration(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.sm,
+            ),
+            child: Column(
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    Text(
+                      displayName,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: isYou ? accent : colors.textPrimary,
                       ),
                     ),
-                ],
-              ),
-              if (attendance != null && note != null && note!.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  note!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: AppTypography.caption.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                    if (attendance != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.dangerBg,
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                          border: Border.all(color: colors.borderDefault),
+                        ),
+                        child: Text(
+                          attendance!.labelEnglish,
+                          style: AppTypography.caption.copyWith(
+                            color: colors.danger,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    if (isYou)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Color.alphaBlend(
+                            accentWash.withValues(alpha: 0.85),
+                            colors.bgElevated,
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Text(
+                          'YOU',
+                          style: AppTypography.caption.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-              if (slot.task != null && slot.task!.trim().isNotEmpty) ...[
-                const SizedBox(height: AppMyRotaListSpacing.personTaskGap),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
+                if (isAdmin && note != null && note!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    note!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.caption.copyWith(
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+                if (slot.task != null && slot.task!.trim().isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
+                      vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: colors.dangerBg,
                       borderRadius: BorderRadius.circular(AppRadius.full),
-                      border: Border.all(
-                        color: colors.borderDefault.withValues(alpha: 0.72),
-                      ),
+                      border: Border.all(color: colors.borderDefault),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -2017,8 +1588,8 @@ class _PersonRow extends StatelessWidget {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppPrimitives.red500,
+                          decoration: BoxDecoration(
+                            color: colors.danger,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -2026,20 +1597,22 @@ class _PersonRow extends StatelessWidget {
                         Flexible(
                           child: Text(
                             slot.task!,
-                            textAlign: TextAlign.right,
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colors.danger),
+                                ?.copyWith(
+                                  color: colors.danger,
+                                  fontSize: 12,
+                                ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

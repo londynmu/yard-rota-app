@@ -67,7 +67,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
       });
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not open Rota Planner.');
+      if (mounted) AppToast.error(context, 'Could not open Rota Planner.');
       setState(() => _loading = false);
     }
   }
@@ -95,7 +95,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
             values[1] as Map<String, Map<String, AdminAvailability>>;
       });
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not load the rota.');
+      if (mounted) AppToast.error(context, 'Could not load the rota.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -274,10 +274,10 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
           draft: result,
         );
       }
-      if (mounted) AppToast.show(context, 'Rota slot saved.');
+      if (mounted) AppToast.success(context, 'Rota slot saved.');
       await _load();
     } catch (error) {
-      if (mounted) AppToast.show(context, 'Could not save rota slot.');
+      if (mounted) AppToast.error(context, 'Could not save rota slot.');
     }
   }
 
@@ -293,7 +293,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Cancel'),
               ),
-              OutlinedButton(
+              TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Delete'),
               ),
@@ -303,7 +303,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
         false;
     if (!confirmed) return;
     await widget.repository.deleteRotaSlot(widget.session, slot);
-    if (mounted) AppToast.show(context, 'Rota slot deleted.');
+    if (mounted) AppToast.success(context, 'Rota slot deleted.');
     await _load();
   }
 
@@ -329,10 +329,10 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
         userId: selection.$1.id,
         task: selection.$2,
       );
-      if (mounted) AppToast.show(context, 'Staff member assigned.');
+      if (mounted) AppToast.success(context, 'Staff member assigned.');
       await _load();
     } catch (error) {
-      if (mounted) AppToast.show(context, error.toString());
+      if (mounted) AppToast.error(context, error.toString());
     }
   }
 
@@ -341,7 +341,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
       session: widget.session,
       assignmentRowId: assignment.rowId,
     );
-    if (mounted) AppToast.show(context, 'Staff member unassigned.');
+    if (mounted) AppToast.success(context, 'Staff member unassigned.');
     await _load();
   }
 
@@ -353,10 +353,10 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
         week: _weekView,
         location: _location!,
       );
-      if (mounted) AppToast.show(context, 'Previous schedule copied.');
+      if (mounted) AppToast.success(context, 'Previous schedule copied.');
       await _load();
     } catch (_) {
-      if (mounted) AppToast.show(context, 'Could not copy schedule.');
+      if (mounted) AppToast.error(context, 'Could not copy schedule.');
     }
   }
 
@@ -452,7 +452,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          OutlinedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Save'),
           ),
@@ -466,7 +466,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
       name: name,
       slots: _slots,
     );
-    if (mounted) AppToast.show(context, 'Template saved.');
+    if (mounted) AppToast.success(context, 'Template saved.');
   }
 
   Future<void> _applyTemplate() async {
@@ -493,7 +493,7 @@ class _RotaPlannerScreenState extends State<RotaPlannerScreen> {
       dateYmd: stageTwoYmd(_date),
       location: _location!,
     );
-    if (mounted) AppToast.show(context, 'Template applied.');
+    if (mounted) AppToast.success(context, 'Template applied.');
     await _load();
   }
 }
@@ -660,7 +660,7 @@ class _RotaSlotDialogState extends State<_RotaSlotDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      OutlinedButton(
+      TextButton(
         onPressed: () => Navigator.pop(
           context,
           RotaSlotDraft(
