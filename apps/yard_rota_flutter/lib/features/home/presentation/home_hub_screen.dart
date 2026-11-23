@@ -232,9 +232,27 @@ class _HomeHubScreenState extends State<HomeHubScreen>
   }
 
   void _onPushNavigate(String type, Map<String, String> data) {
-    if (type != kPushTypeBreakReminder) return;
     if (!mounted) return;
+    if (type == kPushTypeRotaAssignmentDigest) {
+      _openMyRotaFromPush();
+      return;
+    }
+    if (type != kPushTypeBreakReminder) return;
     _openBreaksFromPush();
+  }
+
+  Future<void> _openMyRotaFromPush() async {
+    _track('/my-rota', 'My Rota');
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => MyRotaScreen(
+          repository: widget.myRotaRepository,
+          session: widget.session,
+          lightHomeWallpaper: widget.lightHomeWallpaper,
+          darkHomeWallpaper: widget.darkHomeWallpaper,
+        ),
+      ),
+    );
   }
 
   Future<void> _openBreaksFromPush() async {

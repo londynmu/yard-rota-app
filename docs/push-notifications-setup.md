@@ -10,6 +10,7 @@ Agent pisze kod. Ty robisz konta i sekrety. **Ta faza: tylko Android** (iOS ewen
 - Flutter: FCM (Gradle Kotlin DSL), zapis tokenu, **przełącznik włącz/wyłącz w Profile**
 - dwa triggery przerwy: **10 minut przed** oraz **w momencie startu** (Europe/London)
 - faza 2: push o brakującym pre-checku (osobno od WhatsApp)
+- faza 3: digest FCM „dodano Cię do shifta” o **10:00 i 16:00** Europe/London (bez usunięć; oficjalny tydzień zostaje na WhatsAppie w piątek 18:00)
 
 ## Co już zrobione
 
@@ -41,8 +42,15 @@ FIREBASE_SERVICE_ACCOUNT
 3. W Table Editor sprawdź tabelę `device_tokens` (powinien być wiersz z Twoim tokenem).
 4. Napisz agentowi — po udanym teście ręcznym włączy cron (czasy w **Europe/London**).
 
-### 3. Czego nie ruszać
+### 3. Rota assignment digests (po migracji + deploy)
 
-- Twilio / WhatsApp
+1. Migracja `20261123141000_rota_assignment_push_digest.sql` + deploy `send-rota-assignment-push`.
+2. Smoke: dodaj shunterowi przyszły slot, wywołaj Edge z service role, sprawdź FCM + wiersz w `rota_assignment_push_sends`.
+3. Tap push → **My Rota**.
+4. Włącz cron `rota-assignment-push-digest` dopiero po udanym smoke (`cron.alter_job(..., active := true)`).
+
+### 4. Czego nie ruszać
+
+- Twilio / WhatsApp (osobny piątkowy cron tygodnia — patrz `docs/whatsapp-rota-send.md`)
 - produkcyjna baza — migracje tylko po Twojej wyraźnej zgodzie
 - iOS / Apple Developer (poza tą fazą)

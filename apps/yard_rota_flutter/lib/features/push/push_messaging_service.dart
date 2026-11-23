@@ -14,6 +14,9 @@ const String kPushChannelName = 'Break reminders';
 /// FCM / local-notification `data.type` for break reminders.
 const String kPushTypeBreakReminder = 'break_reminder';
 
+/// FCM `data.type` for rota assignment digests (added-to-shift).
+const String kPushTypeRotaAssignmentDigest = 'rota_assignment_digest';
+
 /// Called when the user opens a push (tap). [type] is `data.type`.
 typedef PushNavigationHandler =
     void Function(String type, Map<String, String> data);

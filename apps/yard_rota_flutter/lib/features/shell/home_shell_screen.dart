@@ -102,8 +102,12 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   }
 
   void _onPushNavigate(String type, Map<String, String> data) {
-    if (type != kPushTypeBreakReminder) return;
     if (!mounted) return;
+    if (type == kPushTypeRotaAssignmentDigest) {
+      _select(ShellTab.myRota);
+      return;
+    }
+    if (type != kPushTypeBreakReminder) return;
     _openBreaksFromPush();
   }
 

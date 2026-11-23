@@ -451,3 +451,44 @@ export function filterReadyRecipientIds(classified) {
 export function isRotaWhatsAppBlockingStatus(status) {
   return ROTA_WA_BLOCKING_STATUSES.includes(String(status || '').toLowerCase());
 }
+
+/**
+ * London calendar date (yyyy-MM-dd) for an instant.
+ * @param {Date|number|string} [now]
+ * @returns {string}
+ */
+export function londonDateIso(now = new Date()) {
+  const instant = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(instant.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant);
+}
+
+/**
+ * Next rota week start (Saturday) for the Friday evening cron.
+ * From tomorrow in Europe/London, pick the next Saturday on or after that date.
+ * Friday → tomorrow Saturday; Saturday → next Saturday.
+ * @param {Date|number|string} [now]
+ * @returns {string} yyyy-MM-dd
+ */
+export function upcomingRotaWeekStartIso(now = new Date()) {
+  const today = londonDateIso(now);
+  const match = today.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  // Tomorrow in London calendar (UTC date parts = calendar math).
+  const tomorrow = new Date(Date.UTC(y, m - 1, d + 1));
+  const dow = tomorrow.getUTCDay(); // 0 Sun … 6 Sat
+  const add = (6 - dow + 7) % 7;
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + add);
+  const yy = tomorrow.getUTCFullYear();
+  const mm = String(tomorrow.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
