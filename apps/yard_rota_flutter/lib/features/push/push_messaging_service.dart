@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +11,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 const String kPushChannelId = 'yard_rota_breaks';
 const String kPushChannelName = 'Break reminders';
 
+/// FCM / local-notification `data.type` for break reminders.
+const String kPushTypeBreakReminder = 'break_reminder';
+
+/// Called when the user opens a push (tap). [type] is `data.type`.
+typedef PushNavigationHandler =
+    void Function(String type, Map<String, String> data);
+
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Background isolate — Firebase may need init before other plugins.
@@ -19,7 +27,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Registers FCM on Android, syncs tokens to `device_tokens`, shows foreground
-/// notifications via [flutter_local_notifications].
+/// notifications via [flutter_local_notifications], and routes taps.
 class PushMessagingService {
   /// [client] may be null in widget tests (no Supabase). Production passes a
   /// client or relies on [Supabase.instance] after [Supabase.initialize].
@@ -31,6 +39,8 @@ class PushMessagingService {
 
   bool _ready = false;
   String? _currentToken;
+  PushNavigationHandler? _onNavigate;
+  Map<String, String>? _queuedNavigation;
 
   bool get isReady => _ready;
 
@@ -40,6 +50,18 @@ class PushMessagingService {
       return Supabase.instance.client;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Wire UI navigation. Replays a cold-start tap that arrived before the
+  /// signed-in shell was ready.
+  void setNavigationHandler(PushNavigationHandler? handler) {
+    _onNavigate = handler;
+    final queued = _queuedNavigation;
+    if (handler != null && queued != null) {
+      _queuedNavigation = null;
+      final type = queued['type'] ?? '';
+      handler(type, queued);
     }
   }
 
@@ -59,6 +81,7 @@ class PushMessagingService {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _local.initialize(
       const InitializationSettings(android: androidInit),
+      onDidReceiveNotificationResponse: _onLocalNotificationResponse,
     );
     await _local
         .resolvePlatformSpecificImplementation<
@@ -82,6 +105,12 @@ class PushMessagingService {
     );
 
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteOpen);
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) {
+      _handleRemoteOpen(initial);
+    }
+
     messaging.onTokenRefresh.listen((token) {
       _currentToken = token;
       _upsertToken(token);
@@ -184,11 +213,61 @@ class PushMessagingService {
     );
   }
 
+  void _handleRemoteOpen(RemoteMessage message) {
+    _emitNavigation(_stringData(message.data));
+  }
+
+  void _onLocalNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) {
+      _emitNavigation(<String, String>{'type': kPushTypeBreakReminder});
+      return;
+    }
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        _emitNavigation(
+          decoded.map(
+            (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+          ),
+        );
+        return;
+      }
+    } catch (_) {
+      // Legacy payload was a bare break_id string.
+    }
+    _emitNavigation(<String, String>{
+      'type': kPushTypeBreakReminder,
+      'break_id': payload,
+    });
+  }
+
+  void _emitNavigation(Map<String, String> data) {
+    final type = data['type'] ?? '';
+    final handler = _onNavigate;
+    if (handler == null) {
+      _queuedNavigation = data;
+      return;
+    }
+    handler(type, data);
+  }
+
+  Map<String, String> _stringData(Map<String, dynamic> raw) {
+    return raw.map(
+      (key, value) => MapEntry(key, value?.toString() ?? ''),
+    );
+  }
+
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
     final title = notification?.title ?? message.data['title']?.toString();
     final body = notification?.body ?? message.data['body']?.toString();
     if (title == null && body == null) return;
+
+    final data = _stringData(message.data);
+    if ((data['type'] ?? '').isEmpty) {
+      data['type'] = kPushTypeBreakReminder;
+    }
 
     await _local.show(
       message.hashCode,
@@ -203,7 +282,7 @@ class PushMessagingService {
           priority: Priority.high,
         ),
       ),
-      payload: message.data['break_id']?.toString(),
+      payload: jsonEncode(data),
     );
   }
 }

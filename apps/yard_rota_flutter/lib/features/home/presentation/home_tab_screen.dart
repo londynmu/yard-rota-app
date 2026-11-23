@@ -105,6 +105,9 @@ class HomeTabScreenState extends State<HomeTabScreen>
 
   void showCalendar() => _selectSection(HomeSection.calendar);
 
+  /// Used when a break push notification is opened.
+  void showBreaks() => _selectSection(HomeSection.breaks);
+
   void _selectSection(HomeSection section) {
     if (section == _section) return;
     setState(() {

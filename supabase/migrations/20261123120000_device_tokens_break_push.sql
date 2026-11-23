@@ -12,7 +12,9 @@ ALTER TABLE public.profiles
 COMMENT ON COLUMN public.profiles.push_opt_in IS
   'When false, break/precheck FCM pushes are not sent to this user.';
 
--- Own-row updates (same pattern as whatsapp_opt_in column grant).
+-- Own-row read/update. SELECT is required: table-level SELECT on profiles was
+-- revoked; column grants follow show_on_reports (push_opt_in is not sensitive).
+GRANT SELECT (push_opt_in) ON public.profiles TO authenticated;
 GRANT UPDATE (push_opt_in) ON public.profiles TO authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -195,6 +197,8 @@ AS $$
   INNER JOIN public.profiles pr
     ON pr.id = d.user_id
    AND COALESCE(pr.push_opt_in, true) = true
+   AND pr.deleted_at IS NULL
+   AND COALESCE(pr.is_active, true)
   INNER JOIN public.device_tokens dt
     ON dt.user_id = d.user_id
   WHERE NOT EXISTS (

@@ -20,6 +20,7 @@ import '../../pre_check/presentation/pre_check_screen.dart';
 import '../../notifications/presentation/notifications_screen.dart';
 import '../../profile/presentation/themes_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../push/push_messaging_service.dart';
 import '../../stats/data/stats_repository.dart';
 import '../../stats/presentation/stats_screen.dart';
 import '../../stage_three/data/stage_three_repository.dart';
@@ -50,6 +51,7 @@ class HomeHubScreen extends StatefulWidget {
     this.stageOneRepository,
     this.stageTwoRepository,
     this.stageThreeRepository,
+    this.pushMessaging,
   });
 
   final ThemeMode themeMode;
@@ -72,6 +74,7 @@ class HomeHubScreen extends StatefulWidget {
   final StageOneRepository? stageOneRepository;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
+  final PushMessagingService? pushMessaging;
 
   static const List<_HubTileSpec> _primaryTiles = [
     _HubTileSpec(
@@ -213,6 +216,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
     );
     _trackingSessionId =
         'flutter_${DateTime.now().millisecondsSinceEpoch}_${widget.session.userId}';
+    widget.pushMessaging?.setNavigationHandler(_onPushNavigate);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _titleEntranceController.forward();
@@ -222,8 +226,29 @@ class _HomeHubScreenState extends State<HomeHubScreen>
 
   @override
   void dispose() {
+    widget.pushMessaging?.setNavigationHandler(null);
     _titleEntranceController.dispose();
     super.dispose();
+  }
+
+  void _onPushNavigate(String type, Map<String, String> data) {
+    if (type != kPushTypeBreakReminder) return;
+    if (!mounted) return;
+    _openBreaksFromPush();
+  }
+
+  Future<void> _openBreaksFromPush() async {
+    final stageOneRepository = widget.stageOneRepository;
+    if (stageOneRepository == null) return;
+    _track('/brakes', 'Breaks');
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => BreaksScreen(
+          repository: stageOneRepository,
+          session: widget.session,
+        ),
+      ),
+    );
   }
 
   @override
@@ -414,6 +439,7 @@ class _HomeHubScreenState extends State<HomeHubScreen>
             onLogout: widget.onLogout,
             lightHomeWallpaper: widget.lightHomeWallpaper,
             darkHomeWallpaper: widget.darkHomeWallpaper,
+            pushMessaging: widget.pushMessaging,
           ),
         ),
       );

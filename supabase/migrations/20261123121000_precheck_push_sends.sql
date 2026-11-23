@@ -57,26 +57,22 @@ AS $$
     t.rota_id,
     t.first_name,
     t.start_time,
-    format(
-      'precheck_push:%s:%s',
-      t.rota_id,
-      to_char(at_time AT TIME ZONE 'Europe/London', 'YYYYMMDD')
-    ) AS idempotency_key,
+    -- Per rota only (same idea as WhatsApp) so a night shift past midnight
+    -- does not get a second FCM for the same missing pre-check.
+    format('precheck_push:%s', t.rota_id) AS idempotency_key,
     dt.token AS fcm_token
   FROM public.get_missing_precheck_reminder_targets(at_time) t
   INNER JOIN public.profiles pr
     ON pr.id = t.user_id
    AND COALESCE(pr.push_opt_in, true) = true
+   AND pr.deleted_at IS NULL
+   AND COALESCE(pr.is_active, true)
   INNER JOIN public.device_tokens dt
     ON dt.user_id = t.user_id
   WHERE NOT EXISTS (
     SELECT 1
     FROM public.precheck_push_sends s
-    WHERE s.idempotency_key = format(
-      'precheck_push:%s:%s',
-      t.rota_id,
-      to_char(at_time AT TIME ZONE 'Europe/London', 'YYYYMMDD')
-    )
+    WHERE s.idempotency_key = format('precheck_push:%s', t.rota_id)
     AND s.status = 'sent'
   );
 $$;

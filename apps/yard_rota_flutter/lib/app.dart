@@ -449,6 +449,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
           isRequired: true,
           onProfileSaved: _handleProfileSaved,
           onLogout: _handleLogout,
+          pushMessaging: _pushMessaging,
         ),
       );
     }
@@ -473,6 +474,7 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
       stageOneRepository: _stageOneRepository,
       stageTwoRepository: _stageTwoRepository,
       stageThreeRepository: _stageThreeRepository,
+      pushMessaging: _pushMessaging,
       onLogout: _handleLogout,
       onProfileSaved: _handleProfileSaved,
       themeMode: _themeMode,
