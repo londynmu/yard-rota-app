@@ -37,18 +37,28 @@ class AppButton extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           );
 
+    final colors = context.appColors;
+    // Solid elevated fill so outline buttons stay readable on wallpaper /
+    // glass screens (e.g. PreCheck "Check Another Tug").
+    final outlinedStyle = ButtonStyle(
+      backgroundColor: WidgetStatePropertyAll(colors.bgElevated),
+      overlayColor: WidgetStatePropertyAll(
+        colors.textPrimary.withValues(alpha: 0.06),
+      ),
+    ).merge(compactStyle);
+
     final button = switch (variant) {
       // Primary and secondary share the neutral outline look — no filled blue.
       AppButtonVariant.primary || AppButtonVariant.secondary => OutlinedButton(
         onPressed: onPressed,
-        style: compactStyle,
+        style: outlinedStyle,
         child: Text(label),
       ),
       AppButtonVariant.ghost => TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
           minimumSize: const Size(0, AppComponentTokens.buttonHeightSm),
-          foregroundColor: context.appColors.textSecondary,
+          foregroundColor: colors.textSecondary,
           textStyle: AppTypography.labelLarge,
         ),
         child: Text(label),
