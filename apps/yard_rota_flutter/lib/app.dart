@@ -274,9 +274,8 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     setState(() {
       _session = null;
       _loginError = null;
-      // Signed-out shell uses app defaults (saved prefs still win on next cold start).
-      _themeMode = kDefaultThemeMode;
-      _lightHomeWallpaper = kDefaultLightHomeWallpaper;
+      // Keep in-memory theme/wallpaper — AuthTheme already forces light on
+      // sign-in screens; resetting here left users on defaults after re-login.
     });
     await _localDb.clearAllUserData();
   }
