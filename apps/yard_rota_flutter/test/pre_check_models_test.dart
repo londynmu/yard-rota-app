@@ -3,7 +3,7 @@ import 'package:yard_rota_flutter/features/pre_check/domain/pre_check_models.dar
 
 void main() {
   group('getPreCheckShiftWindow', () {
-    test('uses one hour pre-start buffer', () {
+    test('uses one hour pre-start buffer as query start', () {
       final window = getPreCheckShiftWindow(const [
         PreCheckShift(
           dateYmd: '2026-05-18',
@@ -13,8 +13,23 @@ void main() {
       ], now: DateTime(2026, 5, 18, 5, 30));
 
       expect(window, isNotNull);
-      expect(window!.start, DateTime(2026, 5, 18, 6));
+      // start is bufferStart so early PreChecks count for the reminder.
+      expect(window!.start, DateTime(2026, 5, 18, 5));
       expect(window.end, DateTime(2026, 5, 18, 14));
+    });
+
+    test('accepts HH:MM:SS times from Postgres', () {
+      final window = getPreCheckShiftWindow(const [
+        PreCheckShift(
+          dateYmd: '2026-11-24',
+          startTime: '17:00:00',
+          endTime: '05:15:00',
+        ),
+      ], now: DateTime(2026, 11, 24, 16, 40));
+
+      expect(window, isNotNull);
+      expect(window!.start, DateTime(2026, 11, 24, 16));
+      expect(window.end, DateTime(2026, 11, 25, 5, 15));
     });
 
     test('rolls overnight shift end into next day', () {
@@ -28,6 +43,13 @@ void main() {
 
       expect(window, isNotNull);
       expect(window!.end, DateTime(2026, 5, 19, 6));
+    });
+  });
+
+  group('preCheckNormalizeTime', () {
+    test('trims seconds from Postgres time', () {
+      expect(preCheckNormalizeTime('17:00:00'), '17:00');
+      expect(preCheckNormalizeTime('05:15'), '05:15');
     });
   });
 

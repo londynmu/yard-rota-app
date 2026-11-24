@@ -7,6 +7,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_option_sheet.dart';
 import '../../../core/ui/app_scaffold.dart';
 import '../../home/data/stage_one_repository.dart';
 import '../domain/break_models.dart';
@@ -55,7 +56,9 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
   bool _filtersInitialized = false;
   bool _loading = true;
   Object? _error;
-  DateTime _now = DateTime.now();
+
+  /// Live clock for countdowns — listeners rebuild without a full panel setState.
+  final ValueNotifier<DateTime> _nowNotifier = ValueNotifier(DateTime.now());
   String _windowKey = '';
   Timer? _minuteTimer;
 
@@ -66,22 +69,55 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
     return '${inNight ? 'night' : 'day'}:${BreakWindowLogic.nightStartYmd(now)}';
   }
 
+  static bool _sameVisibleKeys(List<VisibleBreak> a, List<VisibleBreak> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].breakItem.id != b[i].breakItem.id) return false;
+    }
+    return true;
+  }
+
+  /// Tablet portrait (≥700) or landscape phone/tablet (≥600 wide).
+  bool _isWideLayout(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height;
+    if (landscape && size.width >= 600) {
+      return true;
+    }
+    return size.width >= 700;
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _now = DateTime.now();
-    _windowKey = _epochKey(_now);
+    _nowNotifier.value = DateTime.now();
+    _windowKey = _epochKey(_nowNotifier.value);
     _load();
-    // Tick every second so Active / Upcoming countdowns stay live.
+    // Tick every second for live countdowns; only setState when membership changes.
     _minuteTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final now = DateTime.now();
       final nextKey = _epochKey(now);
-      setState(() => _now = now);
       if (nextKey != _windowKey) {
         _windowKey = nextKey;
+        _nowNotifier.value = now;
         _load();
+        return;
+      }
+      final before = BreakWindowLogic.visibleBreaks(
+        breaks: _breaks,
+        now: _nowNotifier.value,
+        filters: _filters,
+      );
+      final after = BreakWindowLogic.visibleBreaks(
+        breaks: _breaks,
+        now: now,
+        filters: _filters,
+      );
+      _nowNotifier.value = now;
+      if (!_sameVisibleKeys(before, after)) {
+        setState(() {});
       }
     });
   }
@@ -89,6 +125,7 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
   @override
   void dispose() {
     _minuteTimer?.cancel();
+    _nowNotifier.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -98,7 +135,7 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       final now = DateTime.now();
       final nextKey = _epochKey(now);
-      setState(() => _now = now);
+      _nowNotifier.value = now;
       if (nextKey != _windowKey) {
         _windowKey = nextKey;
       }
@@ -184,20 +221,19 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
   void _setFilters(BreakFilters filters) => setState(() => _filters = filters);
 
   Future<void> _pickLocation() async {
-    final colors = context.appColors;
-    final picked = await showModalBottomSheet<_LocationChoice>(
+    // Empty string = all locations (sheet cancel also returns null).
+    const allKey = '';
+    final picked = await showAppOptionSheet<String>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: colors.bgElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (sheetContext) =>
-          _LocationSheet(locations: _locations, selected: _filters.location),
+      title: 'Location',
+      subtitle: 'Filter breaks by hub',
+      selected: _filters.location ?? allKey,
+      options: [allKey, ..._locations],
+      labelFor: (value) => value.isEmpty ? 'All locations' : value,
+      selectAndClose: true,
     );
-    if (picked != null && mounted) {
-      _setFilters(_filters.withLocation(picked.name));
-    }
+    if (picked == null || !mounted) return;
+    _setFilters(_filters.withLocation(picked.isEmpty ? null : picked));
   }
 
   @override
@@ -229,183 +265,95 @@ class _BreaksPanelState extends State<BreaksPanel> with WidgetsBindingObserver {
       );
     }
 
-    final visible = BreakWindowLogic.visibleBreaks(
-      breaks: _breaks,
-      now: _now,
+    final filters = _BreakFilterBar(
       filters: _filters,
+      canReset: _filters != _defaults,
+      vertical: _isWideLayout(context),
+      onPickLocation: _pickLocation,
+      onToggleShift: (shift) => _setFilters(_filters.toggleShift(shift)),
+      onReset: () => _setFilters(_defaults),
     );
-    final groups = _groupBreaksByTime(visible);
 
-    final content = <Widget>[
-      _BreakFilterRow(
-        filters: _filters,
-        canReset: _filters != _defaults,
-        onPickLocation: _pickLocation,
-        onToggleShift: (shift) => _setFilters(_filters.toggleShift(shift)),
-        onReset: () => _setFilters(_defaults),
-      ),
-      const SizedBox(height: AppSpacing.xs),
-      if (visible.isEmpty)
-        _EmptyBreaks(
+    final list = ListenableBuilder(
+      listenable: _nowNotifier,
+      builder: (context, _) {
+        final now = _nowNotifier.value;
+        final visible = BreakWindowLogic.visibleBreaks(
+          breaks: _breaks,
+          now: now,
           filters: _filters,
-          onShowAll: () => _setFilters(const BreakFilters()),
-        )
-      else
-        ...groups.map(
-          (group) => _BreakTimeGroup(
-            group: group,
-            currentUserId: widget.session.userId,
-            now: _now,
+        );
+        final groups = _groupBreaksByTime(visible);
+
+        return RefreshIndicator(
+          onRefresh: _load,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              if (visible.isEmpty)
+                SliverToBoxAdapter(
+                  child: _EmptyBreaks(
+                    filters: _filters,
+                    onShowAll: () => _setFilters(const BreakFilters()),
+                  ),
+                )
+              else
+                _buildGroupsSliver(groups, now),
+            ],
           ),
-        ),
-    ];
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: content,
-      ),
+        );
+      },
     );
-  }
-}
 
-/// Sheet result; `name == null` means all locations.
-class _LocationChoice {
-  const _LocationChoice(this.name);
-
-  final String? name;
-}
-
-class _LocationSheet extends StatelessWidget {
-  const _LocationSheet({required this.locations, required this.selected});
-
-  final List<String> locations;
-  final String? selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final slate = _slateAccent(context);
-
-    Widget option({
-      required String label,
-      required String? value,
-      required IconData icon,
-    }) {
-      final isSelected = value == selected;
-      return Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xxs,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            onTap: () => Navigator.of(context).pop(_LocationChoice(value)),
-            child: AnimatedContainer(
-              duration: AppMotion.fast,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? slate.bg
-                    : colors.bgSecondary.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(
-                  color: isSelected
-                      ? slate.border
-                      : colors.borderSubtle,
-                  width: isSelected ? AppStroke.medium : AppStroke.thin,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: isSelected ? slate.fg : colors.textSecondary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isSelected ? slate.fg : colors.textPrimary,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (isSelected)
-                    Icon(Icons.check_rounded, size: 20, color: slate.fg),
-                ],
-              ),
+    // Phone: filters above list. Wide: filters rail + list side-by-side.
+    if (_isWideLayout(context)) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 220,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(right: AppSpacing.md),
+              child: filters,
             ),
           ),
-        ),
+          Expanded(child: list),
+        ],
       );
     }
 
-    return SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.xs,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Location',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'Filter breaks by hub',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          option(
-            label: 'All locations',
-            value: null,
-            icon: Icons.public_rounded,
-          ),
-          for (final location in locations)
-            option(
-              label: location,
-              value: location,
-              icon: Icons.place_outlined,
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        filters,
+        const SizedBox(height: AppSpacing.xs),
+        Expanded(child: list),
+      ],
+    );
+  }
+
+  Widget _buildGroupsSliver(List<_BreakTimeBucket> groups, DateTime now) {
+    return SliverList.builder(
+      itemCount: groups.length,
+      itemBuilder: (context, index) {
+        return _BreakTimeGroup(
+          group: groups[index],
+          currentUserId: widget.session.userId,
+          now: now,
+        );
+      },
     );
   }
 }
 
-class _BreakFilterRow extends StatelessWidget {
-  const _BreakFilterRow({
+class _BreakFilterBar extends StatelessWidget {
+  const _BreakFilterBar({
     required this.filters,
     required this.canReset,
     required this.onPickLocation,
     required this.onToggleShift,
     required this.onReset,
+    this.vertical = false,
   });
 
   final BreakFilters filters;
@@ -414,40 +362,61 @@ class _BreakFilterRow extends StatelessWidget {
   final ValueChanged<BreakShift> onToggleShift;
   final VoidCallback onReset;
 
+  /// Wide layout: stack pills in a rail instead of a horizontal strip.
+  final bool vertical;
+
   @override
   Widget build(BuildContext context) {
+    final pills = <Widget>[
+      // Location / sort control — always muted, never highlighted.
+      _FilterPill(
+        label: filters.location ?? 'All locations',
+        icon: Icons.place_outlined,
+        trailingIcon: Icons.arrow_drop_down_rounded,
+        selected: false,
+        expanded: vertical,
+        semanticsLabel: 'Location: ${filters.location ?? 'All locations'}',
+        onTap: onPickLocation,
+      ),
+      for (final shift in BreakShift.values)
+        _FilterPill(
+          label: shift.label,
+          // Only active shift filters are highlighted (e.g. Night by default).
+          selected: filters.includes(shift),
+          expanded: vertical,
+          onTap: () => onToggleShift(shift),
+        ),
+      if (canReset)
+        _FilterPill(
+          label: 'Reset',
+          icon: Icons.restart_alt_rounded,
+          selected: false,
+          expanded: vertical,
+          semanticsLabel: 'Reset to my shift',
+          onTap: onReset,
+        ),
+    ];
+
+    if (vertical) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < pills.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.xs),
+            pills[i],
+          ],
+        ],
+      );
+    }
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
-          // Location / sort control — always muted, never highlighted.
-          _FilterPill(
-            label: filters.location ?? 'All locations',
-            icon: Icons.place_outlined,
-            trailingIcon: Icons.arrow_drop_down_rounded,
-            selected: false,
-            semanticsLabel: 'Location: ${filters.location ?? 'All locations'}',
-            onTap: onPickLocation,
-          ),
-          for (final shift in BreakShift.values) ...[
-            const SizedBox(width: AppSpacing.xs),
-            _FilterPill(
-              label: shift.label,
-              // Only active shift filters are highlighted (e.g. Night by default).
-              selected: filters.includes(shift),
-              onTap: () => onToggleShift(shift),
-            ),
-          ],
-          if (canReset) ...[
-            const SizedBox(width: AppSpacing.xs),
-            _FilterPill(
-              label: 'Reset',
-              icon: Icons.restart_alt_rounded,
-              selected: false,
-              semanticsLabel: 'Reset to my shift',
-              onTap: onReset,
-            ),
+          for (var i = 0; i < pills.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.xs),
+            pills[i],
           ],
         ],
       ),
@@ -485,6 +454,7 @@ class _FilterPill extends StatelessWidget {
     this.icon,
     this.trailingIcon,
     this.semanticsLabel,
+    this.expanded = false,
   });
 
   final String label;
@@ -493,6 +463,9 @@ class _FilterPill extends StatelessWidget {
   final IconData? icon;
   final IconData? trailingIcon;
   final String? semanticsLabel;
+
+  /// Stretch to rail width on tablet / landscape.
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -519,9 +492,16 @@ class _FilterPill extends StatelessWidget {
       label: semanticsLabel,
       excludeSemantics: semanticsLabel != null,
       child: AnimatedContainer(
-        duration: AppMotion.normal,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppMotion.normal,
         curve: AppMotion.emphasized,
-        height: AppNavPill.chipHeightCompact,
+        height: AppNavPill.chipHeight,
+        width: expanded ? double.infinity : null,
+        constraints: const BoxConstraints(
+          minWidth: AppNavPill.chipHeight,
+          minHeight: AppNavPill.chipHeight,
+        ),
         decoration: decoration,
         child: Material(
           type: MaterialType.transparency,
@@ -531,27 +511,35 @@ class _FilterPill extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: expanded
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
                 children: [
                   if (icon case final icon?) ...[
                     Icon(
                       icon,
-                      size: AppNavPill.chipIconSizeCompact,
+                      size: AppNavPill.chipIconSize,
                       color: selected ? slate.fg : colors.textSecondary,
                     ),
                     const SizedBox(width: AppSpacing.xxs),
                   ],
-                  Text(
-                    label,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: foreground,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: foreground,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w600,
+                      ),
                     ),
                   ),
                   if (trailingIcon case final trailingIcon?)
                     Icon(
                       trailingIcon,
-                      size: AppNavPill.chipIconSizeCompact + 2,
+                      size: AppNavPill.chipIconSize + 2,
                       color: colors.textSecondary,
                     ),
                 ],
@@ -733,7 +721,7 @@ class _BreakTimeGroup extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     countdown,
-                    style: AppTypography.labelMedium.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: headerFg,
                       fontWeight: FontWeight.w500,
                     ),
@@ -934,10 +922,9 @@ class _YouChip extends StatelessWidget {
       ),
       child: Text(
         'You',
-        style: AppTypography.labelSmall.copyWith(
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: colors.primary,
           fontWeight: FontWeight.w500,
-          fontSize: 10,
           height: 1.1,
         ),
       ),

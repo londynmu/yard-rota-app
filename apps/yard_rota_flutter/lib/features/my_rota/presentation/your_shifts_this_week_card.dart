@@ -103,32 +103,35 @@ class _YourShiftsThisWeekCardState extends State<YourShiftsThisWeekCard> {
             child: InkWell(
               onTap: widget.onOpenMyRota,
               borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.sm,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppComponentTokens.buttonHeightMd,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Your shifts this week',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Your shifts this week',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.textPrimary,
+                              ),
                         ),
                       ),
-                    ),
-                    if (widget.onOpenMyRota != null)
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 22,
-                        color: colors.textTertiary,
-                      ),
-                  ],
+                      if (widget.onOpenMyRota != null)
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 22,
+                          color: colors.textTertiary,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -210,23 +213,27 @@ class _ShiftListRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  '$weekday ${day.date.day}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w500,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppComponentTokens.buttonHeightMd,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    '$weekday ${day.date.day}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
               Expanded(
                 flex: 2,
                 child: Text(
@@ -240,17 +247,18 @@ class _ShiftListRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                timeText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w500,
+                Text(
+                  timeText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

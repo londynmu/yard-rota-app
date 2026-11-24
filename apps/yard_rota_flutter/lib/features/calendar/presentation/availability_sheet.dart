@@ -4,6 +4,8 @@ import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_modal_actions.dart';
+import '../../../core/ui/app_option_sheet.dart';
+import 'calendar_day_grid.dart';
 
 /// Month grid + action panel: pick a status brush, paint days by tapping,
 /// notes via long-press modal (compact preview in the action panel).
@@ -205,7 +207,12 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
           _activeStatus = status;
         }),
         child: AnimatedContainer(
-          duration: AppMotion.fast,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : AppMotion.fast,
+          constraints: const BoxConstraints(
+            minHeight: AppNavPill.chipHeight,
+          ),
           height: AppNavPill.chipHeight,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           decoration: BoxDecoration(
@@ -230,7 +237,7 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
                   _statusLabel(status),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelSmall.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: selected ? tone.text : colors.textPrimary,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -260,7 +267,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               onPressed: () => _shiftSheetMonth(-1),
               icon: const Icon(Icons.chevron_left),
               tooltip: 'Previous month',
-              visualDensity: VisualDensity.compact,
             ),
             Expanded(
               child: Text(
@@ -275,7 +281,6 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               onPressed: () => _shiftSheetMonth(1),
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next month',
-              visualDensity: VisualDensity.compact,
             ),
           ],
         ),
@@ -296,89 +301,98 @@ class _AvailabilitySheetState extends State<AvailabilitySheet> {
               .toList(growable: false),
         ),
         const SizedBox(height: AppSpacing.xs),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: totalCells,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 1,
-            crossAxisSpacing: AppSpacing.xs,
-            mainAxisSpacing: AppSpacing.xs,
-          ),
-          itemBuilder: (context, index) {
-            if (index < leading) return const SizedBox.shrink();
-            final day = index - leading + 1;
-            final date = DateTime(year, month, day);
-            final ymd = _toYmd(date);
-            final isPast = date.isBefore(_today);
-            final status =
-                _statusByDate[ymd] ?? widget.availabilityByDate[ymd]?.status;
-            final hasComment =
-                (_commentsByDate[ymd]?.trim().isNotEmpty ?? false);
-            final tone = _toneForStatus(context, status);
-            final isToday = _isSameDay(date, _today);
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final metrics = CalendarDayGridMetrics.forWidth(
+              constraints.maxWidth,
+            );
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: totalCells,
+              gridDelegate: metrics.delegate,
+              itemBuilder: (context, index) {
+                if (index < leading) return const SizedBox.shrink();
+                final day = index - leading + 1;
+                final date = DateTime(year, month, day);
+                final ymd = _toYmd(date);
+                final isPast = date.isBefore(_today);
+                final status =
+                    _statusByDate[ymd] ??
+                    widget.availabilityByDate[ymd]?.status;
+                final hasComment =
+                    (_commentsByDate[ymd]?.trim().isNotEmpty ?? false);
+                final tone = _toneForStatus(context, status);
+                final isToday = _isSameDay(date, _today);
 
-            // Days only wear status color — no selection ticks or blue overlays.
-            final Color fill;
-            final Color borderColor;
-            final Color textColor;
-            if (status != null) {
-              fill = tone.background;
-              borderColor = tone.border;
-              textColor = tone.text;
-            } else {
-              fill = colors.bgSecondary.withValues(alpha: 0.55);
-              borderColor = isToday ? colors.primary : colors.borderDefault;
-              textColor = colors.textPrimary;
-            }
+                // Days only wear status color — no selection ticks or blue overlays.
+                final Color fill;
+                final Color borderColor;
+                final Color textColor;
+                if (status != null) {
+                  fill = tone.background;
+                  borderColor = tone.border;
+                  textColor = tone.text;
+                } else {
+                  fill = colors.bgSecondary.withValues(alpha: 0.55);
+                  borderColor = isToday
+                      ? colors.primary
+                      : colors.borderDefault;
+                  textColor = colors.textPrimary;
+                }
 
-            return Opacity(
-              opacity: isPast ? 0.4 : 1,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  onTap: isPast ? null : () => _onDateTap(ymd),
-                  onLongPress: isPast ? null : () => _openNoteEditor(ymd),
-                  child: AnimatedContainer(
-                    duration: AppMotion.fast,
-                    decoration: BoxDecoration(
-                      color: fill,
+                return Opacity(
+                  opacity: isPast ? 0.4 : 1,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(
-                        color: borderColor,
-                        width: isToday ? 2 : 1,
-                      ),
-                    ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Center(
-                          child: Text(
-                            '$day',
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: textColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      onTap: isPast ? null : () => _onDateTap(ymd),
+                      onLongPress: isPast
+                          ? null
+                          : () => _openNoteEditor(ymd),
+                      child: AnimatedContainer(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : AppMotion.fast,
+                        decoration: BoxDecoration(
+                          color: fill,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: borderColor,
+                            width: isToday ? 2 : 1,
                           ),
                         ),
-                        if (hasComment)
-                          const Positioned(
-                            right: 2,
-                            bottom: 2,
-                            child: Icon(
-                              Icons.chat_bubble,
-                              size: 9,
-                              color: AppPrimitives.amber500,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Center(
+                              child: Text(
+                                '$day',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: textColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
                             ),
-                          ),
-                      ],
+                            if (hasComment)
+                              const Positioned(
+                                right: 2,
+                                bottom: 2,
+                                child: Icon(
+                                  Icons.chat_bubble,
+                                  size: 9,
+                                  color: AppPrimitives.amber500,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         ),
@@ -639,10 +653,7 @@ class _AvailabilityNoteDialogState extends State<_AvailabilityNoteDialog> {
 
     return Dialog(
       backgroundColor: colors.bgElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: colors.borderDefault),
-      ),
+      shape: appDialogShape(colors),
       insetPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
@@ -656,8 +667,9 @@ class _AvailabilityNoteDialogState extends State<_AvailabilityNoteDialog> {
             Text(
               'Note',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: colors.textPrimary,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),

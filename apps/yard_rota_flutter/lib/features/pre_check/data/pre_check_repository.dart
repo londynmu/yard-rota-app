@@ -715,8 +715,12 @@ class PreCheckRepository {
         .map(
           (row) => PreCheckShift(
             dateYmd: row['date']?.toString() ?? '',
-            startTime: row['start_time']?.toString() ?? '',
-            endTime: row['end_time']?.toString() ?? '',
+            startTime: preCheckNormalizeTime(
+              row['start_time']?.toString() ?? '',
+            ),
+            endTime: preCheckNormalizeTime(
+              row['end_time']?.toString() ?? '',
+            ),
             location: row['location'] as String?,
             shiftType: row['shift_type'] as String?,
           ),

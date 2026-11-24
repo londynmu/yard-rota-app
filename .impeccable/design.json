@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T00:46:17Z",
+  "title": "Design System: Yard Rota",
+  "extensions": {
+    "colorMeta": {
+      "shift-blue": {
+        "role": "primary",
+        "displayName": "Shift Blue",
+        "canonical": "#2563EB",
+        "tonalRamp": ["#1E3A8A", "#1E40AF", "#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#DBEAFE"]
+      },
+      "shift-blue-deep": {
+        "role": "primary",
+        "displayName": "Shift Blue Deep",
+        "canonical": "#1D4ED8",
+        "tonalRamp": ["#1E3A8A", "#1E40AF", "#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#EFF6FF"]
+      },
+      "control-surface": {
+        "role": "neutral",
+        "displayName": "Control Surface Slate",
+        "canonical": "#F8FAFC",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      },
+      "charcoal": {
+        "role": "neutral",
+        "displayName": "Charcoal",
+        "canonical": "#2D2D2D",
+        "tonalRamp": ["#111111", "#2D2D2D", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#E5E7EB", "#F8FAFC"]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Success Green",
+        "canonical": "#059669",
+        "tonalRamp": ["#064E3B", "#065F46", "#047857", "#059669", "#10B981", "#34D399", "#A7F3D0", "#ECFDF5"]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Warning Amber",
+        "canonical": "#D97706",
+        "tonalRamp": ["#78350F", "#92400E", "#B45309", "#D97706", "#F59E0B", "#FBBF24", "#FDE68A", "#FFFBEB"]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Danger Red",
+        "canonical": "#DC2626",
+        "tonalRamp": ["#7F1D1D", "#991B1B", "#B91C1C", "#DC2626", "#EF4444", "#F87171", "#FECACA", "#FEF2F2"]
+      },
+      "shift-afternoon": {
+        "role": "tertiary",
+        "displayName": "Afternoon Indigo",
+        "canonical": "#6366F1",
+        "tonalRamp": ["#312E81", "#3730A3", "#4338CA", "#6366F1", "#818CF8", "#A5B4FC", "#C7D2FE", "#EEF2FF"]
+      },
+      "shift-night": {
+        "role": "neutral",
+        "displayName": "Night Slate",
+        "canonical": "#64748B",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F1F5F9"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page titles — charcoal, bold, tight tracking." },
+      "title-sm": { "displayName": "Title SM", "purpose": "Card and section headers." },
+      "body": { "displayName": "Body", "purpose": "Default reading and list content." },
+      "label": { "displayName": "Label", "purpose": "Chips, segmented controls, admin buttons." },
+      "label-xs": { "displayName": "Label XS", "purpose": "Compact mobile segment labels." }
+    },
+    "shadows": [
+      { "name": "soft", "value": "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)", "purpose": "Quiet resting lift." },
+      { "name": "medium", "value": "0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.08)", "purpose": "Default elevated panels." },
+      { "name": "strong", "value": "0 8px 24px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.10)", "purpose": "Stronger card lift." },
+      { "name": "glass", "value": "0 8px 32px 0 rgba(31, 38, 135, 0.15)", "purpose": "Frosted floating glass." },
+      { "name": "card-modern", "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)", "purpose": "Primary content card (Tailwind shadow-lg)." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default colour/border transitions (200ms)." },
+      { "name": "duration-fast", "value": "200ms", "purpose": "Global colour transitions and button hover." },
+      { "name": "duration-panel", "value": "300ms", "purpose": "Expandable card height/opacity (easeInOut)." },
+      { "name": "stagger-row", "value": "80ms", "purpose": "Per-row delay on list/card entrances." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Page primary action — Shift Blue gradient, white label.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Save changes</button>",
+      "css": ".ds-btn-primary{background:linear-gradient(to right,#2563EB,#1D4ED8);color:#fff;padding:10px 16px;border:none;border-radius:12px;font-weight:500;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.05);cursor:pointer;transition:box-shadow .2s cubic-bezier(0.4,0,0.2,1),transform .2s cubic-bezier(0.4,0,0.2,1),filter .2s}.ds-btn-primary:hover{filter:brightness(0.95);box-shadow:0 4px 12px rgba(0,0,0,0.06);transform:scale(1.05)}.ds-btn-primary:active{transform:scale(0.95)}.ds-btn-primary:focus-visible{outline:2px solid #fff;outline-offset:2px;box-shadow:0 0 0 2px #fff,0 0 0 4px #000}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White outline secondary for page chrome.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Cancel</button>",
+      "css": ".ds-btn-secondary{background:#fff;color:#334155;padding:10px 16px;border:1px solid #CBD5E1;border-radius:12px;font-weight:500;font-size:14px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}.ds-btn-secondary:hover{background:#F8FAFC;border-color:#94A3B8}.ds-btn-secondary:focus-visible{outline:2px solid #fff;outline-offset:2px;box-shadow:0 0 0 2px #fff,0 0 0 4px #000}"
+    },
+    {
+      "name": "Modern Card",
+      "kind": "card",
+      "refersTo": "card-modern",
+      "description": "Primary frosted content shell used on Calendar / home flows.",
+      "html": "<section class=\"ds-card-modern\"><header class=\"ds-card-modern-header\">Section title</header><div class=\"ds-card-modern-body\">Card body content</div></section>",
+      "css": ".ds-card-modern{background:rgba(255,255,255,0.9);backdrop-filter:blur(4px);border:1px solid rgba(226,232,240,0.6);border-radius:1.5rem;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -4px rgba(0,0,0,0.1);overflow:hidden;color:#2D2D2D;max-width:56rem}.ds-card-modern-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;background:linear-gradient(to right,#F8FAFC,#EFF6FF,#F8FAFC);border-bottom:1px solid rgba(226,232,240,0.6)}.ds-card-modern-body{padding:12px;background:#fff}"
+    },
+    {
+      "name": "Admin Section Card",
+      "kind": "card",
+      "refersTo": "admin-section-card",
+      "description": "Admin panel Settings-style white/gray section.",
+      "html": "<section class=\"ds-admin-card\"><header class=\"ds-admin-card-header\">Settings</header><div class=\"ds-admin-card-body\">Admin body</div></section>",
+      "css": ".ds-admin-card{border-radius:12px;border:1px solid #E5E7EB;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.05);overflow:hidden;color:#2D2D2D}.ds-admin-card-header{padding:8px 12px;min-height:44px;display:flex;align-items:center;background:#F9FAFB;border-bottom:1px solid #E5E7EB;font-size:14px;font-weight:600}.ds-admin-card-body{padding:12px;background:#fff}"
+    },
+    {
+      "name": "Info Badge",
+      "kind": "chip",
+      "refersTo": "badge-info",
+      "description": "Soft info status chip.",
+      "html": "<span class=\"ds-badge-info\">On shift</span>",
+      "css": ".ds-badge-info{display:inline-flex;align-items:center;padding:6px 12px;border-radius:9999px;font-size:12px;font-weight:500;background:linear-gradient(to bottom right,#EFF6FF,#ECFEFF);color:#1D4ED8;border:1px solid rgba(191,219,254,0.6);box-shadow:0 1px 2px rgba(0,0,0,0.05)}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Default form field with charcoal/blue focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search…\" />",
+      "css": ".ds-input{width:100%;padding:6px 12px;font-size:14px;border:1px solid #D1D5DB;border-radius:8px;color:#2D2D2D;background:#fff}.ds-input::placeholder{color:#9CA3AF}.ds-input:focus{outline:none;border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.2)}.ds-input:focus-visible{outline:none}"
+    },
+    {
+      "name": "Bottom Nav Bar",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "Frosted adaptive bottom navigation.",
+      "html": "<nav class=\"ds-bottom-nav\" aria-label=\"Main\"><button class=\"ds-bottom-nav-item\" type=\"button\">Home</button><button class=\"ds-bottom-nav-item ds-bottom-nav-item-active\" type=\"button\">Breaks</button><button class=\"ds-bottom-nav-item\" type=\"button\">Info</button></nav>",
+      "css": ".ds-bottom-nav{display:flex;gap:8px;justify-content:space-around;padding:10px 12px;background:rgba(255,255,255,0.82);backdrop-filter:blur(12px);border-top:1px solid rgba(203,213,225,0.65)}.ds-bottom-nav-item{flex:1;border:1px solid transparent;border-radius:12px;padding:8px;font-size:11px;font-weight:500;color:#475569;background:transparent;cursor:pointer;transition:color .2s,background .2s,border-color .2s,box-shadow .2s}.ds-bottom-nav-item:hover{color:#1E293B}.ds-bottom-nav-item-active{color:#1E293B;background:rgba(255,255,255,0.75);border-color:rgba(203,213,225,0.55);box-shadow:0 1px 2px rgba(15,23,42,0.06)}.ds-bottom-nav-item:focus-visible{outline:2px solid #2563EB;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Filter Bar",
+      "kind": "custom",
+      "refersTo": "filter-bar-segmented",
+      "description": "Equal-width location + Day/Afternoon/Night control.",
+      "html": "<div class=\"ds-filter-bar\" role=\"group\" aria-label=\"Filters\"><button class=\"ds-filter-seg ds-filter-seg-active\" type=\"button\">Yard A</button><button class=\"ds-filter-seg\" type=\"button\">Day</button><button class=\"ds-filter-seg\" type=\"button\">Aft</button><button class=\"ds-filter-seg\" type=\"button\">Night</button></div>",
+      "css": ".ds-filter-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;max-width:56rem}.ds-filter-seg{min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:12px;padding:8px 6px;font-size:12px;font-weight:500;border:1px solid transparent;background:transparent;color:#64748B;cursor:pointer;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}.ds-filter-seg-active{background:rgba(255,255,255,0.9);border-color:rgba(226,232,240,0.6);color:#1E293B;box-shadow:0 1px 2px rgba(0,0,0,0.05)}.ds-filter-seg:hover{color:#1E293B}.ds-filter-seg:focus-visible{outline:2px solid #2563EB;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Yard Control Desk",
+    "overview": "Yard Rota’s visual system is an operational control desk for a UK logistics yard: calm slate surfaces, frosted content cards, and a single clear blue signal for primary actions and “today / selected” states. Density stays readable on a phone in the yard and on a desktop in the office. Personality lives in soft glass cards, gentle gradient headers, and status colour — not in decorative illustration or loud marketing chrome.\n\nWeb (`src/`) is a light-only Operate UI built with React, Vite, and Tailwind. Flutter shares the same slate/blue primitive family via `app_tokens.dart`, with tinted AppCard shells on Info / Breaks / Calendar. Adaptive means one product language, expressed through each client’s tokens.\n\nConfirmed visual anti-references: dark-theme-first product chrome; purple-to-indigo “AI” gradients; overloaded glassmorphism; and heavy enterprise dashboards.",
+    "keyCharacteristics": [
+      "Control Surface Slate page washes with Shift Blue as the rare, decisive accent",
+      "Frosted card-modern / glass bars as the default content shell",
+      "Hybrid depth: soft shadows plus tinted borders / washes",
+      "Segmented filters and equal columns for location + shift",
+      "English UI copy; system/UI type stacks (no decorative display face)"
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Shift Blue is for primary action, selection, and “today” — not for large fills across an entire screen. Status greens/ambers/reds stay on badges and alerts.", "section": "colors" },
+      { "name": "The Light Desk Rule (web)", "body": "Web ships light-only (color-scheme: light). Do not introduce a product dark theme on web without an explicit redesign decision.", "section": "colors" },
+      { "name": "The Reuse Palette Rule", "body": "Extend tailwind.config.js / app_tokens.dart; do not invent local hex in feature widgets.", "section": "colors" },
+      { "name": "The No Display Face Rule", "body": "Do not introduce Inter-as-brand, serif heroes, or marketing type pairings. Stay on system UI type unless the owner explicitly rebrands.", "section": "typography" },
+      { "name": "The Four-Column Filter Rule", "body": "Location + three shifts stay equal-width; never let one label steal the row.", "section": "layout" },
+      { "name": "The Hybrid Desk Rule", "body": "Depth = light shadow and border/wash. Do not rely on drop shadow alone, and do not stack multi-layer neon glows.", "section": "elevation" },
+      { "name": "The Card Shell Rule", "body": "New content sections copy card-modern (web) or tinted AppCard (Flutter) — do not invent a third shell language.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do reuse Info / Breaks / Calendar / Shunter of the Month card patterns and shared classes (card-modern, page-content-inner, filter-bar-segmented, Flutter AppCard / tokens).",
+      "Do keep user-facing copy in English.",
+      "Do put new colours and radii into tailwind.config.js or app_tokens.dart before using them in features.",
+      "Do keep Shift Blue scarce and purposeful (The One Signal Rule).",
+      "Do preserve hybrid depth: soft shadow + slate/blue wash borders."
+    ],
+    "donts": [
+      "Don't change business or domain logic while restyling.",
+      "Don't invent purple-indigo AI gradients, dark-first web chrome, or heavy enterprise table walls.",
+      "Don't invent a new card/button language when an existing shell fits.",
+      "Don't ship Inter/serif display branding or emoji-led decoration as system identity.",
+      "Don't hard-code one-off hex/spacing in feature widgets when a token already exists."
+    ]
+  }
+}

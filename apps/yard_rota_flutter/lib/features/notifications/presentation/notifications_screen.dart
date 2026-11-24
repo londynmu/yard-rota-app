@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,7 +7,10 @@ import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_modal_actions.dart';
+import '../../../core/ui/app_option_sheet.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/glass_bar_surface.dart';
+import '../../../core/ui/nav_pill.dart';
 import '../../../core/ui/status_badge.dart';
 import '../../home/data/stage_one_repository.dart';
 
@@ -101,14 +102,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final current = _notifications ?? const <StageOneNotification>[];
     final readCount = current.where((item) => item.isRead).length;
     if (readCount == 0) return;
+    final colors = context.appColors;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Clear read notifications'),
+        backgroundColor: colors.bgElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: appDialogShape(colors),
+        title: Text(
+          'Clear read notifications',
+          style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colors.textPrimary,
+          ),
+        ),
         content: Text(
           readCount == 1
               ? 'Delete 1 read notification? This action cannot be undone.'
               : 'Delete $readCount read notifications? This action cannot be undone.',
+          style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
         actions: appDialogActions(
           context: dialogContext,
@@ -171,12 +185,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _confirmReject(PendingJoinRequest person) async {
+    final colors = context.appColors;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Reject user'),
+        backgroundColor: colors.bgElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: appDialogShape(colors),
+        title: Text(
+          'Reject user',
+          style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colors.textPrimary,
+          ),
+        ),
         content: Text(
           'Are you sure you want to reject ${person.displayName}?',
+          style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
         actions: appDialogActions(
           context: dialogContext,
@@ -217,6 +244,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
+    final topInset =
+        mq.padding.top + AppComponentTokens.appBarHeight + AppSpacing.md;
     final wallpaperPath = homeBackgroundAssetPath(
       brightness: isDark ? Brightness.dark : Brightness.light,
       lightWallpaper: widget.lightHomeWallpaper,
@@ -232,134 +261,132 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _pendingUsers.isEmpty &&
         _missingTook.isEmpty &&
         (notifications?.isEmpty ?? false);
+    final actionIconColor = bottomNavIconColor(
+      colors,
+      selected: false,
+      isDark: isDark,
+    );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            wallpaperPath,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            gaplessPlayback: true,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: AppElevation.level0,
+        scrolledUnderElevation: AppElevation.level0,
+        toolbarHeight: AppComponentTokens.appBarHeight,
+        flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
+        title: Text(
+          'Notifications',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            flexibleSpace: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: isDark
-                          ? [
-                              colors.bgPrimary.withValues(alpha: 0.0),
-                              colors.bgPrimary.withValues(alpha: 0.28),
-                            ]
-                          : [
-                              Colors.white.withValues(alpha: 0.0),
-                              Colors.white.withValues(alpha: 0.42),
-                            ],
-                    ),
-                  ),
-                ),
+        actions: [
+          if (readCount > 0)
+            IconButton(
+              tooltip: 'Clear read',
+              onPressed: _confirmClearRead,
+              icon: navBarIcon(
+                Icons.delete_outline,
+                color: actionIconColor,
+                size: AppHomeTabs.segmentIconSize,
               ),
             ),
-            title: const Text('Notifications'),
-            actions: [
-              if (readCount > 0)
-                IconButton(
-                  tooltip: 'Clear read',
-                  onPressed: _confirmClearRead,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              if (unreadCount > 0)
-                IconButton(
-                  tooltip: 'Mark all as read',
-                  onPressed: _markAllRead,
-                  icon: const Icon(Icons.done_all),
-                ),
-            ],
-          ),
-          body: Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              mq.padding.bottom + AppSpacing.lg,
+          if (unreadCount > 0)
+            IconButton(
+              tooltip: 'Mark all as read',
+              onPressed: _markAllRead,
+              icon: navBarIcon(
+                Icons.done_all,
+                color: actionIconColor,
+                size: AppHomeTabs.segmentIconSize,
+              ),
             ),
-            child: notifications == null
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        if (_isAdmin && _pendingUsers.isNotEmpty) ...[
-                          _SectionHeader(
-                            title: 'Waiting for approval',
-                            count: _pendingUsers.length,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          for (var i = 0; i < _pendingUsers.length; i++) ...[
-                            if (i > 0) const SizedBox(height: AppSpacing.sm),
-                            _PendingUserCard(
-                              person: _pendingUsers[i],
-                              busy: _busyUserId == _pendingUsers[i].id,
-                              onApprove: () =>
-                                  _setApproval(_pendingUsers[i], 'approved'),
-                              onReject: () =>
-                                  _confirmReject(_pendingUsers[i]),
-                            ),
-                          ],
-                          const SizedBox(height: AppSpacing.lg),
-                        ],
-                        if (_isAdmin && _missingTook.isNotEmpty) ...[
-                          _SectionHeader(
-                            title: 'Missing took pre-checks',
-                            count: _missingTook.length,
-                            trailing: TextButton(
-                              onPressed: _copyMissingTookReminder,
-                              child: const Text('Copy'),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          _MissingTookCard(people: _missingTook),
-                          const SizedBox(height: AppSpacing.lg),
-                        ],
-                        if (notifications.isNotEmpty) ...[
-                          _SectionHeader(
-                            title: 'Recent notifications',
-                            count: notifications.length,
-                            trailing: readCount > 0
-                                ? TextButton(
-                                    onPressed: _confirmClearRead,
-                                    child: const Text('Clear read'),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          for (var i = 0; i < notifications.length; i++) ...[
-                            if (i > 0) const SizedBox(height: AppSpacing.md),
-                            _NotificationCard(item: notifications[i]),
-                          ],
-                        ] else if (!_isAdmin || showAdminEmpty)
-                          const _EmptyNotificationsCard(),
-                      ],
-                    ),
-                  ),
+        ],
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              wallpaperPath,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+            ),
           ),
-        ),
-      ],
+          notifications == null
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  edgeOffset: topInset,
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      topInset,
+                      AppSpacing.lg,
+                      mq.padding.bottom + AppSpacing.lg,
+                    ),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      if (_isAdmin && _pendingUsers.isNotEmpty) ...[
+                        _SectionHeader(
+                          title: 'Waiting for approval',
+                          count: _pendingUsers.length,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        for (var i = 0; i < _pendingUsers.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.sm),
+                          _PendingUserCard(
+                            person: _pendingUsers[i],
+                            busy: _busyUserId == _pendingUsers[i].id,
+                            onApprove: () =>
+                                _setApproval(_pendingUsers[i], 'approved'),
+                            onReject: () => _confirmReject(_pendingUsers[i]),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      if (_isAdmin && _missingTook.isNotEmpty) ...[
+                        _SectionHeader(
+                          title: 'Missing took pre-checks',
+                          count: _missingTook.length,
+                          trailing: TextButton(
+                            onPressed: _copyMissingTookReminder,
+                            child: const Text('Copy'),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _MissingTookCard(people: _missingTook),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      if (notifications.isNotEmpty) ...[
+                        _SectionHeader(
+                          title: 'Recent notifications',
+                          count: notifications.length,
+                          trailing: readCount > 0
+                              ? TextButton(
+                                  onPressed: _confirmClearRead,
+                                  child: const Text('Clear read'),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        for (var i = 0; i < notifications.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.sm),
+                          _NotificationCard(item: notifications[i]),
+                        ],
+                      ] else if (!_isAdmin || showAdminEmpty)
+                        const _EmptyNotificationsCard(),
+                    ],
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }
@@ -556,31 +583,15 @@ class _EmptyNotificationsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = colors.info;
-    final wash = colors.infoBg;
-    final border = accent.withValues(alpha: isDark ? 0.35 : 0.28);
-
     return AppCard(
-      padding: EdgeInsets.zero,
-      color: Color.alphaBlend(
-        wash.withValues(alpha: isDark ? 0.45 : 0.7),
-        colors.bgElevated,
-      ),
-      borderColor: border,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.lg,
-        ),
-        child: Center(
-          child: Text(
-            'No notifications.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
+      surfaceOpacity: AppOpacity.subtle,
+      borderColor: colors.borderSubtle,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Text(
+        'No notifications right now.',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colors.textSecondary,
         ),
       ),
     );

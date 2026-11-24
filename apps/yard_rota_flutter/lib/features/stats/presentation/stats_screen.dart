@@ -2,16 +2,29 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
-import '../../../core/ui/app_modal_actions.dart';
+import '../../../core/ui/app_button.dart';
+import '../../../core/ui/app_card.dart';
+import '../../../core/ui/app_option_sheet.dart';
 import '../../../core/ui/app_toast.dart';
 import '../../../core/ui/nav_pill.dart';
 import '../data/stats_repository.dart';
 import '../domain/stats_models.dart';
+
+/// Tablet portrait (≥700) or landscape phone/tablet (≥600 wide).
+bool statsIsWideLayout(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final landscape = size.width > size.height;
+  if (landscape && size.width >= 600) {
+    return true;
+  }
+  return size.width >= 700;
+}
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({
@@ -177,21 +190,12 @@ class _StatsScreenState extends State<StatsScreen> {
     required T selected,
     required String Function(T value) labelFor,
   }) {
-    final colors = context.appColors;
-    return showModalBottomSheet<T>(
+    return showAppOptionSheet<T>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: colors.bgElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-        side: BorderSide(color: colors.borderDefault),
-      ),
-      builder: (_) => _StatsPickerSheet<T>(
-        title: title,
-        options: options,
-        selected: selected,
-        labelFor: labelFor,
-      ),
+      title: title,
+      options: options,
+      selected: selected,
+      labelFor: labelFor,
     );
   }
 
@@ -199,6 +203,11 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
+    // Shell uses extendBody — keep viewport full height; clear bottom nav in scroll.
+    final scrollBottomInset =
+        mq.padding.bottom +
+        AppComponentTokens.bottomNavHeight +
+        AppSpacing.md;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -223,7 +232,7 @@ class _StatsScreenState extends State<StatsScreen> {
                 AppSpacing.lg,
                 mq.padding.top + AppSpacing.sm,
                 AppSpacing.lg,
-                mq.padding.bottom + AppSpacing.lg,
+                0,
               ),
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -233,17 +242,28 @@ class _StatsScreenState extends State<StatsScreen> {
                       data: _data,
                       refreshing: _refreshing,
                       expandedUserId: _expandedUserId,
+                      scrollBottomInset: scrollBottomInset,
                       onRefresh: _refresh,
                       onToggleUser: (userId) {
+                        HapticFeedback.selectionClick();
                         setState(() {
                           _expandedUserId = _expandedUserId == userId
                               ? null
                               : userId;
                         });
                       },
-                      onRange: _openRangeSheet,
-                      onSort: _openSortSheet,
-                      onShift: _openShiftSheet,
+                      onRange: () {
+                        HapticFeedback.selectionClick();
+                        _openRangeSheet();
+                      },
+                      onSort: () {
+                        HapticFeedback.selectionClick();
+                        _openSortSheet();
+                      },
+                      onShift: () {
+                        HapticFeedback.selectionClick();
+                        _openShiftSheet();
+                      },
                     ),
             ),
           ),
@@ -258,6 +278,7 @@ class _StatsContent extends StatelessWidget {
     required this.data,
     required this.refreshing,
     required this.expandedUserId,
+    required this.scrollBottomInset,
     required this.onRefresh,
     required this.onToggleUser,
     required this.onRange,
@@ -268,6 +289,7 @@ class _StatsContent extends StatelessWidget {
   final StatsDashboardData? data;
   final bool refreshing;
   final String? expandedUserId;
+  final double scrollBottomInset;
   final Future<void> Function() onRefresh;
   final void Function(String userId) onToggleUser;
   final VoidCallback onRange;
@@ -277,207 +299,157 @@ class _StatsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = data;
+    final wide = statsIsWideLayout(context);
+    final colors = context.appColors;
+    final filters = _StatsFilterBar(
+      range: current?.range ?? StatsRangeFilter.lastDay,
+      sort: current?.sort ?? StatsSortOption.totalMoves,
+      shift: current?.shiftFilter ?? StatsShiftFilter.all,
+      vertical: wide,
+      onRange: onRange,
+      onSort: onSort,
+      onShift: onShift,
+    );
+
+    final list = RefreshIndicator(
+      onRefresh: onRefresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          if (refreshing)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            ),
+          if (current == null)
+            const SliverToBoxAdapter(
+              child: _EmptyState(
+                title: 'No saved stats',
+                message: 'Connect to the internet to load stats.',
+              ),
+            )
+          else if (!current.currentUserHasYardId)
+            const SliverToBoxAdapter(
+              child: _EmptyState(
+                title: 'Yard System ID required',
+                message:
+                    'You need a Yard System ID to view performance statistics.',
+              ),
+            )
+          else ...[
+            SliverToBoxAdapter(
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _MyPerformanceCard(data: current)),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: _TeamSnapshotCard(team: current.team),
+                        ),
+                      ],
+                    )
+                  : _MyPerformanceCard(data: current),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+            if (!wide) ...[
+              SliverToBoxAdapter(
+                child: _TrendCard(
+                  points: current.trend,
+                  range: current.range,
+                ),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.md),
+              ),
+              SliverToBoxAdapter(
+                child: _TeamSnapshotCard(team: current.team),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.md),
+              ),
+            ] else ...[
+              SliverToBoxAdapter(
+                child: _TrendCard(
+                  points: current.trend,
+                  range: current.range,
+                ),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.md),
+              ),
+            ],
+            SliverToBoxAdapter(
+              child: Text(
+                'Leaderboard',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+            if (current.users.isEmpty)
+              const SliverToBoxAdapter(
+                child: _EmptyState(
+                  title: 'No leaderboard data',
+                  message: 'No shunters match the current filters.',
+                ),
+              )
+            else
+              SliverList.builder(
+                itemCount: current.users.length,
+                itemBuilder: (context, index) {
+                  final user = current.users[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == current.users.length - 1
+                          ? 0
+                          : AppSpacing.sm,
+                    ),
+                    child: _LeaderboardCard(
+                      user: user,
+                      sort: current.sort,
+                      expanded: expandedUserId == user.userId,
+                      onTap: () => onToggleUser(user.userId),
+                    ),
+                  );
+                },
+              ),
+          ],
+          SliverToBoxAdapter(
+            child: SizedBox(height: scrollBottomInset),
+          ),
+        ],
+      ),
+    );
+
+    if (wide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 220,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(right: AppSpacing.md),
+              child: filters,
+            ),
+          ),
+          Expanded(child: list),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _StatsFilterBar(
-          range: current?.range ?? StatsRangeFilter.lastDay,
-          sort: current?.sort ?? StatsSortOption.totalMoves,
-          shift: current?.shiftFilter ?? StatsShiftFilter.all,
-          onRange: onRange,
-          onSort: onSort,
-          onShift: onShift,
-        ),
+        filters,
         const SizedBox(height: AppSpacing.md),
-        if (refreshing) ...[
-          const LinearProgressIndicator(minHeight: 2),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: onRefresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                child: current == null
-                    ? const _EmptyState(
-                        title: 'No saved stats',
-                        message: 'Connect to the internet to load stats.',
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!current.currentUserHasYardId) ...[
-                            const _EmptyState(
-                              title: 'Yard System ID required',
-                              message:
-                                  'You need a Yard System ID to view performance statistics.',
-                            ),
-                          ] else ...[
-                            _MyPerformanceCard(data: current),
-                            const SizedBox(height: AppSpacing.md),
-                            _TrendCard(
-                              points: current.trend,
-                              range: current.range,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            _TeamSnapshotCard(team: current.team),
-                            const SizedBox(height: AppSpacing.md),
-                            _LeaderboardSection(
-                              users: current.users,
-                              sort: current.sort,
-                              expandedUserId: expandedUserId,
-                              onToggleUser: onToggleUser,
-                            ),
-                          ],
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: list),
       ],
-    );
-  }
-}
-
-/// Compact picker — same shell as My Rota filter sheets.
-class _StatsPickerSheet<T> extends StatefulWidget {
-  const _StatsPickerSheet({
-    required this.title,
-    required this.options,
-    required this.selected,
-    required this.labelFor,
-  });
-
-  final String title;
-  final List<T> options;
-  final T selected;
-  final String Function(T value) labelFor;
-
-  @override
-  State<_StatsPickerSheet<T>> createState() => _StatsPickerSheetState<T>();
-}
-
-class _StatsPickerSheetState<T> extends State<_StatsPickerSheet<T>> {
-  late T _selected = widget.selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = AppAvailabilityTones.award(isDark: isDark);
-    final accentWash = AppAvailabilityTones.awardBg(isDark: isDark);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.md,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: colors.borderDefault,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-            ),
-            Text(
-              widget.title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 320),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final option in widget.options)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
-                        child: Material(
-                          color: option == _selected
-                              ? Color.alphaBlend(
-                                  accentWash.withValues(alpha: 0.85),
-                                  colors.bgElevated,
-                                )
-                              : colors.bgElevated,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            onTap: () => setState(() => _selected = option),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                                border: Border.all(
-                                  color: option == _selected
-                                      ? accent.withValues(alpha: 0.45)
-                                      : colors.borderDefault,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      widget.labelFor(option),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: option == _selected
-                                                ? accent
-                                                : colors.textPrimary,
-                                            fontWeight: option == _selected
-                                                ? FontWeight.w600
-                                                : FontWeight.w400,
-                                          ),
-                                    ),
-                                  ),
-                                  if (option == _selected)
-                                    Icon(
-                                      Icons.check_rounded,
-                                      size: 20,
-                                      color: accent,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppModalActions(
-              onCancel: () => Navigator.of(context).pop(),
-              onConfirm: () => Navigator.of(context).pop(_selected),
-              confirmLabel: 'Done',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -491,6 +463,7 @@ class _StatsFilterBar extends StatelessWidget {
     required this.onRange,
     required this.onSort,
     required this.onShift,
+    this.vertical = false,
   });
 
   final StatsRangeFilter range;
@@ -499,26 +472,45 @@ class _StatsFilterBar extends StatelessWidget {
   final VoidCallback onRange;
   final VoidCallback onSort;
   final VoidCallback onShift;
+  final bool vertical;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Container(
-      height: AppHomeTabs.segmentHeight + AppHomeTabs.trackPadding * 2,
-      padding: const EdgeInsets.all(AppHomeTabs.trackPadding),
-      decoration: BoxDecoration(
-        color: colors.bgElevated,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(
-          color: colors.borderDefault.withValues(alpha: 0.45),
-          width: AppStroke.thin,
-        ),
+    final segments = <Widget>[
+      _FilterSegment(
+        label: range.label,
+        semanticLabel: 'Range: ${range.label}',
+        onTap: onRange,
       ),
-      child: Row(
+      _FilterSegment(
+        label: sort.label,
+        semanticLabel: 'Sort: ${sort.label}',
+        onTap: onSort,
+      ),
+      _FilterSegment(
+        label: shift.label,
+        semanticLabel: 'Shift: ${shift.label}',
+        onTap: onShift,
+      ),
+    ];
+
+    if (vertical) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _FilterSegment(label: range.label, onTap: onRange)),
-          Expanded(child: _FilterSegment(label: sort.label, onTap: onSort)),
-          Expanded(child: _FilterSegment(label: shift.label, onTap: onShift)),
+          for (var i = 0; i < segments.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.sm),
+            AppQuietFilterTrack(child: segments[i]),
+          ],
+        ],
+      );
+    }
+
+    return AppQuietFilterTrack(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final segment in segments) Expanded(child: segment),
         ],
       ),
     );
@@ -526,10 +518,15 @@ class _StatsFilterBar extends StatelessWidget {
 }
 
 class _FilterSegment extends StatelessWidget {
-  const _FilterSegment({required this.label, required this.onTap});
+  const _FilterSegment({
+    required this.label,
+    required this.onTap,
+    this.semanticLabel,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -541,23 +538,31 @@ class _FilterSegment extends StatelessWidget {
       isDark: isDark,
     );
 
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: AppTypography.labelSmall.copyWith(
-                color: labelColor,
-                fontWeight: FontWeight.w400,
-                fontSize: AppNavPill.bottomLabelFontSize,
+    return Semantics(
+      button: true,
+      label: semanticLabel ?? label,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppComponentTokens.minTouchTarget,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Center(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: labelColor,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
               ),
             ),
           ),
@@ -603,7 +608,8 @@ class _MyPerformanceCard extends StatelessWidget {
                     '#${user.rank}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: colors.primary,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
@@ -617,7 +623,8 @@ class _MyPerformanceCard extends StatelessWidget {
                       'My Performance',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: colors.textPrimary,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
@@ -640,7 +647,9 @@ class _MyPerformanceCard extends StatelessWidget {
                     user.totalMoves.toString(),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: colors.textPrimary,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   Text(
@@ -700,21 +709,15 @@ class _CompactStatList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.bgSecondary.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: colors.borderDefault),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            _CompactStatRow(item: items[i]),
-            if (i != items.length - 1)
-              Divider(height: 1, thickness: 1, color: colors.divider),
-          ],
+    // Flat rows inside the parent card — avoid a nested bordered box.
+    return Column(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          _CompactStatRow(item: items[i]),
+          if (i != items.length - 1)
+            Divider(height: 1, thickness: 1, color: colors.divider),
         ],
-      ),
+      ],
     );
   }
 }
@@ -756,7 +759,8 @@ class _CompactStatRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: valueColor,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -781,9 +785,8 @@ class _MetricTile extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.bgSecondary.withValues(alpha: 0.68),
+        color: colors.bgSecondary.withValues(alpha: AppOpacity.subtle),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: colors.borderDefault),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,7 +796,8 @@ class _MetricTile extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: colors.textPrimary,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
@@ -921,7 +925,8 @@ class _TrendCardState extends State<_TrendCard> {
                   'Daily Moves Trend',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                 ),
               ),
@@ -995,24 +1000,42 @@ class _ChartNavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: colors.bgSecondary.withValues(alpha: enabled ? 0.8 : 0.35),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label == 'Prev'
+          ? 'Previous trend window'
+          : 'Next trend window',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: colors.borderDefault),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: enabled ? colors.textPrimary : colors.textDisabled,
-            fontWeight: FontWeight.w700,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppComponentTokens.minTouchTarget,
+              minWidth: AppComponentTokens.minTouchTarget,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.bgSecondary.withValues(
+                  alpha: enabled ? AppOpacity.subtle : AppOpacity.disabled,
+                ),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: enabled ? colors.textPrimary : colors.textDisabled,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -1073,17 +1096,22 @@ class _AnimatedStatsTrendChart extends StatelessWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 34,
+              reservedSize: 40,
               interval: maxY / 2,
               getTitlesWidget: (value, meta) {
                 if (value <= 0) {
                   return const SizedBox.shrink();
                 }
+                // Skip near-duplicates from chart rounding at maxY.
+                if ((value - meta.max).abs() < 0.5 && value != meta.max) {
+                  return const SizedBox.shrink();
+                }
                 return Text(
                   value.round().toString(),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: textColor),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: textColor,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 );
               },
             ),
@@ -1131,14 +1159,20 @@ class _AnimatedStatsTrendChart extends StatelessWidget {
                 return null;
               }
               final point = points[groupIndex];
+              final tooltipStyle =
+                  Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: tooltipTextColor,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ) ??
+                  TextStyle(
+                    color: tooltipTextColor,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  );
               return BarTooltipItem(
                 '${_longDate(point.dateYmd)}\n${point.totalMoves} moves',
-                TextStyle(
-                  color: tooltipTextColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  height: 1.35,
-                ),
+                tooltipStyle,
               );
             },
           ),
@@ -1168,7 +1202,9 @@ class _AnimatedStatsTrendChart extends StatelessWidget {
             ),
         ],
       ),
-      duration: AppMotion.slow,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.slow,
       curve: AppMotion.emphasized,
     );
   }
@@ -1208,7 +1244,8 @@ class _TeamSnapshotCard extends StatelessWidget {
             'Team Snapshot',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: colors.textPrimary,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1238,53 +1275,6 @@ class _TeamSnapshotCard extends StatelessWidget {
   }
 }
 
-class _LeaderboardSection extends StatelessWidget {
-  const _LeaderboardSection({
-    required this.users,
-    required this.sort,
-    required this.expandedUserId,
-    required this.onToggleUser,
-  });
-
-  final List<StatsUserSummary> users;
-  final StatsSortOption sort;
-  final String? expandedUserId;
-  final void Function(String userId) onToggleUser;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    if (users.isEmpty) {
-      return const _EmptyState(
-        title: 'No leaderboard data',
-        message: 'No shunters match the current filters.',
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Leaderboard',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: colors.textPrimary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        for (final user in users) ...[
-          _LeaderboardCard(
-            user: user,
-            sort: sort,
-            expanded: expandedUserId == user.userId,
-            onTap: () => onToggleUser(user.userId),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}
-
 class _LeaderboardCard extends StatelessWidget {
   const _LeaderboardCard({
     required this.user,
@@ -1309,108 +1299,134 @@ class _LeaderboardCard extends StatelessWidget {
       StatsSortOption.perDay => 'per day',
       StatsSortOption.totalMoves => 'moves',
     };
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Material(
-        color: colors.bgElevated.withValues(alpha: 0.86),
-        child: InkWell(
-          onTap: onTap,
-          child: AnimatedSize(
-            duration: AppMotion.normal,
-            curve: AppMotion.emphasized,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                children: [
-                  Row(
+    return AppCard(
+      surfaceOpacity: AppOpacity.homeCard,
+      padding: EdgeInsets.zero,
+      child: Semantics(
+        button: true,
+        expanded: expanded,
+        label: '${user.displayName}, rank ${user.rank}, $value $label',
+        hint: expanded ? 'Collapse details' : 'Expand details',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: onTap,
+            child: AnimatedSize(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : AppMotion.normal,
+              curve: AppMotion.emphasized,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppComponentTokens.minTouchTarget,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
                     children: [
-                      _RankBadge(rank: user.rank),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: colors.textPrimary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              '${user.yardSystemId} · ${_shiftLabel(user.shiftPreference)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: colors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      Row(
                         children: [
-                          Text(
-                            value,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w800,
+                          _RankBadge(rank: user.rank),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                        color: colors.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                 ),
+                                const SizedBox(height: AppSpacing.xxs),
+                                Text(
+                                  '${user.yardSystemId} · ${_shiftLabel(user.shiftPreference)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: colors.textSecondary),
+                                ),
+                              ],
+                            ),
                           ),
-                          Text(
-                            label,
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(color: colors.textSecondary),
+                          const SizedBox(width: AppSpacing.sm),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                value,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      color: colors.textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                              ),
+                              Text(
+                                label,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      if (expanded) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MetricTile(
+                                label: 'Collect',
+                                value: user.avgCollectLabel,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: _MetricTile(
+                                label: 'Travel',
+                                value: user.avgTravelLabel,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MetricTile(
+                                label: 'Days',
+                                value: user.daysWorked.toString(),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: _MetricTile(
+                                label: 'Full loc',
+                                value: user.totalFullLocations.toString(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
-                  if (expanded) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MetricTile(
-                            label: 'Collect',
-                            value: user.avgCollectLabel,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: _MetricTile(
-                            label: 'Travel',
-                            value: user.avgTravelLabel,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MetricTile(
-                            label: 'Days',
-                            value: user.daysWorked.toString(),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: _MetricTile(
-                            label: 'Full loc',
-                            value: user.totalFullLocations.toString(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),
@@ -1454,7 +1470,8 @@ class _RankBadge extends StatelessWidget {
           rank.toString(),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
             color: colors.textPrimary,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ),
@@ -1469,24 +1486,10 @@ class _StatsSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.bgElevated.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.borderDefault),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: 0.12),
-            blurRadius: AppElevation.level4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: child,
-      ),
+    return AppCard(
+      surfaceOpacity: AppOpacity.homeCard,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: child,
     );
   }
 }
@@ -1500,17 +1503,24 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return _StatsSurface(
+    return AppCard(
+      surfaceOpacity: AppOpacity.subtle,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          Icon(Icons.query_stats_rounded, color: colors.textTertiary, size: 42),
+          Icon(
+            Icons.query_stats_rounded,
+            color: colors.textTertiary,
+            size: 36,
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             title,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: colors.textPrimary,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -1537,11 +1547,13 @@ class _ErrorBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Center(
-      child: _StatsSurface(
+      child: AppCard(
+        surfaceOpacity: AppOpacity.subtle,
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_off_rounded, color: colors.warning, size: 42),
+            Icon(Icons.wifi_off_rounded, color: colors.warning, size: 36),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
@@ -1551,7 +1563,11 @@ class _ErrorBody extends StatelessWidget {
               ).textTheme.bodyMedium?.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: AppSpacing.lg),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+            AppButton(
+              label: 'Retry',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => onRetry(),
+            ),
           ],
         ),
       ),

@@ -1,11 +1,12 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/glass_bar_surface.dart';
+import 'account_layout.dart';
 
 /// Theme mode (light / dark / system) and per-theme home backgrounds.
 class ThemesScreen extends StatefulWidget {
@@ -76,7 +77,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
       if (!mounted) {
         return;
       }
-      AppToast.warning(
+      AppToast.success(
         context,
         'Wallpaper changed.',
         duration: _wallpaperToastDuration,
@@ -104,7 +105,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
       if (!mounted) {
         return;
       }
-      AppToast.warning(
+      AppToast.success(
         context,
         'Wallpaper changed.',
         duration: _wallpaperToastDuration,
@@ -128,7 +129,8 @@ class _ThemesScreenState extends State<ThemesScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final showDarkWallpapers = isDark;
     final mq = MediaQuery.of(context);
-    final topContentInset = mq.padding.top + kToolbarHeight;
+    final topContentInset =
+        mq.padding.top + AppComponentTokens.appBarHeight + AppSpacing.md;
     final wallpaperPath = homeBackgroundAssetPath(
       brightness: isDark ? Brightness.dark : Brightness.light,
       lightWallpaper: _selectedLight,
@@ -141,31 +143,18 @@ class _ThemesScreenState extends State<ThemesScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [
-                          colors.bgPrimary.withValues(alpha: 0.0),
-                          colors.bgPrimary.withValues(alpha: 0.28),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: 0.42),
-                        ],
-                ),
-              ),
-            ),
+        elevation: AppElevation.level0,
+        scrolledUnderElevation: AppElevation.level0,
+        toolbarHeight: AppComponentTokens.appBarHeight,
+        flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
+        title: Text(
+          'Themes',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        title: const Text('Themes'),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -189,49 +178,72 @@ class _ThemesScreenState extends State<ThemesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ThemesModeM3SegmentedBar(
-                  selected: _selectedThemeMode,
-                  onSelect: (ThemeMode mode) async {
-                    setState(() => _selectedThemeMode = mode);
-                    try {
-                      await widget.onThemeModeChanged(mode);
-                    } catch (_) {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      setState(() => _selectedThemeMode = widget.themeMode);
-                      AppToast.error(
-                        context,
-                        'Could not save theme. Try again.',
-                        duration: _wallpaperToastDuration,
-                      );
-                    }
-                  },
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Home background',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                AppCard(
+                  surfaceOpacity: AppOpacity.subtle,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Appearance',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _ThemesModeSegmentedBar(
+                        selected: _selectedThemeMode,
+                        onSelect: (ThemeMode mode) async {
+                          setState(() => _selectedThemeMode = mode);
+                          try {
+                            await widget.onThemeModeChanged(mode);
+                          } catch (_) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            setState(
+                              () => _selectedThemeMode = widget.themeMode,
+                            );
+                            AppToast.error(
+                              context,
+                              'Could not save theme. Try again.',
+                              duration: _wallpaperToastDuration,
+                            );
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Tap a wallpaper to apply it. Swipe the carousel to browse.',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.3,
+                const SizedBox(height: AppSpacing.md),
+                AppCard(
+                  surfaceOpacity: AppOpacity.subtle,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.sm,
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  showDarkWallpapers ? 'Dark theme' : 'Light theme',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Home background',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Tap a wallpaper to apply it. Swipe to browse.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -264,19 +276,14 @@ class _ThemesScreenState extends State<ThemesScreen> {
 }
 
 /// Slim pill theme-mode selector (Light / Dark / System).
-class _ThemesModeM3SegmentedBar extends StatelessWidget {
-  const _ThemesModeM3SegmentedBar({
+class _ThemesModeSegmentedBar extends StatelessWidget {
+  const _ThemesModeSegmentedBar({
     required this.selected,
     required this.onSelect,
   });
 
   final ThemeMode selected;
   final Future<void> Function(ThemeMode mode) onSelect;
-
-  static const double _trackHeight = 32;
-  static const double _trackPadding = 2;
-  static const double _iconSize = 14;
-  static const double _labelSize = 12;
 
   @override
   Widget build(BuildContext context) {
@@ -313,10 +320,10 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
                   children: [
                     Icon(
                       icon,
-                      size: _iconSize,
+                      size: AppHomeTabs.segmentIconSize,
                       color: isSelected
                           ? colors.textPrimary
-                          : colors.textTertiary,
+                          : colors.textSecondary,
                     ),
                     const SizedBox(width: AppSpacing.xxs),
                     Flexible(
@@ -324,14 +331,15 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
                         label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.labelSmall.copyWith(
-                          fontSize: _labelSize,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? colors.textPrimary
-                              : colors.textTertiary,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? colors.textPrimary
+                                  : colors.textSecondary,
+                            ),
                       ),
                     ),
                   ],
@@ -345,31 +353,25 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
 
     return Semantics(
       label: 'Theme appearance',
-      child: Align(
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 280),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.bgPrimary.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(
-                color: colors.borderDefault.withValues(alpha: 0.45),
-                width: AppStroke.thin,
-              ),
-            ),
-            child: SizedBox(
-              height: _trackHeight,
-              child: Padding(
-                padding: const EdgeInsets.all(_trackPadding),
-                child: Row(
-                  children: [
-                    segment(ThemeMode.light),
-                    segment(ThemeMode.dark),
-                    segment(ThemeMode.system),
-                  ],
-                ),
-              ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.bgPrimary.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(
+            color: colors.borderDefault.withValues(alpha: 0.45),
+            width: AppStroke.thin,
+          ),
+        ),
+        child: SizedBox(
+          height: AppHomeTabs.segmentHeight,
+          child: Padding(
+            padding: const EdgeInsets.all(AppHomeTabs.trackPadding),
+            child: Row(
+              children: [
+                segment(ThemeMode.light),
+                segment(ThemeMode.dark),
+                segment(ThemeMode.system),
+              ],
             ),
           ),
         ),
@@ -378,8 +380,7 @@ class _ThemesModeM3SegmentedBar extends StatelessWidget {
   }
 }
 
-/// Material 3 carousel ([CarouselView]) — uncontained layout with snapping.
-/// Matches the M3 Design Kit carousel patterns (see Figma M3 kit, Carousel).
+/// Material 3 carousel — uncontained layout with snapping.
 class _HomeWallpaperCarousel<T> extends StatefulWidget {
   const _HomeWallpaperCarousel({
     super.key,
@@ -402,11 +403,7 @@ class _HomeWallpaperCarousel<T> extends StatefulWidget {
 }
 
 class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
-  /// Smaller carousel tiles (fraction of viewport width); swipe only browses.
   static const double _itemWidthFraction = 0.5;
-
-  /// Corner radius scaled down with smaller tiles (M3-style rounded card).
-  static const double _m3CarouselRadius = 20;
 
   late final CarouselController _carouselController;
 
@@ -434,6 +431,7 @@ class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
           return;
         }
         if (_carouselController.hasClients) {
+          // Instant jump — honors Reduce Motion / disabled animations.
           await _carouselController.animateToItem(
             next,
             duration: Duration.zero,
@@ -458,7 +456,7 @@ class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final m3Shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(_m3CarouselRadius),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
     );
 
     return Semantics(
@@ -467,10 +465,37 @@ class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final maxW = constraints.maxWidth;
+          // Wide: grid of wallpapers instead of a stretched carousel.
+          if (accountIsWideLayout(context) && maxW >= 520) {
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.options.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: AppSpacing.sm,
+                crossAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 0.85,
+              ),
+              itemBuilder: (context, i) {
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _onWallpaperTapped(i),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    child: _WallpaperCarouselItem(
+                      assetPath: widget.assetPath(widget.options[i]),
+                      label: widget.label(widget.options[i]),
+                      selected: widget.options[i] == widget.selected,
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
           final itemExtent = (maxW * _itemWidthFraction).clamp(100.0, maxW);
 
-          // `CarouselView.builder` does not wrap items with tap handling; `onTap` only
-          // applies when using `children:` (see Flutter _buildCarouselItem).
           return CarouselView(
             controller: _carouselController,
             itemExtent: itemExtent,
@@ -485,7 +510,7 @@ class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
             onTap: _onWallpaperTapped,
             children: <Widget>[
               for (int i = 0; i < widget.options.length; i++)
-                _WallpaperM3CarouselItem(
+                _WallpaperCarouselItem(
                   assetPath: widget.assetPath(widget.options[i]),
                   label: widget.label(widget.options[i]),
                   selected: widget.options[i] == widget.selected,
@@ -498,9 +523,8 @@ class _HomeWallpaperCarouselState<T> extends State<_HomeWallpaperCarousel<T>> {
   }
 }
 
-/// Inner content for one carousel slot; [CarouselView] supplies the outer [Material] / shape.
-class _WallpaperM3CarouselItem extends StatelessWidget {
-  const _WallpaperM3CarouselItem({
+class _WallpaperCarouselItem extends StatelessWidget {
+  const _WallpaperCarouselItem({
     required this.assetPath,
     required this.label,
     required this.selected,
@@ -514,7 +538,7 @@ class _WallpaperM3CarouselItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final borderColor = selected ? colors.primary : colors.borderDefault;
-    final borderWidth = selected ? 2.0 : 1.0;
+    final borderWidth = selected ? AppStroke.medium : AppStroke.thin;
 
     return Semantics(
       label: '$label home background',
@@ -541,22 +565,13 @@ class _WallpaperM3CarouselItem extends StatelessWidget {
                         gaplessPlayback: true,
                       ),
                       if (selected)
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: colors.primary.withValues(alpha: 0.35),
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      if (selected)
                         Align(
                           alignment: Alignment.topRight,
                           child: Padding(
                             padding: const EdgeInsets.all(AppSpacing.xs),
                             child: Icon(
                               Icons.check_circle,
-                              size: 26,
+                              size: 22,
                               color: colors.primary,
                               shadows: const [
                                 Shadow(

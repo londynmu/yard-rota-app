@@ -15,10 +15,11 @@ import '../push/push_messaging_service.dart';
 import '../stats/data/stats_repository.dart';
 import '../stage_three/data/stage_three_repository.dart';
 import '../stage_two/data/stage_two_repository.dart';
+import '../transport/presentation/transport_manager_shell.dart';
 import 'home_shell_screen.dart';
 
 /// Root shell after sign-in. Shunters and admins get the bottom-menu layout;
-/// VMU and transport managers keep the tile hub.
+/// pure transport managers get Today-first shell; VMU keeps the tile hub.
 class MainShell extends StatelessWidget {
   const MainShell({
     super.key,
@@ -87,8 +88,32 @@ class MainShell extends StatelessWidget {
             systemNavigationBarDividerColor: Colors.transparent,
           );
 
-    final usesTileHub =
-        !session.isAdmin && (session.isVmu || session.isTransportManager);
+    // Pure TM: Today KPI is home (not the four-tile hub).
+    if (session.isTransportManager && !session.isAdmin) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlay,
+        child: ConnectivityBanner(
+          child: TransportManagerShell(
+            apiClient: apiClient,
+            session: session,
+            stageOneRepository: stageOneRepository,
+            stageTwoRepository: stageTwoRepository,
+            stageThreeRepository: stageThreeRepository,
+            pushMessaging: pushMessaging,
+            onLogout: onLogout,
+            onProfileSaved: onProfileSaved,
+            themeMode: themeMode,
+            onThemeModeChanged: onThemeModeChanged,
+            lightHomeWallpaper: lightHomeWallpaper,
+            darkHomeWallpaper: darkHomeWallpaper,
+            onLightHomeWallpaperChanged: onLightHomeWallpaperChanged,
+            onDarkHomeWallpaperChanged: onDarkHomeWallpaperChanged,
+          ),
+        ),
+      );
+    }
+
+    final usesTileHub = !session.isAdmin && session.isVmu;
     if (!usesTileHub) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
         value: overlay,
