@@ -71,10 +71,24 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Home'));
+    // Top bar label is Calendar (bottom nav Home stays selected).
+    await tester.tap(find.text('Calendar'));
     await tester.pumpAndSettle();
-    expect(find.text('Breaks are unavailable. Try again later.'), findsNothing);
     expect(find.byType(CalendarScreen), findsOneWidget);
+    // IndexedStack keeps Breaks mounted off-index; assert the Calendar segment
+    // is selected instead of requiring the Breaks copy to leave the tree.
+    final calendarSemantics = tester.widget<Semantics>(
+      find
+          .ancestor(
+            of: find.text('Calendar').first,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.button == true,
+            ),
+          )
+          .first,
+    );
+    expect(calendarSemantics.properties.selected, isTrue);
     AppToast.dismissPending();
   });
 

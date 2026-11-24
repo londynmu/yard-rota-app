@@ -572,6 +572,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     // Tablet / landscape: calendar + shifts side-by-side, not a stretched stack.
+    // Do not wrap in IntrinsicHeight — the month grid uses LayoutBuilder, which
+    // cannot compute intrinsics (breaks widget tests at ≥700px width).
     if (wide && footer != null) {
       return RefreshIndicator(
         onRefresh: onRefresh,
@@ -581,18 +583,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: _buildMonthCalendar(context, data),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(flex: 4, child: footer),
-                    ],
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: _buildMonthCalendar(context, data),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(flex: 4, child: footer),
+                  ],
                 ),
               ),
             );
