@@ -1,3 +1,6 @@
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+
 enum BreakShift {
   day('day', 'Day'),
   afternoon('afternoon', 'Afternoon'),
@@ -9,8 +12,9 @@ enum BreakShift {
   final String label;
 
   static BreakShift? fromDb(String? value) {
+    final normalized = value?.trim().toLowerCase();
     for (final shift in values) {
-      if (shift.dbValue == value) return shift;
+      if (shift.dbValue == normalized) return shift;
     }
     return null;
   }
@@ -140,6 +144,36 @@ class BreakWindowLogic {
 
   static const int dayStartHour = 7;
   static const int nightStartHour = 17;
+  static const String yardTimeZone = 'Europe/London';
+
+  static bool _tzReady = false;
+
+  static void ensureTimeZone() {
+    if (_tzReady) return;
+    tzdata.initializeTimeZones();
+    _tzReady = true;
+  }
+
+  /// Yard wall-clock fields for [instant] in Europe/London.
+  ///
+  /// Break slots are stored as UK civil times. Comparing them to the device
+  /// local clock (e.g. Poland UTC+1) shifts full-hour windows and empties
+  /// "on break now". Returns a naive [DateTime] whose Y/M/D H:M:S are London.
+  static DateTime yardWallClock([DateTime? instant]) {
+    ensureTimeZone();
+    final utc = (instant ?? DateTime.now()).toUtc();
+    final london = tz.TZDateTime.from(utc, tz.getLocation(yardTimeZone));
+    return DateTime(
+      london.year,
+      london.month,
+      london.day,
+      london.hour,
+      london.minute,
+      london.second,
+      london.millisecond,
+      london.microsecond,
+    );
+  }
 
   static String toYmd(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
@@ -151,6 +185,31 @@ class BreakWindowLogic {
   static DateTime dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
+  /// Local calendar midnight for a `YYYY-MM-DD` (never UTC via [DateTime.parse]).
+  static DateTime localDateYmd(String ymd) {
+    final raw = ymd.trim();
+    final slice = raw.length >= 10 ? raw.substring(0, 10) : raw;
+    final parts = slice.split('-');
+    if (parts.length != 3) return dateOnly(DateTime.now());
+    return DateTime(
+      int.tryParse(parts[0]) ?? DateTime.now().year,
+      int.tryParse(parts[1]) ?? 1,
+      int.tryParse(parts[2]) ?? 1,
+    );
+  }
+
+  static String normalizeYmd(String ymd) {
+    final raw = ymd.trim();
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  }
+
+  static bool sameLocation(String? left, String? right) {
+    final a = left?.trim().toLowerCase() ?? '';
+    final b = right?.trim().toLowerCase() ?? '';
+    if (a.isEmpty || b.isEmpty) return false;
+    return a == b;
+  }
+
   static String nightStartYmd(DateTime now) {
     final today = dateOnly(now);
     return toYmd(
@@ -160,7 +219,7 @@ class BreakWindowLogic {
 
   static Set<String> queryDates(DateTime now) {
     final today = dateOnly(now);
-    final nightStart = DateTime.parse(nightStartYmd(now));
+    final nightStart = localDateYmd(nightStartYmd(now));
     return <String>{
       toYmd(today),
       toYmd(nightStart),
@@ -168,6 +227,7 @@ class BreakWindowLogic {
     };
   }
 
+  /// [now] must be yard wall-clock (use [yardWallClock] for device timestamps).
   static List<VisibleBreak> visibleBreaks({
     required List<ScheduledBreak> breaks,
     required DateTime now,
@@ -181,18 +241,19 @@ class BreakWindowLogic {
     for (final item in breaks) {
       if (!filters.includes(item.shift)) continue;
       if (filters.location != null &&
-          filters.location!.isNotEmpty &&
-          item.location != filters.location) {
+          filters.location!.trim().isNotEmpty &&
+          !sameLocation(item.location, filters.location)) {
         continue;
       }
 
       var included = false;
-      var wallDate = DateTime.parse(item.dateYmd);
+      final itemDate = normalizeYmd(item.dateYmd);
+      var wallDate = localDateYmd(itemDate);
       final startMinutes = _minutes(item.startTime);
 
       if (item.shift == BreakShift.day || item.shift == BreakShift.afternoon) {
-        included = !inNightWindow && item.dateYmd == todayYmd;
-      } else if (item.dateYmd == nightAnchor) {
+        included = !inNightWindow && itemDate == todayYmd;
+      } else if (itemDate == nightAnchor) {
         // Only the open night cycle. Do not pull next night's early-morning
         // rows dated on the morning calendar day while this window is open.
         included = true;
@@ -204,13 +265,15 @@ class BreakWindowLogic {
 
       final start = wallDate.add(Duration(minutes: startMinutes));
       final end = start.add(Duration(minutes: item.durationMinutes));
+      // Inclusive start, exclusive end — still active during the last minute.
       if (!end.isAfter(now)) continue;
+      final isActive = !now.isBefore(start) && now.isBefore(end);
       entries.add(
         VisibleBreak(
           breakItem: item,
           start: start,
           end: end,
-          isActive: !now.isBefore(start) && now.isBefore(end),
+          isActive: isActive,
         ),
       );
     }

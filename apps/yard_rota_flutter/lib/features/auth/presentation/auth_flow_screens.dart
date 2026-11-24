@@ -101,6 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       subtitle: 'Sign up to get started with Yard Rota.',
       icon: Icons.person_add_alt_1_outlined,
       showLegalFooter: true,
+      alignToTop: true,
       children: [
         AutofillGroup(
           child: MenuGroup(
@@ -305,6 +306,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       title: 'Set new password',
       subtitle: 'Choose a new password for your account.',
       icon: Icons.password_rounded,
+      alignToTop: true,
       children: [
         AutofillGroup(
           child: MenuGroup(
@@ -464,12 +466,13 @@ class _CheckEmailScreen extends StatelessWidget {
       children: [
         AppCard(
           surfaceOpacity: AppOpacity.subtle,
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (var i = 0; i < steps.length; i++) ...[
                 if (i > 0) const SizedBox(height: AppSpacing.md),
-                _StepRow(number: i + 1, text: steps[i]),
+                _StepRow(text: steps[i]),
               ],
             ],
           ),
@@ -490,9 +493,8 @@ class _CheckEmailScreen extends StatelessWidget {
 }
 
 class _StepRow extends StatelessWidget {
-  const _StepRow({required this.number, required this.text});
+  const _StepRow({required this.text});
 
-  final int number;
   final String text;
 
   @override
@@ -502,28 +504,21 @@ class _StepRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: AppSpacing.xxl,
-          height: AppSpacing.xxl,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(
-              alpha: AppOpacity.overlayLight / 2,
-            ),
-            borderRadius: BorderRadius.circular(AppRadius.full),
-          ),
-          child: Text(
-            '$number',
-            style: textTheme.labelMedium?.copyWith(color: colors.primary),
+        Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: Icon(
+            Icons.circle,
+            size: 7,
+            color: colors.primary.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xxs),
-            child: Text(
-              text,
-              style: textTheme.bodyMedium?.copyWith(color: colors.textPrimary),
+          child: Text(
+            text,
+            style: textTheme.bodyMedium?.copyWith(
+              color: colors.textPrimary,
+              height: 1.35,
             ),
           ),
         ),

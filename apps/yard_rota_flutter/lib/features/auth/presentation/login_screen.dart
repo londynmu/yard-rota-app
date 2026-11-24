@@ -129,20 +129,11 @@ class _LoginScreenState extends State<LoginScreen> {
           label: 'Forgot password?',
           onPressed: widget.isLoading ? null : widget.onForgotPassword,
         ),
-        const SizedBox(height: AppSpacing.sm),
         AppButton(
           label: widget.isLoading ? 'Signing in...' : 'Sign in',
           onPressed: widget.isLoading || !_isSubmitEnabled ? null : _submit,
         ),
-        if (widget.errorMessage != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          AppButton(
-            label: 'Try again',
-            variant: AppButtonVariant.ghost,
-            onPressed: widget.isLoading ? null : _submit,
-          ),
-        ],
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         MenuGroup(
           children: [
             MenuTile(

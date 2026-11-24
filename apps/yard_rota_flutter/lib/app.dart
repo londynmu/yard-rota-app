@@ -441,15 +441,14 @@ class _YardRotaAppState extends State<YardRotaApp> with WidgetsBindingObserver {
     }
 
     if (_session!.requiresProfileCompletion) {
-      return AuthTheme(
-        child: ProfileScreen(
-          apiClient: _apiClient,
-          session: _session!,
-          isRequired: true,
-          onProfileSaved: _handleProfileSaved,
-          onLogout: _handleLogout,
-          pushMessaging: _pushMessaging,
-        ),
+      // Profile onboarding uses AuthScaffold (theme + wallpaper) itself.
+      return ProfileScreen(
+        apiClient: _apiClient,
+        session: _session!,
+        isRequired: true,
+        onProfileSaved: _handleProfileSaved,
+        onLogout: _handleLogout,
+        pushMessaging: _pushMessaging,
       );
     }
 

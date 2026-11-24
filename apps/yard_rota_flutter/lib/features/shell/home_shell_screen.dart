@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/models.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/theme/theme_extensions.dart';
 import '../../core/theme/home_wallpaper.dart';
 import '../../core/ui/app_card.dart';
-import '../../core/ui/glass_bar_surface.dart';
-import '../../core/ui/nav_pill.dart';
+import '../../core/ui/shell_bottom_nav.dart';
 import '../calendar/data/availability_repository.dart';
 import '../calendar/data/calendar_repository.dart';
 import '../home/data/stage_one_repository.dart';
@@ -150,6 +148,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
       }
       return;
     }
+    final leavingPreCheck = _current == ShellTab.preCheck;
     setState(() {
       _current = tab;
       _visited.add(tab);
@@ -163,6 +162,14 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
         widget.session.isAdmin ? ('/admin', 'Admin') : ('/profile', 'Account'),
     };
     _track(path, title);
+    // Home keeps a cached `_needsPreCheck` flag (IndexedStack). Refresh when
+    // leaving PreCheck or landing on Home so the reminder hides after submit.
+    if (tab == ShellTab.home || leavingPreCheck) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _homeTabKey.currentState?.refreshPreCheckReminder();
+      });
+    }
   }
 
   void _track(String path, String title) {
@@ -213,53 +220,46 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: GlassBarSurface(
-        edge: GlassBarEdge.bottom,
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: AppComponentTokens.bottomNavHeight,
-            child: Row(
-              children: [
-                for (final tab in ShellTab.values)
-                  Expanded(
-                    child: _ShellNavItem(
-                      destination: _destinationFor(tab, isAdmin: isAdmin),
-                      selected: tab == _current,
-                      onTap: () => _select(tab),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+      bottomNavigationBar: ShellBottomNavBar(
+        destinations: [
+          for (final tab in ShellTab.values)
+            _destinationFor(tab, isAdmin: isAdmin),
+        ],
+        selectedIndex: _current.index,
+        onDestinationSelected: (index) => _select(ShellTab.values[index]),
       ),
     );
   }
 
-  _NavDestination _destinationFor(ShellTab tab, {required bool isAdmin}) {
+  ShellBottomNavDestination _destinationFor(
+    ShellTab tab, {
+    required bool isAdmin,
+  }) {
     return switch (tab) {
-      ShellTab.home => const _NavDestination('Home', Icons.home_outlined),
-      ShellTab.myRota => const _NavDestination(
-        'My Rota',
-        Icons.calendar_view_week_outlined,
+      ShellTab.home => const ShellBottomNavDestination(
+        label: 'Home',
+        icon: Icons.home_outlined,
       ),
-      ShellTab.stats => const _NavDestination(
-        'Stats',
-        Icons.query_stats_outlined,
+      ShellTab.myRota => const ShellBottomNavDestination(
+        label: 'My Rota',
+        icon: Icons.calendar_view_week_outlined,
       ),
-      ShellTab.preCheck => const _NavDestination(
-        'PreCheck',
-        Icons.fact_check_outlined,
+      ShellTab.stats => const ShellBottomNavDestination(
+        label: 'Stats',
+        icon: Icons.query_stats_outlined,
+      ),
+      ShellTab.preCheck => const ShellBottomNavDestination(
+        label: 'PreCheck',
+        icon: Icons.fact_check_outlined,
       ),
       ShellTab.account => isAdmin
-          ? const _NavDestination(
-              'Admin',
-              Icons.admin_panel_settings_outlined,
+          ? const ShellBottomNavDestination(
+              label: 'Admin',
+              icon: Icons.admin_panel_settings_outlined,
             )
-          : const _NavDestination(
-              'Account',
-              Icons.person_outline_rounded,
+          : const ShellBottomNavDestination(
+              label: 'Account',
+              icon: Icons.person_outline_rounded,
             ),
     };
   }
@@ -334,93 +334,3 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   }
 }
 
-class _NavDestination {
-  const _NavDestination(this.label, this.icon);
-
-  final String label;
-  final IconData icon;
-}
-
-class _ShellNavItem extends StatelessWidget {
-  const _ShellNavItem({
-    required this.destination,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final _NavDestination destination;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = bottomNavIconColor(
-      colors,
-      selected: selected,
-      isDark: isDark,
-    );
-    final labelColor = bottomNavLabelColor(
-      colors,
-      selected: selected,
-      isDark: isDark,
-    );
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkResponse(
-        onTap: onTap,
-        containedInkWell: true,
-        highlightShape: BoxShape.rectangle,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: AppNavPill.bottomPillWidth,
-              height: AppNavPill.bottomPillHeight,
-              child: navBarIcon(
-                destination.icon,
-                size: AppNavPill.bottomIconSize,
-                color: iconColor,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppNavPill.bottomIndicatorInset,
-              ),
-              child: AnimatedContainer(
-                duration: AppMotion.normal,
-                curve: AppMotion.emphasized,
-                margin: const EdgeInsets.only(top: AppSpacing.xxs),
-                width: double.infinity,
-                height: AppNavPill.bottomIndicatorHeight,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? colors.primary.withValues(
-                          alpha: isDark
-                              ? AppNavPill.bottomIndicatorAlpha
-                              : AppNavPill.bottomIndicatorAlphaLight,
-                        )
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              destination.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.labelSmall.copyWith(
-                color: labelColor,
-                fontWeight: FontWeight.w400,
-                fontSize: AppNavPill.bottomLabelFontSize,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/network/models.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -109,8 +110,13 @@ class HomeTabScreenState extends State<HomeTabScreen>
   /// Used when a break push notification is opened.
   void showBreaks() => _selectSection(HomeSection.breaks);
 
+  /// Re-query whether the PreCheck reminder banner should show.
+  /// Call when returning to Home after completing a PreCheck (shell tab switch).
+  void refreshPreCheckReminder() => _loadPreCheckReminder();
+
   void _selectSection(HomeSection section) {
     if (section == _section) return;
+    HapticFeedback.selectionClick();
     setState(() {
       _section = section;
       _visited.add(section);
@@ -179,8 +185,12 @@ class HomeTabScreenState extends State<HomeTabScreen>
       extendBodyBehindAppBar: true,
       // Not an AppBar: its title slot adds extra trailing space, and the bar
       // must line up exactly with the content column below.
+      // preferredSize includes status-bar padding so SafeArea does not crush
+      // the 48dp Calendar / Breaks / Info hit targets.
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(AppComponentTokens.appBarHeight),
+        preferredSize: Size.fromHeight(
+          AppComponentTokens.appBarHeight + mq.padding.top,
+        ),
         child: GlassBarSurface(
           edge: GlassBarEdge.top,
           child: SafeArea(
@@ -387,57 +397,61 @@ class _HomeSectionSegment extends StatelessWidget {
         child: InkWell(
           customBorder: const StadiumBorder(),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    navBarIcon(
-                      icon,
-                      size: AppHomeTabs.segmentIconSize,
-                      color: foreground,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.labelSmall.copyWith(
+          child: SizedBox.expand(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      navBarIcon(
+                        icon,
+                        size: AppHomeTabs.segmentIconSize,
+                        color: foreground,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: labelColor,
-                          fontWeight: FontWeight.w400,
-                          fontSize: AppNavPill.bottomLabelFontSize,
+                          fontWeight:
+                              selected ? FontWeight.w500 : FontWeight.w400,
+                        ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppNavPill.bottomIndicatorInset,
+                    ],
                   ),
-                  child: AnimatedContainer(
-                    duration: AppMotion.normal,
-                    curve: AppMotion.emphasized,
-                    margin: const EdgeInsets.only(top: AppSpacing.xxs),
-                    width: double.infinity,
-                    height: AppNavPill.bottomIndicatorHeight,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? colors.primary.withValues(
-                              alpha: isDark
-                                  ? AppNavPill.bottomIndicatorAlpha
-                                  : AppNavPill.bottomIndicatorAlphaLight,
-                            )
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppNavPill.bottomIndicatorInset,
+                    ),
+                    child: AnimatedContainer(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : AppMotion.normal,
+                      curve: AppMotion.emphasized,
+                      margin: const EdgeInsets.only(top: AppSpacing.xxs),
+                      width: double.infinity,
+                      height: AppNavPill.bottomIndicatorHeight,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? colors.primary.withValues(
+                                alpha: isDark
+                                    ? AppNavPill.bottomIndicatorAlpha
+                                    : AppNavPill.bottomIndicatorAlphaLight,
+                              )
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -476,16 +490,18 @@ class _BellSegment extends StatelessWidget {
             child: InkWell(
               customBorder: const StadiumBorder(),
               onTap: onPressed,
-              child: Center(
-                child: Badge(
-                  isLabelVisible: unreadCount > 0,
-                  label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
-                  backgroundColor: colors.danger,
-                  textColor: colors.onDanger,
-                  child: navBarIcon(
-                    Icons.notifications_none_outlined,
-                    size: AppHomeTabs.segmentIconSize,
-                    color: bellColor,
+              child: SizedBox.expand(
+                child: Center(
+                  child: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+                    backgroundColor: colors.danger,
+                    textColor: colors.onDanger,
+                    child: navBarIcon(
+                      Icons.notifications_none_outlined,
+                      size: AppHomeTabs.segmentIconSize,
+                      color: bellColor,
+                    ),
                   ),
                 ),
               ),
@@ -504,12 +520,22 @@ class _UnavailableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Align(
       alignment: Alignment.topCenter,
       child: AppCard(
+        surfaceOpacity: AppOpacity.subtle,
+        borderColor: colors.borderSubtle,
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: SizedBox(
           width: double.infinity,
-          child: Text(message, textAlign: TextAlign.center),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
         ),
       ),
     );

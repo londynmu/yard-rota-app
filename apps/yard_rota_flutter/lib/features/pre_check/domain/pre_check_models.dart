@@ -79,6 +79,7 @@ class PreCheckShift {
 class PreCheckShiftWindow {
   const PreCheckShiftWindow({required this.start, required this.end});
 
+  /// Inclusive lower bound for reminder + check queries (1h before shift start).
   final DateTime start;
   final DateTime end;
 }
@@ -347,14 +348,26 @@ class PreCheckInitialData {
   final PreCheckQueueStatus queueStatus;
 }
 
+/// Postgres `time` often arrives as `HH:MM:SS` — keep `HH:MM` so
+/// `DateTime.parse(...T{time}:00)` stays valid (not `17:00:00:00`).
+String preCheckNormalizeTime(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.length >= 5) {
+    return trimmed.substring(0, 5);
+  }
+  return trimmed;
+}
+
 PreCheckShiftWindow? getPreCheckShiftWindow(
   List<PreCheckShift> shifts, {
   DateTime? now,
 }) {
   final instant = now ?? DateTime.now();
   for (final shift in shifts) {
-    final start = DateTime.tryParse('${shift.dateYmd}T${shift.startTime}:00');
-    final rawEnd = DateTime.tryParse('${shift.dateYmd}T${shift.endTime}:00');
+    final startTime = preCheckNormalizeTime(shift.startTime);
+    final endTime = preCheckNormalizeTime(shift.endTime);
+    final start = DateTime.tryParse('${shift.dateYmd}T$startTime:00');
+    final rawEnd = DateTime.tryParse('${shift.dateYmd}T$endTime:00');
     if (start == null || rawEnd == null) {
       continue;
     }
@@ -362,9 +375,11 @@ PreCheckShiftWindow? getPreCheckShiftWindow(
     if (!end.isAfter(start)) {
       end = end.add(const Duration(days: 1));
     }
+    // Reminder + check queries share this bound: include the 1h early window
+    // where shunters are allowed to complete PreCheck before shift start.
     final bufferStart = start.subtract(const Duration(hours: 1));
     if (!instant.isBefore(bufferStart) && !instant.isAfter(end)) {
-      return PreCheckShiftWindow(start: start, end: end);
+      return PreCheckShiftWindow(start: bufferStart, end: end);
     }
   }
   return null;

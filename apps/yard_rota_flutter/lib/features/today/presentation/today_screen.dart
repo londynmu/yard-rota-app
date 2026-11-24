@@ -46,22 +46,60 @@ class _TodayPanelState extends State<TodayPanel> {
     }
   }
 
+  /// Tablet portrait (≥700) or landscape phone/tablet (≥600 wide).
+  bool _isWideLayout(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height;
+    if (landscape && size.width >= 600) {
+      return true;
+    }
+    return size.width >= 700;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
+    final guide = _GuidePromoCard(onOpen: widget.onOpenGuide);
+    if (_awards.isEmpty) {
+      return guide;
+    }
+    final awards = _AwardsList(awards: _awards);
+
+    // Wide: awards | guide side-by-side instead of a stretched phone stack.
+    if (_isWideLayout(context)) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: awards),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: guide),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_awards.isNotEmpty) ...[
-          _AwardsList(awards: _awards),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-        _GuidePromoCard(onOpen: widget.onOpenGuide),
+        awards,
+        const SizedBox(height: AppSpacing.md),
+        guide,
       ],
     );
   }
+}
+
+bool _preCheckReminderIsWide(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final landscape = size.width > size.height;
+  if (landscape && size.width >= 600) {
+    return true;
+  }
+  return size.width >= 700;
 }
 
 /// Amber calendar-palette reminder — pinned above the home calendar while due.
@@ -74,6 +112,7 @@ class PreCheckReminderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final wide = _preCheckReminderIsWide(context);
     final accent = AppAvailabilityTones.note(isDark: isDark);
     final wash = AppAvailabilityTones.noteBg(isDark: isDark);
     final border = accent.withValues(alpha: isDark ? 0.35 : 0.28);
@@ -82,91 +121,111 @@ class PreCheckReminderCard extends StatelessWidget {
       colors.textPrimary,
     );
 
-    return AppCard(
-      // Full width; compact stack — copy on top, action full-width below.
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
+    final icon = ExcludeSemantics(
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        child: Icon(
+          Icons.fact_check_outlined,
+          size: 16,
+          color: accent,
+        ),
       ),
-      color: Color.alphaBlend(
-        wash.withValues(alpha: isDark ? 0.55 : 0.85),
-        colors.bgElevated,
-      ),
-      borderColor: border,
+    );
+
+    final copy = Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(
-                  Icons.fact_check_outlined,
-                  size: 16,
-                  color: accent,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Tug PreCheck required',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: titleFg,
-                        height: 1.1,
-                      ),
-                    ),
-                    Text(
-                      'Complete your daily tug inspection before work.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                        fontWeight: FontWeight.w400,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // Shorter control so the stacked layout stays compact.
-          Theme(
-            data: Theme.of(context).copyWith(
-              outlinedButtonTheme: OutlinedButtonThemeData(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(
-                    double.infinity,
-                    AppComponentTokens.buttonHeightSm,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
+          Text(
+            'Tug PreCheck required',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: titleFg,
+              height: 1.2,
             ),
-            child: AppButton(
-              label: 'Start PreCheck',
-              onPressed: onOpen,
-              variant: AppButtonVariant.secondary,
+          ),
+          Text(
+            'Complete your daily tug inspection before work.',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w400,
+              height: 1.3,
             ),
           ),
         ],
+      ),
+    );
+
+    final action = Theme(
+      data: Theme.of(context).copyWith(
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(
+              wide ? 168 : double.infinity,
+              AppComponentTokens.minTouchTarget,
+            ),
+          ),
+        ),
+      ),
+      child: AppButton(
+        label: 'Start PreCheck',
+        onPressed: onOpen,
+        variant: AppButtonVariant.secondary,
+      ),
+    );
+
+    return Semantics(
+      container: true,
+      label:
+          'Tug PreCheck required. Complete your daily tug inspection before work.',
+      child: AppCard(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        color: Color.alphaBlend(
+          wash.withValues(alpha: isDark ? 0.55 : 0.85),
+          colors.bgElevated,
+        ),
+        borderColor: border,
+        child: wide
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  icon,
+                  const SizedBox(width: AppSpacing.sm),
+                  copy,
+                  const SizedBox(width: AppSpacing.md),
+                  action,
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      icon,
+                      const SizedBox(width: AppSpacing.sm),
+                      copy,
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  action,
+                ],
+              ),
       ),
     );
   }
@@ -216,17 +275,21 @@ class _AwardsListState extends State<_AwardsList> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppComponentTokens.buttonHeightMd,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
                         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -269,14 +332,15 @@ class _AwardsListState extends State<_AwardsList> {
                         ],
                       ),
                     ),
-                    Icon(
-                      _expanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      size: 22,
-                      color: accent.withValues(alpha: 0.85),
-                    ),
-                  ],
+                      Icon(
+                        _expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 22,
+                        color: accent.withValues(alpha: 0.85),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -284,11 +348,18 @@ class _AwardsListState extends State<_AwardsList> {
         ),
         if (_expanded) ...[
           const SizedBox(height: AppSpacing.md),
-          for (final month in grouped.entries)
-            _AwardMonthCard(
-              monthLabel: _monthLabel(month.key),
-              awards: month.value,
-            ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: grouped.length,
+            itemBuilder: (context, index) {
+              final month = grouped.entries.elementAt(index);
+              return _AwardMonthCard(
+                monthLabel: _monthLabel(month.key),
+                awards: month.value,
+              );
+            },
+          ),
         ],
       ],
     );
@@ -383,7 +454,7 @@ class _AwardMonthCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     countLabel,
-                    style: AppTypography.labelMedium.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: headerFg,
                       fontWeight: FontWeight.w500,
                     ),
@@ -391,11 +462,17 @@ class _AwardMonthCard extends StatelessWidget {
                 ],
               ),
             ),
-            for (var i = 0; i < awards.length; i++)
-              _AwardPersonRow(
-                award: awards[i],
-                showDivider: i < awards.length - 1,
-              ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: awards.length,
+              itemBuilder: (context, index) {
+                return _AwardPersonRow(
+                  award: awards[index],
+                  showDivider: index < awards.length - 1,
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -442,7 +519,7 @@ class _AwardPersonRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 period,
-                style: AppTypography.labelMedium.copyWith(
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -496,65 +573,72 @@ class _GuidePromoCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onOpen,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppComponentTokens.buttonHeightMd,
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: isDark ? 0.22 : 0.14),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Icon(
+                      Icons.menu_book_outlined,
+                      size: 20,
+                      color: accent,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.menu_book_outlined,
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Shunter Guide',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: titleFg,
+                                height: 1.2,
+                              ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          'Yard induction and how-to',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: colors.textSecondary,
+                                fontWeight: FontWeight.w400,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'Open',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xxs),
+                  Icon(
+                    Icons.chevron_right_rounded,
                     size: 20,
-                    color: accent,
+                    color: accent.withValues(alpha: 0.8),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Shunter Guide',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: titleFg,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        'Yard induction and how-to',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.textSecondary,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  'Open',
-                  style: AppTypography.labelMedium.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: accent.withValues(alpha: 0.8),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

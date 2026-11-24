@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -15,10 +13,12 @@ import '../../../core/ui/app_button.dart';
 import '../../../core/ui/app_card.dart';
 import '../../../core/ui/app_text_field.dart';
 import '../../../core/ui/app_toast.dart';
+import '../../../core/ui/glass_bar_surface.dart';
 import '../../../core/ui/menu_group.dart';
 import '../../auth/presentation/auth_scaffold.dart';
 import '../../push/push_messaging_service.dart';
 import 'delete_account_flow.dart';
+import 'account_layout.dart';
 import 'profile_option_sheet.dart';
 
 enum _ProfileTab { details, record }
@@ -297,9 +297,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mq = MediaQuery.of(context);
     // Use viewPadding so Scaffold's AppBar inset is not counted twice.
-    // Same pattern as Home: status + app bar, then a small gap only.
     final topInset =
-        mq.viewPadding.top + AppComponentTokens.appBarHeight + AppSpacing.sm;
+        mq.viewPadding.top + AppComponentTokens.appBarHeight + AppSpacing.md;
     final wallpaperPath = homeBackgroundAssetPath(
       brightness: isDark ? Brightness.dark : Brightness.light,
       lightWallpaper: widget.lightHomeWallpaper,
@@ -312,39 +311,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+        elevation: AppElevation.level0,
+        scrolledUnderElevation: AppElevation.level0,
         toolbarHeight: AppComponentTokens.appBarHeight,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: AppGlassBar.blurSigma,
-              sigmaY: AppGlassBar.blurSigma,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [
-                          colors.bgPrimary.withValues(alpha: 0.0),
-                          colors.bgPrimary.withValues(
-                            alpha: AppGlassBar.topFadeDarkAlpha,
-                          ),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(
-                            alpha: AppGlassBar.topFadeLightAlpha,
-                          ),
-                        ],
-                ),
-              ),
-            ),
+        flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
+        title: Text(
+          'Profile',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        title: const Text('Profile'),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -357,163 +335,176 @@ class _ProfileScreenState extends State<ProfileScreen> {
               gaplessPlayback: true,
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              topInset,
-              AppSpacing.lg,
-              mq.viewPadding.bottom + AppSpacing.lg,
-            ),
-            // Strip MediaQuery padding so ListView does not add another top
-            // inset on top of [topInset] (that was pushing the card mid-screen).
-            child: MediaQuery.removePadding(
-              context: context,
-              removeTop: true,
-              removeBottom: true,
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      padding: EdgeInsets.zero,
-                      children: [
-                        // Frosted wash behind hero, tabs and cards — same
-                        // translucency as Home Calendar / Your shifts.
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(
-                              sigmaX: AppGlassBar.blurSigma,
-                              sigmaY: AppGlassBar.blurSigma,
-                            ),
-                            child: AppCard(
-                              surfaceOpacity: AppOpacity.homeCard,
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.md,
-                                AppSpacing.sm,
-                                AppSpacing.md,
-                                AppSpacing.md,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _hero(),
-                                  const SizedBox(height: AppSpacing.md),
-                                  _tabTrack(),
-                                  const SizedBox(height: AppSpacing.md),
-                                  if (_tab == _ProfileTab.details) ...[
-                                    _detailsCard(),
-                                    const SizedBox(height: AppSpacing.md),
-                                    AppButton(
-                                      label: _saving
-                                          ? 'Saving...'
-                                          : 'Save profile',
-                                      variant: AppButtonVariant.secondary,
-                                      onPressed: _saving ? null : _save,
-                                    ),
-                                    if (widget.onLogout != null) ...[
-                                      const SizedBox(height: AppSpacing.sm),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        height:
-                                            AppComponentTokens.buttonHeightMd,
-                                        child: OutlinedButton(
-                                          onPressed: _saving
-                                              ? null
-                                              : _deleteAccount,
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: colors.danger,
-                                            disabledForegroundColor:
-                                                colors.textTertiary,
-                                            side: BorderSide(
-                                              color: _saving
-                                                  ? colors.borderDefault
-                                                  : colors.danger,
-                                              width: AppStroke.medium,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                AppRadius.md,
-                                              ),
-                                            ),
-                                          ),
-                                          child: const Text('Delete account'),
-                                        ),
-                                      ),
-                                    ],
-                                  ] else
-                                    _recordCard(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
+          MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            removeBottom: true,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildProfileBody(
+                    context,
+                    topInset: topInset,
+                    bottomInset: mq.viewPadding.bottom + AppSpacing.lg,
+                  ),
           ),
         ],
       ),
     );
   }
 
-  /// First screen after the email is confirmed. The host wraps it in
-  /// [AuthTheme], so it shares the sign-in look.
-  Widget _buildOnboarding() {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppAuthScreen.contentMaxWidth,
-                  ),
-                  child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    children: [
-                      const AuthHeaderCard(
-                        title: 'Welcome to Yard Rota',
-                        subtitle:
-                            'Complete your profile so an admin can approve '
-                            'your access.',
-                        icon: Icons.waving_hand_outlined,
-                      ),
-                      const MenuSectionLabel('Your details'),
-                      _identityCard(),
-                      const MenuSectionLabel('Your shifts'),
-                      _preferencesCard(),
-                      const SizedBox(height: AppSpacing.lg),
-                      AppButton(
-                        label: _saving ? 'Saving...' : 'Complete profile',
-                        onPressed: _saving ? null : _save,
-                      ),
-                      if (widget.onLogout != null) ...[
-                        const SizedBox(height: AppSpacing.xl),
-                        MenuGroup(
-                          children: [
-                            MenuTile(
-                              icon: Icons.logout,
-                              title: 'Sign out',
-                              subtitle: 'Finish your profile later',
-                              onTap: _saving ? null : widget.onLogout,
-                            ),
-                            MenuTile(
-                              icon: Icons.delete_outline_rounded,
-                              title: 'Delete account',
-                              subtitle:
-                                  'Permanently remove your account and data',
-                              isDestructive: true,
-                              onTap: _saving ? null : _deleteAccount,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
+  Widget _buildProfileBody(
+    BuildContext context, {
+    required double topInset,
+    required double bottomInset,
+  }) {
+    final colors = context.appColors;
+    final hero = AppCard(
+      surfaceOpacity: AppOpacity.subtle,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: _hero(),
+    );
+    final tabs = _tabTrack();
+    final detailsActions = <Widget>[
+      _detailsCard(),
+      const SizedBox(height: AppSpacing.md),
+      AppButton(
+        label: _saving ? 'Saving...' : 'Save profile',
+        onPressed: _saving ? null : _save,
       ),
+      if (widget.onLogout != null) ...[
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          width: double.infinity,
+          height: AppComponentTokens.buttonHeightMd,
+          child: OutlinedButton(
+            onPressed: _saving ? null : _deleteAccount,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.danger,
+              disabledForegroundColor: colors.textTertiary,
+              side: BorderSide(
+                color: _saving ? colors.borderDefault : colors.danger,
+                width: AppStroke.medium,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+            child: const Text('Delete account'),
+          ),
+        ),
+      ],
+    ];
+    final mainPane = _tab == _ProfileTab.details
+        ? detailsActions
+        : <Widget>[_recordCard()];
+
+    // Wide: hero + tabs left; form/record right.
+    if (accountIsWideLayout(context)) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          topInset,
+          AppSpacing.lg,
+          bottomInset,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 2,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  hero,
+                  const SizedBox(height: AppSpacing.md),
+                  tabs,
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              flex: 3,
+              child: CustomScrollView(
+                slivers: [
+                  SliverList.list(children: mainPane),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            topInset,
+            AppSpacing.lg,
+            bottomInset,
+          ),
+          sliver: SliverList.list(
+            children: [
+              hero,
+              const SizedBox(height: AppSpacing.md),
+              tabs,
+              const SizedBox(height: AppSpacing.md),
+              ...mainPane,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// First screen after the email is confirmed. Uses [AuthScaffold] so it
+  /// matches sign-in / register (host still wraps in [AuthTheme] once).
+  Widget _buildOnboarding() {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return AuthScaffold(
+      title: 'Welcome to Yard Rota',
+      subtitle:
+          'Complete your profile so an admin can approve your access.',
+      icon: Icons.badge_outlined,
+      alignToTop: true,
+      children: [
+        const MenuSectionLabel('Your details'),
+        _identityCard(),
+        const MenuSectionLabel('Your shifts'),
+        _preferencesCard(),
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: _saving ? 'Saving...' : 'Complete profile',
+          onPressed: _saving ? null : _save,
+        ),
+        if (widget.onLogout != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          MenuGroup(
+            children: [
+              MenuTile(
+                icon: Icons.logout,
+                title: 'Sign out',
+                subtitle: 'Finish your profile later',
+                onTap: _saving ? null : widget.onLogout,
+              ),
+              MenuTile(
+                icon: Icons.delete_outline_rounded,
+                title: 'Delete account',
+                subtitle: 'Permanently remove your account and data',
+                isDestructive: true,
+                onTap: _saving ? null : _deleteAccount,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -551,8 +542,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: colors.textPrimary,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxs),
@@ -605,6 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _detailsCard() {
     return AppCard(
+      surfaceOpacity: AppOpacity.subtle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -852,110 +845,126 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _recordCard() {
     final colors = context.appColors;
     final textTheme = Theme.of(context).textTheme;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'ATTENDANCE',
-            style: textTheme.labelMedium?.copyWith(
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (_attendance.isEmpty)
-            Text(
-              'No attendance records.',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colors.textSecondary,
-              ),
-            )
-          else
-            ..._attendance.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Row(
-                  children: [
-                    Text(
-                      item.dateYmd,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        item.status.replaceAll('_', ' '),
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppCard(
+          surfaceOpacity: AppOpacity.subtle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Attendance',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
                 ),
               ),
-            ),
-          const SizedBox(height: AppSpacing.md),
-          Divider(height: 1, thickness: AppStroke.hairline, color: colors.divider),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'NOTES FROM MANAGEMENT',
-            style: textTheme.labelMedium?.copyWith(
-              color: colors.textSecondary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (_violations.isEmpty)
-            Text(
-              'No notes yet.',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colors.textSecondary,
-              ),
-            )
-          else
-            ..._violations.map((item) {
-              final categoryLabel = _violationCategoryLabel(item.category);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.bgSecondary.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                      color: colors.borderDefault,
-                      width: AppStroke.thin,
-                    ),
+              const SizedBox(height: AppSpacing.sm),
+              if (_attendance.isEmpty)
+                Text(
+                  'No attendance records.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.textSecondary,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                )
+              else
+                ..._attendance.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Row(
                       children: [
                         Text(
-                          [
-                            '${item.createdAt.day.toString().padLeft(2, '0')}/'
-                                '${item.createdAt.month.toString().padLeft(2, '0')}/'
-                                '${item.createdAt.year}',
-                            ?categoryLabel,
-                          ].join(' · '),
+                          item.dateYmd,
                           style: textTheme.bodySmall?.copyWith(
                             color: colors.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(item.body, style: textTheme.bodyMedium),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            item.status.replaceAll('_', ' '),
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-              );
-            }),
-        ],
-      ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          surfaceOpacity: AppOpacity.subtle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Notes from management',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (_violations.isEmpty)
+                Text(
+                  'No notes yet.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                )
+              else
+                ..._violations.map((item) {
+                  final categoryLabel = _violationCategoryLabel(item.category);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.bgSecondary.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: colors.borderDefault,
+                          width: AppStroke.thin,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              [
+                                '${item.createdAt.day.toString().padLeft(2, '0')}/'
+                                    '${item.createdAt.month.toString().padLeft(2, '0')}/'
+                                    '${item.createdAt.year}',
+                                ?categoryLabel,
+                              ].join(' · '),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              item.body,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

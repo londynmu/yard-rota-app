@@ -305,6 +305,12 @@ class AppOpacity {
 
   /// M3 segmented-button track scrim over wallpaper (Figma M3 kit — Segmented button).
   static const segmentedTrackFill = 0.5;
+
+  /// Modal dimming over Home wallpaper (Set availability overlay).
+  static const modalBarrier = 0.42;
+
+  /// Soft elevation tint for floating modal panels.
+  static const modalShadow = 0.45;
 }
 
 /// Material 3 Design Kit (Community) — baseline segmented button, density 0.
@@ -401,10 +407,12 @@ class AppGlassBar {
 class AppHomeTabs {
   const AppHomeTabs._();
 
-  static const double segmentHeight = 40;
-  static const double trackPadding = 3;
+  /// Material touch target — Calendar / Breaks / Info hit height.
+  /// Slightly above 48 so TalkBack/UIAutomator still reports ≥48 after density.
+  static const double segmentHeight = 52;
+  static const double trackPadding = 2;
   static const double segmentIconSize = 16;
-  static const double bellSegmentWidth = 48;
+  static const double bellSegmentWidth = 52;
 }
 
 /// Selected-state chrome for top bar segments, bottom menu and filter chips.
@@ -446,7 +454,8 @@ class AppNavPill {
   static const double iconWeight = 300;
   static const double iconGrade = -25;
 
-  static const double chipHeight = 36;
+  /// Material touch target for primary filter / status chips.
+  static const double chipHeight = 48;
   static const double chipIconSize = 16;
 
   /// Dense filter chips (lists / secondary bars).
@@ -695,7 +704,8 @@ class AppComponentTokens {
   /// with the scaffold background.
   static const maxContentWidth = 960.0;
 
-  static const minTouchTarget = 44.0;
+  /// Material touch target floor (was 44 for iOS parity).
+  static const minTouchTarget = 48.0;
 
   static const buttonHeightSm = 40.0;
   static const buttonHeightMd = 48.0;
@@ -703,7 +713,8 @@ class AppComponentTokens {
 
   static const inputHeight = 48.0;
   static const inputHorizontalPadding = 14.0;
-  static const inputVerticalPadding = 12.0;
+  /// Keeps filled inputs ≥ Material 48dp with label.
+  static const inputVerticalPadding = 14.0;
 
   static const cardPadding = 16.0;
   static const cardGap = 12.0;

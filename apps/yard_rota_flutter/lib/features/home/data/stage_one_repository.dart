@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../breaks/domain/break_models.dart';
+import '../../pre_check/domain/pre_check_models.dart';
 import '../domain/my_day_logic.dart';
 
 class MyDayData {
@@ -389,30 +390,61 @@ class StageOneRepository {
     _ => null,
   };
 
-  /// True while the user's shift window is active (same 1h buffer before
-  /// `start_time` as web [getShiftWindow] / [loadTodayShift]) until shift end,
-  /// and only when no pre-shift PreCheck exists for that window.
+  /// True while an active PreCheck shift window is open and the user has no
+  /// pre-shift submission in that same window.
+  ///
+  /// Must match [PreCheckRepository.loadInitial] / web `PreCheckReminder`:
+  /// same `getPreCheckShiftWindow` bounds and the same `check_time` filter
+  /// (local ISO strings — not `toUtc()`, which drifted from PreCheck queries).
   Future<bool> needsPreCheck({required String userId, DateTime? now}) async {
     final instant = now ?? DateTime.now();
-    final shift = await loadTodayShift(userId: userId, now: instant);
-    if (shift == null) return false;
-    final start = _dateTime(shift.dateYmd, shift.startTime);
-    var end = _dateTime(shift.dateYmd, shift.endTime);
-    if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
-    // Match web PreCheckReminder: show from 1h before start through shift end.
-    final windowStart = start.subtract(const Duration(hours: 1));
-    if (instant.isBefore(windowStart)) return false;
-    if (instant.isAfter(end)) return false;
+    final today = BreakWindowLogic.toYmd(BreakWindowLogic.dateOnly(instant));
+    final yesterday = BreakWindowLogic.toYmd(
+      BreakWindowLogic.dateOnly(instant).subtract(const Duration(days: 1)),
+    );
+    final rows = await _client
+        .from('scheduled_rota')
+        .select('date,start_time,end_time,location,shift_type')
+        .eq('user_id', userId)
+        .inFilter('date', <String>[today, yesterday])
+        .order('date', ascending: false);
+    final shifts = rows
+        .whereType<Map<String, dynamic>>()
+        .map((row) {
+          final dateYmd = row['date']?.toString() ?? '';
+          final startTime = _timeText(row['start_time']);
+          final endTime = _timeText(row['end_time']);
+          if (dateYmd.isEmpty || startTime.isEmpty || endTime.isEmpty) {
+            return null;
+          }
+          return PreCheckShift(
+            dateYmd: dateYmd,
+            startTime: startTime,
+            endTime: endTime,
+            location: row['location'] as String?,
+            shiftType: row['shift_type'] as String?,
+          );
+        })
+        .whereType<PreCheckShift>()
+        .toList(growable: false);
+
+    final window = getPreCheckShiftWindow(shifts, now: instant);
+    if (window == null) {
+      return false;
+    }
+
+    // Prefer a list read over maybeSingle — multiple matching rows must not
+    // throw into the HomeTab catch (which left the banner stuck on "required").
     final existing = await _client
         .from('precheck_submissions')
         .select('id')
         .eq('user_id', userId)
-        .eq('check_type', 'pre_shift')
-        .gte('check_time', start.toUtc().toIso8601String())
-        .lte('check_time', end.toUtc().toIso8601String())
-        .limit(1)
-        .maybeSingle();
-    return existing == null;
+        .eq('check_type', PreCheckType.preShift.dbValue)
+        .gte('check_time', window.start.toIso8601String())
+        .lte('check_time', window.end.toIso8601String())
+        .limit(1);
+    final matches = existing as List<dynamic>? ?? const <dynamic>[];
+    return matches.isEmpty;
   }
 
   /// Full award history (no 3-month cutoff) — same as web ShunterOfTheMonthCard.

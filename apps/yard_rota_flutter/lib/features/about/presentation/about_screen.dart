@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -9,6 +7,8 @@ import '../../../core/theme/home_wallpaper.dart';
 import '../../../core/theme/home_wallpaper_storage.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/ui/app_card.dart';
+import '../../../core/ui/glass_bar_surface.dart';
+import '../../../core/ui/menu_group.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({
@@ -50,147 +50,132 @@ class _AboutScreenState extends State<AboutScreen> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mq = MediaQuery.of(context);
+    final topInset =
+        mq.padding.top + AppComponentTokens.appBarHeight + AppSpacing.md;
     final wallpaperPath = homeBackgroundAssetPath(
       brightness: isDark ? Brightness.dark : Brightness.light,
       lightWallpaper: _lightWallpaper,
       darkWallpaper: _darkWallpaper,
     );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            wallpaperPath,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            gaplessPlayback: true,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: AppElevation.level0,
+        scrolledUnderElevation: AppElevation.level0,
+        toolbarHeight: AppComponentTokens.appBarHeight,
+        flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
+        title: Text(
+          'About & privacy',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            flexibleSpace: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: isDark
-                          ? [
-                              colors.bgPrimary.withValues(alpha: 0.0),
-                              colors.bgPrimary.withValues(alpha: 0.28),
-                            ]
-                          : [
-                              Colors.white.withValues(alpha: 0.0),
-                              Colors.white.withValues(alpha: 0.42),
-                            ],
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              wallpaperPath,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+            ),
+          ),
+          ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              topInset,
+              AppSpacing.lg,
+              mq.padding.bottom + AppSpacing.lg,
+            ),
+            children: [
+              AppCard(
+                surfaceOpacity: AppOpacity.subtle,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    const IconBadge(icon: Icons.info_outline),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Yard Rota',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
+                                  letterSpacing: -0.3,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            _version == null
+                                ? 'Loading version…'
+                                : 'Version $_version',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.textSecondary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ),
-            title: const Text('About & privacy'),
-          ),
-          body: SafeArea(
-            top: false,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Yard Rota',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _version == null ? 'Version' : 'Version $_version',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
+              const SizedBox(height: AppSpacing.md),
+              MenuGroup(
+                children: [
+                  MenuTile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    subtitle: 'How we handle your data',
+                    onTap: () =>
+                        openAppLink(context, AppLinks.privacyPolicy),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppCard(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Column(
-                    children: [
-                      _LinkTile(
-                        icon: Icons.privacy_tip_outlined,
-                        title: 'Privacy Policy',
-                        onTap: () =>
-                            openAppLink(context, AppLinks.privacyPolicy),
-                      ),
-                      _LinkTile(
-                        icon: Icons.description_outlined,
-                        title: 'Terms of Use',
-                        onTap: () => openAppLink(context, AppLinks.termsOfUse),
-                      ),
-                      _LinkTile(
-                        icon: Icons.person_remove_outlined,
-                        title: 'Account deletion',
-                        onTap: () =>
-                            openAppLink(context, AppLinks.accountDeletion),
-                      ),
-                      _LinkTile(
-                        icon: Icons.mail_outline,
-                        title: 'Contact support',
-                        subtitle: AppLinks.supportEmail,
-                        onTap: () => openAppLink(context, AppLinks.support),
-                      ),
-                      _LinkTile(
-                        icon: Icons.article_outlined,
-                        title: 'Open-source licences',
-                        onTap: () => showLicensePage(
-                          context: context,
-                          applicationName: 'Yard Rota',
-                          applicationVersion: _version,
-                        ),
-                      ),
-                    ],
+                  MenuTile(
+                    icon: Icons.description_outlined,
+                    title: 'Terms of Use',
+                    subtitle: 'Rules for using Yard Rota',
+                    onTap: () => openAppLink(context, AppLinks.termsOfUse),
                   ),
-                ),
-              ],
-            ),
+                  MenuTile(
+                    icon: Icons.person_remove_outlined,
+                    title: 'Account deletion',
+                    subtitle: 'How to remove your account',
+                    onTap: () =>
+                        openAppLink(context, AppLinks.accountDeletion),
+                  ),
+                  MenuTile(
+                    icon: Icons.mail_outline,
+                    title: 'Contact support',
+                    subtitle: AppLinks.supportEmail,
+                    onTap: () => openAppLink(context, AppLinks.support),
+                  ),
+                  MenuTile(
+                    icon: Icons.article_outlined,
+                    title: 'Open-source licences',
+                    subtitle: 'Libraries used in this app',
+                    onTap: () => showLicensePage(
+                      context: context,
+                      applicationName: 'Yard Rota',
+                      applicationVersion: _version,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LinkTile extends StatelessWidget {
-  const _LinkTile({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: context.appColors.textSecondary),
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+        ],
+      ),
     );
   }
 }

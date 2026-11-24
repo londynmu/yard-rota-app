@@ -22,6 +22,7 @@ class AuthScaffold extends StatelessWidget {
     this.iconForeground,
     this.iconBackground,
     this.showLegalFooter = false,
+    this.alignToTop = false,
   });
 
   final String title;
@@ -32,10 +33,15 @@ class AuthScaffold extends StatelessWidget {
   final List<Widget> children;
   final bool showLegalFooter;
 
+  /// When true, content starts at the top (long forms). Short screens stay
+  /// vertically centred for a calmer first impression.
+  final bool alignToTop;
+
   @override
   Widget build(BuildContext context) {
     return AuthTheme(
       child: _AuthLayout(
+        alignToTop: alignToTop,
         footer: showLegalFooter ? const _LegalFooter() : null,
         children: [
           AuthHeaderCard(
@@ -45,7 +51,7 @@ class AuthScaffold extends StatelessWidget {
             iconForeground: iconForeground,
             iconBackground: iconBackground,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           ...children,
         ],
       ),
@@ -122,43 +128,58 @@ class AuthTheme extends StatelessWidget {
 }
 
 class _AuthLayout extends StatelessWidget {
-  const _AuthLayout({required this.children, this.footer});
+  const _AuthLayout({
+    required this.children,
+    required this.alignToTop,
+    this.footer,
+  });
 
   final List<Widget> children;
+  final bool alignToTop;
   final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     return Scaffold(
       backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final minHeight = (constraints.maxHeight -
+                    AppSpacing.lg * 2 -
+                    keyboardInset)
+                .clamp(0.0, double.infinity);
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.lg,
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg + keyboardInset,
               ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: AppAuthScreen.contentMaxWidth,
-                    minHeight: (constraints.maxHeight - AppSpacing.lg * 2)
-                        .clamp(0, double.infinity),
+                    minHeight: minHeight,
                   ),
-                  // A non-flexible column grows to minHeight, so spaceBetween
-                  // centres the content and pushes the footer to the bottom.
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: alignToTop
+                        ? MainAxisAlignment.start
+                        : MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox.shrink(),
+                      if (!alignToTop) const SizedBox.shrink(),
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: children,
                       ),
-                      footer ?? const SizedBox.shrink(),
+                      if (footer != null)
+                        footer!
+                      else if (!alignToTop)
+                        const SizedBox.shrink(),
                     ],
                   ),
                 ),
@@ -193,7 +214,10 @@ class AuthHeaderCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return AppCard(
       surfaceOpacity: AppOpacity.subtle,
+      borderColor: colors.borderSubtle,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           IconBadge(
             icon: icon,
@@ -207,9 +231,11 @@ class AuthHeaderCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: textTheme.titleMedium?.copyWith(
+                  style: textTheme.titleLarge?.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
@@ -217,6 +243,7 @@ class AuthHeaderCard extends StatelessWidget {
                   subtitle,
                   style: textTheme.bodySmall?.copyWith(
                     color: colors.textSecondary,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -240,7 +267,10 @@ class AuthNoticeCard extends StatelessWidget {
     final colors = context.appColors;
     return AppCard(
       surfaceOpacity: AppOpacity.subtle,
+      borderColor: colors.borderSubtle,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           IconBadge(
             icon: icon ?? Icons.info_outline,
@@ -251,9 +281,10 @@ class AuthNoticeCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: colors.textPrimary),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colors.textPrimary,
+                height: 1.35,
+              ),
             ),
           ),
         ],
@@ -283,10 +314,12 @@ class AuthTextAction extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          foregroundColor: colors.textSecondary,
+          foregroundColor: colors.primary,
           minimumSize: const Size(0, AppComponentTokens.minTouchTarget),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          textStyle: AppTypography.labelLarge,
+          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         child: Text(label),
       ),
@@ -304,7 +337,7 @@ class _LegalFooter extends StatelessWidget {
       foregroundColor: colors.textSecondary,
       minimumSize: const Size(0, AppComponentTokens.minTouchTarget),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      textStyle: AppTypography.labelMedium,
+      textStyle: Theme.of(context).textTheme.labelMedium,
     );
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl),
@@ -319,7 +352,7 @@ class _LegalFooter extends StatelessWidget {
           ),
           Text(
             '·',
-            style: AppTypography.labelMedium.copyWith(
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colors.textTertiary,
             ),
           ),

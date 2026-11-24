@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tokens.dart';
+
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,
@@ -28,16 +30,21 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      maxLines: obscureText ? 1 : maxLines,
-      maxLength: maxLength,
-      decoration: InputDecoration(labelText: label, hintText: hint),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: AppComponentTokens.buttonHeightMd,
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        maxLines: obscureText ? 1 : maxLines,
+        maxLength: maxLength,
+        decoration: InputDecoration(labelText: label, hintText: hint),
+      ),
     );
   }
 }

@@ -40,6 +40,8 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final Map<String, GlobalKey> _itemKeys = <String, GlobalKey>{};
   final TextEditingController _tugSearchController = TextEditingController();
+  final TextEditingController _duringShiftDescriptionController =
+      TextEditingController();
 
   PreCheckStep _step = PreCheckStep.select;
   PreCheckInitialData? _initialData;
@@ -59,7 +61,6 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   bool _submitting = false;
   bool _showValidationWarning = false;
   String? _errorMessage;
-  String _duringShiftDescription = '';
   List<PreCheckPhoto> _duringShiftPhotos = const <PreCheckPhoto>[];
   String? _duringShiftFormSessionId;
   String _tugSearchQuery = '';
@@ -74,6 +75,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
   @override
   void dispose() {
     _tugSearchController.dispose();
+    _duringShiftDescriptionController.dispose();
     super.dispose();
   }
 
@@ -256,7 +258,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     if (tug == null) {
       return;
     }
-    if (_duringShiftDescription.trim().isEmpty) {
+    if (_duringShiftDescriptionController.text.trim().isEmpty) {
       AppToast.warning(context, 'Please describe what happened.');
       return;
     }
@@ -267,14 +269,14 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       final submission = await widget.repository.submitDuringShift(
         userId: widget.session.userId,
         tug: tug,
-        description: _duringShiftDescription,
+        description: _duringShiftDescriptionController.text,
         photos: _duringShiftPhotos,
         formSessionId: _duringShiftFormSessionId ??= _newId(),
       );
       setState(() {
         _lastSubmission = submission;
         _lastSubmitType = PreCheckType.duringShift;
-        _duringShiftDescription = '';
+        _duringShiftDescriptionController.clear();
         _duringShiftPhotos = const <PreCheckPhoto>[];
         _duringShiftFormSessionId = null;
         _step = PreCheckStep.success;
@@ -433,65 +435,100 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     }).toList();
   }
 
+  /// Tablet portrait (≥700) or landscape phone/tablet (≥600 wide).
+  bool _isWideLayout(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height;
+    if (landscape && size.width >= 600) {
+      return true;
+    }
+    return size.width >= 700;
+  }
+
   Widget _buildSelectSearchBar() {
     final colors = context.appColors;
     final canScan = DeviceCapabilities.supportsQrScanner;
     return AppCard(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.sm,
-        AppSpacing.xxs,
         AppSpacing.xs,
-        AppSpacing.xxs,
+        AppSpacing.xs,
+        AppSpacing.xs,
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 18, color: colors.textSecondary),
+          Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
-            child: TextField(
-              controller: _tugSearchController,
-              onChanged: (value) => setState(() => _tugSearchQuery = value),
-              textInputAction: TextInputAction.search,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w400,
-                fontSize: 13,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppComponentTokens.minTouchTarget,
               ),
-              decoration: InputDecoration(
-                hintText: 'Search tug',
-                hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textTertiary,
-                  fontWeight: FontWeight.w400,
-                ),
-                isDense: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.xs,
+              child: Center(
+                child: TextField(
+                  controller: _tugSearchController,
+                  onChanged: (value) =>
+                      setState(() => _tugSearchQuery = value),
+                  textInputAction: TextInputAction.search,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search tug',
+                    hintStyle: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(
+                          color: colors.textSecondary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.sm,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
           if (canScan)
-            Theme(
-              data: Theme.of(context).copyWith(
-                textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                    textStyle: Theme.of(context).textTheme.labelMedium
-                        ?.copyWith(fontWeight: FontWeight.w500),
+            Semantics(
+              button: true,
+              label: 'Scan QR',
+              excludeSemantics: true,
+              child: SizedBox(
+                height: AppComponentTokens.buttonHeightMd,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: _scanQr,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: AppComponentTokens.buttonHeightMd,
+                        minHeight: AppComponentTokens.buttonHeightMd,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Scan QR',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: colors.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              child: AppButton(
-                label: 'Scan QR',
-                onPressed: _scanQr,
-                variant: AppButtonVariant.ghost,
-                isExpanded: false,
               ),
             ),
         ],
@@ -499,68 +536,145 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     );
   }
 
+  Widget _buildTugListSliver({
+    required List<PreCheckTug> tugs,
+    required bool embedHistory,
+  }) {
+    return SliverList.builder(
+      itemCount: tugs.length,
+      itemBuilder: (context, index) {
+        final tug = tugs[index];
+        final selected = _expandedTugId == tug.id;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _TugCard(
+            tug: tug,
+            expanded: selected,
+            onToggle: () => setState(() {
+              _expandedTugId = selected ? null : tug.id;
+            }),
+            onStart: () => _startCheck(tug),
+            history: embedHistory && selected
+                ? _TugCheckHistoryPanel(
+                    repository: widget.repository,
+                    tugId: tug.id,
+                  )
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSelectSidePanel(List<PreCheckTug> tugs) {
+    final colors = context.appColors;
+    PreCheckTug? selected;
+    for (final tug in tugs) {
+      if (tug.id == _expandedTugId) {
+        selected = tug;
+        break;
+      }
+    }
+    if (selected == null) {
+      return AppCard(
+        surfaceOpacity: AppOpacity.subtle,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Center(
+          child: Text(
+            'Select a tug to see check history and start a PreCheck.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: _secondaryOnCard(colors),
+            ),
+          ),
+        ),
+      );
+    }
+    return _TugCard(
+      tug: selected,
+      expanded: true,
+      onToggle: () => setState(() => _expandedTugId = null),
+      onStart: () => _startCheck(selected!),
+      history: _TugCheckHistoryPanel(
+        repository: widget.repository,
+        tugId: selected.id,
+      ),
+    );
+  }
+
   Widget _buildSelect() {
     final tugs = _filteredTugs;
     final colors = context.appColors;
+    final wide = _isWideLayout(context);
+    final emptyMessage = _tugs.isEmpty
+        ? const _MessageCard(
+            title: 'No tugs available',
+            message: 'There are no active tugs available right now.',
+          )
+        : tugs.isEmpty
+        ? const _MessageCard(
+            title: 'No matching tugs',
+            message: 'Try a different search or clear the filter.',
+          )
+        : null;
 
-    return Column(
+    final listColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Search + Scan QR stay pinned at the top while the list scrolls.
         _buildSelectSearchBar(),
         const SizedBox(height: AppSpacing.sm),
         Expanded(
-          child: _centeredScrollBody(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _QueueBanner(
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: _QueueBanner(
                   status: _initialData?.queueStatus,
                   onSync: _syncNow,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+              SliverToBoxAdapter(
+                child: Text(
                   'Select Tug',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                if (_tugs.isEmpty)
-                  const _MessageCard(
-                    title: 'No tugs available',
-                    message: 'There are no active tugs available right now.',
-                  )
-                else if (tugs.isEmpty)
-                  const _MessageCard(
-                    title: 'No matching tugs',
-                    message: 'Try a different search or clear the filter.',
-                  )
-                else
-                  ...tugs.map(
-                    (tug) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: _TugCard(
-                        tug: tug,
-                        expanded: _expandedTugId == tug.id,
-                        onToggle: () => setState(() {
-                          _expandedTugId =
-                              _expandedTugId == tug.id ? null : tug.id;
-                        }),
-                        onStart: () => _startCheck(tug),
-                        history: _expandedTugId == tug.id
-                            ? _TugCheckHistoryPanel(
-                                repository: widget.repository,
-                                tugId: tug.id,
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+              if (emptyMessage != null)
+                SliverToBoxAdapter(child: emptyMessage)
+              else
+                _buildTugListSliver(tugs: tugs, embedHistory: !wide),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!wide) {
+      return listColumn;
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(flex: 5, child: listColumn),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          flex: 4,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Landscape / short panes: keep history scrollable.
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: emptyMessage ?? _buildSelectSidePanel(tugs),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -638,84 +752,128 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       defectsByItem: _defectsByItem,
     );
 
-    // Sticky Submit above the shell nav — scrolling alone still hid the button
-    // under the glass bottom menu on some devices.
+    final wide = _isWideLayout(context);
+    final remarksCard = _remarksEnabled
+        ? _RemarksCard(
+            remarks: _draft.remarks,
+            photos: _draft.remarksPhotos,
+            onRemarksChanged: (value) =>
+                _persistDraft(_draft.copyWith(remarks: value)),
+            onAddPhoto: () => _addPhotos(
+              current: _draft.remarksPhotos,
+              maxImages: 3,
+              source: ImageSource.gallery,
+              onChanged: (photos) =>
+                  _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+            ),
+            onTakePhoto: () => _addPhotos(
+              current: _draft.remarksPhotos,
+              maxImages: 3,
+              source: ImageSource.camera,
+              onChanged: (photos) =>
+                  _persistDraft(_draft.copyWith(remarksPhotos: photos)),
+            ),
+            onRemovePhoto: (photo) => _persistDraft(
+              _draft.copyWith(
+                remarksPhotos: _draft.remarksPhotos
+                    .where((entry) => entry.id != photo.id)
+                    .toList(),
+              ),
+            ),
+          )
+        : null;
+
+    // Sticky Submit above the shell nav — single CustomScrollView (no nested
+    // ListViews); checklist items use SliverList.builder.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            children: [
-              _QueueBanner(
-                status: _initialData?.queueStatus,
-                onSync: _syncNow,
-              ),
-              if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const _WarningCard(
-                  title: 'Your app is outdated',
-                  message:
-                      'Please update the app before submitting this PreCheck.',
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _QueueBanner(
+                      status: _initialData?.queueStatus,
+                      onSync: _syncNow,
+                    ),
+                    if (_schemaStatus == PreCheckSchemaStatus.mismatch) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      const _WarningCard(
+                        title: 'Your app is outdated',
+                        message:
+                            'Please update the app before submitting this PreCheck.',
+                      ),
+                    ] else if (_schemaStatus ==
+                        PreCheckSchemaStatus.error) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      const _WarningCard(
+                        title: 'Version check unavailable',
+                        message:
+                            'The latest form version could not be verified. Your current form will be used.',
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    _TugHeader(
+                      tug: tug,
+                      progress: progress,
+                      onChangeTug: () {
+                        setState(() {
+                          _selectedTug = null;
+                          _step = PreCheckStep.select;
+                        });
+                      },
+                      onMarkAllOk: _submitting ? null : _markAllItemsOk,
+                    ),
+                  ],
                 ),
-              ] else if (_schemaStatus == PreCheckSchemaStatus.error) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const _WarningCard(
-                  title: 'Version check unavailable',
-                  message:
-                      'The latest form version could not be verified. Your current form will be used.',
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              _TugHeader(
-                tug: tug,
-                progress: progress,
-                onChangeTug: () {
-                  setState(() {
-                    _selectedTug = null;
-                    _step = PreCheckStep.select;
-                  });
-                },
-                onMarkAllOk: _submitting ? null : _markAllItemsOk,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _buildSection('Outside Check', outside),
-              const SizedBox(height: AppSpacing.lg),
-              _buildSection('Inside Check', inside),
-              if (_remarksEnabled) ...[
-                const SizedBox(height: AppSpacing.lg),
-                _RemarksCard(
-                  remarks: _draft.remarks,
-                  photos: _draft.remarksPhotos,
-                  onRemarksChanged: (value) =>
-                      _persistDraft(_draft.copyWith(remarks: value)),
-                  onAddPhoto: () => _addPhotos(
-                    current: _draft.remarksPhotos,
-                    maxImages: 3,
-                    source: ImageSource.gallery,
-                    onChanged: (photos) =>
-                        _persistDraft(_draft.copyWith(remarksPhotos: photos)),
-                  ),
-                  onTakePhoto: () => _addPhotos(
-                    current: _draft.remarksPhotos,
-                    maxImages: 3,
-                    source: ImageSource.camera,
-                    onChanged: (photos) =>
-                        _persistDraft(_draft.copyWith(remarksPhotos: photos)),
-                  ),
-                  onRemovePhoto: (photo) => _persistDraft(
-                    _draft.copyWith(
-                      remarksPhotos: _draft.remarksPhotos
-                          .where((entry) => entry.id != photo.id)
-                          .toList(),
+              if (wide)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildSectionColumn(
+                            'Outside Check',
+                            outside,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: _buildSectionColumn(
+                            'Inside Check',
+                            inside,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                )
+              else ...[
+                ..._buildSectionSlivers('Outside Check', outside),
+                ..._buildSectionSlivers('Inside Check', inside),
+              ],
+              if (remarksCard != null) ...[
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.lg),
                 ),
+                SliverToBoxAdapter(child: remarksCard),
               ],
               if (_showValidationWarning && !validation.isValid) ...[
-                const SizedBox(height: AppSpacing.lg),
-                _ValidationWarning(result: validation),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.lg),
+                ),
+                SliverToBoxAdapter(
+                  child: _ValidationWarning(result: validation),
+                ),
               ],
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
             ],
           ),
         ),
@@ -724,6 +882,104 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
           label: _submitting ? 'Submitting...' : 'Submit Pre-Shift Check',
           onPressed: _submitting ? null : _submitPreShift,
           variant: AppButtonVariant.secondary,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionColumn(
+    String title,
+    List<PreCheckItemDefinition> items,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionHeading(title, items),
+        const SizedBox(height: AppSpacing.sm),
+        for (final item in items)
+          Padding(
+            key: _itemKeys.putIfAbsent(item.key, GlobalKey.new),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _CheckItemCard(
+              item: item,
+              draft: _draft,
+              defects:
+                  _defectsByItem[item.key] ?? const <PreCheckKnownDefect>[],
+              acknowledgedDefects:
+                  _acknowledgedByItem[item.key] ??
+                  const <PreCheckKnownDefect>[],
+              onDraftChanged: _persistDraft,
+              onAddPhoto: (stateKey, source) =>
+                  _addItemPhoto(item, stateKey, source),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _buildSectionSlivers(
+    String title,
+    List<PreCheckItemDefinition> items,
+  ) {
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: _buildSectionHeading(title, items),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
+      SliverList.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Padding(
+            key: _itemKeys.putIfAbsent(item.key, GlobalKey.new),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _CheckItemCard(
+              item: item,
+              draft: _draft,
+              defects:
+                  _defectsByItem[item.key] ?? const <PreCheckKnownDefect>[],
+              acknowledgedDefects:
+                  _acknowledgedByItem[item.key] ??
+                  const <PreCheckKnownDefect>[],
+              onDraftChanged: _persistDraft,
+              onAddPhoto: (stateKey, source) =>
+                  _addItemPhoto(item, stateKey, source),
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  Widget _buildSectionHeading(
+    String title,
+    List<PreCheckItemDefinition> items,
+  ) {
+    final progress = calculatePreCheckProgress(
+      items: items,
+      draft: _draft,
+      defectsByItem: _defectsByItem,
+    );
+    final colors = context.appColors;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
+            ),
+          ),
+        ),
+        Text(
+          '${progress.checked}/${progress.total}',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: _secondaryOnCard(colors),
+          ),
         ),
       ],
     );
@@ -761,57 +1017,6 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
     setState(() => _showValidationWarning = false);
   }
 
-  Widget _buildSection(String title, List<PreCheckItemDefinition> items) {
-    final progress = calculatePreCheckProgress(
-      items: items,
-      draft: _draft,
-      defectsByItem: _defectsByItem,
-    );
-    final colors = context.appColors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
-                ),
-              ),
-            ),
-            Text(
-              '${progress.checked}/${progress.total}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        for (final item in items)
-          Padding(
-            key: _itemKeys.putIfAbsent(item.key, GlobalKey.new),
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _CheckItemCard(
-              item: item,
-              draft: _draft,
-              defects:
-                  _defectsByItem[item.key] ?? const <PreCheckKnownDefect>[],
-              acknowledgedDefects:
-                  _acknowledgedByItem[item.key] ??
-                  const <PreCheckKnownDefect>[],
-              onDraftChanged: _persistDraft,
-              onAddPhoto: (stateKey, source) =>
-                  _addItemPhoto(item, stateKey, source),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildDuringShift() {
     final tug = _selectedTug;
     if (tug == null) {
@@ -837,63 +1042,61 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ListView(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            children: [
-              _ToneCard(
-                tone: _Tone.danger,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Damage Report for ${tug.label}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Color.alphaBlend(
-                          context.appColors.danger.withValues(alpha: 0.55),
-                          context.appColors.textPrimary,
-                        ),
-                        fontWeight: FontWeight.w500,
+            child: _ToneCard(
+              tone: _Tone.danger,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Damage Report for ${tug.label}',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Color.alphaBlend(
+                        context.appColors.danger.withValues(alpha: 0.55),
+                        context.appColors.textPrimary,
                       ),
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextField(
-                      minLines: 3,
-                      maxLines: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'What happened? *',
-                        hintText: 'Describe the damage or incident...',
-                      ),
-                      onChanged: (value) => _duringShiftDescription = value,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextField(
+                    controller: _duringShiftDescriptionController,
+                    minLines: 3,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'What happened? *',
+                      hintText: 'Describe the damage or incident...',
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _PhotoActions(
-                      photos: _duringShiftPhotos,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _PhotoActions(
+                    photos: _duringShiftPhotos,
+                    maxImages: 5,
+                    onTakePhoto: () => _addPhotos(
+                      current: _duringShiftPhotos,
                       maxImages: 5,
-                      onTakePhoto: () => _addPhotos(
-                        current: _duringShiftPhotos,
-                        maxImages: 5,
-                        source: ImageSource.camera,
-                        onChanged: (photos) =>
-                            setState(() => _duringShiftPhotos = photos),
-                      ),
-                      onAddGallery: () => _addPhotos(
-                        current: _duringShiftPhotos,
-                        maxImages: 5,
-                        source: ImageSource.gallery,
-                        onChanged: (photos) =>
-                            setState(() => _duringShiftPhotos = photos),
-                      ),
-                      onRemove: (photo) => setState(
-                        () => _duringShiftPhotos = _duringShiftPhotos
-                            .where((entry) => entry.id != photo.id)
-                            .toList(),
-                      ),
+                      source: ImageSource.camera,
+                      onChanged: (photos) =>
+                          setState(() => _duringShiftPhotos = photos),
                     ),
-                  ],
-                ),
+                    onAddGallery: () => _addPhotos(
+                      current: _duringShiftPhotos,
+                      maxImages: 5,
+                      source: ImageSource.gallery,
+                      onChanged: (photos) =>
+                          setState(() => _duringShiftPhotos = photos),
+                    ),
+                    onRemove: (photo) => setState(
+                      () => _duringShiftPhotos = _duringShiftPhotos
+                          .where((entry) => entry.id != photo.id)
+                          .toList(),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -908,7 +1111,12 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
           variant: AppButtonVariant.secondary,
           onPressed: _submitting
               ? null
-              : () => setState(() => _step = PreCheckStep.completed),
+              : () => setState(() {
+                  _duringShiftDescriptionController.clear();
+                  _duringShiftPhotos = const <PreCheckPhoto>[];
+                  _duringShiftFormSessionId = null;
+                  _step = PreCheckStep.completed;
+                }),
         ),
       ],
     );
@@ -975,8 +1183,8 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
                 }
               }),
             ),
-            const SizedBox(height: AppSpacing.sm),
             if (!isDamageReport) ...[
+              const SizedBox(height: AppSpacing.sm),
               AppButton(
                 label: 'Check Another Tug',
                 onPressed: () => setState(() {
@@ -987,13 +1195,7 @@ class _PreCheckScreenState extends State<PreCheckScreen> {
                 }),
                 variant: AppButtonVariant.secondary,
               ),
-              const SizedBox(height: AppSpacing.sm),
             ],
-            AppButton(
-              label: 'Back',
-              onPressed: () => Navigator.of(context).maybePop(),
-              variant: AppButtonVariant.ghost,
-            ),
           ],
         ),
       ),
@@ -1186,6 +1388,7 @@ class _CheckItemCardState extends State<_CheckItemCard> {
           if (effective == PreCheckItemStatus.repairNeeded &&
               state.linkedDamageId == null)
             _IssueDetails(
+              key: ValueKey('issue-${widget.item.key}'),
               stateKey: widget.item.key,
               state: state,
               onNotesChanged: (value) =>
@@ -1327,6 +1530,7 @@ class _CheckItemCardState extends State<_CheckItemCard> {
           ),
           if (newState.status == PreCheckItemStatus.repairNeeded)
             _IssueDetails(
+              key: ValueKey('issue-$newKey'),
               stateKey: newKey,
               state: newState,
               onNotesChanged: (value) =>
@@ -1469,8 +1673,9 @@ class _CheckItemCardState extends State<_CheckItemCard> {
   }
 }
 
-class _IssueDetails extends StatelessWidget {
+class _IssueDetails extends StatefulWidget {
   const _IssueDetails({
+    super.key,
     required this.stateKey,
     required this.state,
     required this.onNotesChanged,
@@ -1487,6 +1692,42 @@ class _IssueDetails extends StatelessWidget {
   final ValueChanged<PreCheckPhoto> onRemovePhoto;
 
   @override
+  State<_IssueDetails> createState() => _IssueDetailsState();
+}
+
+class _IssueDetailsState extends State<_IssueDetails> {
+  late final TextEditingController _notesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _notesController = TextEditingController(text: widget.state.notes);
+  }
+
+  @override
+  void didUpdateWidget(covariant _IssueDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final notesChangedExternally =
+        widget.stateKey != oldWidget.stateKey ||
+        (widget.state.notes != oldWidget.state.notes &&
+            widget.state.notes != _notesController.text);
+    if (notesChangedExternally) {
+      _notesController.value = TextEditingValue(
+        text: widget.state.notes,
+        selection: TextSelection.collapsed(
+          offset: widget.state.notes.length,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -1494,23 +1735,22 @@ class _IssueDetails extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
+            controller: _notesController,
             minLines: 3,
             maxLines: 6,
-            controller: TextEditingController(text: state.notes)
-              ..selection = TextSelection.collapsed(offset: state.notes.length),
             decoration: const InputDecoration(
               labelText: "What's wrong? *",
               hintText: 'Describe the issue...',
             ),
-            onChanged: onNotesChanged,
+            onChanged: widget.onNotesChanged,
           ),
           const SizedBox(height: AppSpacing.sm),
           _PhotoActions(
-            photos: state.photos,
+            photos: widget.state.photos,
             maxImages: 2,
-            onTakePhoto: onTakePhoto,
-            onAddGallery: onAddGallery,
-            onRemove: onRemovePhoto,
+            onTakePhoto: widget.onTakePhoto,
+            onAddGallery: widget.onAddGallery,
+            onRemove: widget.onRemovePhoto,
           ),
         ],
       ),
@@ -1592,22 +1832,26 @@ class _PhotoActions extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      right: 2,
-                      top: 2,
-                      child: InkWell(
-                        onTap: () => onRemove(photo),
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: context.appColors.danger,
-                            borderRadius: BorderRadius.circular(AppRadius.full),
+                      right: -4,
+                      top: -4,
+                      child: IconButton(
+                        tooltip: 'Remove photo',
+                        onPressed: () => onRemove(photo),
+                        style: IconButton.styleFrom(
+                          backgroundColor: context.appColors.danger,
+                          foregroundColor: context.appColors.onDanger,
+                          minimumSize: const Size(
+                            AppComponentTokens.buttonHeightMd,
+                            AppComponentTokens.buttonHeightMd,
                           ),
-                          child: Icon(
-                            Icons.close,
-                            size: 14,
-                            color: context.appColors.onDanger,
+                          maximumSize: const Size(
+                            AppComponentTokens.buttonHeightMd,
+                            AppComponentTokens.buttonHeightMd,
                           ),
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.padded,
                         ),
+                        icon: const Icon(Icons.close, size: 18),
                       ),
                     ),
                   ],
@@ -1620,7 +1864,7 @@ class _PhotoActions extends StatelessWidget {
           child: Text(
             '${photos.length}/$maxImages photos',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.appColors.textSecondary,
+              color: _secondaryOnCard(context.appColors),
             ),
           ),
         ),
@@ -1633,7 +1877,7 @@ class FileImageFromPath extends FileImage {
   FileImageFromPath(String path) : super(File(path));
 }
 
-class _RemarksCard extends StatelessWidget {
+class _RemarksCard extends StatefulWidget {
   const _RemarksCard({
     required this.remarks,
     required this.photos,
@@ -1649,6 +1893,37 @@ class _RemarksCard extends StatelessWidget {
   final VoidCallback onTakePhoto;
   final VoidCallback onAddPhoto;
   final ValueChanged<PreCheckPhoto> onRemovePhoto;
+
+  @override
+  State<_RemarksCard> createState() => _RemarksCardState();
+}
+
+class _RemarksCardState extends State<_RemarksCard> {
+  late final TextEditingController _remarksController;
+
+  @override
+  void initState() {
+    super.initState();
+    _remarksController = TextEditingController(text: widget.remarks);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RemarksCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.remarks != oldWidget.remarks &&
+        widget.remarks != _remarksController.text) {
+      _remarksController.value = TextEditingValue(
+        text: widget.remarks,
+        selection: TextSelection.collapsed(offset: widget.remarks.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _remarksController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1667,22 +1942,21 @@ class _RemarksCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           TextField(
+            controller: _remarksController,
             minLines: 2,
             maxLines: 4,
-            controller: TextEditingController(text: remarks)
-              ..selection = TextSelection.collapsed(offset: remarks.length),
             decoration: const InputDecoration(
               hintText: 'Any additional notes or observations...',
             ),
-            onChanged: onRemarksChanged,
+            onChanged: widget.onRemarksChanged,
           ),
           const SizedBox(height: AppSpacing.sm),
           _PhotoActions(
-            photos: photos,
+            photos: widget.photos,
             maxImages: 3,
-            onTakePhoto: onTakePhoto,
-            onAddGallery: onAddPhoto,
-            onRemove: onRemovePhoto,
+            onTakePhoto: widget.onTakePhoto,
+            onAddGallery: widget.onAddPhoto,
+            onRemove: widget.onRemovePhoto,
           ),
         ],
       ),
@@ -1747,13 +2021,15 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final cameraChrome = AppPrimitives.slate900;
+    final cameraOnChrome = AppPrimitives.white;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: cameraChrome,
       appBar: AppBar(
         title: const Text('Scan Tug QR'),
-        backgroundColor: Colors.black.withValues(alpha: 0.28),
+        backgroundColor: cameraChrome.withValues(alpha: 0.28),
         surfaceTintColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        foregroundColor: cameraOnChrome,
         elevation: 0,
         actions: [
           ValueListenableBuilder<MobileScannerState>(
@@ -1783,9 +2059,9 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.36),
+                    cameraChrome.withValues(alpha: 0.36),
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.44),
+                    cameraChrome.withValues(alpha: 0.44),
                   ],
                 ),
               ),
@@ -1798,7 +2074,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.82),
+                  color: cameraOnChrome.withValues(alpha: 0.82),
                   width: AppStroke.thick,
                 ),
               ),
@@ -1980,97 +2256,127 @@ class _TugCard extends StatelessWidget {
 
     return AppCard(
       padding: EdgeInsets.zero,
+      surfaceOpacity: AppOpacity.subtle,
       borderColor: expanded ? colors.borderStrong : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Material(
-            color: colors.bgElevated,
-            child: InkWell(
-              onTap: onToggle,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+          Semantics(
+            button: true,
+            expanded: expanded,
+            label: tug.label,
+            hint: expanded ? 'Collapse tug' : 'Expand tug',
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onToggle,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg),
+                  bottom: expanded
+                      ? Radius.zero
+                      : Radius.circular(AppRadius.lg),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: colors.bgSecondary,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Icon(
-                        Icons.local_shipping_outlined,
-                        color: colors.textSecondary,
-                        size: 18,
-                      ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: AppComponentTokens.minTouchTarget,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            tug.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: colors.textPrimary,
-                                  fontSize: 14,
-                                ),
-                          ),
-                          if (tug.secondaryLabel.isNotEmpty)
-                            Text(
-                              tug.secondaryLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colors.textSecondary,
-                                    fontWeight: FontWeight.w400,
-                                  ),
+                    child: Row(
+                      children: [
+                        ExcludeSemantics(
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colors.bgSecondary,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.md,
+                              ),
                             ),
-                        ],
-                      ),
+                            child: Icon(
+                              Icons.local_shipping_outlined,
+                              color: colors.textSecondary,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                tug.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: colors.textPrimary,
+                                    ),
+                              ),
+                              if (tug.secondaryLabel.isNotEmpty)
+                                Text(
+                                  tug.secondaryLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: _secondaryOnCard(colors),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          expanded
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: colors.textSecondary,
+                        ),
+                      ],
                     ),
-                    Icon(
-                      expanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      color: colors.textSecondary,
-                    ),
-                    if (expanded) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      AppButton(
-                        label: 'Start Check',
-                        onPressed: onStart,
-                        variant: AppButtonVariant.secondary,
-                        isExpanded: false,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-          if (expanded && history != null) ...[
-            Divider(height: 1, color: colors.borderDefault),
+          if (expanded) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.sm,
-                AppSpacing.sm,
-                AppSpacing.sm,
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
                 AppSpacing.sm,
               ),
-              child: history!,
+              child: AppButton(
+                label: 'Start Check',
+                onPressed: onStart,
+                variant: AppButtonVariant.secondary,
+              ),
             ),
+            if (history != null) ...[
+              Divider(height: 1, color: colors.borderDefault),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                ),
+                child: history!,
+              ),
+            ],
           ],
         ],
       ),
@@ -2176,7 +2482,7 @@ class _TugCheckHistoryPanelState extends State<_TugCheckHistoryPanel> {
         Text(
           'Check History (30 days)',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colors.textSecondary,
+            color: _secondaryOnCard(colors),
             fontWeight: FontWeight.w500,
             letterSpacing: 0.4,
           ),
@@ -2198,7 +2504,7 @@ class _TugCheckHistoryPanelState extends State<_TugCheckHistoryPanel> {
             'No checks in the last 30 days',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
+              color: _secondaryOnCard(colors),
             ),
           )
         else ...[
@@ -2236,7 +2542,7 @@ void _openHistoryPhoto(BuildContext context, String url) {
     builder: (dialogContext) {
       return Dialog(
         insetPadding: const EdgeInsets.all(AppSpacing.lg),
-        backgroundColor: Colors.black,
+        backgroundColor: AppPrimitives.slate900,
         child: Stack(
           children: [
             InteractiveViewer(
@@ -2251,8 +2557,16 @@ void _openHistoryPhoto(BuildContext context, String url) {
               top: AppSpacing.sm,
               right: AppSpacing.sm,
               child: IconButton(
+                tooltip: 'Close',
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                icon: const Icon(Icons.close, color: Colors.white),
+                style: IconButton.styleFrom(
+                  foregroundColor: AppPrimitives.white,
+                  minimumSize: const Size(
+                    AppComponentTokens.minTouchTarget,
+                    AppComponentTokens.minTouchTarget,
+                  ),
+                ),
+                icon: const Icon(Icons.close),
               ),
             ),
           ],
@@ -2294,19 +2608,23 @@ class _TugHistoryCheckRow extends StatelessWidget {
         children: [
           InkWell(
             onTap: onToggle,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppComponentTokens.buttonHeightMd,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.checkerName,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.checkerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyMedium
@@ -2318,7 +2636,7 @@ class _TugHistoryCheckRow extends StatelessWidget {
                         Text(
                           timeLabel,
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.textSecondary),
+                              ?.copyWith(color: _secondaryOnCard(colors)),
                         ),
                       ],
                     ),
@@ -2336,22 +2654,23 @@ class _TugHistoryCheckRow extends StatelessWidget {
                     child: Text(
                       isPreShift ? 'Pre-Shift' : 'During Shift',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
+                        color: _secondaryOnCard(colors),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  if (entry.hasDefects) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    Icon(
-                      expanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                      size: 18,
-                      color: colors.textSecondary,
-                    ),
+                    if (entry.hasDefects) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 18,
+                        color: _secondaryOnCard(colors),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -2365,7 +2684,7 @@ class _TugHistoryCheckRow extends StatelessWidget {
                   Text(
                     'Problems',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colors.textSecondary,
+                      color: _secondaryOnCard(colors),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -2714,32 +3033,45 @@ class _ActionPill extends StatelessWidget {
     );
     return Opacity(
       opacity: enabled ? 1 : AppOpacity.disabled,
-      child: Material(
-        color: selected
-            ? color.withValues(alpha: isDark ? 0.14 : 0.08)
-            : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: selected
-              ? BorderSide(color: color.withValues(alpha: 0.28))
-              : BorderSide.none,
-        ),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.xs,
-              horizontal: AppSpacing.sm,
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: enabled
-                    ? (selected ? color : colors.textPrimary)
-                    : colors.textDisabled,
-                fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        enabled: enabled,
+        label: label,
+        child: Material(
+          color: selected
+              ? color.withValues(alpha: isDark ? 0.14 : 0.08)
+              : Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            side: selected
+                ? BorderSide(color: color.withValues(alpha: 0.28))
+                : BorderSide.none,
+          ),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppComponentTokens.buttonHeightMd,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm,
+                  horizontal: AppSpacing.md,
+                ),
+                child: Center(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: enabled
+                          ? (selected ? color : colors.textPrimary)
+                          : colors.textDisabled,
+                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -2747,6 +3079,11 @@ class _ActionPill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Stronger secondary for text sitting on translucent cards over wallpaper.
+Color _secondaryOnCard(AppColorsScheme colors) {
+  return Color.lerp(colors.textSecondary, colors.textPrimary, 0.38)!;
 }
 
 String _newId() {

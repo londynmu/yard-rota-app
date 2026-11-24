@@ -152,15 +152,15 @@ class IconBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Container(
-      width: AppComponentTokens.buttonHeightSm,
-      height: AppComponentTokens.buttonHeightSm,
+      width: AppComponentTokens.buttonHeightMd,
+      height: AppComponentTokens.buttonHeightMd,
       decoration: BoxDecoration(
         color:
             background ??
             colors.primary.withValues(alpha: AppOpacity.overlayLight / 2),
         borderRadius: BorderRadius.circular(AppRadius.full),
       ),
-      child: Icon(icon, color: foreground ?? colors.primary),
+      child: Icon(icon, color: foreground ?? colors.primary, size: 22),
     );
   }
 }

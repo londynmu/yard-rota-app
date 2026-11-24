@@ -12,11 +12,14 @@ import '../../../core/ui/glass_bar_surface.dart';
 import '../../../core/ui/menu_group.dart';
 import '../../about/presentation/about_screen.dart';
 import '../../admin/presentation/admin_shell_screen.dart';
+import '../../home/data/stage_one_repository.dart';
+import '../../notifications/presentation/notifications_screen.dart';
 import '../../push/push_messaging_service.dart';
 import '../../stage_three/data/stage_three_repository.dart';
 import '../../stage_two/data/stage_two_repository.dart';
 import '../../transport/presentation/transport_dashboard_screen.dart';
 import '../../vmu/presentation/vmu_shell_screen.dart';
+import 'account_layout.dart';
 import 'profile_option_sheet.dart';
 import 'profile_screen.dart';
 import 'themes_screen.dart';
@@ -36,6 +39,7 @@ class AccountMenuScreen extends StatelessWidget {
     required this.darkHomeWallpaper,
     required this.onLightHomeWallpaperChanged,
     required this.onDarkHomeWallpaperChanged,
+    this.stageOneRepository,
     this.stageTwoRepository,
     this.stageThreeRepository,
     this.pushMessaging,
@@ -53,6 +57,7 @@ class AccountMenuScreen extends StatelessWidget {
   onLightHomeWallpaperChanged;
   final Future<void> Function(DarkHomeWallpaper wallpaper)
   onDarkHomeWallpaperChanged;
+  final StageOneRepository? stageOneRepository;
   final StageTwoRepository? stageTwoRepository;
   final StageThreeRepository? stageThreeRepository;
   final PushMessagingService? pushMessaging;
@@ -142,7 +147,12 @@ class AccountMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
+    final colors = context.appColors;
     final topInset = mq.padding.top + AppComponentTokens.appBarHeight;
+    final bottomInset =
+        mq.padding.bottom +
+        AppComponentTokens.bottomNavHeight +
+        AppSpacing.md;
     final isAdmin = session.isAdmin;
     final stageTwo = stageTwoRepository;
     final stageThree = stageThreeRepository;
@@ -158,19 +168,22 @@ class AccountMenuScreen extends StatelessWidget {
         automaticallyImplyLeading: false,
         toolbarHeight: AppComponentTokens.appBarHeight,
         flexibleSpace: const GlassBarSurface(edge: GlassBarEdge.top),
-        title: Text(isAdmin ? 'Admin' : 'Account'),
-      ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          topInset + AppSpacing.sm,
-          AppSpacing.lg,
-          mq.padding.bottom + AppSpacing.lg,
+        title: Text(
+          isAdmin ? 'Admin' : 'Account',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            letterSpacing: -0.3,
+          ),
         ),
-        children: [
-          _ProfileHeaderCard(session: session),
+      ),
+      body: _AccountMenuBody(
+        topInset: topInset,
+        bottomInset: bottomInset,
+        header: _ProfileHeaderCard(session: session),
+        menuChildren: [
           if (isAdmin) ...[
-            const MenuSectionLabel('Management'),
+            const _AccountSectionLabel('Management'),
             MenuGroup(
               children: [
                 MenuTile(
@@ -207,7 +220,7 @@ class AccountMenuScreen extends StatelessWidget {
                 MenuTile(
                   icon: Icons.local_shipping_outlined,
                   title: 'Transport Dashboard',
-                  subtitle: 'Shifts and absences today',
+                  subtitle: 'Today staffing, absences and breaks',
                   onTap: () => _openOrWarn(
                     context,
                     'Transport Dashboard',
@@ -222,7 +235,7 @@ class AccountMenuScreen extends StatelessWidget {
               ],
             ),
           ],
-          const MenuSectionLabel('Settings'),
+          const _AccountSectionLabel('Settings'),
           MenuGroup(
             children: [
               MenuTile(
@@ -258,6 +271,21 @@ class AccountMenuScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              if (stageOneRepository != null)
+                MenuTile(
+                  icon: Icons.notifications_none_outlined,
+                  title: 'Notifications',
+                  subtitle: 'Alerts and reminders',
+                  onTap: () => _push(
+                    context,
+                    (_) => NotificationsScreen(
+                      repository: stageOneRepository!,
+                      session: session,
+                      lightHomeWallpaper: lightHomeWallpaper,
+                      darkHomeWallpaper: darkHomeWallpaper,
+                    ),
+                  ),
+                ),
               MenuTile(
                 icon: Icons.info_outline,
                 title: 'About',
@@ -272,7 +300,7 @@ class AccountMenuScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           MenuGroup(
             children: [
               MenuTile(
@@ -285,6 +313,87 @@ class AccountMenuScreen extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Phone: stacked scroll. Wide: sticky header rail + scrolling menus.
+class _AccountMenuBody extends StatelessWidget {
+  const _AccountMenuBody({
+    required this.topInset,
+    required this.bottomInset,
+    required this.header,
+    required this.menuChildren,
+  });
+
+  final double topInset;
+  final double bottomInset;
+  final Widget header;
+  final List<Widget> menuChildren;
+
+  @override
+  Widget build(BuildContext context) {
+    final padding = EdgeInsets.fromLTRB(
+      AppSpacing.lg,
+      topInset + AppSpacing.md,
+      AppSpacing.lg,
+      bottomInset,
+    );
+    final wide = accountIsWideLayout(context);
+
+    if (wide) {
+      return Padding(
+        padding: padding,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 300, child: header),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: menuChildren,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: padding,
+      children: [
+        header,
+        const SizedBox(height: AppSpacing.md),
+        ...menuChildren,
+      ],
+    );
+  }
+}
+
+class _AccountSectionLabel extends StatelessWidget {
+  const _AccountSectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colors.textTertiary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
       ),
     );
   }
@@ -305,14 +414,20 @@ class _ProfileHeaderCard extends StatelessWidget {
       UserRole.transportManager => 'Transport Manager',
       UserRole.user => 'Shunter',
     };
+    final email = session.email.trim();
     return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
       surfaceOpacity: AppOpacity.subtle,
+      borderColor: colors.borderSubtle,
       child: Row(
         children: [
           IconBadge(
             icon: Icons.person_outline,
-            foreground: colors.info,
-            background: colors.infoBg,
+            foreground: colors.primary,
+            background: Color.alphaBlend(
+              colors.primary.withValues(alpha: AppOpacity.overlayLight / 2),
+              colors.bgElevated,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -326,19 +441,28 @@ class _ProfileHeaderCard extends StatelessWidget {
                   style: textTheme.titleMedium?.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  session.email.isEmpty
-                      ? roleLabel
-                      : '$roleLabel · ${session.email}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  roleLabel,
                   style: textTheme.bodySmall?.copyWith(
                     color: colors.textSecondary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colors.textTertiary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
