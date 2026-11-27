@@ -17,6 +17,8 @@ export default defineConfig([
     "apps/**",
     "public/**",
     "resources/**",
+    // Vendored Impeccable skill tooling (not app source).
+    ".cursor/skills/**",
   ]),
   {
     files: ["**/*.{js,mjs,cjs,jsx}"],
