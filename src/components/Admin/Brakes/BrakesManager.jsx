@@ -5,14 +5,18 @@ import { supabase } from '../../../lib/supabaseClient'; // Adjust path if needed
 import { logSystemActivity } from '../../../lib/systemActivityLog';
 import { useToast } from '../../../components/ui/ToastContext';
 import { useAuth } from '../../../lib/AuthContext';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
 import { format as formatDate, addDays, subDays } from 'date-fns';
 import { getSuggestedBreakContext, resolveBreakManagerContext } from '../../../utils/operationalDay';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import { safeLocalStorage, safeSessionStorage } from '../../../utils/safeStorage';
 import { useIsDesktop } from '../../../hooks/useIsDesktop';
 import { fetchTmBreakBoards, TM_BREAK_SHIFTS } from '../../../utils/tmBreakBoardFetch';
+import {
+  fetchActiveLocationsCached,
+  fetchProfilesByIdsCached,
+  fetchPreferredBreakMinutesCached,
+  singleFlightBreakData,
+} from '../../../utils/breaksLoadCache';
 // Placeholder for helper components, will create later
 // import SlotCard from './SlotCard';
 // import StaffSelectionModal from './StaffSelectionModal';
@@ -36,7 +40,7 @@ function readInitialBreakContext() {
 }
 
 const BrakesManager = ({ readOnly = false }) => {
-  const { user } = useAuth();
+  const { user, sessionProfile } = useAuth();
   const toast = useToast();
   const isDesktop = useIsDesktop();
   const [toolbarHost, setToolbarHost] = useState(null);
@@ -71,35 +75,48 @@ const BrakesManager = ({ readOnly = false }) => {
   /** TM read-only: day → afternoon → night boards (no shift picker). */
   const [tmBoards, setTmBoards] = useState([]);
 
-  // Check user role and profile
+  // Prefer shared session profile; fall back to a single profiles fetch.
   useEffect(() => {
-    const checkUserRole = async () => {
-      if (!user) {
-        setCurrentUser(null);
-        setIsAdmin(false);
-        return;
-      }
+    if (!user) {
+      setCurrentUser(null);
+      setIsAdmin(false);
+      return undefined;
+    }
 
+    if (sessionProfile) {
+      setCurrentUser({
+        id: user.id,
+        first_name: sessionProfile.first_name,
+        last_name: sessionProfile.last_name,
+        role: sessionProfile.role,
+      });
+      setIsAdmin(sessionProfile.role === 'admin');
+      return undefined;
+    }
+
+    let cancelled = false;
+    const checkUserRole = async () => {
       try {
         const { data: userProfile, error } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, role')
           .eq('id', user.id)
           .single();
-
         if (error) throw error;
-
+        if (cancelled) return;
         setCurrentUser(userProfile);
         setIsAdmin(userProfile.role === 'admin');
       } catch (error) {
         console.error('Error checking user role:', error);
-        setCurrentUser(null);
-        setIsAdmin(false);
+        if (!cancelled) {
+          setCurrentUser(null);
+          setIsAdmin(false);
+        }
       }
     };
-
     checkUserRole();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user, sessionProfile]);
 
   // Correct stale date/shift for the active window (e.g. Night+yesterday at 14:00 → Day+today)
   useEffect(() => {
@@ -117,62 +134,54 @@ const BrakesManager = ({ readOnly = false }) => {
     safeLocalStorage.setItem('brakes_last_visited', Date.now().toString());
   }, []); // Run only once when component mounts
 
-  // Fetch active locations for filtering
+  // Fetch active locations once (cached); do not re-run when selectedLocation changes.
   useEffect(() => {
+    let cancelled = false;
     const loadLocations = async () => {
       try {
-        const { data, error } = await supabase
-          .from('locations')
-          .select('id, name')
-          .eq('is_active', true)
-          .order('name');
-
-        if (error) throw error;
-
-        const fetchedLocations = (data || []).slice();
-        // Custom order: Rugby, NRC, Nuneaton, then others alphabetically
-        const preferredOrder = ['Rugby', 'NRC', 'Nuneaton'];
-        fetchedLocations.sort((a, b) => {
-          const ia = preferredOrder.indexOf(a.name);
-          const ib = preferredOrder.indexOf(b.name);
-          if (ia !== -1 && ib !== -1) return ia - ib;
-          if (ia !== -1) return -1;
-          if (ib !== -1) return 1;
-          return a.name.localeCompare(b.name);
+        const fetchedLocations = await fetchActiveLocationsCached(async () => {
+          const { data, error } = await supabase
+            .from('locations')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name');
+          if (error) throw error;
+          return data || [];
         });
+        if (cancelled) return;
         setLocations(fetchedLocations);
 
-        // Ensure selectedLocation is a valid active location; default to Rugby or first
         const tmPreferred = readOnly ? safeLocalStorage.getItem('tm_dashboard_location') : null;
-        const preferred =
-          (tmPreferred && fetchedLocations.some((loc) => loc.name === tmPreferred) && tmPreferred) ||
-          (fetchedLocations.some((loc) => loc.name === selectedLocation) && selectedLocation) ||
-          null;
-        const hasSelected = preferred && preferred !== ALL_LOCATIONS_VALUE;
-        if (!hasSelected) {
-          const defaultLoc = fetchedLocations.find(l => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || '';
-          if (defaultLoc) {
-            setSelectedLocation(defaultLoc);
+        setSelectedLocation((prev) => {
+          const preferred =
+            (tmPreferred && fetchedLocations.some((loc) => loc.name === tmPreferred) && tmPreferred) ||
+            (prev && prev !== ALL_LOCATIONS_VALUE && fetchedLocations.some((loc) => loc.name === prev) && prev) ||
+            null;
+          if (preferred) {
+            if (readOnly && preferred !== ALL_LOCATIONS_VALUE) {
+              safeLocalStorage.setItem('tm_dashboard_location', preferred);
+            }
+            return preferred;
+          }
+          const defaultLoc = fetchedLocations.find((l) => l.name === 'Rugby')?.name || fetchedLocations[0]?.name || prev;
+          if (defaultLoc && defaultLoc !== ALL_LOCATIONS_VALUE) {
             if (readOnly) {
               safeLocalStorage.setItem('tm_dashboard_location', defaultLoc);
             } else {
               safeLocalStorage.setItem('brakes_selected_location', defaultLoc);
             }
           }
-        } else if (preferred !== selectedLocation) {
-          setSelectedLocation(preferred);
-          if (readOnly && preferred !== ALL_LOCATIONS_VALUE) {
-            safeLocalStorage.setItem('tm_dashboard_location', preferred);
-          }
-        }
+          return defaultLoc;
+        });
       } catch (error) {
         console.error('Error fetching locations:', error);
-        toast.error('Failed to load locations');
+        if (!cancelled) toast.error('Failed to load locations');
       }
     };
 
     loadLocations();
-  }, [selectedLocation, toast, readOnly]);
+    return () => { cancelled = true; };
+  }, [toast, readOnly]);
 
   // Convert time to minutes for break preference sorting (00:00-05:59 treated as night continuation)
   const timeToMinutes = (timeStr) => {
@@ -206,44 +215,6 @@ const BrakesManager = ({ readOnly = false }) => {
     });
   };
 
-  // Fetch break history for last 30 days to compute preferred break time per user
-  useEffect(() => {
-    const loadPreferredBreakTimes = async () => {
-      if (!selectedShift) return;
-      try {
-        const fromDate = formatDate(subDays(new Date(), 30), 'yyyy-MM-dd');
-        const { data, error } = await supabase
-          .from('scheduled_breaks')
-          .select('user_id, break_start_time')
-          .gte('date', fromDate)
-          .eq('shift_type', selectedShift.toLowerCase())
-          .not('user_id', 'is', null);
-
-        if (error) throw error;
-
-        const byUser = {};
-        (data || []).forEach((row) => {
-          if (!row.user_id) return;
-          const min = timeToMinutes(row.break_start_time);
-          if (!byUser[row.user_id]) byUser[row.user_id] = [];
-          byUser[row.user_id].push(min);
-        });
-
-        const avgByUser = {};
-        Object.entries(byUser).forEach(([uid, mins]) => {
-          const avg = mins.reduce((a, b) => a + b, 0) / mins.length;
-          avgByUser[uid] = Math.round(avg);
-        });
-        setPreferredBreakMinutesByUserId(avgByUser);
-      } catch (err) {
-        console.error('[BrakesManager] Error loading preferred break times:', err);
-        setPreferredBreakMinutesByUserId({});
-      }
-    };
-
-    loadPreferredBreakTimes();
-  }, [selectedShift]);
-
   const [addSlotModalOpen, setAddSlotModalOpen] = useState(false);
   const [preferredBreakMinutesByUserId, setPreferredBreakMinutesByUserId] = useState({});
   const [breakSlots, setBreakSlots] = useState([]); // Combined standard and custom slots
@@ -260,12 +231,55 @@ const BrakesManager = ({ readOnly = false }) => {
   const [isExporting, setIsExporting] = useState(false);
   // Modal state
   const [staffModalOpen, setStaffModalOpen] = useState(false);
+  // Preferred break times are only needed in the assign modal — do not block page open.
+  useEffect(() => {
+    if (!staffModalOpen || readOnly || !selectedShift) return undefined;
+    let cancelled = false;
+    const loadPreferredBreakTimes = async () => {
+      try {
+        const avgByUser = await fetchPreferredBreakMinutesCached(selectedShift, async () => {
+          const fromDate = formatDate(subDays(new Date(), 30), 'yyyy-MM-dd');
+          const { data, error } = await supabase
+            .from('scheduled_breaks')
+            .select('user_id, break_start_time')
+            .gte('date', fromDate)
+            .eq('shift_type', selectedShift.toLowerCase())
+            .not('user_id', 'is', null);
+          if (error) throw error;
+          const byUser = {};
+          (data || []).forEach((row) => {
+            if (!row.user_id) return;
+            const min = timeToMinutes(row.break_start_time);
+            if (!byUser[row.user_id]) byUser[row.user_id] = [];
+            byUser[row.user_id].push(min);
+          });
+          const next = {};
+          Object.entries(byUser).forEach(([uid, mins]) => {
+            next[uid] = Math.round(mins.reduce((a, b) => a + b, 0) / mins.length);
+          });
+          return next;
+        });
+        if (!cancelled) setPreferredBreakMinutesByUserId(avgByUser);
+      } catch (err) {
+        console.error('[BrakesManager] Error loading preferred break times:', err);
+        if (!cancelled) setPreferredBreakMinutesByUserId({});
+      }
+    };
+    loadPreferredBreakTimes();
+    return () => { cancelled = true; };
+  }, [staffModalOpen, selectedShift, readOnly]);
+
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [deleteConfirmSlot, setDeleteConfirmSlot] = useState(null); // Slot pending deletion
   const [removeConfirmAssignment, setRemoveConfirmAssignment] = useState(null); // Staff pending removal
 
   // UI: unified header badge pickers
   const [showDateModal, setShowDateModal] = useState(false);
+  const [DatePickerComp, setDatePickerComp] = useState(null);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [locationMenuPos, setLocationMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const locationTriggerRef = useRef(null);
+  const locationMenuRef = useRef(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(null); // Track currently displayed month in calendar
@@ -526,14 +540,12 @@ const BrakesManager = ({ readOnly = false }) => {
   // --- Data Fetching ---
   const fetchBreakData = useCallback(async () => {
     if (!selectedDate || !selectedShift) return;
+
+    const flightKey = `${selectedDate}|${selectedShift}|${selectedLocation || ''}`;
     setIsLoading(true);
-    
-    // Preserve locally added custom slots (not yet saved to DB)
-    const localCustomSlots = localCustomSlotsRef.current;
-    
-    // Clear previous data except scheduledBreaks if found in session
     setAvailableStaff([]);
 
+    const localCustomSlots = localCustomSlotsRef.current;
     const sessionStorageKey = getSessionStorageKey();
     const unsavedFlagKey = getUnsavedFlagKey();
     const hasUnsavedChanges = safeSessionStorage.getItem(unsavedFlagKey) === 'true';
@@ -542,287 +554,245 @@ const BrakesManager = ({ readOnly = false }) => {
       clearAssignmentCache();
     }
     const locationFilter = selectedLocation === ALL_LOCATIONS_VALUE ? null : selectedLocation;
+    const shiftLower = selectedShift.toLowerCase();
+
+    const mapBreakType = (frontendBreakType) => {
+      if (!frontendBreakType) return 'custom';
+      const t = frontendBreakType.toLowerCase();
+      if (t.includes('break 1 (15 min)')) return 'break1';
+      if (t.includes('break 2 (45 min)')) return 'break2';
+      if (t.includes('night break (60 min)')) return 'night';
+      if (t.includes('afternoon break (60 min)')) return 'afternoon';
+      if (t.includes('custom')) return 'custom';
+      return 'custom';
+    };
 
     try {
-      // First, generate standard slots based on shift type
-      const baseStandardSlots = standardSlotsConfig[selectedShift] || [];
-      // Clone to allow conditional injections (e.g., Saturday special slot)
-      let workingStandardSlots = [...baseStandardSlots];
-
-      // If selected date is Saturday, add an extra Night slot 20:00-21:00
-      try {
-        const dateObj = new Date(`${selectedDate}T00:00:00`);
-        const isSaturday = dateObj.getDay() === 6; // 6 = Saturday
-        if (isSaturday && selectedShift.toLowerCase() === 'night') {
-          // Inject special Saturday slot at 20:00 (60 min)
-          workingStandardSlots.unshift({
-            start_time: '20:00',
-            duration_minutes: 60,
-            break_type: 'Night Break (60 min)'
-          });
+      await singleFlightBreakData(flightKey, async () => {
+        const baseStandardSlots = standardSlotsConfig[selectedShift] || [];
+        let workingStandardSlots = [...baseStandardSlots];
+        try {
+          const dateObj = new Date(`${selectedDate}T00:00:00`);
+          if (dateObj.getDay() === 6 && shiftLower === 'night') {
+            workingStandardSlots.unshift({
+              start_time: '20:00',
+              duration_minutes: 60,
+              break_type: 'Night Break (60 min)',
+            });
+          }
+        } catch {
+          // ignore date parse issues
         }
-      } catch {
-        // Safe-guard: if date parsing fails, skip special injection
-      }
-  
-      // Fetch modified standard slot definitions for this date/shift (where user_id is null but std_slot_id is present)
-      let modifiedCapacities = {};
-      try {
+
         const modifiedQuery = supabase
           .from('scheduled_breaks')
           .select('std_slot_id, capacity')
           .eq('date', selectedDate)
-          .eq('shift_type', selectedShift.toLowerCase())
+          .eq('shift_type', shiftLower)
           .is('user_id', null)
           .not('std_slot_id', 'is', null);
+        if (locationFilter) modifiedQuery.eq('location', locationFilter);
 
-        if (locationFilter) {
-          modifiedQuery.eq('location', locationFilter);
-        }
+        const customQuery = supabase
+          .from('scheduled_breaks')
+          .select('id, break_start_time, break_duration_minutes, break_type, capacity')
+          .eq('date', selectedDate)
+          .eq('shift_type', shiftLower)
+          .is('user_id', null)
+          .is('std_slot_id', null);
 
-        const { data: modifiedSlotsData, error: modifiedSlotsError } = await modifiedQuery;
-        
-        if (modifiedSlotsError) throw modifiedSlotsError;
-  
-        if (modifiedSlotsData && modifiedSlotsData.length > 0) {
-          modifiedSlotsData.forEach(mod => {
+        const assignmentsQuery = savedAssignments
+          ? null
+          : (() => {
+              const q = supabase
+                .from('scheduled_breaks')
+                .select(`
+              id, user_id, break_start_time, break_duration_minutes, break_type, location,
+              profiles:user_id (first_name, last_name, shift_preference)
+            `)
+                .eq('date', selectedDate)
+                .eq('shift_type', shiftLower)
+                .not('user_id', 'is', null);
+              if (locationFilter) q.eq('location', locationFilter);
+              return q;
+            })();
+
+        const rotaQuery = supabase
+          .from('scheduled_rota')
+          .select('id, user_id, shift_type, location')
+          .eq('date', selectedDate)
+          .eq('shift_type', shiftLower)
+          .not('user_id', 'is', null);
+
+        const [modifiedRes, customRes, assignmentsRes, rotaRes] = await Promise.all([
+          modifiedQuery,
+          customQuery,
+          assignmentsQuery || Promise.resolve({ data: null, error: null }),
+          rotaQuery,
+        ]);
+
+        const modifiedCapacities = {};
+        if (!modifiedRes.error && modifiedRes.data) {
+          modifiedRes.data.forEach((mod) => {
             if (mod.std_slot_id && mod.capacity !== null) {
               modifiedCapacities[mod.std_slot_id] = mod.capacity;
             }
           });
         }
-      } catch (modSlotsErr) {
-        // Silent fail - will use default capacities
-      }
-  
-      // Apply modified capacities to standard slots
-      const standardSlotsWithIds = workingStandardSlots.map((slot, index) => {
-        const slotId = `std-${selectedShift}-${index}`;
-        const modifiedCapacity = modifiedCapacities[slotId];
-        return {
-          ...slot,
-          id: slotId,
-          is_custom: false,
-          // Use modified capacity if available, otherwise default from config
-          capacity: modifiedCapacity !== undefined ? modifiedCapacity : slot.capacity
-        };
-      });
-      
-      // Try to fetch custom slots definitions (where user_id is null and std_slot_id is null)
-      let customSlotsData = [];
-      try {
-        // Don't filter by location in DB query since location is not saved for custom slots
-        const { data, error } = await supabase
-          .from('scheduled_breaks')
-          .select('id, break_start_time, break_duration_minutes, break_type, capacity')
-          .eq('date', selectedDate)
-          .eq('shift_type', selectedShift.toLowerCase())
-          .is('user_id', null)
-          .is('std_slot_id', null); // Only pure custom slots
-          
-        if (error) throw error;
-        if (data && data.length > 0) {
-          // Custom slots are shared across all locations for the same date/shift
-          customSlotsData = data.map(slot => ({
+
+        const standardSlotsWithIds = workingStandardSlots.map((slot, index) => {
+          const slotId = `std-${selectedShift}-${index}`;
+          const modifiedCapacity = modifiedCapacities[slotId];
+          return {
+            ...slot,
+            id: slotId,
+            is_custom: false,
+            capacity: modifiedCapacity !== undefined ? modifiedCapacity : slot.capacity,
+          };
+        });
+
+        let customSlotsData = [];
+        if (!customRes.error && customRes.data?.length) {
+          customSlotsData = customRes.data.map((slot) => ({
             id: slot.id,
             start_time: slot.break_start_time,
             duration_minutes: slot.break_duration_minutes,
-            capacity: slot.capacity || 999, // Use fetched capacity or default unlimited
+            capacity: slot.capacity || 999,
             break_type: slot.break_type,
-            is_custom: true
+            is_custom: true,
           }));
         }
-      } catch (customSlotError) {
-        // Silent fail - will use only standard slots
-      }
-  
-      // Combine standard, custom, and locally added slots
-      const allSlots = sortBreakSlots([
-        ...standardSlotsWithIds,
-        ...customSlotsData,
-        ...localCustomSlots
-      ], selectedShift);
-      
-      setBreakSlots(allSlots);
-      
-      // Fetch existing break assignments or use saved session data
-      let processedScheduled = [];
-      if (savedAssignments) {
-        try {
-          processedScheduled = JSON.parse(savedAssignments).map(assignment => ({
-            ...assignment,
-            location: assignment.location || locationFilter || null
-          }));
-          if (locationFilter) {
-            processedScheduled = processedScheduled.filter(assignment => assignment.location === locationFilter);
-          }
-          setScheduledBreaks(processedScheduled);
-        } catch (parseError) {
-          console.error("[fetchBreakData] Error parsing sessionStorage assignments:", parseError);
-          clearAssignmentCache();
-          // Fallback to fetching from DB
-          savedAssignments = null; // Reset flag
-        }
-      }
 
-      if (!savedAssignments) {
-        // Fetch from database if no valid session data
-        try {
-          const scheduledQuery = supabase
-            .from('scheduled_breaks')
-            .select(`
-              id, user_id, break_start_time, break_duration_minutes, break_type, location,
-              profiles:user_id (first_name, last_name, shift_preference)
-            `)
-            .eq('date', selectedDate)
-            .eq('shift_type', selectedShift.toLowerCase())
-            .not('user_id', 'is', null); // Only actual assignments
+        const allSlots = sortBreakSlots(
+          [...standardSlotsWithIds, ...customSlotsData, ...localCustomSlots],
+          selectedShift,
+        );
+        setBreakSlots(allSlots);
 
-          if (locationFilter) {
-            scheduledQuery.eq('location', locationFilter);
-          }
-
-          const { data: scheduledData, error: scheduledError } = await scheduledQuery;
-          
-          if (scheduledError) throw scheduledError;
-
-          // Process scheduled data to match to slots (location filter applied after rota map below)
-          processedScheduled = scheduledData?.map(record => {
-            if (!record.profiles) {
-               return null; // Skip assignments without profile data
+        let processedScheduled = [];
+        if (savedAssignments) {
+          try {
+            processedScheduled = JSON.parse(savedAssignments).map((assignment) => ({
+              ...assignment,
+              location: assignment.location || locationFilter || null,
+            }));
+            if (locationFilter) {
+              processedScheduled = processedScheduled.filter(
+                (assignment) => assignment.location === locationFilter,
+              );
             }
-            // Find the matching slot by comparing DB values and ignoring seconds in time
-            const matchingSlot = allSlots.find(slot => {
-              const slotDbBreakType = mapToDbBreakType(slot.break_type);
-              // Normalize times to HH:MM format for comparison
-              const slotTimeHHMM = slot.start_time?.substring(0, 5);
-              const recordTimeHHMM = record.break_start_time?.substring(0, 5);
-
-              return slotTimeHHMM === recordTimeHHMM && 
-                     slot.duration_minutes === record.break_duration_minutes &&
-                     slotDbBreakType === record.break_type; // Compare DB type to DB type
-            });
-            
-            return {
-              id: record.id,
-              slot_id: matchingSlot?.id || null, // Link to our slot ID
-              user_id: record.user_id,
-              break_date: selectedDate,
-              user_name: `${record.profiles.first_name} ${record.profiles.last_name}`,
-              preferred_shift: record.profiles.shift_preference,
-              break_type: record.break_type,
-              location: record.location || null,
-              slot_data: { // Store the raw slot data from the record
-                start_time: record.break_start_time,
-                duration_minutes: record.break_duration_minutes,
-                break_type: record.break_type
-              }
-            };
-          }).filter(Boolean) || [];
-
-        } catch (err) {
-           console.error("[fetchBreakData] Error fetching existing assignments from DB:", err);
-           // Continue even if assignments fail to load
-           processedScheduled = [];
+          } catch (parseError) {
+            console.error('[fetchBreakData] Error parsing sessionStorage assignments:', parseError);
+            clearAssignmentCache();
+            savedAssignments = null;
+          }
         }
-      } // End fetch from DB block
-      
-      // Fetch available staff for the selected date (needs to run regardless of where assignments came from)
-      try {
-        // Step 1: Get user IDs of staff who are scheduled to work on the selected date
-        // Fetch all scheduled shifts for this date (include id for attendance lookup)
-        const { data: scheduledShifts, error: scheduledError } = await supabase
-          .from('scheduled_rota')
-          .select('id, user_id, shift_type, location')
-          .eq('date', selectedDate)
-          .not('user_id', 'is', null);
-          
-        if (scheduledError) {
-          console.error('[fetchBreakData] Error querying scheduled_rota table:', scheduledError);
-          throw scheduledError;
+
+        if (!savedAssignments) {
+          if (assignmentsRes.error) {
+            console.error('[fetchBreakData] Error fetching existing assignments from DB:', assignmentsRes.error);
+            processedScheduled = [];
+          } else {
+            processedScheduled = (assignmentsRes.data || [])
+              .map((record) => {
+                if (!record.profiles) return null;
+                const matchingSlot = allSlots.find((slot) => {
+                  const slotDbBreakType = mapBreakType(slot.break_type);
+                  const slotTimeHHMM = slot.start_time?.substring(0, 5);
+                  const recordTimeHHMM = record.break_start_time?.substring(0, 5);
+                  return (
+                    slotTimeHHMM === recordTimeHHMM &&
+                    slot.duration_minutes === record.break_duration_minutes &&
+                    slotDbBreakType === record.break_type
+                  );
+                });
+                return {
+                  id: record.id,
+                  slot_id: matchingSlot?.id || null,
+                  user_id: record.user_id,
+                  break_date: selectedDate,
+                  user_name: `${record.profiles.first_name} ${record.profiles.last_name}`,
+                  preferred_shift: record.profiles.shift_preference,
+                  break_type: record.break_type,
+                  location: record.location || null,
+                  slot_data: {
+                    start_time: record.break_start_time,
+                    duration_minutes: record.break_duration_minutes,
+                    break_type: record.break_type,
+                  },
+                };
+              })
+              .filter(Boolean);
+          }
         }
-        
-        // Filter shifts by the current selected shift type
-        const filteredShifts = scheduledShifts?.filter(record => 
-          record.shift_type?.toLowerCase() === selectedShift.toLowerCase()
-        ) || [];
+
+        if (rotaRes.error) {
+          console.error('[fetchBreakData] Error querying scheduled_rota table:', rotaRes.error);
+          throw rotaRes.error;
+        }
+
+        const filteredShifts = (rotaRes.data || []).filter((record) => {
+          if (!record.user_id) return false;
+          if (!locationFilter) return true;
+          return record.location === locationFilter;
+        });
 
         const locationMap = new Map();
-        filteredShifts.forEach(record => {
-          if (record.user_id) {
-            locationMap.set(record.user_id, record.location || null);
-          }
+        filteredShifts.forEach((record) => {
+          if (record.user_id) locationMap.set(record.user_id, record.location || null);
         });
 
         setScheduledBreaks(processedScheduled);
 
-        const filteredUserIds = filteredShifts
-          .filter(record => {
-            if (!record.user_id) return false;
-            if (!locationFilter) return true;
-            return record.location === locationFilter;
-          })
-          .map(record => record.user_id);
+        const filteredUserIds = filteredShifts.map((record) => record.user_id);
+        const rotaIds = filteredShifts.map((r) => r.id).filter(Boolean);
+        const uniqueUserIds = [...new Set(filteredUserIds)];
 
-        // Exclude users marked as absent (no show / sick / late) on this date
-        let absentUserIds = new Set();
-        const rotaIds = filteredShifts.map(r => r.id).filter(Boolean);
-        if (rotaIds.length > 0) {
-          const { data: attendanceData } = await supabase
-            .from('attendance')
-            .select('scheduled_rota_id')
-            .in('scheduled_rota_id', rotaIds);
-          const absentRotaIds = new Set((attendanceData || []).map(a => a.scheduled_rota_id));
-          filteredShifts.forEach(record => {
-            if (record.id && absentRotaIds.has(record.id) && record.user_id) {
-              absentUserIds.add(record.user_id);
-            }
-          });
-        }
+        const [attendanceData, profilesData] = await Promise.all([
+          rotaIds.length > 0
+            ? supabase.from('attendance').select('scheduled_rota_id').in('scheduled_rota_id', rotaIds).then((res) => res.data || [])
+            : Promise.resolve([]),
+          uniqueUserIds.length > 0
+            ? fetchProfilesByIdsCached(uniqueUserIds, async (ids) => {
+                const { data, error } = await supabase
+                  .from('profiles')
+                  .select('id, first_name, last_name, shift_preference')
+                  .in('id', ids);
+                if (error) throw error;
+                return data || [];
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const absentRotaIds = new Set((attendanceData || []).map((a) => a.scheduled_rota_id));
+        const absentUserIds = new Set();
+        filteredShifts.forEach((record) => {
+          if (record.id && absentRotaIds.has(record.id) && record.user_id) {
+            absentUserIds.add(record.user_id);
+          }
+        });
         setAbsentUserIdsForDate(absentUserIds);
 
-        if (!filteredUserIds || filteredUserIds.length === 0) {
+        if (uniqueUserIds.length === 0) {
           setAvailableStaff([]);
-          // We stop here if no one is scheduled for this shift on this date
         } else {
-          // Step 2: Get profile details for the scheduled user IDs
-          const uniqueUserIds = [...new Set(filteredUserIds)];
-          
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, shift_preference')
-            .in('id', uniqueUserIds);
-            
-          if (profilesError) {
-            console.error('[fetchBreakData] Error fetching profiles for scheduled users:', profilesError);
-            throw profilesError;
-          }
-            
-          // Step 3: Map profiles to our staff structure (exclude absent users)
-          const processedAvailable = profilesData
-            .filter(profile => !absentUserIds.has(profile.id))
-            .map(profile => {
-              return {
-                id: profile.id,
-                first_name: profile.first_name,
-                last_name: profile.last_name,
-                preferred_shift: profile.shift_preference || 'Unknown',
-                is_available: true, // They are scheduled, so they are "available" for breaks
-                location: locationMap.get(profile.id) || null
-              };
-            });
-
-          setAvailableStaff(processedAvailable); // Set base list
+          const processedAvailable = (profilesData || [])
+            .filter((profile) => !absentUserIds.has(profile.id))
+            .map((profile) => ({
+              id: profile.id,
+              first_name: profile.first_name,
+              last_name: profile.last_name,
+              preferred_shift: profile.shift_preference || 'Unknown',
+              is_available: true,
+              location: locationMap.get(profile.id) || null,
+            }));
+          setAvailableStaff(processedAvailable);
         }
-      } catch (err) {
-        console.error("[fetchBreakData] Error processing available staff:", err);
-        toast.error(`Failed to load available staff: ${err.message}`);
-        setAvailableStaff([]); // Ensure it's cleared on error
-        setScheduledBreaks(processedScheduled);
-      }
+      });
     } catch (err) {
       console.error('Error in fetchBreakData:', err);
       toast.error('Failed to load break data: ' + err.message);
+      setAvailableStaff([]);
     } finally {
       setIsLoading(false);
     }
@@ -1498,16 +1468,36 @@ const BrakesManager = ({ readOnly = false }) => {
     if (readOnly) safeLocalStorage.setItem('tm_dashboard_location', selectedLocation);
   }, [selectedLocation, readOnly]);
 
-  // Initialize calendar month when date modal opens
+  // Initialize calendar month when date modal opens; load DatePicker only then.
   useEffect(() => {
-    if (showDateModal) {
-      if (selectedDate) {
-        setCalendarMonth(new Date(`${selectedDate}T00:00:00`));
-      } else {
-        setCalendarMonth(new Date());
-      }
+    if (!showDateModal) return undefined;
+    if (selectedDate) {
+      setCalendarMonth(new Date(`${selectedDate}T00:00:00`));
+    } else {
+      setCalendarMonth(new Date());
     }
+    let cancelled = false;
+    Promise.all([
+      import('react-datepicker'),
+      import('react-datepicker/dist/react-datepicker.css'),
+    ]).then(([mod]) => {
+      if (!cancelled) setDatePickerComp(() => mod.default);
+    });
+    return () => { cancelled = true; };
   }, [showDateModal, selectedDate]);
+
+  useEffect(() => {
+    if (!showDateModal && !showLocationModal && !showShiftModal) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setShowDateModal(false);
+      setShowLocationModal(false);
+      setShowShiftModal(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showDateModal, showLocationModal, showShiftModal]);
 
   const goToPreviousDay = () => {
     if (!selectedDate) return;
@@ -1527,7 +1517,53 @@ const BrakesManager = ({ readOnly = false }) => {
 
   const handleLocationSelect = (locationName) => {
     setSelectedLocation(locationName);
+    setLocationMenuOpen(false);
   };
+
+  const openLocationMenu = () => {
+    const el = locationTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setLocationMenuPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 10 * 16),
+    });
+    setLocationMenuOpen((open) => !open);
+  };
+
+  useEffect(() => {
+    if (!locationMenuOpen) return undefined;
+    const onPointerDown = (e) => {
+      const t = e.target;
+      if (locationTriggerRef.current?.contains(t)) return;
+      if (locationMenuRef.current?.contains(t)) return;
+      setLocationMenuOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setLocationMenuOpen(false);
+    };
+    const onReposition = () => {
+      const el = locationTriggerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setLocationMenuPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 10 * 16),
+      });
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [locationMenuOpen]);
 
   const desktopDateLabel = selectedDate
     ? formatDate(new Date(`${selectedDate}T00:00:00`), 'EEE d MMM yyyy')
@@ -1536,13 +1572,25 @@ const BrakesManager = ({ readOnly = false }) => {
   const desktopToolbarControls = (
     <>
       <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
-        <label className="relative inline-flex min-w-0 shrink-0">
-          <span className="sr-only">Select location</span>
+        <div className="relative inline-flex min-w-0 shrink-0">
           <select
+            ref={locationTriggerRef}
             value={selectedLocation || (locations[0]?.name ?? '')}
-            onChange={(e) => handleLocationSelect(e.target.value)}
-            className="admin-btn h-9 min-w-[6.5rem] max-w-[10rem] appearance-none truncate !justify-start !px-0 py-0 pl-2.5 pr-8 text-left !text-sm font-semibold"
+            aria-haspopup="listbox"
+            aria-expanded={locationMenuOpen}
             aria-label="Select location"
+            className="admin-input min-h-11 w-auto min-w-[8rem] max-w-[10rem] shrink-0 cursor-pointer truncate text-left font-semibold"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              openLocationMenu();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!locationMenuOpen) openLocationMenu();
+              }
+            }}
+            onChange={() => {}}
           >
             {locations.map((location) => (
               <option key={location.id} value={location.name}>
@@ -1550,38 +1598,61 @@ const BrakesManager = ({ readOnly = false }) => {
               </option>
             ))}
           </select>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </label>
+          {locationMenuOpen &&
+            createPortal(
+              <ul
+                ref={locationMenuRef}
+                role="listbox"
+                aria-label="Locations"
+                className="fixed z-[99998] max-h-72 overflow-auto rounded-lg border border-gray-300 bg-white py-1 shadow-lg"
+                style={{
+                  top: locationMenuPos.top,
+                  left: locationMenuPos.left,
+                  width: locationMenuPos.width,
+                }}
+              >
+                {locations.map((location) => {
+                  const selected = (selectedLocation || locations[0]?.name) === location.name;
+                  return (
+                    <li key={location.id} role="option" aria-selected={selected}>
+                      <button
+                        type="button"
+                        onClick={() => handleLocationSelect(location.name)}
+                        className={`flex min-h-11 w-full items-center px-3 text-left text-sm font-medium transition-colors motion-reduce:transition-none ${
+                          selected
+                            ? 'bg-gray-100 font-semibold text-charcoal'
+                            : 'text-charcoal hover:bg-gray-50'
+                        }`}
+                      >
+                        {location.name}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>,
+              document.body,
+            )}
+        </div>
 
         {!readOnly && (
           <>
             <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
 
             <div
-              className="inline-flex items-center gap-x-1.5"
+              className="inline-flex items-center gap-x-1"
               role="group"
               aria-label="Select shift"
             >
               {['Day', 'Afternoon', 'Night'].map((shift, index) => (
                 <React.Fragment key={shift}>
                   {index > 0 && (
-                    <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+                    <span className="mx-0.5 h-4 w-px bg-gray-200" aria-hidden="true" />
                   )}
                   <button
                     type="button"
                     onClick={() => setSelectedShift(shift)}
                     aria-pressed={selectedShift === shift}
-                    className={`rounded-md px-1.5 py-0.5 transition-colors ${
+                    className={`inline-flex min-h-11 items-center rounded-md px-2.5 transition-colors motion-reduce:transition-none ${
                       selectedShift === shift
                         ? 'text-sm font-semibold text-charcoal'
                         : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
@@ -1598,14 +1669,14 @@ const BrakesManager = ({ readOnly = false }) => {
 
       <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
 
-      <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-1 xl:flex-nowrap xl:gap-x-2">
         <button
           type="button"
           onClick={goToPreviousDay}
-          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-charcoal transition-colors hover:bg-gray-100 motion-reduce:transition-none"
           aria-label="Previous day"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -1617,7 +1688,7 @@ const BrakesManager = ({ readOnly = false }) => {
             setShowLocationModal(false);
             setShowShiftModal(false);
           }}
-          className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
+          className="inline-flex min-h-11 min-w-0 max-w-[12rem] items-center truncate rounded-md px-2.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50 motion-reduce:transition-none"
           aria-label="Open calendar"
         >
           {desktopDateLabel}
@@ -1626,10 +1697,10 @@ const BrakesManager = ({ readOnly = false }) => {
         <button
           type="button"
           onClick={goToNextDay}
-          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-charcoal transition-colors hover:bg-gray-100 motion-reduce:transition-none"
           aria-label="Next day"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -1639,7 +1710,7 @@ const BrakesManager = ({ readOnly = false }) => {
         <button
           type="button"
           onClick={goToToday}
-          className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-2.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal motion-reduce:transition-none"
         >
           Today
         </button>
@@ -1652,7 +1723,7 @@ const BrakesManager = ({ readOnly = false }) => {
           type="button"
           onClick={handleCopyAsPicture}
           disabled={isExporting || isLoading}
-          className="admin-btn h-9 shrink-0 gap-2 !px-3 !text-sm"
+          className="admin-btn min-h-11 shrink-0 gap-2 !px-3 !text-sm"
           title="Copy as picture"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -1680,11 +1751,21 @@ const BrakesManager = ({ readOnly = false }) => {
 
       {/* Modals for pickers */}
       {showDateModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3"
+          role="presentation"
+          onClick={() => setShowDateModal(false)}
+        >
+          <div
+            className="admin-modal-panel flex max-h-[90vh] max-w-md flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="breaks-date-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-charcoal">Select Date</h3>
-              <button type="button" onClick={() => setShowDateModal(false)} className="admin-btn">
+              <h3 id="breaks-date-modal-title" className="text-sm font-semibold text-charcoal">Select Date</h3>
+              <button type="button" onClick={() => setShowDateModal(false)} className="admin-btn min-h-11">
                 Done
               </button>
             </div>
@@ -1716,7 +1797,7 @@ const BrakesManager = ({ readOnly = false }) => {
                 .react-datepicker__current-month {
                   color: #1f2937 !important;
                   font-weight: 600 !important;
-                  font-size: 0.9rem !important;
+                  font-size: 0.875rem !important;
                   margin-bottom: 6px !important;
                 }
                 
@@ -1732,12 +1813,12 @@ const BrakesManager = ({ readOnly = false }) => {
                 .react-datepicker__day-name {
                   color: #6b7280 !important;
                   font-weight: 600 !important;
-                  font-size: 0.7rem !important;
+                  font-size: 0.75rem !important;
                   flex: 1 !important;
                   min-width: 0 !important;
-                  max-width: 2.25rem !important;
-                  height: 2rem !important;
-                  line-height: 2rem !important;
+                  max-width: 2.75rem !important;
+                  height: 2.75rem !important;
+                  line-height: 2.75rem !important;
                   margin: 0 !important;
                   text-align: center !important;
                 }
@@ -1753,14 +1834,14 @@ const BrakesManager = ({ readOnly = false }) => {
                 /* Dni - kompaktowe kwadratowe pudełka dla mobile */
                 .react-datepicker__day {
                   flex: 1 !important;
-                  min-width: 0 !important;
-                  max-width: 2.25rem !important;
-                  height: 2.25rem !important;
-                  line-height: 2.25rem !important;
+                  min-width: 2.75rem !important;
+                  max-width: 2.75rem !important;
+                  height: 2.75rem !important;
+                  line-height: 2.75rem !important;
                   margin: 1px !important;
-                  border-radius: 6px !important;
+                  border-radius: 8px !important;
                   color: #1f2937 !important;
-                  font-size: 0.8rem !important;
+                  font-size: 0.875rem !important;
                   text-align: center !important;
                   transition: all 0.15s ease !important;
                   cursor: pointer !important;
@@ -1823,9 +1904,9 @@ const BrakesManager = ({ readOnly = false }) => {
                 /* Przyciski nawigacji */
                 .react-datepicker__navigation {
                   top: 10px !important;
-                  width: 28px !important;
-                  height: 28px !important;
-                  border-radius: 6px !important;
+                  width: 2.75rem !important;
+                  height: 2.75rem !important;
+                  border-radius: 8px !important;
                   transition: background-color 0.15s ease !important;
                 }
                 
@@ -1848,29 +1929,30 @@ const BrakesManager = ({ readOnly = false }) => {
                 
                 /* Dzisiejszy dzień - obramowanie */
                 .react-datepicker__day--today:not(.react-datepicker__day--selected) {
-                  border: 2px solid #ea580c !important;
+                  border: 2px solid #D97706 !important;
                   font-weight: 700 !important;
-                  background-color: #fed7aa !important;
+                  background-color: #FDE68A !important;
                 }
                 
                 /* Media query dla większych ekranów */
                 @media (min-width: 640px) {
                   .react-datepicker__day {
-                    max-width: 2.5rem !important;
-                    height: 2.5rem !important;
-                    line-height: 2.5rem !important;
+                    min-width: 2.75rem !important;
+                    max-width: 2.75rem !important;
+                    height: 2.75rem !important;
+                    line-height: 2.75rem !important;
                     font-size: 0.875rem !important;
                   }
                   
                   .react-datepicker__day-name {
-                    max-width: 2.5rem !important;
-                    height: 2.25rem !important;
-                    line-height: 2.25rem !important;
-                    font-size: 0.875rem !important;
+                    max-width: 2.75rem !important;
+                    height: 2.75rem !important;
+                    line-height: 2.75rem !important;
+                    font-size: 0.75rem !important;
                   }
                   
                   .react-datepicker__current-month {
-                    font-size: 1rem !important;
+                    font-size: 0.875rem !important;
                   }
                   
                   .react-datepicker__month {
@@ -1879,7 +1961,8 @@ const BrakesManager = ({ readOnly = false }) => {
                 }
               `}
             </style>
-            <DatePicker
+            {DatePickerComp ? (
+            <DatePickerComp
               inline
               selected={(() => {
                 if (!selectedDate || !calendarMonth) return null;
@@ -1909,6 +1992,11 @@ const BrakesManager = ({ readOnly = false }) => {
               }}
               calendarStartDay={1}
             />
+            ) : (
+              <div className="flex min-h-[16rem] items-center justify-center text-sm text-gray-500" aria-busy="true">
+                Loading calendar…
+              </div>
+            )}
             </div>
           </div>
         </div>,
@@ -1916,11 +2004,21 @@ const BrakesManager = ({ readOnly = false }) => {
       )}
 
       {showLocationModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3"
+          role="presentation"
+          onClick={() => setShowLocationModal(false)}
+        >
+          <div
+            className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="breaks-location-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-charcoal">Select Location</h3>
-              <button type="button" onClick={() => setShowLocationModal(false)} className="admin-btn">
+              <h3 id="breaks-location-modal-title" className="text-sm font-semibold text-charcoal">Select Location</h3>
+              <button type="button" onClick={() => setShowLocationModal(false)} className="admin-btn min-h-11">
                 Done
               </button>
             </div>
@@ -1930,10 +2028,8 @@ const BrakesManager = ({ readOnly = false }) => {
                   key={loc.id}
                   type="button"
                   onClick={() => { setSelectedLocation(loc.name); setShowLocationModal(false); }}
-                  className={`w-full px-4 py-3 rounded-lg text-sm font-semibold border border-gray-200 text-charcoal transition-colors ${
-                    selectedLocation === loc.name
-                      ? 'bg-gray-100'
-                      : 'bg-white hover:bg-gray-50'
+                  className={`admin-chip min-h-11 w-full !justify-start ${
+                    selectedLocation === loc.name ? 'admin-chip-active' : ''
                   }`}
                 >
                   {loc.name}
@@ -1946,11 +2042,21 @@ const BrakesManager = ({ readOnly = false }) => {
       )}
 
       {showShiftModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
-          <div className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3"
+          role="presentation"
+          onClick={() => setShowShiftModal(false)}
+        >
+          <div
+            className="admin-modal-panel max-w-sm flex flex-col max-h-[90vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="breaks-shift-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-charcoal">Select Shift</h3>
-              <button type="button" onClick={() => setShowShiftModal(false)} className="admin-btn">
+              <h3 id="breaks-shift-modal-title" className="text-sm font-semibold text-charcoal">Select Shift</h3>
+              <button type="button" onClick={() => setShowShiftModal(false)} className="admin-btn min-h-11">
                 Done
               </button>
             </div>
@@ -1960,10 +2066,8 @@ const BrakesManager = ({ readOnly = false }) => {
                   key={shift}
                   type="button"
                   onClick={() => { setSelectedShift(shift); setShowShiftModal(false); }}
-                  className={`w-full px-4 py-3 rounded-lg text-sm font-semibold border border-gray-200 text-charcoal transition-colors ${
-                    selectedShift === shift
-                      ? 'bg-gray-100'
-                      : 'bg-white hover:bg-gray-50'
+                  className={`admin-chip min-h-11 w-full !justify-start ${
+                    selectedShift === shift ? 'admin-chip-active' : ''
                   }`}
                 >
                   {shift}
@@ -1996,24 +2100,27 @@ const BrakesManager = ({ readOnly = false }) => {
                   setShowLocationModal(false);
                   setShowShiftModal(false);
                 }}
-                className={`admin-chip w-full min-w-0 ${showDateModal ? 'admin-chip-active' : ''}`}
+                className={`admin-chip min-h-11 w-full min-w-0 ${showDateModal ? 'admin-chip-active' : ''}`}
+                aria-label="Open calendar"
               >
-                📅 {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
+                {selectedDate ? formatDate(new Date(`${selectedDate}T00:00:00`), 'dd/MM/yy') : 'Select date'}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowLocationModal(true); setShowDateModal(false); setShowShiftModal(false); }}
-                className={`admin-chip w-full min-w-0 ${showLocationModal ? 'admin-chip-active' : ''}`}
+                className={`admin-chip min-h-11 w-full min-w-0 ${showLocationModal ? 'admin-chip-active' : ''}`}
+                aria-label="Select location"
               >
-                📍 {selectedLocation || 'Hub'}
+                {selectedLocation || 'Hub'}
               </button>
               {!readOnly && (
                 <button
                   type="button"
                   onClick={() => { setShowShiftModal(true); setShowDateModal(false); setShowLocationModal(false); }}
-                  className={`admin-chip w-full min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
+                  className={`admin-chip min-h-11 w-full min-w-0 ${showShiftModal ? 'admin-chip-active' : ''}`}
+                  aria-label="Select shift"
                 >
-                  🌙 {selectedShift}
+                  {selectedShift}
                 </button>
               )}
             </div>
@@ -2023,7 +2130,7 @@ const BrakesManager = ({ readOnly = false }) => {
                 type="button"
                 onClick={handleCopyAsPicture}
                 disabled={isExporting || isLoading}
-                className="admin-chip w-full"
+                className="admin-chip min-h-11 w-full"
               >
                 {isExporting ? '…' : 'Copy as picture'}
               </button>
@@ -2032,7 +2139,7 @@ const BrakesManager = ({ readOnly = false }) => {
         )}
 
         {isLoading ? (
-          <div className="space-y-4 animate-pulse">
+          <div className="space-y-4 animate-pulse motion-reduce:animate-none">
             {/* Filters skeleton (mobile only — desktop filters are in the logo bar) */}
             {!isDesktop && (
             <div className="flex gap-3 mb-6">
@@ -2110,15 +2217,16 @@ const BrakesManager = ({ readOnly = false }) => {
                 
                 {/* Add Slot Card - Only for admins and only in last group */}
                 {isAdmin && !readOnly && groupName === Object.keys(groupedSlots)[Object.keys(groupedSlots).length - 1] && (
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => setAddSlotModalOpen(true)}
-                    className="bg-gray-50 p-4 md:p-4 rounded-xl border-2 border-dashed border-gray-400 hover:border-gray-600 cursor-pointer min-h-[180px] md:min-h-[140px] flex flex-col items-center justify-center relative transition-all duration-200 hover:bg-gray-100 hover:shadow-lg"
+                    className="flex min-h-[180px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-400 bg-gray-50 p-4 transition-all duration-200 hover:border-gray-600 hover:bg-gray-100 hover:shadow-lg motion-reduce:transition-none md:min-h-[140px] md:p-4 [content-visibility:auto] [contain-intrinsic-size:auto_180px]"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 md:h-10 md:w-10 text-orange-600 mb-2 md:mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="mb-2 h-12 w-12 text-orange-600 md:mb-1 md:h-10 md:w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="text-base md:text-sm font-bold text-gray-900">Add Custom Slot</span>
-                  </div>
+                    <span className="text-base font-bold text-gray-900 md:text-sm">Add Custom Slot</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -2195,19 +2303,22 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   const modalRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Prevent body scrolling when modal is open
+  // Prevent body scrolling when modal is open; Escape closes
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen]);
-  
-  // Removed debug useEffect
+  }, [isOpen, onClose]);
   
   const assignmentByUserId = new Map(
     assignedStaff.map(assignment => [assignment.user_id, assignment])
@@ -2264,10 +2375,18 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
   
   // Use createPortal to render the modal in the document body
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3"
+      role="presentation"
+      onClick={onClose}
+    >
       <div 
         ref={modalRef}
         className="admin-modal-panel relative text-charcoal max-w-md lg:max-w-5xl h-[90vh] md:h-[85vh] max-h-[90vh] md:max-h-[85vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Assign staff for break ${slot.start_time}`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Sticky */}
         <div className="admin-modal-header sticky top-0 flex-shrink-0 z-10">
@@ -2306,7 +2425,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                 onClose();
               }}
               disabled={isAllLocation}
-              className="admin-btn flex-shrink-0"
+              className="admin-btn min-h-11 flex-shrink-0"
               title={isAllLocation ? 'Select a specific location to save changes' : 'Save and close'}
             >
               Done
@@ -2349,7 +2468,7 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
                     }
                     setIsProcessing(false);
                   }}
-                  className={`w-full text-left flex items-center justify-between px-3 py-2 md:px-4 md:py-2.5 rounded-lg transition-all duration-200 ${
+                  className={`w-full min-h-11 text-left flex items-center justify-between px-3 py-2 md:px-4 md:py-2.5 rounded-lg transition-all duration-200 motion-reduce:transition-none ${
                     locked
                       ? isAssigned
                         ? 'cursor-not-allowed border-2 border-orange-300 bg-gray-200 text-gray-500'
@@ -2409,51 +2528,46 @@ const StaffSelectionModal = ({ isOpen, onClose, slot, availableStaff, assignedSt
 const AddSlotModal = ({ isOpen, onClose, onAddCustomSlot, selectedShift }) => {
   const modalRef = useRef(null);
   
-  // Prevent body scrolling when modal is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-  
-  // Close modal on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
+    if (!isOpen) return undefined;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
         onClose();
       }
     };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [isOpen, onClose]);
   
   if (!isOpen) return null;
   
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-3"
+      role="presentation"
+      onClick={onClose}
+    >
       <div 
         ref={modalRef}
         className="admin-modal-panel relative text-charcoal max-w-sm max-h-[90vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="breaks-add-slot-title"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Sticky */}
         <div className="admin-modal-header sticky top-0 flex-shrink-0 z-10">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-semibold text-charcoal">Create Custom Slot</h3>
+            <h3 id="breaks-add-slot-title" className="text-sm font-semibold text-charcoal">Create Custom Slot</h3>
             <button 
               type="button"
               onClick={onClose}
-              className="admin-btn"
+              className="admin-btn min-h-11"
             >
               Done
             </button>
@@ -2562,7 +2676,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
             name="start_time"
             value={formData.start_time}
             onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
+            className="admin-input min-h-11 w-full"
           >
             <option value="" className="bg-white text-charcoal">Select time</option>
             {generateTimeOptions().map(time => (
@@ -2583,7 +2697,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
             name="duration_minutes"
             value={formData.duration_minutes}
             onChange={handleChange}
-            className="w-full bg-white text-charcoal text-base border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition-all"
+            className="admin-input min-h-11 w-full"
           >
             <option value={15} className="bg-white text-charcoal">15 minutes</option>
             <option value={30} className="bg-white text-charcoal">30 minutes</option>
@@ -2595,7 +2709,7 @@ const AddCustomSlotForm = ({ onAddCustomSlot, selectedShift }) => {
         <div className="pt-1">
           <button
             type="submit"
-            className="admin-btn w-full"
+            className="admin-btn min-h-11 w-full"
           >
             Add Custom Slot
           </button>
@@ -2682,8 +2796,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
   // WARIANT 2 - Średnie powiększenie ⭐ RECOMMENDED
   // Dark Modern Premium - białe karty z szaro-czarnymi i pomarańczowymi akcentami
   const cardClasses = readOnly
-    ? `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`
-    : `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg`;
+    ? `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg motion-reduce:transition-none [content-visibility:auto] [contain-intrinsic-size:auto_180px]`
+    : `bg-white p-4 md:p-4 rounded-xl border-2 border-gray-300 hover:border-gray-500 cursor-pointer hover:shadow-2xl min-h-[180px] md:min-h-[140px] flex flex-col justify-between relative transition-all duration-200 shadow-lg motion-reduce:transition-none [content-visibility:auto] [contain-intrinsic-size:auto_180px]`;
   const timeClasses = "font-bold text-lg md:text-base text-gray-900";
   const staffNameClasses = "text-base md:text-sm bg-gray-200 border-2 border-gray-300 px-3 py-2 md:px-3 md:py-1.5 rounded-lg flex justify-between items-center shadow-md font-semibold text-charcoal hover:bg-gray-300 hover:shadow-lg transition-all";
   const badgeClasses = "inline-flex items-center gap-1 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full border text-sm md:text-xs font-semibold";
@@ -2722,10 +2836,26 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
     onSlotClick(slot);
   };
 
+  const handleCardKeyDown = (e) => {
+    if (readOnly) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target.closest('.remove-staff-button') || e.target.closest('.delete-slot-button')) {
+      return;
+    }
+    e.preventDefault();
+    onSlotClick(slot);
+  };
+
+  const slotLabel = `Break ${formatStartTime()} to ${calculateEndTime()}, ${assignedStaff.length} assigned${readOnly ? '' : '. Activate to manage'}`;
+
   return (
     <div 
       className={cardClasses}
       onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+      role={readOnly ? undefined : 'button'}
+      tabIndex={readOnly ? undefined : 0}
+      aria-label={slotLabel}
     >
       <div>
         <div className="flex justify-between items-center mb-2 md:mb-1.5">
@@ -2762,7 +2892,8 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
                       e.stopPropagation(); // Prevent triggering the card's onClick
                       onRemoveStaffClick(staff);
                     }} 
-                    className="remove-staff-button flex-shrink-0 text-red-600 hover:text-white hover:bg-red-600 ml-2 md:ml-3 p-1.5 rounded-full transition-all duration-200 opacity-80 group-hover:opacity-100"
+                    type="button"
+                    className="remove-staff-button ml-2 inline-flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full p-1.5 text-red-600 opacity-80 transition-all duration-200 hover:bg-red-600 hover:text-white group-hover:opacity-100 motion-reduce:transition-none md:ml-3"
                     aria-label={`Remove ${staff.user_name}`}
                     title={`Remove ${staff.user_name}`}
                   >
@@ -2781,11 +2912,13 @@ const SlotCard = ({ slot, assignedStaff, onSlotClick, onDeleteClick, onRemoveSta
       {isAdmin && slot.is_custom && (
         <div className="flex justify-end mt-2 md:mt-1">
           <button 
-            className="delete-slot-button text-red-500 hover:text-red-700 hover:bg-red-100 p-1.5 md:p-2 rounded-full transition-all duration-200 flex items-center gap-1"
+            type="button"
+            className="delete-slot-button inline-flex min-h-11 items-center gap-1 rounded-full p-1.5 text-red-500 transition-all duration-200 hover:bg-red-100 hover:text-red-700 motion-reduce:transition-none md:p-2"
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering the card's onClick
               onDeleteClick(slot.id);
             }}
+            aria-label="Delete custom slot"
             title="Delete custom slot"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

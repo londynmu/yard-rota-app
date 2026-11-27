@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import UserList from '../components/Admin/UserList';
@@ -8,7 +8,6 @@ import UserApprovalPage from './UserApprovalPage';
 import LoginStats from '../components/Admin/LoginStats';
 import PerformanceImport from '../components/Admin/PerformanceImport';
 import RotaPlannerPage from './RotaPlannerPage';
-import BrakesManager from '../components/Admin/Brakes/BrakesManager';
 import ShunterOfTheMonthManager from '../components/Admin/ShunterOfTheMonthManager';
 import TugManager from '../components/Admin/PreCheck/TugManager';
 import PreCheckList from '../components/Admin/PreCheck/PreCheckList';
@@ -18,6 +17,26 @@ import InductionGuideManager from '../components/Admin/InductionGuideManager';
 import AdminDashboard from '../components/Admin/AdminDashboard';
 import { safeLocalStorage, safeSessionStorage } from '../utils/safeStorage';
 import { lockPageScroll } from '../utils/lockPageScroll';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+
+const BrakesManager = lazyWithRetry(() => import('../components/Admin/Brakes/BrakesManager'));
+
+function AdminSectionFallback() {
+  return (
+    <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-busy="true" aria-label="Loading section">
+      <div className="h-10 w-48 rounded-lg bg-slate-200" />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="min-h-[140px] rounded-xl border-2 border-slate-200 bg-white p-4 shadow-md">
+            <div className="mb-3 h-4 w-24 rounded bg-slate-300" />
+            <div className="mb-2 h-6 w-32 rounded bg-slate-300" />
+            <div className="h-4 w-full rounded bg-slate-200" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   // Pobierz tylko user z AuthContext
@@ -313,7 +332,11 @@ export default function AdminPage() {
       case 'rota-planner':
         return <RotaPlannerPage />;
       case 'breaks':
-        return <BrakesManager />;
+        return (
+          <Suspense fallback={<AdminSectionFallback />}>
+            <BrakesManager />
+          </Suspense>
+        );
       case 'attendance':
         return (
           <AttendancePage onOpenUserViolations={openUserViolations} />
