@@ -54,7 +54,7 @@ const TimePicker = ({ onClose, onSelectTime, initialTime = '08:00' }) => {
   };
   
   const modalContent = (
-    <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-rota-modal-overlay p-4">
       <div className="bg-rota-modal-bg border border-rota-modal-border rounded-lg max-w-md w-[95%] shadow-lg">
         <div className="p-4 border-b border-rota-modal-border flex justify-between items-center">
           <h3 className="text-xl font-medium text-rota-text-primary">Select Time</h3>

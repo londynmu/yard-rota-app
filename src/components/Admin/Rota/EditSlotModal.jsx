@@ -57,7 +57,7 @@ const EditSlotModal = ({ isOpen, onClose, slot, onUpdate, onShowTimePicker, loca
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-rota-modal-overlay p-4">
       <div className="admin-modal-panel mx-auto !max-w-xl">
         <div className="admin-modal-header flex items-center justify-between">
           <h2 className="text-sm font-semibold text-charcoal">Edit Slot</h2>

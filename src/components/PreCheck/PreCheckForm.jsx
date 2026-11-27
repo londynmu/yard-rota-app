@@ -20,6 +20,7 @@ import {
   isMultiDefectItemReady,
   collectMultiDefectActions,
 } from '../../utils/precheckMultiDefect';
+import { useToast } from '../ui/ToastContext';
 
 // ─── Hardcoded fallback (used if DB fetch fails) ───
 const FALLBACK_OUTSIDE = [
@@ -115,6 +116,7 @@ const isItemChecked = (item, checkItems, knownDefectsByItem, markedResolvedDamag
 export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug, checkType = 'pre_shift' }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
+  const toast = useToast();
   const CLIENT_SCHEMA_VERSION = typeof __PRECHECK_SCHEMA_VERSION__ !== 'undefined'
     ? __PRECHECK_SCHEMA_VERSION__
     : '0';
@@ -560,7 +562,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
     e.preventDefault();
     if (!validate()) return;
     if (!selectedTug) {
-      alert('Please select a tug first.');
+      toast.warning('Please select a tug first.');
       return;
     }
 
@@ -596,7 +598,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       if (!isOnline || isLikelyNetworkError(err)) {
         await queueSubmission();
       } else {
-        alert('Error submitting PreCheck. Please try again.');
+        toast.error('Error submitting PreCheck. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -645,10 +647,10 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
             },
           };
         });
-        window.alert('Photo upload failed. Please try again before submitting.');
+        toast.error('Photo upload failed. Please try again before submitting.');
       }
     }
-  }, [uploadTempImage]);
+  }, [uploadTempImage, toast]);
 
   const handleRemarksImagesChange = useCallback(async (newImagesOrFn) => {
     setRemarksImages(prev => {
@@ -671,18 +673,18 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       } catch (err) {
         console.error('[PreCheckForm] Remarks image upload failed:', err);
         setRemarksImages(prev => prev.filter(i => i.id !== img.id));
-        window.alert('Photo upload failed. Please try again before submitting.');
+        toast.error('Photo upload failed. Please try again before submitting.');
       }
     }
-  }, [uploadTempImage]);
+  }, [uploadTempImage, toast]);
 
   // ─── Loading state ───
   if (itemsLoading || !formInitialized) {
     return (
-      <div className="space-y-3 animate-pulse">
-        <div className="h-12 bg-slate-200 rounded-xl" />
-        <div className="h-64 bg-slate-200 rounded-xl" />
-        <div className="h-48 bg-slate-200 rounded-xl" />
+      <div className="animate-pulse space-y-3 motion-reduce:animate-none">
+        <div className="h-12 rounded-xl bg-slate-200" />
+        <div className="h-64 rounded-xl bg-slate-200" />
+        <div className="h-48 rounded-xl bg-slate-200" />
       </div>
     );
   }
@@ -865,7 +867,7 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
                 <button
                   type="button"
                   onClick={onChangeTug}
-                  className="text-sm font-medium text-slate-500 hover:text-charcoal transition-colors"
+                  className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-charcoal motion-reduce:transition-none"
                 >
                   Change Tug
                 </button>
@@ -937,21 +939,21 @@ export default function PreCheckForm({ selectedTug, onSubmitSuccess, onChangeTug
       <button
         type="submit"
         disabled={submitting || isSchemaMismatch}
-        className={`w-full py-4 rounded-xl font-bold text-white text-base transition-all shadow-lg ${
+        className={`w-full min-h-11 rounded-xl py-4 text-base font-bold text-white shadow-lg transition-all motion-reduce:transition-none ${
           submitting
-            ? 'bg-gray-400 cursor-not-allowed'
+            ? 'cursor-not-allowed bg-gray-400'
             : isSchemaMismatch
-              ? 'bg-red-400 cursor-not-allowed'
-            : 'bg-charcoal hover:bg-black active:scale-[0.98]'
+              ? 'cursor-not-allowed bg-red-400'
+            : 'bg-charcoal hover:bg-black active:scale-[0.98] motion-reduce:active:scale-100'
         }`}
       >
         {submitting ? (
           <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 animate-spin motion-reduce:animate-none" fill="none" viewBox="0 0 24 24" aria-hidden>
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Submitting...
+            Submitting…
           </span>
         ) : (
           'Submit Pre-Shift Check'

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
@@ -12,7 +12,6 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 import { whatsAppReadyLabel } from '../../utils/phoneE164';
-import { safeLocalStorage } from '../../utils/safeStorage';
 
 function roleLabel(role) {
   if (role === 'admin') return 'Admin';
@@ -31,7 +30,7 @@ function WhatsAppReadyChip({ user }) {
         : 'bg-gray-100 text-gray-600';
   return (
     <span
-      className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+      className={`flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
       title="WhatsApp PreCheck reminder readiness"
     >
       {label}
@@ -174,217 +173,6 @@ BottomSheet.propTypes = {
   children: PropTypes.node.isRequired,
 };
 
-// Filter Modal Component
-const FilterModal = ({ isOpen, onClose, filters, onApplyFilters, onResetAllFilters }) => {
-  const [shiftFilter, setShiftFilter] = useState(filters.shift || 'all');
-  const [sortBy, setSortBy] = useState(filters.sortBy || 'name');
-  const [sortOrder, setSortOrder] = useState(filters.sortOrder || 'asc');
-
-  // Keep draft controls in sync with applied filters (e.g. deep-link reset to shift=all)
-  useEffect(() => {
-    if (!isOpen) return;
-    setShiftFilter(filters.shift || 'all');
-    setSortBy(filters.sortBy || 'name');
-    setSortOrder(filters.sortOrder || 'asc');
-  }, [isOpen, filters.shift, filters.sortBy, filters.sortOrder]);
-  
-  const handleApplyFilters = () => {
-    onApplyFilters({
-      shift: shiftFilter,
-      sortBy: sortBy,
-      sortOrder: sortOrder
-    });
-    onClose();
-  };
-  
-  const handleReset = () => {
-    setShiftFilter('all');
-    setSortBy('name');
-    setSortOrder('asc');
-    if (onResetAllFilters) {
-      onResetAllFilters();
-    } else {
-      onApplyFilters({
-        shift: 'all',
-        sortBy: 'name',
-        sortOrder: 'asc'
-      });
-    }
-    onClose();
-  };
-  
-  const chipClass = (active) =>
-    `admin-chip cursor-pointer w-full ${active ? 'admin-chip-active' : ''}`;
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="admin-modal-header sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-charcoal">
-            Filter and sort
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="admin-icon-btn"
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-      
-      <div className="px-4 py-4">
-        {/* Shift Filter */}
-        <div className="mb-5">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Filter by Shift</h4>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className={chipClass(shiftFilter === 'all')}>
-              <input
-                type="radio"
-                name="shiftFilter"
-                value="all"
-                checked={shiftFilter === 'all'}
-                onChange={() => setShiftFilter('all')}
-                className="sr-only"
-              />
-              <span>All</span>
-            </label>
-            
-            <label className={chipClass(shiftFilter === 'day')}>
-              <input
-                type="radio"
-                name="shiftFilter"
-                value="day"
-                checked={shiftFilter === 'day'}
-                onChange={() => setShiftFilter('day')}
-                className="sr-only"
-              />
-              <span>Day</span>
-            </label>
-            
-            <label className={chipClass(shiftFilter === 'afternoon')}>
-              <input
-                type="radio"
-                name="shiftFilter"
-                value="afternoon"
-                checked={shiftFilter === 'afternoon'}
-                onChange={() => setShiftFilter('afternoon')}
-                className="sr-only"
-              />
-              <span>Afternoon</span>
-            </label>
-            
-            <label className={chipClass(shiftFilter === 'night')}>
-              <input
-                type="radio"
-                name="shiftFilter"
-                value="night"
-                checked={shiftFilter === 'night'}
-                onChange={() => setShiftFilter('night')}
-                className="sr-only"
-              />
-              <span>Night</span>
-            </label>
-          </div>
-        </div>
-        
-        {/* Sort Options */}
-        <div className="mb-5">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Sort By</h4>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className={chipClass(sortBy === 'name')}>
-              <input
-                type="radio"
-                name="sortBy"
-                value="name"
-                checked={sortBy === 'name'}
-                onChange={() => setSortBy('name')}
-                className="sr-only"
-              />
-              <span>Last Name</span>
-            </label>
-            
-            <label className={chipClass(sortBy === 'score')}>
-              <input
-                type="radio"
-                name="sortBy"
-                value="score"
-                checked={sortBy === 'score'}
-                onChange={() => setSortBy('score')}
-                className="sr-only"
-              />
-              <span>Performance Score</span>
-            </label>
-          </div>
-        </div>
-        
-        {/* Sort Order */}
-        <div className="mb-5">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Order</h4>
-          <div className="admin-seg-track w-full grid grid-cols-2 !h-auto p-0.5">
-            <label className={`admin-seg-item cursor-pointer w-full ${sortOrder === 'asc' ? 'admin-seg-item-active' : ''}`}>
-              <input
-                type="radio"
-                name="sortOrder"
-                value="asc"
-                checked={sortOrder === 'asc'}
-                onChange={() => setSortOrder('asc')}
-                className="sr-only"
-              />
-              <span>Ascending</span>
-            </label>
-            
-            <label className={`admin-seg-item cursor-pointer w-full ${sortOrder === 'desc' ? 'admin-seg-item-active' : ''}`}>
-              <input
-                type="radio"
-                name="sortOrder"
-                value="desc"
-                checked={sortOrder === 'desc'}
-                onChange={() => setSortOrder('desc')}
-                className="sr-only"
-              />
-              <span>Descending</span>
-            </label>
-          </div>
-        </div>
-      </div>
-      
-      <div className="admin-modal-footer !justify-between">
-        <button
-          type="button"
-          onClick={handleReset}
-          className="admin-btn-muted flex-1"
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          onClick={handleApplyFilters}
-          className="admin-btn flex-1"
-        >
-          Apply
-        </button>
-      </div>
-    </Modal>
-  );
-};
-
-// Add propTypes for FilterModal
-FilterModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  filters: PropTypes.shape({
-    shift: PropTypes.string,
-    sortBy: PropTypes.string,
-    sortOrder: PropTypes.string
-  }).isRequired,
-  onApplyFilters: PropTypes.func.isRequired,
-  onResetAllFilters: PropTypes.func.isRequired,
-};
-
 export default function UserList({ users, onRefresh, focusUserId, focusTab, onFocusConsumed }) {
   const [processingUser, setProcessingUser] = useState(null);
   const [error, setError] = useState(null);
@@ -394,23 +182,9 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   const [confirmationInput, setConfirmationInput] = useState('');
   const confirmInputRef = useRef(null);
   
-  // Initialize filter state from localStorage or default values
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filters, setFilters] = useState(() => {
-    const savedFilters = safeLocalStorage.getItem('userListFilters');
-    return savedFilters ? JSON.parse(savedFilters) : {
-      shift: 'all',
-      sortBy: 'name',
-      sortOrder: 'asc'
-    };
-  });
-  
-  // Search query state
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Filtered and sorted users
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  
+  const [sortBy, setSortBy] = useState('last_login');
+
   // Last Login info
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoUser, setInfoUser] = useState(null);
@@ -429,57 +203,35 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   const toast = useToast();
   const { isAdmin } = useAdminStatus();
   
-  // Save filters to localStorage whenever they change
-  useEffect(() => {
-    safeLocalStorage.setItem('userListFilters', JSON.stringify(filters));
-  }, [filters]);
-  
-  // Apply filters and sorting when users or filters change
-  useEffect(() => {
-    let result = [...users];
-    
-    // Apply search filter
+  const visibleUsers = useMemo(() => {
+    let result = users;
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
-      result = result.filter(user => {
+      result = users.filter((user) => {
         const firstName = (user.first_name || '').toLowerCase();
         const lastName = (user.last_name || '').toLowerCase();
         const fullName = `${firstName} ${lastName}`.trim();
         return firstName.includes(query) || lastName.includes(query) || fullName.includes(query);
       });
     }
-    
-    // Apply shift filter
-    if (filters.shift !== 'all') {
-      result = result.filter(user => user.shift_preference === filters.shift);
+
+    const sorted = [...result];
+    if (sortBy === 'last_login') {
+      sorted.sort((a, b) => {
+        const aTime = a.last_activity_at ? new Date(a.last_activity_at).getTime() : 0;
+        const bTime = b.last_activity_at ? new Date(b.last_activity_at).getTime() : 0;
+        if (aTime === bTime) {
+          return (a.last_name || '').localeCompare(b.last_name || '');
+        }
+        // Newest login first; never-logged users (0) sink to the bottom
+        return bTime - aTime;
+      });
+    } else {
+      sorted.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
     }
-    
-    // Apply sorting
-    result.sort((a, b) => {
-      if (filters.sortBy === 'name') {
-        const lastNameA = a.last_name || '';
-        const lastNameB = b.last_name || '';
-        
-        if (filters.sortOrder === 'asc') {
-          return lastNameA.localeCompare(lastNameB);
-        } else {
-          return lastNameB.localeCompare(lastNameA);
-        }
-      } else { // score
-        const scoreA = a.performance_score || 0;
-        const scoreB = b.performance_score || 0;
-        
-        if (filters.sortOrder === 'asc') {
-          return scoreA - scoreB;
-        } else {
-          return scoreB - scoreA;
-        }
-      }
-    });
-    
-    setFilteredUsers(result);
-  }, [users, filters, searchQuery]);
-  
+    return sorted;
+  }, [users, searchQuery, sortBy]);
+
   // Focus on confirmation input when step changes to 2
   useEffect(() => {
     if (confirmationStep === 2 && confirmInputRef.current) {
@@ -492,10 +244,9 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   }, [confirmationStep]);
 
   // Deep-link from Attendance / Dashboard: expand user + target tab.
-  // Reset shift filter + search so a filtered list cannot hide the target card.
+  // Clear search so a narrowed list cannot hide the target card.
   useEffect(() => {
     if (!focusUserId) return;
-    setFilters((prev) => ({ ...prev, shift: 'all' }));
     setSearchQuery('');
     setExpandedUserId(focusUserId);
     let tab =
@@ -572,7 +323,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   useEffect(() => {
     if (!expandedUserId) return;
     document.getElementById(`admin-user-row-${expandedUserId}`)?.scrollIntoView({ block: 'nearest' });
-  }, [expandedUserId, filteredUsers]);
+  }, [expandedUserId, visibleUsers]);
   
   const openDeleteModal = (user) => {
     setUserToDelete(user);
@@ -654,32 +405,12 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
   };
   
-  const closeFilterModal = () => {
-    setShowFilterModal(false);
-  };
-  
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
-  };
-  
-  // Custom refresh function that preserves filter settings
   const handleRefresh = async () => {
     if (onRefresh) {
       await onRefresh();
     }
   };
-  
-  // Reset all filters and clear from localStorage
-  const handleResetAllFilters = () => {
-    const defaultFilters = {
-      shift: 'all',
-      sortBy: 'name',
-      sortOrder: 'asc'
-    };
-    setFilters(defaultFilters);
-    safeLocalStorage.removeItem('userListFilters');
-  };
-  
+
   // Get shift badge style
   const getShiftBadge = (shift) => {
     const shiftLower = (shift || '').toLowerCase();
@@ -752,10 +483,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               e.stopPropagation();
               closeDeleteModal();
             }}
-                  className="admin-icon-btn"
+                  className="admin-icon-btn min-h-11 min-w-11"
                   aria-label="Close"
                 >
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -783,13 +514,18 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
                   <p className="text-gray-700 mb-3 text-sm">
                     <span className="font-medium">Final confirmation required.</span> Please type <span className="font-semibold text-red-600">delete</span> to confirm:
                   </p>
+                  <label htmlFor="admin-user-delete-confirm" className="sr-only">
+                    Type delete to confirm
+                  </label>
                   <input
                     ref={confirmInputRef}
+                    id="admin-user-delete-confirm"
                     type="text"
                     value={confirmationInput}
                     onChange={(e) => setConfirmationInput(e.target.value)}
-                    className="admin-input"
+                    className="admin-input min-h-11"
                     placeholder="Type 'delete' to confirm"
+                    autoComplete="off"
                   />
                 </div>
               )}
@@ -798,7 +534,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               <button
           type="button"
           onClick={closeDeleteModal}
-                className="admin-btn flex-1"
+                className="admin-btn min-h-11 flex-1"
               >
                 Cancel
               </button>
@@ -806,7 +542,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
                 <button
             type="button"
                   onClick={handleFirstConfirmation}
-                  className="admin-btn-danger flex-1"
+                  className="admin-btn-danger min-h-11 flex-1"
                 >
                   Continue
                 </button>
@@ -815,7 +551,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
             type="button"
                   onClick={handleDeleteUser}
                   disabled={confirmationInput.toLowerCase() !== 'delete'}
-                  className="admin-btn-danger flex-1"
+                  className="admin-btn-danger min-h-11 flex-1"
                 >
                   Delete User
                 </button>
@@ -835,36 +571,48 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   return (
     <div className="flex h-full min-h-0 w-full flex-col md:flex-row md:gap-4">
     <div className={`mr-auto flex h-full min-h-0 w-full min-w-0 flex-col ${selectedUser ? 'md:mr-0 md:min-w-0 md:flex-1 md:basis-0' : 'max-w-lg'}`}>
-      <div className="mb-4 flex shrink-0 flex-col gap-3 bg-offwhite md:flex-row md:items-center md:gap-2 md:flex-nowrap">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 bg-offwhite sm:flex-row sm:items-center sm:gap-2">
         <div className="relative min-w-0 flex-1">
+          <label htmlFor="admin-users-search" className="sr-only">
+            Search users by name
+          </label>
           <input
-            type="text"
+            id="admin-users-search"
+            type="search"
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="admin-input pl-9"
+            className="admin-input min-h-11 pl-9"
+            autoComplete="off"
           />
           <svg
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowFilterModal(true)}
-          className="admin-btn shrink-0"
+        <label htmlFor="admin-users-sort" className="sr-only">
+          Sort users
+        </label>
+        <select
+          id="admin-users-sort"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="admin-input min-h-11 w-full shrink-0 sm:w-auto sm:min-w-[13rem]"
         >
-          Filter
-        </button>
+          <option value="last_login">Last login (newest)</option>
+          <option value="name">Name (A–Z)</option>
+        </select>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
-        {filteredUsers.map((user) => {
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain" aria-label="Users">
+        {visibleUsers.map((user) => {
           const isSelected = expandedUserId === user.id;
+          const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
 
           return (
             <button
@@ -873,7 +621,8 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               type="button"
               onClick={() => requestExpandToggle(user.id)}
               aria-current={isSelected ? 'true' : undefined}
-              className={`admin-section-card flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+              aria-label={displayName}
+              className={`admin-section-card flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 motion-reduce:transition-none [content-visibility:auto] [contain-intrinsic-size:auto_65px] ${
                 isSelected ? 'ring-2 ring-charcoal/20' : ''
               }`}
             >
@@ -891,10 +640,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
           );
         })}
 
-        {filteredUsers.length === 0 && (
+        {visibleUsers.length === 0 && (
           <div className="py-12 text-center text-gray-500">
             <p className="font-medium">No users found</p>
-            <p className="text-sm mt-1">Try adjusting search or filters.</p>
+            <p className="text-sm mt-1">Try adjusting your search.</p>
           </div>
         )}
       </div>
@@ -903,15 +652,6 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
       <Modal isOpen={showDeleteModal} onClose={closeDeleteModal}>
         {deleteModalContent}
       </Modal>
-      
-      {/* Filter Modal */}
-      <FilterModal 
-        isOpen={showFilterModal}
-        onClose={closeFilterModal}
-        filters={filters}
-        onApplyFilters={handleApplyFilters}
-        onResetAllFilters={handleResetAllFilters}
-      />
       
       {/* Info Modal */}
       {infoModalOpen && (
@@ -1008,7 +748,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               value={selectedUser.role || ''}
               onChange={(e) => handleRoleChange(selectedUser, e.target.value)}
               disabled={roleUpdatingUserId === selectedUser.id}
-              className="admin-input !w-auto shrink-0 disabled:opacity-60"
+              className="admin-input min-h-11 !w-auto shrink-0 disabled:opacity-60"
             >
               <option value="">User</option>
               <option value="admin">Admin</option>
@@ -1020,11 +760,15 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
           )}
         </div>
 
-        <div className="flex gap-5 border-b border-gray-200 px-5">
+        <div className="flex gap-5 border-b border-gray-200 px-5" role="tablist" aria-label="User panels">
           <button
             type="button"
+            role="tab"
+            id="admin-user-tab-details"
+            aria-selected={userPanel === 'details'}
+            aria-controls="admin-user-panel-details"
             onClick={() => requestPanelChange('details')}
-            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+            className={`inline-flex min-h-11 items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
               userPanel === 'details' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
             }`}
           >
@@ -1032,14 +776,18 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
           </button>
           <button
             type="button"
+            role="tab"
+            id="admin-user-tab-violations"
+            aria-selected={userPanel === 'violations'}
+            aria-controls="admin-user-panel-violations"
             onClick={() => requestPanelChange('violations')}
-            className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+            className={`inline-flex min-h-11 items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
               userPanel === 'violations' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
             }`}
           >
             Violations
             {typeof selectedViolationCount === 'number' && selectedViolationCount > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
+              <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-xs font-bold text-charcoal">
                 {selectedViolationCount}
               </span>
             )}
@@ -1047,14 +795,18 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
           {isReassessmentEligibleRole(selectedUser.role) && (
             <button
               type="button"
+              role="tab"
+              id="admin-user-tab-assessments"
+              aria-selected={userPanel === 'assessments'}
+              aria-controls="admin-user-panel-assessments"
               onClick={() => requestPanelChange('assessments')}
-              className={`inline-flex items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
+              className={`inline-flex min-h-11 items-center border-b-2 -mb-px py-2.5 text-sm font-medium ${
                 userPanel === 'assessments' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
               }`}
             >
               Assessments
               {typeof selectedAssessmentCount === 'number' && selectedAssessmentCount > 0 && (
-                <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-[10px] font-bold text-charcoal">
+                <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-xs font-bold text-charcoal">
                   {selectedAssessmentCount}
                 </span>
               )}
@@ -1067,7 +819,13 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         </div>
 
         <div className={`min-h-0 flex-1 ${userPanel === 'violations' || userPanel === 'assessments' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}`}>
-          <div className={userPanel === 'details' ? 'px-5 py-5' : 'hidden'}>
+          <div
+            id="admin-user-panel-details"
+            role="tabpanel"
+            aria-labelledby="admin-user-tab-details"
+            hidden={userPanel !== 'details'}
+            className={userPanel === 'details' ? 'px-5 py-5' : 'hidden'}
+          >
             <UserEditForm
               key={selectedUser.id}
               user={selectedUser}
@@ -1081,21 +839,35 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
             />
           </div>
           {userPanel === 'violations' && (
-            <UserViolationsPanel
-              userId={selectedUser.id}
-              users={users}
-              onCountChange={(count) => {
-                setViolationCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
-              }}
-            />
+            <div
+              id="admin-user-panel-violations"
+              role="tabpanel"
+              aria-labelledby="admin-user-tab-violations"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <UserViolationsPanel
+                userId={selectedUser.id}
+                users={users}
+                onCountChange={(count) => {
+                  setViolationCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
+                }}
+              />
+            </div>
           )}
           {userPanel === 'assessments' && (
-            <UserAssessmentsPanel
-              user={selectedUser}
-              onCountChange={(count) => {
-                setAssessmentCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
-              }}
-            />
+            <div
+              id="admin-user-panel-assessments"
+              role="tabpanel"
+              aria-labelledby="admin-user-tab-assessments"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <UserAssessmentsPanel
+                user={selectedUser}
+                onCountChange={(count) => {
+                  setAssessmentCountByUser((prev) => ({ ...prev, [selectedUser.id]: count }));
+                }}
+              />
+            </div>
           )}
         </div>
 
@@ -1105,11 +877,11 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               type="button"
               onClick={() => openDeleteModal(selectedUser)}
               disabled={processingUser === selectedUser.id}
-              className="admin-btn-danger"
+              className="admin-btn-danger min-h-11"
             >
               {processingUser === selectedUser.id ? 'Deleting…' : 'Delete user'}
             </button>
-            <button type="submit" form="user-edit-inline-form" className="admin-btn">
+            <button type="submit" form="user-edit-inline-form" className="admin-btn min-h-11">
               Save changes
             </button>
           </div>

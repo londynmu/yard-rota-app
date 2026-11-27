@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { logSystemActivity } from '../../../lib/systemActivityLog';
@@ -111,6 +111,12 @@ const RotaManager = ({ user }) => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  /** Cached once per planner session — avoids settings round-trip on every assign click. */
+  const assignSettingsCacheRef = useRef(null);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [locationMenuPos, setLocationMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const locationTriggerRef = useRef(null);
+  const locationMenuRef = useRef(null);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -755,40 +761,85 @@ const RotaManager = ({ user }) => {
           return;
         }
 
-        const { data: settingsRows, error: settingsFetchError } = await supabase
-          .from('settings')
-          .select('key, value')
-          .in('key', [
-            'min_break_between_slots',
-            'enforce_max_consecutive_work_days',
-            'max_consecutive_work_days',
-          ]);
+        if (!assignSettingsCacheRef.current) {
+          const { data: settingsRows, error: settingsFetchError } = await supabase
+            .from('settings')
+            .select('key, value')
+            .in('key', [
+              'min_break_between_slots',
+              'enforce_max_consecutive_work_days',
+              'max_consecutive_work_days',
+            ]);
 
-        if (settingsFetchError) {
-          console.error('Error fetching rota settings:', settingsFetchError);
+          if (settingsFetchError) {
+            console.error('Error fetching rota settings:', settingsFetchError);
+          }
+
+          const settingsByKey = Object.fromEntries(
+            (settingsRows || []).map((row) => [row.key, row.value])
+          );
+          const parsedMinBreak = parseInt(settingsByKey.min_break_between_slots, 10);
+          assignSettingsCacheRef.current = {
+            minBreakMinutes: Number.isFinite(parsedMinBreak) ? parsedMinBreak : 60,
+            enforceConsecutiveWorkDays:
+              String(settingsByKey.enforce_max_consecutive_work_days || '')
+                .toLowerCase()
+                .trim() === 'true',
+            maxConsecutiveWorkDays: parseMaxConsecutiveWorkDays(
+              settingsByKey.max_consecutive_work_days
+            ),
+          };
         }
 
-        const settingsByKey = Object.fromEntries(
-          (settingsRows || []).map((row) => [row.key, row.value])
-        );
-        const parsedMinBreak = parseInt(settingsByKey.min_break_between_slots, 10);
-        const minBreakMinutes = Number.isFinite(parsedMinBreak) ? parsedMinBreak : 60;
-        const enforceConsecutiveWorkDays =
-          String(settingsByKey.enforce_max_consecutive_work_days || '')
-            .toLowerCase()
-            .trim() === 'true';
-        const maxConsecutiveWorkDays = parseMaxConsecutiveWorkDays(
-          settingsByKey.max_consecutive_work_days
-        );
-        
+        const {
+          minBreakMinutes,
+          enforceConsecutiveWorkDays,
+          maxConsecutiveWorkDays,
+        } = assignSettingsCacheRef.current;
+
         // Always check hour overlap (even when min rest is 0). Also check
         // previous-night → next-morning rest across calendar dates.
+        // Same-day + adjacent days + optional streak run in parallel.
         {
-          const { data: employeeSlots, error: slotsError } = await supabase
-            .from('scheduled_rota')
-            .select('id, start_time, end_time, shift_type')
-            .eq('date', slotToAssign.date)
-            .eq('user_id', employeeId);
+          const prevDate = format(subDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
+          const nextDate = format(addDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
+          const streakFrom = enforceConsecutiveWorkDays
+            ? format(subDays(parseISO(slotToAssign.date), 20), 'yyyy-MM-dd')
+            : null;
+          const streakTo = enforceConsecutiveWorkDays
+            ? format(addDays(parseISO(slotToAssign.date), 20), 'yyyy-MM-dd')
+            : null;
+
+          const [
+            { data: employeeSlots, error: slotsError },
+            { data: prevSlots },
+            { data: nextSlots },
+            streakResult,
+          ] = await Promise.all([
+            supabase
+              .from('scheduled_rota')
+              .select('id, start_time, end_time, shift_type')
+              .eq('date', slotToAssign.date)
+              .eq('user_id', employeeId),
+            supabase
+              .from('scheduled_rota')
+              .select('id, start_time, end_time, shift_type')
+              .eq('date', prevDate)
+              .eq('user_id', employeeId),
+            supabase
+              .from('scheduled_rota')
+              .select('id, start_time, end_time, shift_type')
+              .eq('date', nextDate)
+              .eq('user_id', employeeId),
+            enforceConsecutiveWorkDays
+              ? supabase
+                  .from('scheduled_rota')
+                  .select('date')
+                  .eq('user_id', employeeId)
+                  .gte('date', streakFrom)
+                  .lte('date', streakTo)
+              : Promise.resolve({ data: null, error: null }),
+          ]);
 
           if (slotsError) {
             console.error('Error checking employee slots:', slotsError);
@@ -819,21 +870,6 @@ const RotaManager = ({ user }) => {
             );
             return;
           }
-
-          const prevDate = format(subDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
-          const nextDate = format(addDays(parseISO(slotToAssign.date), 1), 'yyyy-MM-dd');
-          const [{ data: prevSlots }, { data: nextSlots }] = await Promise.all([
-            supabase
-              .from('scheduled_rota')
-              .select('id, start_time, end_time, shift_type')
-              .eq('date', prevDate)
-              .eq('user_id', employeeId),
-            supabase
-              .from('scheduled_rota')
-              .select('id, start_time, end_time, shift_type')
-              .eq('date', nextDate)
-              .eq('user_id', employeeId),
-          ]);
 
           const toConflict = (rows) =>
             (rows || []).map((s) => ({
@@ -874,35 +910,26 @@ const RotaManager = ({ user }) => {
             );
             return;
           }
-        }
 
-        if (enforceConsecutiveWorkDays) {
-          const anchor = parseISO(slotToAssign.date);
-          const fromDate = format(subDays(anchor, 20), 'yyyy-MM-dd');
-          const toDate = format(addDays(anchor, 20), 'yyyy-MM-dd');
-          const { data: streakRows, error: streakError } = await supabase
-            .from('scheduled_rota')
-            .select('date')
-            .eq('user_id', employeeId)
-            .gte('date', fromDate)
-            .lte('date', toDate);
-
-          if (streakError) {
-            console.error('Error checking consecutive work days:', streakError);
-            setError('Failed to check existing assignments');
-            return;
-          }
-
-          const distinctDates = [...new Set((streakRows || []).map((r) => r.date))];
-          if (
-            wouldExceedConsecutiveWorkDays(
-              slotToAssign.date,
-              distinctDates,
-              maxConsecutiveWorkDays
-            )
-          ) {
-            setError(consecutiveWorkDaysBlockedMessage(maxConsecutiveWorkDays));
-            return;
+          if (enforceConsecutiveWorkDays) {
+            if (streakResult?.error) {
+              console.error('Error checking consecutive work days:', streakResult.error);
+              setError('Failed to check existing assignments');
+              return;
+            }
+            const distinctDates = [
+              ...new Set((streakResult?.data || []).map((r) => r.date)),
+            ];
+            if (
+              wouldExceedConsecutiveWorkDays(
+                slotToAssign.date,
+                distinctDates,
+                maxConsecutiveWorkDays
+              )
+            ) {
+              setError(consecutiveWorkDaysBlockedMessage(maxConsecutiveWorkDays));
+              return;
+            }
           }
         }
 
@@ -1317,7 +1344,53 @@ const RotaManager = ({ user }) => {
     safeLocalStorage.setItem('rota_planner_scroll_position', window.scrollY.toString());
     setSelectedLocation(location);
     safeLocalStorage.setItem('selected_rota_location_view', location);
+    setLocationMenuOpen(false);
   };
+
+  const openLocationMenu = () => {
+    const el = locationTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setLocationMenuPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 10 * 16),
+    });
+    setLocationMenuOpen((open) => !open);
+  };
+
+  useEffect(() => {
+    if (!locationMenuOpen) return undefined;
+    const onPointerDown = (e) => {
+      const t = e.target;
+      if (locationTriggerRef.current?.contains(t)) return;
+      if (locationMenuRef.current?.contains(t)) return;
+      setLocationMenuOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setLocationMenuOpen(false);
+    };
+    const onReposition = () => {
+      const el = locationTriggerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setLocationMenuPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 10 * 16),
+      });
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [locationMenuOpen]);
 
   // Resetowanie błędu modalu przy otwieraniu/zamykaniu
   const openAddSlotForDay = (dateStr) => {
@@ -1493,7 +1566,7 @@ const RotaManager = ({ user }) => {
 
   if (loading && !slots.length) {
     return (
-      <div className="space-y-6 animate-pulse bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to min-h-screen p-6">
+      <div className="min-h-screen space-y-6 bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to p-6 animate-pulse motion-reduce:animate-none">
         <div className="space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="h-11 w-40 bg-rota-toolbar-border rounded-lg" />
@@ -1521,56 +1594,101 @@ const RotaManager = ({ user }) => {
     );
   }
 
+  const openDatePicker = () => {
+    document.getElementById('date-select')?.showPicker?.();
+  };
+
+  /** Shared rota toolbar button chrome. Location select uses plain `admin-input` like Users/Availability. */
+  const toolbarBtnClass =
+    'inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-rota-toolbar-border bg-rota-toolbar-bg px-3 text-sm font-semibold text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring motion-reduce:transition-none';
+  const toolbarIconBtnClass =
+    'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none';
+  const toolbarDividerClass = 'hidden h-4 w-px shrink-0 bg-rota-toolbar-border xl:block';
+
   const toolbarControls = (
     <>
       <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-3">
-        <label className="relative inline-flex min-w-0 shrink-0">
-          <span className="sr-only">Select location</span>
-          <select
-            value={selectedLocation || (locations[0]?.name ?? '')}
-            onChange={(e) => handleLocationTabClick(e.target.value)}
-            className="admin-btn h-9 min-w-[6.5rem] max-w-[10rem] appearance-none truncate !justify-start !px-0 py-0 pl-2.5 pr-8 text-left !text-sm font-semibold"
+        <div className="relative inline-flex min-w-0 shrink-0">
+          <button
+            ref={locationTriggerRef}
+            type="button"
+            onClick={openLocationMenu}
+            aria-haspopup="listbox"
+            aria-expanded={locationMenuOpen}
             aria-label="Select location"
+            className="admin-input inline-flex min-h-11 w-auto min-w-[8rem] max-w-[10rem] shrink-0 items-center justify-between gap-2 !pr-2 text-left"
           >
-            {locations.map((location) => (
-              <option key={location.id} value={location.name}>
-                {location.name}
-              </option>
-            ))}
-          </select>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </label>
+            <span className="truncate">
+              {selectedLocation || locations[0]?.name || 'Location'}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`h-4 w-4 shrink-0 text-rota-text-muted-light transition-transform motion-reduce:transition-none ${locationMenuOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {locationMenuOpen &&
+            createPortal(
+              <ul
+                ref={locationMenuRef}
+                role="listbox"
+                aria-label="Locations"
+                className="fixed z-[99998] max-h-72 overflow-auto rounded-lg border border-rota-modal-border bg-rota-modal-bg py-1 shadow-lg"
+                style={{
+                  top: locationMenuPos.top,
+                  left: locationMenuPos.left,
+                  width: locationMenuPos.width,
+                }}
+              >
+                {locations.map((location) => {
+                  const selected = (selectedLocation || locations[0]?.name) === location.name;
+                  return (
+                    <li key={location.id} role="option" aria-selected={selected}>
+                      <button
+                        type="button"
+                        onClick={() => handleLocationTabClick(location.name)}
+                        className={`flex min-h-11 w-full items-center px-3 text-left text-sm font-medium transition-colors motion-reduce:transition-none ${
+                          selected
+                            ? 'bg-rota-btn-primary-hover-bg text-rota-btn-primary-hover-text'
+                            : 'text-rota-text-primary hover:bg-rota-day-other-bg-from'
+                        }`}
+                      >
+                        {location.name}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>,
+              document.body
+            )}
+        </div>
 
-        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+        <span className={toolbarDividerClass} aria-hidden="true" />
 
         <div
-          className="inline-flex items-center gap-x-1.5"
+          className="inline-flex items-center gap-x-1"
           role="group"
           aria-label="Select view"
         >
           {['day', 'week'].map((mode, index) => (
             <React.Fragment key={mode}>
               {index > 0 && (
-                <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+                <span className="h-5 w-px bg-rota-toolbar-border" aria-hidden="true" />
               )}
               <button
                 type="button"
                 onClick={() => setViewMode(mode)}
                 aria-pressed={viewMode === mode}
-                className={`rounded-md px-1.5 py-0.5 capitalize transition-colors ${
+                className={`inline-flex min-h-11 items-center rounded-md px-2.5 capitalize transition-colors motion-reduce:transition-none ${
                   viewMode === mode
-                    ? 'text-sm font-semibold text-charcoal'
-                    : 'text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-charcoal'
+                    ? 'text-sm font-semibold text-rota-text-primary'
+                    : 'text-sm font-medium text-rota-text-muted hover:bg-rota-day-other-bg-from hover:text-rota-text-primary'
                 }`}
               >
                 {mode}
@@ -1580,16 +1698,16 @@ const RotaManager = ({ user }) => {
         </div>
       </div>
 
-      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+      <span className={toolbarDividerClass} aria-hidden="true" />
 
       <div className="flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 xl:flex-nowrap xl:gap-x-2">
         <button
           type="button"
           onClick={viewMode === 'day' ? goToPreviousDay : goToPreviousWeek}
-          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          className={toolbarIconBtnClass}
           aria-label={viewMode === 'day' ? 'Previous day' : 'Previous week'}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -1597,63 +1715,73 @@ const RotaManager = ({ user }) => {
         {viewMode === 'day' ? (
           <button
             type="button"
-            onClick={() => document.getElementById('date-select')?.showPicker?.()}
-            className="min-w-0 max-w-[12rem] truncate rounded-md px-1.5 py-0.5 text-center text-sm font-semibold text-charcoal transition-colors hover:bg-gray-50"
+            onClick={openDatePicker}
+            className="min-h-11 min-w-0 max-w-[12rem] truncate rounded-md px-2.5 text-center text-sm font-semibold text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none"
             aria-label="Open calendar"
           >
             {formatDisplayDate(currentDate)}
           </button>
         ) : (
-          <div className="min-w-0 shrink-0 px-1 text-center leading-tight">
-            <div className="text-sm font-semibold text-charcoal">
+          <button
+            type="button"
+            onClick={openDatePicker}
+            className="min-h-11 min-w-0 max-w-[14rem] shrink-0 rounded-md px-2.5 text-center leading-tight transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none"
+            aria-label="Open calendar"
+          >
+            <span className="block text-sm font-semibold text-rota-text-primary">
               Week {getWeek(parseISO(currentDate), { weekStartsOn: 6 })}
-            </div>
-            <div className="text-[11px] font-medium text-gray-500">
+            </span>
+            <span className="block text-xs font-medium text-rota-text-muted">
               {formatWeekRangeLabel(currentDate)}
-            </div>
-          </div>
+            </span>
+          </button>
         )}
 
+        <label htmlFor="date-select" className="sr-only">
+          Select date
+        </label>
         <input
           id="date-select"
           type="date"
           value={currentDate}
           onChange={handleDateChange}
           className="sr-only"
+          aria-label="Select date"
         />
 
         <button
           type="button"
           onClick={viewMode === 'day' ? goToNextDay : goToNextWeek}
-          className="rounded-full p-1.5 text-charcoal transition-colors hover:bg-gray-100"
+          className={toolbarIconBtnClass}
           aria-label={viewMode === 'day' ? 'Next day' : 'Next week'}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>
 
-        <span className="hidden h-4 w-px bg-gray-200 xl:block" aria-hidden="true" />
+        <span className={toolbarDividerClass} aria-hidden="true" />
 
         <button
           type="button"
           onClick={viewMode === 'day' ? goToToday : goToCurrentWeek}
-          className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-charcoal"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-2.5 text-xs font-medium text-rota-text-muted transition-colors hover:bg-rota-day-other-bg-from hover:text-rota-text-primary motion-reduce:transition-none"
         >
           {viewMode === 'day' ? 'Today' : 'Current week'}
         </button>
       </div>
 
-      <span className="hidden h-4 w-px shrink-0 bg-gray-200 xl:block" aria-hidden="true" />
+      <span className={toolbarDividerClass} aria-hidden="true" />
 
       <div className={`flex min-w-0 flex-wrap items-center gap-2 ${isDesktop ? 'ml-auto flex-nowrap' : 'border-t border-rota-toolbar-border pt-3 xl:ml-auto xl:flex-nowrap xl:border-t-0 xl:pt-0'}`}>
         <button
           type="button"
           onClick={handleCopyFromPreviousWeek}
-          className={`admin-btn shrink-0 gap-2 !text-sm ${isDesktop ? 'h-9 !px-3' : 'h-11 !px-4'}`}
+          className={toolbarBtnClass}
           title="Copy last week"
+          aria-label="Copy last week"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
             <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
           </svg>
@@ -1663,10 +1791,11 @@ const RotaManager = ({ user }) => {
         <button
           type="button"
           onClick={openTemplateModal}
-          className={`admin-btn shrink-0 gap-2 !text-sm ${isDesktop ? 'h-9 !px-3' : 'h-11 !px-4'}`}
+          className={toolbarBtnClass}
           title="Templates"
+          aria-label="Templates"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
             <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
           </svg>
@@ -1678,12 +1807,12 @@ const RotaManager = ({ user }) => {
           pendingCount={pendingAdditionalCount}
           onBaselineChanged={() => setBaselineEpoch((n) => n + 1)}
           label="Send to agency"
-          className={isDesktop ? '!h-9 !w-auto !px-3 !text-sm' : '!h-11 !w-auto !px-4 !text-sm'}
+          className={`${toolbarBtnClass} !h-auto !w-auto`}
         />
 
         <RotaWhatsAppSendButton
           weekStart={getWeekStart(parseISO(currentDate))}
-          className={isDesktop ? '!h-9 !px-3' : ''}
+          className={`${toolbarBtnClass} !h-auto`}
         />
       </div>
     </>
@@ -1756,7 +1885,7 @@ const RotaManager = ({ user }) => {
                   <button
                     type="button"
                     onClick={() => openAddSlotForShift(shiftType)}
-                    className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from text-rota-text-muted hover:bg-rota-btn-primary-hover-bg hover:border-rota-input-focus-border hover:text-rota-text-primary text-sm font-semibold transition-colors"
+                    className="mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from py-2 text-sm font-semibold text-rota-text-muted transition-colors hover:border-rota-input-focus-border hover:bg-rota-btn-primary-hover-bg hover:text-rota-text-primary motion-reduce:transition-none"
                     title={`Add slot for ${title}`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1817,7 +1946,7 @@ const RotaManager = ({ user }) => {
                           </span>
                         )}
                         {shiftCounts.afternoon > 0 && (
-                          <span className="inline-flex items-center text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-300">
+                          <span className="inline-flex items-center rounded-full border border-rota-badge-partial-low-border bg-rota-badge-partial-low-bg px-1.5 py-0.5 text-xs text-rota-badge-partial-low-text">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                             </svg>
@@ -1857,7 +1986,7 @@ const RotaManager = ({ user }) => {
                     <button
                       type="button"
                       onClick={() => openAddSlotForDay(dateStr)}
-                      className="mt-2 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from text-rota-text-muted hover:bg-rota-btn-primary-hover-bg hover:border-rota-input-focus-border hover:text-rota-text-primary text-sm font-semibold transition-colors"
+                      className="mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-rota-input-border bg-rota-day-other-bg-from py-2 text-sm font-semibold text-rota-text-muted transition-colors hover:border-rota-input-focus-border hover:bg-rota-btn-primary-hover-bg hover:text-rota-text-primary motion-reduce:transition-none"
                       title="Add slot for this day"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -1876,7 +2005,7 @@ const RotaManager = ({ user }) => {
 
       {/* Add Slot Modal */}
       {showAddSlotModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-rota-modal-overlay p-4">
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-rota-modal-border bg-rota-modal-bg shadow-2xl">
             <div className="flex flex-col gap-5 p-6">
               <h3 className="mb-2 text-xl font-semibold text-rota-text-primary">Add New Slot</h3>

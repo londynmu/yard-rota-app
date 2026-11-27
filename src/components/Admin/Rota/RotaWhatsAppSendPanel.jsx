@@ -9,13 +9,13 @@ import { summarizeRotaWhatsAppPreview } from '../../../utils/rotaWhatsApp';
 const confirmOverlay = 'z-[10000]';
 
 const iconBtn =
-  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rota-toolbar-border bg-white text-rota-text-muted transition hover:bg-rota-day-other-bg-from/40 hover:text-rota-text-primary disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-rota-toolbar-border bg-white text-rota-text-muted transition hover:bg-rota-day-other-bg-from/40 hover:text-rota-text-primary motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50';
 
 const selectAllBtn =
-  'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-rota-toolbar-border bg-white px-3 text-xs font-semibold text-rota-text-primary transition hover:bg-rota-day-other-bg-from/40 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-rota-toolbar-border bg-white px-3 text-xs font-semibold text-rota-text-primary transition hover:bg-rota-day-other-bg-from/40 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50';
 
 const sendWhatsAppBtn =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Official WhatsApp logo mark (phone in speech bubble), monochrome via currentColor. */
 function WhatsAppIcon({ className = 'h-5 w-5' }) {

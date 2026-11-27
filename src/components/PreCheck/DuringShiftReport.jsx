@@ -11,6 +11,7 @@ import {
 } from '../../lib/precheckQueue';
 import { isLikelyNetworkError } from '../../lib/uploadRetry';
 import { safeSessionStorage } from '../../utils/safeStorage';
+import { useToast } from '../ui/ToastContext';
 
 const FORM_STORAGE_KEY = 'precheck_during_shift_form';
 const FORM_SESSION_ID_KEY = 'precheck_during_shift_form_session_id';
@@ -53,6 +54,7 @@ const clearFormState = () => {
 export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
+  const toast = useToast();
   const savedForm = loadFormState();
   const [description, setDescription] = useState(savedForm?.description || '');
   const [images, setImages] = useState([]);
@@ -84,7 +86,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
     e.preventDefault();
 
     if (!description.trim()) {
-      alert('Please describe what happened.');
+      toast.warning('Please describe what happened.');
       return;
     }
 
@@ -111,7 +113,7 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
       if (!isOnline || isLikelyNetworkError(err)) {
         await queueSubmission();
       } else {
-        alert('Error submitting report. Please try again.');
+        toast.error('Error submitting report. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -134,26 +136,34 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
         <div className="p-4 space-y-5">
           {/* What happened */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">What happened? *</label>
+            <label htmlFor="during-shift-description" className="mb-1.5 block text-xs font-semibold text-slate-500">
+              What happened? *
+            </label>
             <textarea
+              id="during-shift-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the damage or incident..."
+              placeholder="Describe the damage or incident…"
               rows={3}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-200 focus:border-red-300"
+              aria-required="true"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-red-300 focus:ring-2 focus:ring-red-200"
               autoFocus
             />
           </div>
 
           {/* Photos */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Photos</label>
-            <ImageUpload
-              images={images}
-              onImagesChange={handleImagesChange}
-              maxImages={5}
-            storageKey="pending_photos_during_shift"
-            />
+            <p id="during-shift-photos-label" className="mb-1.5 text-xs font-semibold text-slate-500">
+              Photos
+            </p>
+            <div aria-labelledby="during-shift-photos-label">
+              <ImageUpload
+                images={images}
+                onImagesChange={handleImagesChange}
+                maxImages={5}
+                storageKey="pending_photos_during_shift"
+              />
+            </div>
           </div>
         </div>
 
@@ -162,13 +172,13 @@ export default function DuringShiftReport({ selectedTug, onSubmitSuccess }) {
           <button
             type="submit"
             disabled={submitting}
-            className={`w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all ${
+            className={`w-full min-h-11 rounded-xl py-3.5 text-sm font-bold text-white transition-all motion-reduce:transition-none ${
               submitting
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-red-600 hover:bg-red-700 active:scale-[0.98]'
+                ? 'cursor-not-allowed bg-gray-400'
+                : 'bg-red-600 hover:bg-red-700 active:scale-[0.98] motion-reduce:active:scale-100'
             }`}
           >
-            {submitting ? 'Submitting...' : 'Submit Damage Report'}
+            {submitting ? 'Submitting…' : 'Submit Damage Report'}
           </button>
         </div>
       </div>

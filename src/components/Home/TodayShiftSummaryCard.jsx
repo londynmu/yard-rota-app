@@ -28,7 +28,7 @@ export default function TodayShiftSummaryCard({
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-xs text-charcoal truncate">Total shunters</p>
-              <p className="text-[11px] leading-tight text-slate-500 truncate">{location || 'Location'} today</p>
+              <p className="text-xs leading-tight text-slate-500 truncate">{location || 'Location'} today</p>
             </div>
           </div>
 
@@ -37,7 +37,7 @@ export default function TodayShiftSummaryCard({
               <div className={`w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border shadow-sm shrink-0 ${row.tile}`}>
                 <span className={`text-xs font-bold tabular-nums ${row.value}`}>{summary[row.id]}</span>
               </div>
-              <p className={`flex-1 min-w-0 text-[11px] leading-tight ${row.text}`}>{row.label}</p>
+              <p className={`flex-1 min-w-0 text-xs leading-tight ${row.text}`}>{row.label}</p>
             </div>
           ))}
           {children}

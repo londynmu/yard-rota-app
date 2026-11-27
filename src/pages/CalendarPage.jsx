@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate } from 'react-router-dom';
 import CalendarGrid from '../components/Calendar/CalendarGrid';
@@ -25,6 +25,17 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
   const filters = useBreaksFilters();
   const todayShiftSummary = useTodayShiftSummary(filters.selectedLocation);
   const scrollContainerRef = useRef(null);
+  const [isWideRail, setIsWideRail] = useState(() => (
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true
+  ));
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsWideRail(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -55,9 +66,9 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
               <div className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 border border-slate-200/60 shadow-sm transition-transform group-hover:scale-105 shrink-0">
                 <NavIcon Icon={item.Icon} colorClass={item.colorClass} size="small" animate={true} />
               </div>
-              <h3 className="flex-1 min-w-0 font-medium text-xs text-charcoal truncate">
+              <span className="flex-1 min-w-0 font-medium text-xs text-charcoal truncate">
                 {item.label}
-              </h3>
+              </span>
               <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -140,16 +151,20 @@ export default function CalendarPage({ desktopBelowCalendar = null }) {
                 />
               </div>
 
-              <div className="lg:hidden mt-3 flex flex-col gap-2">
+              {!isWideRail && (
+                <div className="mt-3 flex flex-col gap-2" data-main-page-rail="compact">
+                  {renderShunterStats()}
+                  {renderAdminQuickNav()}
+                </div>
+              )}
+            </div>
+
+            {isWideRail && (
+              <div className="flex lg:col-span-4 lg:row-span-2 min-h-0 flex-col gap-3" data-main-page-rail="wide">
                 {renderShunterStats()}
                 {renderAdminQuickNav()}
               </div>
-            </div>
-
-            <div className="hidden lg:flex lg:col-span-4 lg:row-span-2 min-h-0 flex-col gap-3">
-              {renderShunterStats()}
-              {renderAdminQuickNav()}
-            </div>
+            )}
           </div>
         </div>
       </div>

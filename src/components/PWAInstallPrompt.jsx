@@ -149,7 +149,7 @@ export default function PWAInstallPrompt() {
                 d="M5 13l4 4L19 7" 
               />
             </svg>
-            <span>Works offline after first load</span>
+            <span>App shell stays available offline; live rota and breaks need a connection</span>
           </li>
           <li className="flex items-start">
             <svg 

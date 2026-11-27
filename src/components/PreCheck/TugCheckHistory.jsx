@@ -128,9 +128,9 @@ export default function TugCheckHistory({ tugId }) {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-1">
+      <div className="animate-pulse space-y-1 motion-reduce:animate-none">
         {[1, 2].map(i => (
-          <div key={i} className="h-8 bg-slate-200 rounded" />
+          <div key={i} className="h-8 rounded bg-slate-200" />
         ))}
       </div>
     );
@@ -138,7 +138,7 @@ export default function TugCheckHistory({ tugId }) {
 
   if (checks.length === 0) {
     return (
-      <div className="text-center py-3 text-gray-400 text-xs">
+      <div className="py-3 text-center text-xs text-slate-500">
         No checks in the last 30 days
       </div>
     );
@@ -172,14 +172,15 @@ export default function TugCheckHistory({ tugId }) {
               <button
                 type="button"
                 onClick={() => setExpandedCheckId(isExpanded ? null : check.id)}
-                className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left relative"
+                aria-expanded={hasDefect ? isExpanded : undefined}
+                className="relative flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left"
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-charcoal truncate">{name}</p>
-                  <p className="text-[11px] text-slate-500">{time}</p>
+                  <p className="truncate text-xs font-semibold text-charcoal">{name}</p>
+                  <p className="text-xs text-slate-500">{time}</p>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                     isPreShift
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-orange-100 text-orange-700'
@@ -189,10 +190,11 @@ export default function TugCheckHistory({ tugId }) {
                 </div>
                 {hasDefect && (
                   <svg
-                    className={`w-3.5 h-3.5 text-slate-400 transition-transform absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${isExpanded ? 'rotate-180' : ''}`}
+                    className={`absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-slate-400 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -200,9 +202,9 @@ export default function TugCheckHistory({ tugId }) {
               </button>
 
               {isExpanded && hasDefect && (
-                <div className="border-t border-slate-200 bg-white px-3 py-2 space-y-2">
+                <div className="space-y-2 border-t border-slate-200 bg-white px-3 py-2">
                   <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase text-slate-500">Problems</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Problems</p>
                     {problems.map((problem) => (
                       <div
                         key={problem.key}
@@ -210,7 +212,7 @@ export default function TugCheckHistory({ tugId }) {
                       >
                         <p className="text-xs font-semibold text-emerald-900">{problem.itemName}</p>
                         {problem.description && (
-                          <p className="text-[11px] text-slate-700 mt-0.5">{problem.description}</p>
+                          <p className="mt-0.5 text-xs text-slate-700">{problem.description}</p>
                         )}
                         {problem.imageUrls.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -240,7 +242,7 @@ export default function TugCheckHistory({ tugId }) {
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="w-full py-2 mt-2 text-xs text-slate-500 hover:text-charcoal transition-colors"
+          className="mt-2 min-h-11 w-full py-2 text-xs text-slate-500 transition-colors hover:text-charcoal motion-reduce:transition-none"
         >
           Show all {checks.length} entries
         </button>

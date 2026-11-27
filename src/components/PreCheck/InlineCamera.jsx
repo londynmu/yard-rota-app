@@ -75,48 +75,27 @@ export default function InlineCamera({ onCapture, onClose }) {
   }, [onCapture, onClose]);
 
   return createPortal(
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 99999,
-      background: 'rgba(0, 0, 0, 0.9)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-    }}>
+    <div
+      className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-charcoal/90 p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Camera"
+    >
       {error ? (
-        <div style={{
-          background: 'rgba(127, 29, 29, 0.9)',
-          color: '#fff',
-          borderRadius: 12,
-          padding: 20,
-          textAlign: 'center',
-          maxWidth: 320,
-        }}>
-          <p style={{ fontSize: 14, marginBottom: 16 }}>{error}</p>
+        <div className="w-full max-w-sm rounded-xl bg-red-900/90 p-5 text-center text-white">
+          <p className="mb-4 text-sm">{error}</p>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              background: '#fff',
-              color: '#000',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="inline-flex min-h-11 items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-charcoal"
           >
             Close
           </button>
         </div>
       ) : (
-        <div style={{ color: '#fff', fontSize: 14 }}>
-          {opening ? 'Opening camera...' : 'Waiting for camera...'}
-        </div>
+        <p className="text-sm text-white">
+          {opening ? 'Opening camera…' : 'Waiting for camera…'}
+        </p>
       )}
     </div>,
     document.body

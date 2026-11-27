@@ -45,7 +45,7 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
       <button
         type="button"
         onClick={openModal}
-        className={`admin-btn h-11 gap-2 !px-4 !text-sm ${className}`}
+        className={className || 'admin-btn h-11 gap-2 !px-4 !text-sm'}
         title="Send rota on WhatsApp"
         aria-label="Send rota on WhatsApp"
       >
@@ -55,8 +55,7 @@ export default function RotaWhatsAppSendButton({ weekStart, className = '' }) {
 
       {showModal && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none bg-rota-modal-overlay p-4"
           onWheel={(e) => {
             if (e.target === e.currentTarget) e.preventDefault();
           }}

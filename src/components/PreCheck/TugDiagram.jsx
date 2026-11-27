@@ -110,8 +110,8 @@ export default function TugDiagram({ selectedZone, onSelectZone }) {
           <rect x="26" y="110" width="12" height="30" rx="4" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.8" />
 
           {/* Labels */}
-          <text x="100" y="12" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" fontFamily="sans-serif">FRONT</text>
-          <text x="100" y="207" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="600" fontFamily="sans-serif">REAR</text>
+          <text x="100" y="12" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600" fontFamily="sans-serif">FRONT</text>
+          <text x="100" y="207" textAnchor="middle" fill="#64748b" fontSize="10" fontWeight="600" fontFamily="sans-serif">REAR</text>
         </svg>
 
         {/* Clickable hotspot overlays */}
@@ -132,13 +132,13 @@ export default function TugDiagram({ selectedZone, onSelectZone }) {
               }}
               className="group"
             >
-              <div className={`w-full h-full rounded-md border-2 transition-all flex items-center justify-center ${
+              <div className={`flex h-full w-full items-center justify-center rounded-md border-2 transition-all motion-reduce:transition-none ${
                 isSelected
                   ? 'border-red-500 bg-red-500/20'
                   : 'border-transparent hover:border-red-300 hover:bg-red-100/20'
               }`}>
-                <span className={`text-[9px] font-bold px-1 rounded transition-colors ${
-                  isSelected ? 'text-red-700 bg-white/80' : 'text-transparent group-hover:text-red-400'
+                <span className={`rounded px-1 text-xs font-bold transition-colors motion-reduce:transition-none ${
+                  isSelected ? 'bg-white/80 text-red-700' : 'text-transparent group-hover:text-red-400'
                 }`}>
                   {zone.label}
                 </span>

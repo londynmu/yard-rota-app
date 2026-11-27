@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { blobToFile, dataUrlToFile } from '../../lib/cameraUtils';
 import { safeSessionStorage } from '../../utils/safeStorage';
+import { useToast } from '../ui/ToastContext';
 
 const InlineCamera = lazy(() => import('./InlineCamera'));
 
@@ -58,6 +59,7 @@ const compressImage = (file, maxWidth = 1200, quality = 0.7) => {
 };
 
 export default function ImageUpload({ images, onImagesChange, maxImages = 5, storageKey = 'pending_photos', hideGallery = false }) {
+  const toast = useToast();
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const [compressing, setCompressing] = useState(false);
@@ -102,16 +104,16 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
       const hasNonImage = Array.from(files).some(f => f.type && !f.type.startsWith('image/'));
       const hasTooLarge = Array.from(files).some(f => f.size > 40 * 1024 * 1024);
       if (hasTooLarge) {
-        alert('Image is too large. Please use a smaller image.');
+        toast.warning('Image is too large. Please use a smaller image.');
       } else if (hasNonImage) {
-        alert('Unsupported file type. Please choose an image.');
+        toast.warning('Unsupported file type. Please choose an image.');
       }
       return;
     }
 
     const remaining = maxImages - images.length;
     if (remaining <= 0) {
-      alert(`Maximum ${maxImages} images allowed.`);
+      toast.warning(`Maximum ${maxImages} images allowed.`);
       return;
     }
 
@@ -192,7 +194,7 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
         file = dataUrlToFile(photo.dataUrl, `photo-${Date.now()}.jpg`);
       }
       if (!file) {
-        alert('Unable to process the selected image.');
+        toast.error('Unable to process the selected image.');
         return;
       }
       await processAndAddFiles([file]);
@@ -200,9 +202,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
       const message = String(err?.message || '').toLowerCase();
       if (message.includes('cancel')) return;
       if (source === CameraSource.Photos) {
-        alert('Unable to open the photo library. Please try again.');
+        toast.error('Unable to open the photo library. Please try again.');
       } else {
-        alert('Unable to open the camera. Please try again.');
+        toast.error('Unable to open the camera. Please try again.');
       }
     }
   };
@@ -300,9 +302,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
             }
           }}
           disabled={compressing}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-charcoal font-medium text-sm rounded-lg hover:bg-slate-200 transition-all"
+          className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-slate-100 py-2.5 text-sm font-medium text-charcoal transition-all hover:bg-slate-200 motion-reduce:transition-none"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
@@ -319,9 +321,9 @@ export default function ImageUpload({ images, onImagesChange, maxImages = 5, sto
             }
           }}
           disabled={compressing}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-charcoal font-medium text-sm rounded-lg hover:bg-slate-200 transition-all"
+          className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-slate-100 py-2.5 text-sm font-medium text-charcoal transition-all hover:bg-slate-200 motion-reduce:transition-none"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           Gallery

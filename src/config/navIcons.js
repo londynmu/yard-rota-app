@@ -77,7 +77,7 @@ export function getAdminMenuItems(pendingApprovals = 0, { shunterIncomplete = fa
 export const mainNavConfig = [
   { path: '/calendar', label: 'Main Page', shortLabel: 'Home', Icon: Home, colorClass: colors.primary },
   { path: '/my-rota', label: 'My Rota', shortLabel: 'My Rota', Icon: CalendarDays, colorClass: colors.info },
-  { path: '/performance', label: 'Performance', shortLabel: 'Stats', Icon: Activity, colorClass: colors.violet },
+  { path: '/performance', label: 'Performance', shortLabel: 'Performance', Icon: Activity, colorClass: colors.violet },
   { path: '/precheck', label: 'PreCheck', shortLabel: 'PreCheck', Icon: ListChecks, colorClass: colors.success },
   { path: '/vmu', label: 'VMU', shortLabel: 'VMU', Icon: Wrench, colorClass: colors.slate },
   { path: '/vmu/prechecks', label: 'PreChecks', shortLabel: 'PreChecks', Icon: ListChecks, colorClass: colors.success },

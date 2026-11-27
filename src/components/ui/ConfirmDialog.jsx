@@ -19,19 +19,21 @@ export default function ConfirmDialog({
         <h3 className="text-xl font-semibold mb-2 text-rota-text-primary">{title}</h3>
         <p className="text-rota-text-muted mb-6">{message}</p>
         
-        <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border-2 border-rota-btn-outline-border bg-white text-rota-btn-outline-text hover:bg-rota-day-other-bg-from transition-colors order-2 sm:order-1"
+            className="order-2 inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-rota-btn-outline-border bg-white px-4 py-2 text-rota-btn-outline-text transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none sm:order-1"
           >
             {cancelText}
           </button>
           <button
+            type="button"
             onClick={() => {
               onConfirm();
               onClose();
             }}
-            className={`px-4 py-2 rounded-lg border-2 transition-colors order-1 sm:order-2 ${
+            className={`order-1 inline-flex min-h-11 items-center justify-center rounded-lg border-2 px-4 py-2 transition-colors motion-reduce:transition-none sm:order-2 ${
               isDestructive
                 ? 'border-rota-btn-destructive-border bg-white text-rota-btn-destructive-text hover:bg-rota-btn-destructive-hover-bg'
                 : 'border-rota-text-primary bg-white text-rota-text-primary hover:bg-rota-day-other-bg-from'
