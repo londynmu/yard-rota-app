@@ -22,11 +22,12 @@ const PAGE_SHELL = 'mx-auto w-full px-4 pt-safe pb-24 md:max-w-5xl md:px-6';
 const FORM_SHELL = 'mx-auto w-full px-4 pt-safe pb-24 md:max-w-3xl md:px-6';
 
 function PageTitle({ subtitle, action }) {
+  // One visible title only (no PreCheck + subtitle stack). Document h1 stays in the shell.
+  const title = subtitle || 'PreCheck';
   return (
     <div className="mb-4 flex items-center justify-between gap-3 md:mb-5">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight text-slate-800 md:text-xl">PreCheck</h1>
-        {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
+        <p className="text-lg font-semibold tracking-tight text-slate-800 md:text-xl">{title}</p>
       </div>
       {action ? <div className="hidden shrink-0 md:block">{action}</div> : null}
     </div>
@@ -437,7 +438,7 @@ export default function PreCheckPage() {
             <button
               type="button"
               onClick={handleCheckAnotherTug}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+              className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 motion-reduce:transition-none"
             >
               Check Another Tug
             </button>
@@ -453,7 +454,7 @@ export default function PreCheckPage() {
             return (
               <div key={check.id} className={`flex items-center justify-between p-3 md:px-5 md:py-4 ${idx > 0 ? 'border-t border-green-200' : ''}`}>
                 <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                   <div>
@@ -471,7 +472,7 @@ export default function PreCheckPage() {
                       tug_number: tugNumber,
                       display_name: check.tugs?.display_name,
                     })}
-                    className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                    className="inline-flex min-h-11 flex-shrink-0 items-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 motion-reduce:transition-none"
                   >
                     Report Damage
                   </button>
@@ -483,8 +484,9 @@ export default function PreCheckPage() {
 
         {/* Check Another Tug */}
         <button
+          type="button"
           onClick={handleCheckAnotherTug}
-          className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 md:hidden"
+          className="w-full min-h-11 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 motion-reduce:transition-none md:hidden"
         >
           Check Another Tug
         </button>
@@ -556,13 +558,13 @@ export default function PreCheckPage() {
                   }
                 }}
                 disabled={!isOnline || isSyncing}
-                className={`px-2 py-1 rounded border text-xs ${
+                className={`inline-flex min-h-11 items-center rounded border px-3 py-2 text-xs font-medium transition-colors motion-reduce:transition-none ${
                   !isOnline || isSyncing
                     ? 'border-gray-200 text-gray-400'
                     : 'border-blue-300 text-blue-700 hover:bg-blue-100'
                 }`}
               >
-                {isSyncing ? 'Syncing...' : 'Sync now'}
+                {isSyncing ? 'Syncing…' : 'Sync now'}
               </button>
             </div>
           </div>
@@ -619,14 +621,16 @@ export default function PreCheckPage() {
           </div>
           <div className="flex flex-col gap-2">
             <button
+              type="button"
               onClick={handleCheckAnotherTug}
-              className="w-full py-2.5 bg-charcoal text-white font-semibold rounded-xl hover:bg-black transition-colors text-sm"
+              className="w-full min-h-11 rounded-xl bg-charcoal py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black motion-reduce:transition-none"
             >
               Check Another Tug
             </button>
             <button
+              type="button"
               onClick={() => navigate('/calendar')}
-              className="w-full py-2.5 bg-white text-charcoal font-medium rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
+              className="w-full min-h-11 rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-medium text-charcoal transition-colors hover:bg-gray-50 motion-reduce:transition-none"
             >
               Back to Home
             </button>
@@ -672,9 +676,9 @@ export default function PreCheckPage() {
             setQrError(null);
             setShowQRScanner(true);
           }}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 active:scale-[0.98] md:w-auto md:px-5"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100 md:w-auto md:px-5"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
           </svg>
           Scan QR Code
@@ -734,13 +738,13 @@ export default function PreCheckPage() {
                 }
               }}
               disabled={!isOnline || isSyncing}
-              className={`px-2 py-1 rounded border text-xs ${
+              className={`inline-flex min-h-11 items-center rounded border px-3 py-2 text-xs font-medium transition-colors motion-reduce:transition-none ${
                 !isOnline || isSyncing
                   ? 'border-gray-200 text-gray-400'
                   : 'border-blue-300 text-blue-700 hover:bg-blue-100'
               }`}
             >
-              {isSyncing ? 'Syncing...' : 'Sync now'}
+              {isSyncing ? 'Syncing…' : 'Sync now'}
             </button>
           </div>
         </div>

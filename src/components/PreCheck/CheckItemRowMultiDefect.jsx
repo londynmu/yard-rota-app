@@ -143,7 +143,7 @@ export default function CheckItemRowMultiDefect({
                         blurActive();
                         onMarkResolved(def.id, itemKey);
                       }}
-                      className="flex-1 min-w-0 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-200 hover:bg-green-200 transition-colors"
+                      className="min-h-11 min-w-0 flex-1 rounded-lg border border-green-200 bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 motion-reduce:transition-none"
                     >
                       Fixed?
                     </button>
@@ -153,7 +153,7 @@ export default function CheckItemRowMultiDefect({
                         blurActive();
                         handleLinkDefect(stateKey, def.id);
                       }}
-                      className="flex-1 min-w-0 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition-colors"
+                      className="min-h-11 min-w-0 flex-1 rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200 motion-reduce:transition-none"
                     >
                       Same problem
                     </button>
@@ -166,7 +166,11 @@ export default function CheckItemRowMultiDefect({
 
         {showNewDefectForm && (
           <div className="mt-3 space-y-2">
+            <label htmlFor={`issue-notes-${itemKey}-new`} className="block text-xs font-semibold text-slate-600">
+              What&apos;s wrong? (required)
+            </label>
             <textarea
+              id={`issue-notes-${itemKey}-new`}
               ref={notesTextareaRef}
               value={checkItems[newDefectStateKey]?.notes || ''}
               onChange={(e) => onNotesChange(newDefectStateKey, e.target.value)}
@@ -175,9 +179,10 @@ export default function CheckItemRowMultiDefect({
                 el.style.height = 'auto';
                 el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
               }}
-              placeholder="What's wrong? (required)"
+              placeholder="Describe the issue…"
               rows={4}
-              className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white resize-y min-h-[6rem] max-h-[300px]"
+              aria-required="true"
+              className="w-full resize-y rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-red-300 focus:ring-2 focus:ring-red-300 min-h-[6rem] max-h-[300px]"
             />
             {onImagesChange && (
               <ImageUpload
@@ -204,7 +209,7 @@ export default function CheckItemRowMultiDefect({
           <button
             type="button"
             onClick={handleNewDefectClick}
-            className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold border-2 bg-red-100 text-red-800 border-red-200 hover:bg-red-200 transition-colors"
+            className="w-full min-h-11 rounded-xl border-2 border-red-200 bg-red-100 px-4 py-2.5 text-sm font-semibold text-red-800 transition-colors hover:bg-red-200 motion-reduce:transition-none"
           >
             Add new defect?
           </button>

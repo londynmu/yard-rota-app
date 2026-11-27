@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy, useLayoutEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format as formatDate, subDays, addDays, parseISO } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { BarChart2, ChevronDown, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 const PerformanceChart = lazy(() => import('../components/PerformanceChart'));
 import Modal from '../components/ui/Modal';
@@ -25,24 +25,25 @@ function parseActualDateParam(value) {
   return formatDate(parsed, 'yyyy-MM-dd');
 }
 
-/** Match WeeklyRotaPage top nav — light gradients per column */
+/** Match My Rota sticky filter chips — no indigo/violet, 44px targets */
+const FILTER_CHIP_BASE =
+  'flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 py-2.5 text-xs font-semibold transition-colors duration-200 motion-reduce:transition-none sm:gap-1.5 sm:px-2 sm:text-sm';
 const FILTER_RANGE_CLASS =
-  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0';
-
+  `${FILTER_CHIP_BASE} text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70`;
 const FILTER_SORT_CLASS =
-  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0';
-
+  `${FILTER_CHIP_BASE} text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70`;
 const FILTER_SHIFT_CLASS =
-  'flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-indigo-50/90 via-white to-violet-50/70 border border-indigo-200/60 shadow-sm hover:from-indigo-100/90 hover:to-violet-100/70 hover:border-indigo-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 min-w-0';
+  `${FILTER_CHIP_BASE} text-slate-800 bg-gradient-to-r from-slate-50 via-white to-slate-50/80 border-slate-200/60 shadow-sm hover:from-slate-100/90 hover:to-slate-50 hover:border-slate-300/70`;
 
-/** Selected option: light gray + charcoal border (same idea as Breaks shift modal). No filled blue. */
-const modalOptionClass = (selected) =>
-  [
-    'w-full px-4 py-2.5 rounded-xl border text-sm font-normal transition-colors text-left',
-    selected
-      ? 'border-charcoal bg-gray-100 text-charcoal'
-      : 'border-slate-200/60 bg-white text-slate-700 hover:bg-slate-50',
-  ].join(' ');
+const FILTER_OPTION_BASE =
+  'w-full min-h-11 px-4 py-2.5 rounded-xl text-sm font-medium text-center border transition-colors motion-reduce:transition-none';
+const FILTER_OPTION_IDLE =
+  `${FILTER_OPTION_BASE} border-slate-200/60 text-slate-700 hover:bg-slate-50`;
+const FILTER_OPTION_SELECTED =
+  `${FILTER_OPTION_BASE} border-sky-100 bg-sky-50 text-sky-900`;
+const FILTER_MODAL_CLOSE =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 motion-reduce:transition-none';
+const METRIC_LABEL_CLASS = 'text-xs uppercase text-slate-500 font-medium';
 
 const RANGE_OPTIONS = [
   // Look back a few calendar days so a late morning YMS import still fills "Last Day"
@@ -133,6 +134,7 @@ const secondsToTime = (totalSeconds) => {
 
 const PerformanceLeaderboard = () => {
   const toast = useToast();
+  const prefersReducedMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const actualDateFilter = useMemo(
     () => parseActualDateParam(searchParams.get('date')),
@@ -630,15 +632,15 @@ const PerformanceLeaderboard = () => {
       <div className="rounded-xl border border-slate-200/60 bg-white/90 backdrop-blur-sm shadow-sm overflow-hidden">
         <div className="grid grid-cols-3 divide-x divide-slate-200/60">
           <div className="p-2 text-center bg-base-50/80">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Moves</p>
+            <p className={METRIC_LABEL_CLASS}>Moves</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">{user.totalMoves.toLocaleString()}</p>
           </div>
           <div className="p-2 text-center bg-base-50/80">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Per Day</p>
+            <p className={METRIC_LABEL_CLASS}>Per Day</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">{movesPerDay}</p>
           </div>
           <div className="p-2 text-center bg-base-50/80">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Days</p>
+            <p className={METRIC_LABEL_CLASS}>Days</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">{user.daysWorked}</p>
           </div>
         </div>
@@ -652,15 +654,15 @@ const PerformanceLeaderboard = () => {
 
         <div className="grid grid-cols-3 divide-x divide-slate-200/60 border-t border-slate-200/60">
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Collect</p>
+            <p className={METRIC_LABEL_CLASS}>Collect</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">{user.avgCollectTime}</p>
           </div>
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Travel</p>
+            <p className={METRIC_LABEL_CLASS}>Travel</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">{user.avgTravelTime}</p>
           </div>
           <div className="p-2 text-center">
-            <p className="text-[10px] uppercase text-slate-500 font-medium">Full Loc</p>
+            <p className={METRIC_LABEL_CLASS}>Full Loc</p>
             <p className="text-lg font-semibold text-charcoal tabular-nums">
               {(user.totalFullLocations || 0).toLocaleString()}
             </p>
@@ -672,7 +674,7 @@ const PerformanceLeaderboard = () => {
             {tags.map((tag) => (
               <span
                 key={`${user.userId}-${tag}`}
-                className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-base-100 text-slate-600 border border-slate-200/60"
+                className="px-2 py-0.5 rounded-full text-xs font-medium bg-base-100 text-slate-600 border border-slate-200/60"
               >
                 {tag}
               </span>
@@ -687,19 +689,21 @@ const PerformanceLeaderboard = () => {
   const shiftFilterLabel = shiftFilter === 'day' ? 'Day' : shiftFilter === 'night' ? 'Night' : 'All';
   const desktopFilterPortal = filterHost ? createPortal(
     [
-      { label: 'Range', value: getRangeLabel(selectedRange), onClick: () => setShowRangeModal(true) },
-      { label: 'Sort', value: sortFilterLabel, onClick: () => setShowSortModal(true) },
-      { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true) },
+      { label: 'Range', value: getRangeLabel(selectedRange), onClick: () => setShowRangeModal(true), expanded: showRangeModal },
+      { label: 'Sort', value: sortFilterLabel, onClick: () => setShowSortModal(true), expanded: showSortModal },
+      { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true), expanded: showShiftModal },
     ].map((item) => (
       <button
         key={item.label}
         type="button"
         onClick={item.onClick}
-        aria-label={item.label}
-        className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-slate-50"
+        aria-label={`${item.label}: ${item.value}`}
+        aria-haspopup="dialog"
+        aria-expanded={item.expanded}
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 py-2 text-left hover:bg-slate-50"
       >
         <span className="text-sm font-medium text-slate-700">{item.value}</span>
-        <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+        <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} aria-hidden />
       </button>
     )),
     filterHost,
@@ -714,128 +718,168 @@ const PerformanceLeaderboard = () => {
             <button
               type="button"
               onClick={() => setShowRangeModal(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showRangeModal}
+              aria-label={`Range: ${getRangeLabel(selectedRange)}`}
               className={FILTER_RANGE_CLASS}
             >
-              <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">{getRangeLabel(selectedRange)}</span>
+              <span className="min-w-0 truncate text-left text-xs sm:text-sm">{getRangeLabel(selectedRange)}</span>
             </button>
-            <button type="button" onClick={() => setShowSortModal(true)} className={FILTER_SORT_CLASS}>
+            <button
+              type="button"
+              onClick={() => setShowSortModal(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showSortModal}
+              aria-label={`Sort: ${sortFilterLabel}`}
+              className={FILTER_SORT_CLASS}
+            >
               Sort
             </button>
-            <button type="button" onClick={() => setShowShiftModal(true)} className={FILTER_SHIFT_CLASS}>
-              <span className="min-w-0 truncate text-left text-[10px] sm:text-xs">
-                Shift: {shiftFilter === 'all' ? 'All' : shiftFilter === 'day' ? 'Day' : 'Night'}
+            <button
+              type="button"
+              onClick={() => setShowShiftModal(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showShiftModal}
+              aria-label={`Shift: ${shiftFilterLabel}`}
+              className={FILTER_SHIFT_CLASS}
+            >
+              <span className="min-w-0 truncate text-left text-xs sm:text-sm">
+                Shift: {shiftFilterLabel}
               </span>
             </button>
           </div>
         </div>
       </div>
 
-      <Modal isOpen={showRangeModal} onClose={() => setShowRangeModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-charcoal">Select Range</h3>
-            <button
-              type="button"
-              onClick={() => setShowRangeModal(false)}
-              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
-              aria-label="Close range modal"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      <Modal
+        isOpen={showRangeModal}
+        onClose={() => setShowRangeModal(false)}
+        className="max-w-sm"
+        ariaLabelledBy="performance-range-title"
+      >
+        <div className="relative">
+          <h2 id="performance-range-title" className="mb-3 pr-12 text-base font-semibold text-slate-800">
+            Select range
+          </h2>
+          <div className="space-y-2" role="group" aria-label="Range options">
+            {RANGE_OPTIONS.map((option) => {
+              const selected = !actualDateFilter && selectedRange === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    clearDateParamAndSetRange(option.value);
+                    setShowRangeModal(false);
+                  }}
+                  className={selected ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+                  aria-pressed={selected}
+                  {...(selected ? { 'data-autofocus': true } : {})}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="space-y-2">
-            {RANGE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  clearDateParamAndSetRange(option.value);
-                  setShowRangeModal(false);
-                }}
-                className={modalOptionClass(!actualDateFilter && selectedRange === option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowRangeModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
         </div>
       </Modal>
 
-      <Modal isOpen={showSortModal} onClose={() => setShowSortModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-charcoal">Sort Leaderboard</h3>
-            <button
-              type="button"
-              onClick={() => setShowSortModal(false)}
-              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
-              aria-label="Close sort modal"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      <Modal
+        isOpen={showSortModal}
+        onClose={() => setShowSortModal(false)}
+        className="max-w-sm"
+        ariaLabelledBy="performance-sort-title"
+      >
+        <div className="relative">
+          <h2 id="performance-sort-title" className="mb-3 pr-12 text-base font-semibold text-slate-800">
+            Sort leaderboard
+          </h2>
+          <div className="space-y-2" role="group" aria-label="Sort options">
+            {SORT_OPTIONS.map((option) => {
+              const selected = sortOption === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setSortOption(option.value);
+                    setShowSortModal(false);
+                  }}
+                  className={selected ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+                  aria-pressed={selected}
+                  {...(selected ? { 'data-autofocus': true } : {})}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="space-y-2">
-            {SORT_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  setSortOption(option.value);
-                  setShowSortModal(false);
-                }}
-                className={modalOptionClass(sortOption === option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowSortModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
         </div>
       </Modal>
 
-      <Modal isOpen={showShiftModal} onClose={() => setShowShiftModal(false)} className="max-w-sm rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-strong backdrop-blur-md">
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-charcoal">Shift</h3>
-            <button
-              type="button"
-              onClick={() => setShowShiftModal(false)}
-              className="rounded-lg p-1.5 text-rota-text-muted-light transition-colors hover:bg-slate-100 hover:text-charcoal"
-              aria-label="Close shift modal"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="space-y-2">
+      <Modal
+        isOpen={showShiftModal}
+        onClose={() => setShowShiftModal(false)}
+        className="max-w-sm"
+        ariaLabelledBy="performance-shift-title"
+      >
+        <div className="relative">
+          <h2 id="performance-shift-title" className="mb-3 pr-12 text-base font-semibold text-slate-800">
+            Select shift
+          </h2>
+          <div className="space-y-2" role="group" aria-label="Shift options">
             {[
               { value: 'all', label: 'All' },
               { value: 'day', label: 'Day' },
               { value: 'night', label: 'Night' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  setShiftFilter(option.value);
-                  setShowShiftModal(false);
-                }}
-                className={modalOptionClass(shiftFilter === option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+            ].map((option) => {
+              const selected = shiftFilter === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setShiftFilter(option.value);
+                    setShowShiftModal(false);
+                  }}
+                  className={selected ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+                  aria-pressed={selected}
+                  {...(selected ? { 'data-autofocus': true } : {})}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowShiftModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
         </div>
       </Modal>
 
       <div className="h-full overflow-y-auto bg-transparent px-2 py-0 md:px-2 md:py-3 pb-bottom-nav">
         <div className="page-content-inner">
-        <h1 className="sr-only">Performance leaderboard</h1>
         {loading ? (
           <div className="space-y-4 animate-pulse">
             <div className="card-modern p-6">
@@ -875,8 +919,10 @@ const PerformanceLeaderboard = () => {
         ) : leaderboardData.length === 0 ? (
           <div className="card-modern p-10 text-center">
             <BarChart2 className="w-14 h-14 mx-auto mb-4 text-slate-400" strokeWidth={1.5} aria-hidden />
-            <h2 className="text-xl font-bold text-charcoal mb-2">No Performance Data</h2>
-            <p className="text-slate-600 text-sm">No data available for the selected period.</p>
+            <h2 className="text-xl font-bold text-charcoal mb-2">No performance data</h2>
+            <p className="text-slate-600 text-sm">
+              No data for this range. Try Last Week, another shift filter, or check back after the next import.
+            </p>
           </div>
         ) : (
           <>
@@ -912,13 +958,31 @@ const PerformanceLeaderboard = () => {
                   return (
                     <motion.div
                       key={user.userId}
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: user.rank * 0.03 }}
-                      whileHover={{ y: -1, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)' }}
-                      whileTap={{ scale: 0.99 }}
+                      transition={
+                        prefersReducedMotion
+                          ? { duration: 0 }
+                          : { duration: 0.25, delay: Math.min(user.rank, 12) * 0.03 }
+                      }
+                      whileHover={
+                        prefersReducedMotion
+                          ? undefined
+                          : { y: -1, boxShadow: '0 4px 14px rgba(15, 23, 42, 0.08)' }
+                      }
+                      whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
                       onClick={() => toggleExpandedUser(user.userId)}
-                      className={`${cardBgClass} rounded-2xl border p-4 shadow-sm cursor-pointer transition-all backdrop-blur-sm`}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleExpandedUser(user.userId);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      aria-label={`${formatShunterName(user)}, rank ${user.rank}${isExpanded ? ', expanded' : ', collapsed'}`}
+                      className={`${cardBgClass} rounded-2xl border p-4 shadow-sm cursor-pointer transition-shadow motion-reduce:transition-none backdrop-blur-sm`}
                     >
                       {/* Header Row */}
                       <div className="flex items-center gap-3">
@@ -944,12 +1008,12 @@ const PerformanceLeaderboard = () => {
                           <div className="text-xs text-slate-600 font-mono">{user.yardSystemId}</div>
                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                             {user.shiftPreference && (
-                              <span className="text-[10px] font-medium text-slate-500">
+                              <span className="text-xs font-medium text-slate-500">
                                 {user.shiftPreference === 'day' ? 'Day' : user.shiftPreference === 'afternoon' ? 'Afternoon' : 'Night'}
                               </span>
                             )}
                             {user.isHighOutput && (
-                              <span className="text-[10px] font-medium text-emerald-600">High output</span>
+                              <span className="text-xs font-medium text-emerald-600">High output</span>
                             )}
                           </div>
                         </div>

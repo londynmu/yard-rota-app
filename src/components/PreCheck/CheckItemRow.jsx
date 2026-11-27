@@ -113,7 +113,7 @@ export default function CheckItemRow({
                 title="Reload"
                 aria-label="Reload"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
@@ -122,11 +122,11 @@ export default function CheckItemRow({
             <button
               type="button"
               onClick={handleClearSameDefect}
-              className="flex-shrink-0 p-2 rounded-full text-charcoal hover:bg-gray-100 transition-colors"
+              className="flex-shrink-0 rounded-full p-2 text-charcoal transition-colors hover:bg-gray-100 motion-reduce:transition-none"
               title="Change selection"
               aria-label="Change selection"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
@@ -293,7 +293,11 @@ export default function CheckItemRow({
             )}
             {!linkedDamageId && (
               <>
+                <label htmlFor={`issue-notes-${itemKey || cardId || 'item'}`} className="block text-xs font-semibold text-slate-600">
+                  What&apos;s wrong? (required)
+                </label>
                 <textarea
+                  id={`issue-notes-${itemKey || cardId || 'item'}`}
                   ref={notesTextareaRef}
                   value={notes || ''}
                   onChange={(e) => onNotesChange(e.target.value)}
@@ -302,8 +306,9 @@ export default function CheckItemRow({
                     el.style.height = 'auto';
                     el.style.height = `${Math.min(el.scrollHeight, 300)}px`;
                   }}
-                  placeholder="What's wrong? (required)"
+                  placeholder="Describe the issue…"
                   rows={4}
+                  aria-required="true"
                   className="w-full text-sm text-gray-900 placeholder:text-gray-400 border border-red-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-300 focus:border-red-300 bg-white resize-y min-h-[6rem] max-h-[300px]"
                 />
                 {onImagesChange && (
@@ -370,20 +375,25 @@ export default function CheckItemRow({
             <p className="text-xs text-gray-600">If not, tap OK. Tap Issue only for a new problem.</p>
           </div>
         )}
-        <div className="px-4 pb-4 pt-2 flex items-center justify-between gap-2">
+        <div
+          role="group"
+          aria-label={`${label} status`}
+          className="flex items-center justify-between gap-2 px-4 pb-4 pt-2"
+        >
           <button
             type="button"
             onClick={handleMarkIssue}
             disabled={value === 'na'}
-            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
+            aria-pressed={value === 'repair_needed'}
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-lg py-2.5 text-sm font-semibold transition-all motion-reduce:transition-none ${
               value === 'repair_needed'
                 ? 'bg-red-500 text-white'
                 : value === 'na'
-                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                ? 'cursor-not-allowed bg-gray-100 text-gray-300'
                 : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
             }`}
           >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <span className="truncate">Issue</span>
@@ -392,12 +402,13 @@ export default function CheckItemRow({
             type="button"
             onClick={handleMarkNa}
             disabled={!allowNa}
-            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center text-sm font-semibold transition-all overflow-hidden ${
+            aria-pressed={value === 'na'}
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg py-2.5 text-sm font-semibold transition-all motion-reduce:transition-none ${
               allowNa
                 ? value === 'na'
                   ? 'bg-slate-500 text-white'
                   : 'bg-gray-100 text-gray-500 hover:bg-slate-100 hover:text-slate-600'
-                : 'bg-gray-100 text-gray-300 cursor-not-allowed opacity-60'
+                : 'cursor-not-allowed bg-gray-100 text-gray-300 opacity-60'
             }`}
           >
             <span className="truncate">N/A</span>
@@ -406,15 +417,16 @@ export default function CheckItemRow({
             type="button"
             onClick={handleMarkOk}
             disabled={value === 'na'}
-            className={`flex-1 min-w-0 py-2.5 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold transition-all overflow-hidden ${
+            aria-pressed={value === 'ok'}
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-lg py-2.5 text-sm font-semibold transition-all motion-reduce:transition-none ${
               value === 'ok'
                 ? 'bg-green-500 text-white'
                 : value === 'na'
-                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                ? 'cursor-not-allowed bg-gray-100 text-gray-300'
                 : 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600'
             }`}
           >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
             <span className="truncate">OK</span>

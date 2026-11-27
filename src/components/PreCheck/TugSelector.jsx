@@ -51,16 +51,20 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
     } else {
       setExpandedTug(tug.id);
       onSelect(tug);
-      // Scroll the card into view after expanding
+      const reduceMotion = typeof window !== 'undefined'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       setTimeout(() => {
-        tugRefs.current[tug.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        tugRefs.current[tug.id]?.scrollIntoView({
+          behavior: reduceMotion ? 'auto' : 'smooth',
+          block: 'nearest',
+        });
       }, 100);
     }
   }, [expandedTug, onSelect]);
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-2">
+      <div className="animate-pulse space-y-2 motion-reduce:animate-none">
         {[1, 2, 3, 4].map(i => (
           <div key={i} className="h-16 bg-slate-200 rounded-xl" />
         ))}
@@ -70,52 +74,69 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
 
   if (tugs.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="text-center py-8 text-slate-500">
+        <svg className="mx-auto mb-3 h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17h6M9 13h6M12 21a9 9 0 100-18 9 9 0 000 18z" />
         </svg>
-        <p className="font-medium">No tugs available</p>
-        <p className="text-sm mt-1">Contact your administrator to add tugs.</p>
+        <p className="font-medium text-charcoal">No tugs available</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Ask your administrator to add active tugs for this yard, then refresh.
+        </p>
+      </div>
+    );
+  }
+
+  if (filteredTugs.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center shadow-sm">
+        <p className="font-medium text-charcoal">All listed tugs are already checked</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Use Check Another Tug from today&apos;s list, or scan a QR code for a different tug.
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      {/* Tug list (accordion) */}
       <div className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
         {filteredTugs.map(tug => {
           const isExpanded = expandedTug === tug.id;
           const displayName = tug.display_name || tug.tug_number;
+          const panelId = `tug-panel-${tug.id}`;
 
           return (
             <div
               key={tug.id}
               ref={(el) => { tugRefs.current[tug.id] = el; }}
-              className={`rounded-xl overflow-hidden transition-all ${
+              className={`overflow-hidden rounded-xl transition-shadow motion-reduce:transition-none ${
                 isExpanded
                   ? 'shadow-md ring-1 ring-amber-300'
                   : 'hover:shadow-sm'
               }`}
             >
-              {/* Header row */}
               <div className={`flex items-center ${
                 isExpanded
-                  ? 'bg-amber-50 border-b border-amber-200'
-                  : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60'
-              } rounded-t-xl ${!isExpanded ? 'rounded-b-xl' : ''}`}>
+                  ? 'border-b border-amber-200 bg-amber-50'
+                  : 'rounded-t-xl border border-amber-200/60 bg-gradient-to-r from-amber-50 to-orange-50'
+              } ${!isExpanded ? 'rounded-b-xl' : 'rounded-t-xl'}`}>
                 <button
                   type="button"
                   onClick={() => handleTugClick(tug)}
-                  className="flex-1 px-4 py-3 relative flex items-center justify-center gap-2"
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  className="relative flex min-h-11 flex-1 items-center justify-center gap-2 px-4 py-3"
                 >
                   <span className="text-base font-bold text-charcoal">{displayName}</span>
                   {tug.display_name && (
                     <span className="text-xs text-charcoal">({tug.tug_number})</span>
                   )}
                   <svg
-                    className={`w-4 h-4 absolute right-4 text-amber-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    className={`absolute right-4 h-4 w-4 text-amber-400 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -125,22 +146,24 @@ export default function TugSelector({ selectedTug, onSelect, onStartCheck, userL
                   <button
                     type="button"
                     onClick={() => onStartCheck(tug)}
-                    className="mr-3 px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 active:scale-[0.97] transition-all flex-shrink-0"
+                    className="mr-3 inline-flex min-h-11 flex-shrink-0 items-center rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
                   >
                     Start Check
                   </button>
                 )}
               </div>
 
-              {/* Expanded content */}
               {isExpanded && (
-                <div className="bg-white border-x border-b border-amber-200/60 rounded-b-xl px-4 py-3 space-y-3">
-                  {/* Check history */}
+                <div
+                  id={panelId}
+                  className="space-y-3 rounded-b-xl border-x border-b border-amber-200/60 bg-white px-4 py-3"
+                >
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Check History (30 days)</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Check History (30 days)
+                    </p>
                     <TugCheckHistory tugId={tug.id} />
                   </div>
-
                 </div>
               )}
             </div>

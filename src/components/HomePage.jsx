@@ -104,6 +104,20 @@ export default function HomePage() {
     safeLocalStorage.getItem('adminSettingsTab') || 'locations'
   ));
   const [shunterIncomplete, setShunterIncomplete] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  ));
+
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   // Listen for admin section title (mobile header)
   useEffect(() => {
@@ -221,12 +235,20 @@ export default function HomePage() {
       }
     }
 
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setShowDropdown(false);
+      }
+    }
+
     if (showDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [showDropdown]);
 
@@ -334,6 +356,12 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-rota-page-bg-from via-rota-page-bg-via to-rota-page-bg-to">
+      <a
+        href="#main-content"
+        className="absolute left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-white px-3 py-2 text-sm font-medium text-charcoal shadow-lg focus:translate-y-0"
+      >
+        Skip to main content
+      </a>
       {/* Top bar - always visible */}
       {(() => {
         const isAdminPage = path === '/admin';
@@ -418,17 +446,22 @@ export default function HomePage() {
                 <>
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
                   <DesktopNavAppIcon />
-                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
-                    {topNavLinks.map((nav) => (
+                  <nav aria-label="Primary" className="hidden md:flex space-x-2 flex-shrink-0">
+                    {topNavLinks.map((nav) => {
+                      const isActive = location.pathname === nav.path
+                        || ((nav.path === '/calendar' || nav.path === '/precheck') && location.pathname.startsWith(nav.path));
+                      return (
                       <Link
                         key={nav.path}
                         to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={topNavLinkClassName(isActive)}
                       >
-                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                        <NavIcon Icon={nav.Icon} colorClass={isActive ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                         {nav.label}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
@@ -440,6 +473,7 @@ export default function HomePage() {
                         className="flex items-center focus:outline-none"
                         aria-label="User menu"
                         aria-haspopup="true"
+                        aria-expanded={showDropdown}
                       >
                         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
                           {avatarUrl && (
@@ -483,13 +517,15 @@ export default function HomePage() {
                   )}
                   <DesktopNavAppIcon homePath="/transport-dashboard" />
 
-                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
+                  <nav aria-label="Primary" className="hidden md:flex space-x-2 flex-shrink-0">
                     {topNavLinks.map((nav) => {
-                      const isActive = location.pathname === nav.path;
+                      const isActive = location.pathname === nav.path
+                        || ((nav.path === '/calendar' || nav.path === '/precheck') && location.pathname.startsWith(nav.path));
                       return (
                         <Link
                           key={nav.path}
                           to={nav.path}
+                          aria-current={isActive ? 'page' : undefined}
                           className={topNavLinkClassName(isActive)}
                         >
                           <NavIcon Icon={nav.Icon} colorClass={isActive ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
@@ -509,6 +545,7 @@ export default function HomePage() {
                         className="flex items-center focus:outline-none"
                         aria-label="User menu"
                         aria-haspopup="true"
+                        aria-expanded={showDropdown}
                       >
                         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
                           {avatarUrl && (
@@ -543,17 +580,22 @@ export default function HomePage() {
                   {isProfilePage && <span className="md:hidden font-semibold text-slate-800">Profile</span>}
                   {/* Regular user: nav left, avatar right */}
                   <DesktopNavAppIcon />
-                  <nav className="hidden md:flex space-x-2 flex-shrink-0">
-                    {topNavLinks.map((nav) => (
+                  <nav aria-label="Primary" className="hidden md:flex space-x-2 flex-shrink-0">
+                    {topNavLinks.map((nav) => {
+                      const isActive = location.pathname === nav.path
+                        || ((nav.path === '/calendar' || nav.path === '/precheck') && location.pathname.startsWith(nav.path));
+                      return (
                       <Link
                         key={nav.path}
                         to={nav.path}
-                        className={topNavLinkClassName(location.pathname === nav.path)}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={topNavLinkClassName(isActive)}
                       >
-                        <NavIcon Icon={nav.Icon} colorClass={location.pathname === nav.path ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
+                        <NavIcon Icon={nav.Icon} colorClass={isActive ? 'text-slate-800' : nav.colorClass} size="small" animate={true} />
                         {nav.label}
                       </Link>
-                    ))}
+                      );
+                    })}
                   </nav>
                   <div className="flex-1" aria-hidden="true" />
                   <div className="flex items-center space-x-2 flex-shrink-0">
@@ -565,6 +607,7 @@ export default function HomePage() {
                         className="flex items-center focus:outline-none"
                         aria-label="User menu"
                         aria-haspopup="true"
+                        aria-expanded={showDropdown}
                       >
                         <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
                           {avatarUrl && (
@@ -609,6 +652,9 @@ export default function HomePage() {
                   onClick={() => setMobileSidebarOpen(true)}
                   className="md:hidden p-2 hover:bg-white/70 rounded-lg transition-colors flex-shrink-0"
                   title="Open menu"
+                  aria-label="Open menu"
+                  aria-expanded={mobileSidebarOpen}
+                  aria-controls="admin-sidebar"
                 >
                   <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -646,6 +692,7 @@ export default function HomePage() {
                     className="flex items-center focus:outline-none"
                     aria-label="User menu"
                     aria-haspopup="true"
+                    aria-expanded={showDropdown}
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-300 shadow-sm bg-slate-200 flex-shrink-0">
                       {avatarUrl && (
@@ -684,9 +731,11 @@ export default function HomePage() {
       {renderDropdownMenu()}
 
       {isAdmin && mobileSidebarOpen && (
-        <div
-          className="fixed z-40 bg-slate-900/20 md:hidden"
-          style={{ top: '64px', bottom: 0, left: 0, right: 0 }}
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-x-0 bottom-0 z-40 bg-slate-900/20 md:hidden"
+          style={{ top: 'var(--app-header-offset, 4rem)' }}
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
@@ -722,7 +771,37 @@ export default function HomePage() {
         />
       )}
 
-      <main className={`flex-1 relative z-0 pb-bottom-nav ${isAdmin ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : ''} ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}>
+      <main
+        id="main-content"
+        className={`flex-1 relative z-0 pb-bottom-nav ${isAdmin ? (sidebarCollapsed ? 'md:ml-16' : 'md:ml-64') : ''} ${hideHeaderOnMobile ? 'pt-safe md:pt-0' : ''}`}
+      >
+        <h1 className="sr-only">
+          {path === '/my-rota'
+            ? 'My Rota'
+            : path === '/performance'
+              ? 'Performance'
+              : path.startsWith('/precheck')
+                ? 'PreCheck'
+                : path.startsWith('/calendar')
+                  ? 'Main Page'
+                  : path.startsWith('/admin')
+                    ? 'Admin'
+                    : path.startsWith('/vmu')
+                      ? 'VMU'
+                      : path === '/profile'
+                        ? 'Profile'
+                        : path === '/notifications'
+                          ? 'Notifications'
+                          : 'Yard Rota'}
+        </h1>
+        {!isOnline && (
+          <div
+            role="status"
+            className="mx-4 mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-sm text-amber-900 md:mx-6"
+          >
+            You are offline. The app shell may still open; live rota, breaks and updates need a connection.
+          </div>
+        )}
         <Suspense fallback={<div className="min-h-screen bg-transparent" />}>
           <Routes>
             <Route
@@ -899,22 +978,27 @@ export default function HomePage() {
       </main>
 
       <nav
+        aria-label="Primary"
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav-adaptive border-t border-slate-200/60 shadow-lg pb-safe backdrop-blur-md"
       >
         <div className="flex justify-around items-center px-2 pt-1.5 pb-1">
           {(isVmu && !isAdmin) || (isTransportManager && !isAdmin) ? (
-            bottomNavLinks.map((nav) => (
+            bottomNavLinks.map((nav) => {
+              const isActive = location.pathname === nav.path;
+              return (
               <Link
                 key={nav.path}
                 to={nav.path}
+                aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
-                  location.pathname === nav.path ? 'active' : ''
+                  isActive ? 'active' : ''
                 }`}
               >
                 <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
-                <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
+                <span className="text-xs font-medium mt-0.5">{nav.shortLabel}</span>
               </Link>
-            ))
+              );
+            })
           ) : (
             <>
               {bottomNavLinks.map((nav) => {
@@ -925,12 +1009,13 @@ export default function HomePage() {
                   <Link
                     key={nav.path}
                     to={nav.path}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-lg transition-all bottom-nav-icon ${
                       isActive ? 'active' : ''
                     }`}
                   >
                     <NavIcon Icon={nav.Icon} colorClass={nav.colorClass} size="small" animate={true} />
-                    <span className="text-[10px] font-medium mt-0.5">{nav.shortLabel}</span>
+                    <span className="text-xs font-medium mt-0.5">{nav.shortLabel}</span>
                   </Link>
                 );
               })}

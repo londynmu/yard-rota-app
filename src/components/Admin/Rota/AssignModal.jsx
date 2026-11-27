@@ -151,17 +151,39 @@ const AssignModal = ({
     }
   };
 
-  // Prevent body scrolling when modal is open
+  // Prevent body scrolling when modal is open; Escape closes
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !showUserNoteModal && !editingField) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = 'auto';
+      window.removeEventListener('keydown', onKeyDown);
     };
-  }, []);
+  }, [onClose, showUserNoteModal, editingField]);
   
-  // Keep capacity UI in sync when parent slot state refreshes (e.g. after refetch)
+  // Keep capacity + assigned flags in sync when parent updates assigned_employees
+  // without tearing down the employee list (avoids assign flicker).
   useEffect(() => {
+    const assignedIds = new Set(
+      (slot.assigned_employees || []).map((id) => String(id))
+    );
     setLocalAssignedCount(countUniqueAssigned(slot.assigned_employees));
+    setAvailableEmployees((prev) => {
+      if (prev.length === 0) return prev;
+      let changed = false;
+      const next = prev.map((emp) => {
+        const isAssigned = assignedIds.has(String(emp.id));
+        if (emp.isAssigned === isAssigned) return emp;
+        changed = true;
+        return { ...emp, isAssigned };
+      });
+      return changed ? next : prev;
+    });
   }, [slot.id, slot.assigned_employees]);
 
   // Hide capacity alert after 3 seconds
@@ -324,11 +346,11 @@ const AssignModal = ({
           console.error('Weekly count calculation error:', err);
         }
 
-        // Fetch availability for the day
+        // Fetch availability for the day (include comments to avoid a second note probe on assign)
         const date = slot.date;
         const { data: availability, error: availabilityError } = await supabase
           .from('availability')
-          .select('user_id, status')
+          .select('user_id, status, comment')
           .eq('date', date);
 
         if (availabilityError) throw availabilityError;
@@ -414,17 +436,25 @@ const AssignModal = ({
 
         // Mark employees as assigned or not
         const availabilityMap = new Map();
-        availability?.forEach(item => {
+        const availabilityNoteMap = new Map();
+        availability?.forEach((item) => {
           availabilityMap.set(item.user_id, item.status);
+          const note = typeof item.comment === 'string' ? item.comment.trim() : '';
+          if (note) availabilityNoteMap.set(item.user_id, note);
         });
+
+        const assignedIds = new Set(
+          (slot.assigned_employees || []).map((id) => String(id))
+        );
 
         // Process and filter employees
         const processedEmployees = allProfiles.map(profile => {
           // Check if this employee is already assigned to the slot
-          const isAssigned = slot.assigned_employees.includes(profile.id);
+          const isAssigned = assignedIds.has(String(profile.id));
           
           // Determine availability status
           const availabilityStatus = (availabilityMap.get(profile.id) || 'unknown');
+          const availabilityNote = availabilityNoteMap.get(profile.id) || null;
           
           // Calculate match score for sorting (higher is better)
           let matchScore = 0;
@@ -483,6 +513,7 @@ const AssignModal = ({
             ...profile,
             isAssigned,
             availabilityStatus,
+            availabilityNote,
             matchScore,
             hasBreakConflict,
             hasOverlappingConflict,
@@ -508,7 +539,16 @@ const AssignModal = ({
     };
 
     fetchEmployees();
-  }, [slot, minBreakMinutes]);
+    // Intentionally omit assigned_employees — sync that via the light effect above.
+  }, [
+    slot.id,
+    slot.date,
+    slot.start_time,
+    slot.end_time,
+    slot.location,
+    slot.shift_type,
+    minBreakMinutes,
+  ]);
 
   // Nowa funkcja do konwersji minut na format godzinowy
   const formatMinutesToHours = (minutes) => {
@@ -522,58 +562,27 @@ const AssignModal = ({
     }
   };
 
-  const checkUserNote = async (employeeId) => {
-    try {
-      // Check if user has a note for this day in availability table
-      const { data, error } = await supabase
-        .from('availability')
-        .select('id, comment')
-        .eq('user_id', employeeId)
-        .eq('date', slot.date);
-
-      if (error) {
-        console.error('Error checking user note in availability:', error);
-        return null;
-      }
-
-      // Return the first comment if found
-      if (data && data.length > 0 && data[0].comment && data[0].comment.trim() !== '') {
-        return {
-          id: data[0].id,
-          note: data[0].comment
-        };
-      }
-
-      return null;
-    } catch (err) {
-      console.error('Error in checkUserNote:', err);
-      return null;
-    }
-  };
-
-  const handleAssignEmployee = async (employeeId, isCurrentlyAssigned, taskText) => {
+  const handleAssignEmployee = (employeeId, isCurrentlyAssigned, taskText) => {
     // If we're removing the employee, just do it without checking for notes
     if (isCurrentlyAssigned) {
       processAssignment(employeeId, isCurrentlyAssigned, taskText);
       return;
     }
 
-    // If we're adding the employee, check for notes
+    // Notes were loaded with the employee list — no extra round-trip on assign.
     const employee = availableEmployees.find(emp => emp.id === employeeId);
-    const noteData = await checkUserNote(employeeId);
+    const note = employee?.availabilityNote;
 
-    if (noteData && noteData.note) {
-      // Set data for the note modal
+    if (note) {
       setUserNoteData({
-        note: noteData.note,
-        employee: employee,
-        employeeId: employeeId,
-        isCurrentlyAssigned: isCurrentlyAssigned,
-        taskText: taskText
+        note,
+        employee,
+        employeeId,
+        isCurrentlyAssigned,
+        taskText,
       });
       setShowUserNoteModal(true);
     } else {
-      // No note, proceed with assignment
       processAssignment(employeeId, isCurrentlyAssigned, taskText);
     }
   };
@@ -699,13 +708,25 @@ const AssignModal = ({
 
   const capacityPercentage = (localAssignedCount / slot.capacity) * 100;
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 md:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-      <div className="admin-modal-panel !max-w-[95vw] md:!max-w-6xl flex h-[90vh] max-h-[95vh] w-full flex-col !rounded-xl">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-rota-modal-overlay p-2 md:p-4"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="assign-modal-title"
+        className="admin-modal-panel !max-w-[95vw] md:!max-w-6xl flex h-[90vh] max-h-[95vh] w-full flex-col !rounded-xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="admin-modal-header !p-0">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-rota-btn-primary-hover-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
@@ -735,6 +756,7 @@ const AssignModal = ({
                   </select>
                 ) : (
                   <h3
+                    id="assign-modal-title"
                     className={`text-sm font-bold text-rota-text-primary ${onUpdateSlot ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (!onUpdateSlot) return;
@@ -747,13 +769,13 @@ const AssignModal = ({
                   </h3>
                 )}
               </div>
-              <div className="hidden md:block h-8 w-px bg-gray-300"></div>
+              <div className="hidden md:block h-8 w-px bg-rota-toolbar-border"></div>
               <div className="flex items-center gap-2">
                 {typeof onNavigateDay === 'function' && (
                   <button
                     type="button"
                     onClick={() => onNavigateDay(-1)}
-                    className="rounded-full p-1 text-rota-text-primary transition-colors hover:bg-gray-100"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none"
                     aria-label="Previous day"
                     title="Previous day"
                   >
@@ -762,7 +784,7 @@ const AssignModal = ({
                     </svg>
                   </button>
                 )}
-                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 text-rota-badge-full-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <div className="flex flex-col md:flex-row md:items-center md:gap-2">
@@ -772,7 +794,7 @@ const AssignModal = ({
                   <span className="hidden md:inline text-rota-text-muted">•</span>
                   {editingField === 'time' ? (
                     <span className="text-sm font-semibold text-rota-text-primary flex items-center gap-1">
-                      <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-4 w-4 text-rota-badge-partial-low-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <input
@@ -828,7 +850,7 @@ const AssignModal = ({
                       }}
                       title={onUpdateSlot ? 'Click to edit time' : undefined}
                     >
-                      <svg className="h-4 w-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-4 w-4 text-rota-badge-partial-low-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       {formatTimeWithoutSeconds(slot.start_time)} - {formatTimeWithoutSeconds(slot.end_time)}
@@ -839,7 +861,7 @@ const AssignModal = ({
                   <button
                     type="button"
                     onClick={() => onNavigateDay(1)}
-                    className="rounded-full p-1 text-rota-text-primary transition-colors hover:bg-gray-100"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none"
                     aria-label="Next day"
                     title="Next day"
                   >
@@ -853,12 +875,12 @@ const AssignModal = ({
             <div className="flex items-center gap-2">
               {/* Capacity Badge */}
               <div
-                className={`flex items-center gap-2 rounded-full px-4 py-1.5 shadow-sm border-2 ${
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 shadow-sm ${
                   localAssignedCount >= slot.capacity 
-                    ? 'bg-red-100 border-red-400 text-rota-alert-error-text' 
+                    ? 'border-rota-badge-empty-border bg-rota-badge-empty-bg text-rota-badge-empty-text' 
                     : capacityPercentage >= 75 
-                      ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
-                      : 'bg-green-100 border-green-400 text-green-700'
+                      ? 'border-rota-badge-partial-border bg-rota-badge-partial-bg text-rota-badge-partial-text'
+                      : 'border-rota-badge-full-border bg-rota-badge-full-bg text-rota-badge-full-text'
                 } ${onUpdateSlot ? 'cursor-pointer' : ''}`}
                 onClick={() => {
                   if (!onUpdateSlot || editingField === 'capacity') return;
@@ -905,10 +927,13 @@ const AssignModal = ({
 
               <button
                 onClick={() => setIsTaskSectionExpanded(!isTaskSectionExpanded)}
-                className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition shadow-sm border-2 ${
+                type="button"
+                aria-expanded={isTaskSectionExpanded}
+                aria-controls="assign-task-section"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold shadow-sm transition motion-reduce:transition-none ${
                   isTaskSectionExpanded 
-                    ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700' 
-                    : 'bg-white text-rota-text-primary border-rota-input-border hover:bg-rota-btn-primary-hover-bg'
+                    ? 'border-rota-input-focus-border bg-rota-shift-day text-rota-day-today-text hover:bg-rota-day-today-bg-to' 
+                    : 'border-rota-input-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg'
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -923,10 +948,10 @@ const AssignModal = ({
           </div>
 
           {isTaskSectionExpanded && (
-            <div className="border-t border-gray-200 bg-white px-5 py-3">
+            <div id="assign-task-section" className="border-t border-rota-modal-border bg-rota-modal-bg px-5 py-3">
               <div className="relative">
                 <label htmlFor="task-input" className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-rota-text-primary">
-                  <svg className="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 text-rota-btn-primary-hover-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                   </svg>
                   Assign Task <span className="text-xs font-normal text-rota-text-muted">(optional)</span>
@@ -941,8 +966,10 @@ const AssignModal = ({
                     className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-sm text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
                   />
                   {task && (
-                    <button 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-rota-text-muted transition hover:text-rota-text-primary"
+                    <button
+                      type="button"
+                      aria-label="Clear task"
+                      className="absolute right-1 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-rota-text-muted transition hover:text-rota-text-primary motion-reduce:transition-none"
                       onClick={() => setTask('')}
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -952,7 +979,7 @@ const AssignModal = ({
                   )}
                 </div>
                 {showTaskSuggestions && (
-                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-rota-modal-border bg-white shadow-lg">
+                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-rota-modal-border bg-rota-modal-bg shadow-lg">
                     <ul className="py-1">
                       {taskSuggestions
                         .filter(suggestion => suggestion.toLowerCase().includes(task.toLowerCase()))
@@ -974,7 +1001,7 @@ const AssignModal = ({
           )}
         </div>
 
-        <div className="space-y-3 border-b border-gray-200 px-5 py-3">
+        <div className="space-y-3 border-b border-rota-modal-border px-5 py-3">
           {showCapacityAlert && (
             <div className="flex items-start gap-2 rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg p-3 text-sm text-rota-alert-error-text">
               <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -995,7 +1022,8 @@ const AssignModal = ({
               <select
                 value={selectedTab}
                 onChange={(e) => setSelectedTab(e.target.value)}
-                className="w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-sm text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
+                aria-label="Filter employees"
+                className="min-h-11 w-full rounded-md border border-rota-input-border bg-rota-modal-bg px-3 py-2 text-sm text-rota-text-primary focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
               >
                 <option value="available">Available ({slot.shift_type} shift)</option>
                 <option value="other_shifts">Other Shifts</option>
@@ -1017,10 +1045,12 @@ const AssignModal = ({
               ].map(tab => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setSelectedTab(tab.id)}
-                  className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition ${
+                  aria-pressed={selectedTab === tab.id}
+                  className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-full border px-3 text-sm font-medium transition motion-reduce:transition-none ${
                     selectedTab === tab.id
-                      ? 'border-black bg-black text-white'
+                      ? 'border-rota-text-primary bg-rota-text-primary text-rota-day-today-text'
                       : 'border-rota-modal-border bg-rota-modal-bg text-rota-text-primary hover:bg-rota-btn-primary-hover-bg'
                   }`}
                 >
@@ -1030,15 +1060,17 @@ const AssignModal = ({
             </div>
 
             <div className="relative">
+              <label htmlFor="assign-search" className="sr-only">Search by name</label>
               <input
-                type="text"
+                id="assign-search"
+                type="search"
                 placeholder="Search by name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-charcoal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal"
+                className="min-h-11 w-full rounded-xl border border-rota-input-border bg-rota-modal-bg py-2 pl-9 pr-3 text-sm text-rota-text-primary placeholder:text-rota-text-muted-light focus:border-rota-input-focus-border focus:outline-none focus:ring-2 focus:ring-rota-input-focus-ring"
               />
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rota-text-muted-light"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1052,7 +1084,7 @@ const AssignModal = ({
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
           {loading ? (
             <div className="flex flex-col items-center gap-2 py-6">
-              <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-black"></div>
+              <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-rota-text-primary motion-reduce:animate-none" aria-hidden="true"></div>
               <div className="text-sm text-rota-text-muted">Loading employees...</div>
             </div>
           ) : availableEmployees.length === 0 ? (
@@ -1064,10 +1096,10 @@ const AssignModal = ({
               {filteredEmployees.map(employee => (
                 <li 
                   key={employee.id} 
-                  className={`flex items-center justify-between rounded-full border-2 px-4 py-2.5 transition-all ${
+                  className={`flex min-h-11 items-center justify-between rounded-full border-2 px-4 py-2.5 transition-all motion-reduce:transition-none ${
                     employee.isAssigned 
-                      ? 'border-green-400 bg-gradient-to-r from-green-100 to-emerald-100 shadow-md' 
-                      : 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:border-blue-400 hover:shadow-lg'
+                      ? 'border-rota-badge-full-border bg-rota-badge-full-bg shadow-md' 
+                      : 'border-rota-input-focus-border/40 bg-rota-btn-primary-hover-bg hover:border-rota-input-focus-border hover:shadow-lg'
                   }`}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -1077,7 +1109,7 @@ const AssignModal = ({
                     {formatPreferredStartTime(employee.preferred_start_time) && (
                       <span className={`shrink-0 text-xs font-semibold ${
                         preferredStartMatchesSlot(employee)
-                          ? 'rounded-full bg-green-100 px-1.5 py-0.5 text-green-800'
+                          ? 'rounded-full bg-rota-badge-full-bg px-1.5 py-0.5 text-rota-badge-full-text'
                           : 'text-rota-text-muted'
                       }`}>
                         {formatPreferredStartTime(employee.preferred_start_time)}
@@ -1087,12 +1119,12 @@ const AssignModal = ({
                   
                   <div className="flex items-center gap-1.5">
                     {selectedTab === 'unavailable' && (
-                      <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                      <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-xs font-bold uppercase ${
                         employee.availabilityStatus?.toLowerCase() === 'unavailable' 
-                          ? 'bg-red-200 text-red-800'
+                          ? 'bg-rota-badge-empty-bg text-rota-badge-empty-text'
                           : employee.availabilityStatus?.toLowerCase() === 'holiday'
-                          ? 'bg-purple-200 text-purple-800'
-                          : 'bg-gray-200 text-rota-text-primary'
+                          ? 'bg-rota-btn-primary-hover-bg text-rota-shift-afternoon'
+                          : 'bg-rota-day-other-bg-from text-rota-text-primary'
                       }`}>
                         {employee.availabilityStatus?.toLowerCase() === 'unavailable' 
                           ? 'Unavail' 
@@ -1107,14 +1139,20 @@ const AssignModal = ({
                       e.stopPropagation();
                       handleAssignEmployee(employee.id, employee.isAssigned, task);
                     }}
-                    className={`ml-2 flex-shrink-0 flex items-center justify-center rounded-full w-8 h-8 transition-all ${
+                    type="button"
+                    aria-label={
                       employee.isAssigned
-                        ? 'bg-red-500 text-white hover:bg-red-600 shadow-sm hover:scale-110'
+                        ? `Remove ${employee.first_name} ${employee.last_name} from shift`
+                        : `Assign ${employee.first_name} ${employee.last_name} to shift`
+                    }
+                    className={`ml-2 flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full transition-all motion-reduce:transition-none motion-reduce:hover:scale-100 ${
+                      employee.isAssigned
+                        ? 'bg-rota-btn-destructive-border text-rota-day-today-text shadow-sm hover:scale-110 hover:bg-rota-btn-destructive-text'
                         : employee.hasBreakConflict || employee.hasOverlappingConflict
-                          ? 'cursor-not-allowed bg-orange-300 text-orange-700'
+                          ? 'cursor-not-allowed bg-rota-badge-partial-low-bg text-rota-badge-partial-low-text'
                           : localAssignedCount >= slot.capacity
-                            ? 'cursor-not-allowed bg-gray-300 text-rota-text-muted'
-                            : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:scale-110'
+                            ? 'cursor-not-allowed bg-rota-day-other-bg-to text-rota-text-muted'
+                            : 'bg-rota-shift-day text-rota-day-today-text shadow-sm hover:scale-110 hover:bg-rota-day-today-bg-to'
                     }`}
                     disabled={(!employee.isAssigned && localAssignedCount >= slot.capacity) || (!employee.isAssigned && (employee.hasBreakConflict || employee.hasOverlappingConflict))}
                     title={
@@ -1173,8 +1211,9 @@ const AssignModal = ({
 
         <div className="admin-modal-footer">
           <button
+            type="button"
             onClick={onClose}
-            className="admin-btn"
+            className="admin-btn min-h-11 !h-auto !px-5 !text-sm"
           >
             Done
           </button>

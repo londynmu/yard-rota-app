@@ -8,7 +8,7 @@ const UserNoteModal = ({ note, employee, date, onClose, onConfirm }) => {
   const formattedDate = format(new Date(date), 'dd/MM/yyyy');
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-rota-modal-overlay p-4">
       <div className="admin-modal-panel mx-4">
         <div className="admin-modal-header flex items-center justify-between">
           <h3 className="text-sm font-semibold text-charcoal">User Note</h3>

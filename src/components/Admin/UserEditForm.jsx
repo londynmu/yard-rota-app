@@ -14,10 +14,10 @@ const capitalizeFirstLetter = (string) => {
 };
 
 const inputClass = (hasError) =>
-  `admin-input ${hasError ? '!border-red-400' : ''}`;
+  `admin-input min-h-11 ${hasError ? '!border-red-400' : ''}`;
 
 const ToggleSwitch = ({ id, checked, onChange, disabled, label }) => (
-  <div className="flex items-center gap-2">
+  <div className="flex min-h-11 items-center gap-2">
     <label htmlFor={id} className="text-xs text-gray-600 whitespace-nowrap">
       {label}
     </label>
@@ -27,15 +27,22 @@ const ToggleSwitch = ({ id, checked, onChange, disabled, label }) => (
       aria-checked={checked}
       id={id}
       onClick={() => !disabled && onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-        checked ? 'bg-green-500' : 'bg-gray-300'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative inline-flex h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-lg transition-colors motion-reduce:transition-none ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      }`}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
-          checked ? 'translate-x-4' : 'translate-x-0.5'
+        aria-hidden="true"
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors motion-reduce:transition-none ${
+          checked ? 'bg-green-500' : 'bg-gray-300'
         }`}
-      />
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none ${
+            checked ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
     </button>
   </div>
 );
@@ -493,7 +500,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 </svg>
               )}
             </div>
-            <label className="admin-btn cursor-pointer">
+            <label className="admin-btn min-h-11 cursor-pointer">
               <span>Upload</span>
               <input
                 id="admin-edit-avatar"
@@ -524,7 +531,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   onChange={setShowOnReports}
                   disabled={loading}
                 />
-                <p className="mt-1 max-w-xs text-[11px] leading-snug text-gray-500">
+                <p className="mt-1 max-w-xs text-xs leading-snug text-gray-500">
                   When off, moves are still imported but hidden from leaderboards and charts.
                 </p>
               </div>
@@ -580,7 +587,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               {formErrors.phoneE164 ? (
                 <p className="mt-1 text-sm text-red-500">{formErrors.phoneE164}</p>
               ) : (
-                <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                <p className="mt-1 text-xs leading-snug text-gray-500">
                   E.164 for shift confirmation and operational reminders (PreCheck, breaks). Status:{' '}
                   {(() => {
                     let phone = null;
@@ -606,7 +613,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   onChange={setWhatsappOptIn}
                   disabled={loading}
                 />
-                <p className="mt-1 max-w-sm text-[11px] leading-snug text-gray-500">
+                <p className="mt-1 max-w-sm text-xs leading-snug text-gray-500">
                   Operational reminders only — not marketing. Admin can enable or disable for this
                   user.
                 </p>
@@ -656,7 +663,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 id="admin-edit-agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="admin-input"
+                className="admin-input min-h-11"
                 disabled={loading}
               >
                 <option value="">None</option>
@@ -687,7 +694,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 id="admin-edit-preferredStart"
                 value={preferredStartTime}
                 onChange={(e) => setPreferredStartTime(e.target.value)}
-                className="admin-input"
+                className="admin-input min-h-11"
                 disabled={loading}
               >
                 <option value="">Not answered</option>
@@ -706,7 +713,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   setPreferredLocation(next);
                   setAdditionalLocations((current) => current.filter((name) => name !== next));
                 }}
-                className="admin-input"
+                className="admin-input min-h-11"
                 disabled={loading}
               >
                 <option value="">No preference</option>
@@ -723,11 +730,12 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   .map((location) => {
                     const checked = additionalLocations.includes(location.name);
                     return (
-                      <label key={location.id} className="inline-flex items-center gap-2 text-sm text-charcoal">
+                      <label key={location.id} className="inline-flex min-h-11 items-center gap-2 text-sm text-charcoal">
                         <input
                           type="checkbox"
                           checked={checked}
                           disabled={loading}
+                          className="h-4 w-4"
                           onChange={() => {
                             setAdditionalLocations((current) => (
                               checked
@@ -751,14 +759,14 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="admin-btn disabled:opacity-50"
+              className="admin-btn min-h-11 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="admin-btn disabled:opacity-50"
+              className="admin-btn min-h-11 disabled:opacity-50"
             >
               {loading ? 'Saving…' : 'Save changes'}
             </button>

@@ -63,7 +63,7 @@ const ExportRotaButton = ({
         <button
           type="button"
           onClick={openExportModal}
-          className={`admin-btn h-11 gap-2 !px-4 !text-sm ${className}`}
+          className={className || 'admin-btn h-11 gap-2 !px-4 !text-sm'}
           title={exportTitle}
           aria-label={exportTitle}
         >
@@ -87,8 +87,7 @@ const ExportRotaButton = ({
 
       {showModal && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden overscroll-none bg-rota-modal-overlay p-4"
           onWheel={(e) => {
             if (e.target === e.currentTarget) e.preventDefault();
           }}

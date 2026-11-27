@@ -36,45 +36,8 @@ function formatAwardMoney(amount) {
   return `£${value}`;
 }
 
-async function loadBestYesterday() {
-  const reportForYesterday = format(new Date(), 'yyyy-MM-dd');
-  const fetchDay = async (reportDate) => {
-    const { data, error } = await supabase
-      .from('shunter_performance')
-      .select(PERF_SELECT)
-      .eq('report_date', reportDate);
-    if (error) throw error;
-    return data || [];
-  };
-
-  let rows = await fetchDay(reportForYesterday);
-  let reportDate = reportForYesterday;
-  if (rows.length === 0) {
-    const { data: latest, error } = await supabase
-      .from('shunter_performance')
-      .select('report_date')
-      .order('report_date', { ascending: false })
-      .limit(1);
-    if (error) throw error;
-    reportDate = latest?.[0]?.report_date || null;
-    rows = reportDate ? await fetchDay(reportDate) : [];
-  }
-
-  const summary = aggregateYesterdayPerformance(rows);
-  const workDate = reportDate ? format(subDays(parseISO(reportDate), 1), 'yyyy-MM-dd') : null;
-  const isYesterday = workDate === format(subDays(new Date(), 1), 'yyyy-MM-dd');
-  return {
-    name: summary.best?.name || null,
-    moves: summary.best?.moves ?? null,
-    label: !workDate
-      ? 'No performance import yet'
-      : isYesterday
-        ? 'Yesterday'
-        : format(parseISO(workDate), 'd MMM'),
-  };
-}
-
-async function loadMonthLeader() {
+/** One month query → both “best day” and “month leader” cards. */
+async function loadPerformanceCards() {
   const start = format(startOfMonth(new Date()), 'yyyy-MM-dd');
   const end = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const { data, error } = await supabase
@@ -83,11 +46,34 @@ async function loadMonthLeader() {
     .gte('report_date', start)
     .lte('report_date', end);
   if (error) throw error;
-  const summary = aggregateYesterdayPerformance(data || []);
-  return {
-    name: summary.best?.name || null,
-    moves: summary.best?.moves ?? null,
+  const rows = data || [];
+
+  const monthSummary = aggregateYesterdayPerformance(rows);
+  const leader = {
+    name: monthSummary.best?.name || null,
+    moves: monthSummary.best?.moves ?? null,
   };
+
+  const preferredReport = format(new Date(), 'yyyy-MM-dd');
+  const datesInMonth = [...new Set(rows.map((row) => row.report_date).filter(Boolean))].sort();
+  const reportDate = rows.some((row) => row.report_date === preferredReport)
+    ? preferredReport
+    : datesInMonth[datesInMonth.length - 1] || null;
+  const dayRows = reportDate ? rows.filter((row) => row.report_date === reportDate) : [];
+  const daySummary = aggregateYesterdayPerformance(dayRows);
+  const workDate = reportDate ? format(subDays(parseISO(reportDate), 1), 'yyyy-MM-dd') : null;
+  const isYesterday = workDate === format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const best = {
+    name: daySummary.best?.name || null,
+    moves: daySummary.best?.moves ?? null,
+    label: !workDate
+      ? 'No performance import yet'
+      : isYesterday
+        ? 'Yesterday'
+        : format(parseISO(workDate), 'd MMM'),
+  };
+
+  return { best, leader };
 }
 
 async function loadAwards() {
@@ -128,8 +114,8 @@ async function loadActivity() {
       .order('created_at', { ascending: false })
       .limit(8),
     supabase.rpc('get_system_activity_log', {
-      days_back: 7,
-      limit_count: 40,
+      days_back: 5,
+      limit_count: 24,
       entity_type_filter: null,
       user_id_filter: null,
     }),
@@ -264,7 +250,7 @@ function SummaryCard({ title, value, detail, empty, onClick, tone = 'best' }) {
       onClick={onClick}
       className={`rounded-2xl border p-4 text-left shadow-soft transition hover:shadow-medium ${palette.shell}`}
     >
-      <p className={`text-[11px] font-semibold uppercase tracking-wide ${palette.title}`}>{title}</p>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${palette.title}`}>{title}</p>
       <p className="mt-2 truncate text-lg font-semibold text-rota-text-primary">{value || '—'}</p>
       <p className="mt-1 text-sm text-rota-text-muted">{empty || detail || ''}</p>
     </button>
@@ -319,32 +305,69 @@ function attendanceWindowTone(present, maxPresent) {
   };
 }
 
+const DASHBOARD_CACHE_TTL_MS = 20_000;
+/** @type {{ at: number, payload: object, promise: Promise<object>|null }} */
+const dashboardCache = { at: 0, payload: null, promise: null };
+
+async function loadDashboardPayload() {
+  const now = Date.now();
+  if (dashboardCache.payload && now - dashboardCache.at < DASHBOARD_CACHE_TTL_MS) {
+    return dashboardCache.payload;
+  }
+  if (dashboardCache.promise) return dashboardCache.promise;
+
+  dashboardCache.promise = (async () => {
+    const [perfRes, awardsRes, activityRes, presenceRes] = await Promise.allSettled([
+      loadPerformanceCards(),
+      loadAwards(),
+      loadActivity(),
+      loadPresence(),
+    ]);
+    const perf = perfRes.status === 'fulfilled' ? perfRes.value : { best: null, leader: null };
+    const payload = {
+      best: perf.best,
+      leader: perf.leader,
+      awards: awardsRes.status === 'fulfilled' ? awardsRes.value : [],
+      activity: activityRes.status === 'fulfilled' ? activityRes.value : [],
+      presence: presenceRes.status === 'fulfilled' ? presenceRes.value : [],
+    };
+    dashboardCache.at = Date.now();
+    dashboardCache.payload = payload;
+    dashboardCache.promise = null;
+    return payload;
+  })().catch((err) => {
+    dashboardCache.promise = null;
+    throw err;
+  });
+
+  return dashboardCache.promise;
+}
+
 export default function AdminDashboard({ onOpen, onOpenUserAssessment, users }) {
-  const [loading, setLoading] = useState(true);
-  const [best, setBest] = useState(null);
-  const [leader, setLeader] = useState(null);
-  const [awards, setAwards] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [presence, setPresence] = useState([]);
+  const [loading, setLoading] = useState(!dashboardCache.payload);
+  const [best, setBest] = useState(dashboardCache.payload?.best ?? null);
+  const [leader, setLeader] = useState(dashboardCache.payload?.leader ?? null);
+  const [awards, setAwards] = useState(dashboardCache.payload?.awards ?? []);
+  const [activity, setActivity] = useState(dashboardCache.payload?.activity ?? []);
+  const [presence, setPresence] = useState(dashboardCache.payload?.presence ?? []);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      setLoading(true);
-      const [bestRes, leaderRes, awardsRes, activityRes, presenceRes] = await Promise.allSettled([
-        loadBestYesterday(),
-        loadMonthLeader(),
-        loadAwards(),
-        loadActivity(),
-        loadPresence(),
-      ]);
-      if (cancelled) return;
-      setBest(bestRes.status === 'fulfilled' ? bestRes.value : null);
-      setLeader(leaderRes.status === 'fulfilled' ? leaderRes.value : null);
-      setAwards(awardsRes.status === 'fulfilled' ? awardsRes.value : []);
-      setActivity(activityRes.status === 'fulfilled' ? activityRes.value : []);
-      setPresence(presenceRes.status === 'fulfilled' ? presenceRes.value : []);
-      setLoading(false);
+      if (!dashboardCache.payload) setLoading(true);
+      try {
+        const payload = await loadDashboardPayload();
+        if (cancelled) return;
+        setBest(payload.best);
+        setLeader(payload.leader);
+        setAwards(payload.awards);
+        setActivity(payload.activity);
+        setPresence(payload.presence);
+      } catch (err) {
+        console.error('[AdminDashboard] load failed', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
     load();
     return () => {
@@ -413,7 +436,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment, users }) 
                       }
                       onOpen(item.section);
                     }}
-                    className="flex w-full items-center justify-between gap-3 py-2.5 text-left transition hover:bg-rota-btn-primary-hover-bg/50"
+                    className="flex min-h-11 w-full items-center justify-between gap-3 py-2.5 text-left transition hover:bg-rota-btn-primary-hover-bg/50 motion-reduce:transition-none"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-rota-text-primary">{item.title}</span>
@@ -452,7 +475,7 @@ export default function AdminDashboard({ onOpen, onOpenUserAssessment, users }) 
                   <span className={`text-base font-semibold tabular-nums sm:text-lg ${tone.valueClass}`}>
                     {day.present}
                   </span>
-                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-rota-text-muted-light sm:text-[11px]">
+                  <span className="mt-0.5 text-xs font-medium uppercase tracking-wide text-rota-text-muted-light">
                     {day.label}
                   </span>
                 </div>

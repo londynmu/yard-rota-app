@@ -25,19 +25,38 @@ const SHIFT_SECTION_CONFIG = {
   day: {
     title: 'Day shift',
     surface: 'border-amber-100 bg-amber-50/80',
-    icon: <Sun className="h-3.5 w-3.5 text-amber-500" />,
+    icon: <Sun className="h-3.5 w-3.5 text-amber-500" aria-hidden />,
   },
   afternoon: {
     title: 'Afternoon shift',
     surface: 'border-orange-100 bg-orange-50/70',
-    icon: <Cloud className="h-3.5 w-3.5 text-orange-500" />,
+    icon: <Cloud className="h-3.5 w-3.5 text-orange-500" aria-hidden />,
   },
   night: {
     title: 'Night shift',
     surface: 'border-sky-100 bg-sky-50/80',
-    icon: <Moon className="h-3.5 w-3.5 text-blue-500" />,
+    icon: <Moon className="h-3.5 w-3.5 text-blue-500" aria-hidden />,
   },
 };
+
+const FILTER_CHIP_CLASS =
+  'flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-xl border px-1.5 py-2.5 text-xs font-semibold transition-colors duration-200 motion-reduce:transition-none sm:gap-1.5 sm:px-2 sm:text-sm';
+const FILTER_CHIP_WEEK =
+  `${FILTER_CHIP_CLASS} text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70`;
+const FILTER_CHIP_LOCATION =
+  `${FILTER_CHIP_CLASS} text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70`;
+const FILTER_CHIP_SHIFT =
+  `${FILTER_CHIP_CLASS} text-slate-800 bg-gradient-to-r from-slate-50 via-white to-slate-50/80 border-slate-200/60 shadow-sm hover:from-slate-100/90 hover:to-slate-50 hover:border-slate-300/70`;
+
+/** Shared option chrome for Week / Location / Shift filter dialogs */
+const FILTER_OPTION_BASE =
+  'w-full min-h-11 px-4 py-2.5 rounded-xl text-sm font-medium text-center border transition-colors motion-reduce:transition-none';
+const FILTER_OPTION_IDLE =
+  `${FILTER_OPTION_BASE} border-slate-200/60 text-slate-700 hover:bg-slate-50`;
+const FILTER_OPTION_SELECTED =
+  `${FILTER_OPTION_BASE} border-sky-100 bg-sky-50 text-sky-900`;
+const FILTER_MODAL_CLOSE =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 motion-reduce:transition-none';
 
 function formatTimeHm(value) {
   return value ? String(value).slice(0, 5) : '';
@@ -53,7 +72,7 @@ function YourShiftsThisWeek({ days, onDayTap }) {
       </div>
       {days.length === 0 ? (
         <p className="px-4 pb-4 text-center text-sm text-slate-500">
-          No shifts for you this week
+          No shifts for you this week. Try another week or location filter.
         </p>
       ) : (
         <div className="divide-y divide-slate-100 pb-2">
@@ -71,7 +90,7 @@ function YourShiftsThisWeek({ days, onDayTap }) {
                 key={day.dateStr}
                 type="button"
                 onClick={() => onDayTap(day.dateStr)}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+                className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
               >
                 <span className="w-[5.5rem] shrink-0 text-sm font-semibold text-charcoal">
                   {format(day.dateObj, 'EEEE')}
@@ -361,7 +380,6 @@ const WeeklyRotaPage = () => {
     };
 
     fetchLocations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   // Save selected location when it changes (debounced)
@@ -590,6 +608,11 @@ const WeeklyRotaPage = () => {
     setAttendanceModalSlot(slot);
   }, []);
 
+  const handleAttendanceModalClose = useCallback(() => {
+    removalAfterAttendanceRef.current = false;
+    setAttendanceModalSlot(null);
+  }, []);
+
   const handleAttendanceSave = useCallback(async (status, note = '') => {
     if (!attendanceModalSlot || !user) return;
     setAttendanceSaving(true);
@@ -773,7 +796,7 @@ const WeeklyRotaPage = () => {
         <div className="flex items-center justify-between px-1 pb-1.5 md:hidden">
           <div className="flex items-center gap-1.5">
             {config.icon}
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{config.title}</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{config.title}</h4>
           </div>
           <span className="text-xs font-medium tabular-nums text-slate-400">{presentCount}</span>
         </div>
@@ -788,7 +811,7 @@ const WeeklyRotaPage = () => {
               <div key={startTime}>
                 <div className="flex items-center gap-2 px-2.5 pt-2 pb-1">
                   <span className="h-px flex-1 bg-slate-200/70" />
-                  <span className="text-[11px] font-semibold tabular-nums text-slate-500">
+                  <span className="text-xs font-semibold tabular-nums text-slate-500">
                     {startTime} - {endTime}
                   </span>
                   <span className="h-px flex-1 bg-slate-200/70" />
@@ -800,43 +823,51 @@ const WeeklyRotaPage = () => {
                     const isCurrentUser = slot.user_id === user?.id;
                     const attendanceStatus = attendanceBySlotId?.[slot.id]?.status;
                     const attendanceNote = isAdmin ? attendanceBySlotId?.[slot.id]?.note : null;
-                    return (
-                      <li
-                        key={slot.id}
-                        role={isAdmin ? 'button' : undefined}
-                        onClick={isAdmin ? (e) => { e.stopPropagation(); onSlotClick?.(slot); } : undefined}
-                        className={`p-2 transition-colors ${isAdmin ? 'cursor-pointer hover:bg-slate-50' : ''} ${isCurrentUser ? 'bg-amber-50/60 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-slate-50' : ''}`}
-                      >
+                    const rowClass = `w-full p-2 text-center transition-colors ${isAdmin ? 'hover:bg-slate-50' : ''} ${isCurrentUser ? 'bg-amber-50/60 border-l-2 border-l-amber-500' : !isAdmin ? 'hover:bg-slate-50' : ''}`;
+                    const rowBody = (
                         <div className="flex flex-col items-center">
                           <div className="text-center">
                             <span className={`text-sm font-medium ${isCurrentUser ? 'text-amber-900' : 'text-charcoal'}`}>
                               {slot.profiles?.first_name || ''} {slot.profiles?.last_name || 'Unknown User'}
                             </span>
                             {attendanceStatus && (
-                              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-rose-50/80 text-rose-700 border border-rose-200/60">
+                              <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-medium bg-rose-50/80 text-rose-700 border border-rose-200/60">
                                 {attendanceLabel(attendanceStatus)}
                               </span>
                             )}
                             {isCurrentUser && (
-                              <span className="ml-1.5 text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full uppercase font-semibold border border-amber-200/60">
+                              <span className="ml-1.5 text-xs bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full uppercase font-semibold border border-amber-200/60">
                                 You
                               </span>
                             )}
                           </div>
                           {attendanceNote && (
-                            <p className="mt-0.5 max-w-full truncate text-[11px] text-slate-500" title={attendanceNote}>
+                            <p className="mt-0.5 max-w-full truncate text-xs text-slate-500" title={attendanceNote}>
                               {attendanceNote}
                             </p>
                           )}
 
-                          {/* Task Indicator */}
                           {slot.task && (
                             <span className="inline-flex items-center text-xs text-rose-700 bg-rose-50/80 border border-rose-200/60 px-2 py-0.5 rounded-full mt-1">
-                              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full mr-1"></span>
+                              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full mr-1" aria-hidden />
                               {slot.task}
                             </span>
                           )}
                         </div>
+                    );
+                    return (
+                      <li key={slot.id} className="list-none">
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onSlotClick?.(slot); }}
+                            className={rowClass}
+                          >
+                            {rowBody}
+                          </button>
+                        ) : (
+                          <div className={rowClass}>{rowBody}</div>
+                        )}
                       </li>
                     );
                   })}
@@ -891,55 +922,45 @@ const WeeklyRotaPage = () => {
           ${userHasShift ? 'border-l-2 border-l-blue-500' : ''}
           relative
           scroll-mt-28 md:scroll-mt-32
-          transition-all hover:shadow-xl
+          transition-shadow hover:shadow-xl motion-reduce:transition-none
         `}
         ref={setRef}
       >
-        {/* Day Header - Sticky on mobile */}
-        <div 
+        {/* Day Header - Sticky on mobile; button exposes expand state for PWA accordion */}
+        <button
+          type="button"
           className={`
-            relative
+            relative w-full text-left
             p-2.5 md:p-2
             border-b border-slate-200/60
             bg-gradient-to-r from-slate-50 via-blue-50/30 to-slate-50
-            cursor-pointer
             flex flex-col gap-1.5
             sticky top-0 z-10
             ${userHasShift ? 'bg-gradient-to-r from-slate-50 via-blue-50/50 to-slate-50' : ''}
             ${isToday ? 'bg-gradient-to-r from-blue-50/80 via-blue-50 to-blue-50/80' : ''}
           `}
           onClick={onHeaderClick}
+          aria-expanded={isExpanded}
+          aria-label={`${format(dateObj, 'EEEE')} ${format(dateObj, 'do')}${isExpanded ? ', expanded' : ', collapsed'}`}
         >
-          {/* Top row: Date as WEDNESDAY 2ND, THURSDAY 3RD */}
-          <div className="relative flex items-center justify-center w-full min-h-[2rem]">
+          <div className="relative flex items-center justify-center w-full min-h-11">
             <h3 className="text-sm md:text-base font-semibold text-charcoal uppercase tracking-wide leading-tight text-center">
               {format(dateObj, 'EEEE').toUpperCase()} {format(dateObj, 'do').toUpperCase()}
             </h3>
-            
-            {/* Expand/Collapse button - only on mobile, positioned so title stays centered */}
-            <div className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 flex-shrink-0">
-              <div
-                className={`
-                  w-7 h-7 
-                  flex items-center justify-center 
-                  rounded-full 
-                  bg-white
-                  border border-slate-200/60
-                  transition-colors 
-                  hover:bg-slate-50
-                `}
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 text-slate-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
-                  fill="none" 
-                  viewBox="0 0 24 24" 
+            <span className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 flex-shrink-0 items-center justify-center">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200/60 bg-white">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`h-4 w-4 text-slate-600 transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-hidden
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
-            </div>
+              </span>
+            </span>
           </div>
           
           {/* Bottom row: Shift badges in horizontal layout */}
@@ -956,19 +977,22 @@ const WeeklyRotaPage = () => {
                   <>
                     {shiftCounts.day > 0 && (
                       <span className="inline-flex items-center text-xs bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-200/60 font-medium">
-                        <Sun className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                        <Sun className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" aria-hidden />
+                        <span className="sr-only">Day </span>
                         {shiftCounts.day}
                       </span>
                     )}
                     {shiftCounts.afternoon > 0 && (
                       <span className="inline-flex items-center text-xs bg-orange-50 text-orange-800 px-1.5 py-0.5 rounded-full border border-orange-200/60 font-medium">
-                        <Cloud className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                        <Cloud className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" aria-hidden />
+                        <span className="sr-only">Afternoon </span>
                         {shiftCounts.afternoon}
                       </span>
                     )}
                     {shiftCounts.night > 0 && (
                       <span className="inline-flex items-center text-xs bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded-full border border-blue-200/60 font-medium">
-                        <Moon className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+                        <Moon className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" aria-hidden />
+                        <span className="sr-only">Night </span>
                         {shiftCounts.night}
                       </span>
                     )}
@@ -977,21 +1001,23 @@ const WeeklyRotaPage = () => {
               })()}
             </div>
           ) : null}
-        </div>
+        </button>
         
-        {/* Mobile: Conditionally visible details area with transition */}
-        {isExpanded && (
-          <div className="overflow-auto md:hidden transition-all duration-200">
+        {/* Mobile accordion details — mount only when expanded to cut DOM + AT noise */}
+        {isExpanded ? (
+          <div className="overflow-auto md:hidden transition-[max-height,opacity] duration-200 motion-reduce:transition-none">
             <div className="p-2.5">
               <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Desktop: Always visible details area */}
-        <div className="hidden md:block p-2.5 md:p-2">
-          <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
-        </div>
+        {/* Desktop week grid — skip mount on narrow viewports */}
+        {isDesktop ? (
+          <div className="p-2.5 md:p-2">
+            <DayDetails dateStr={dateStr} isAdmin={isAdmin} attendanceBySlotId={attendanceBySlotId} onSlotClick={onAttendanceSlotClick} />
+          </div>
+        ) : null}
       </div>
     );
   });
@@ -1049,22 +1075,27 @@ const WeeklyRotaPage = () => {
     : selectedShiftType === 'afternoon' ? 'Afternoon'
     : 'Night';
 
+  const isViewingCurrentWeek =
+    format(weekStart, 'yyyy-MM-dd') === format(getWeekStart(new Date()), 'yyyy-MM-dd');
+
   const desktopFilterPortal = filterHost ? createPortal(
     <>
       {[
-        { label: 'Week', value: `Week ${getWeek(weekStart)}`, onClick: () => setShowWeekModal(true) },
-        { label: 'Location', value: selectedLocation || 'Hub', onClick: () => setShowLocationModal(true) },
-        { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true) },
+        { label: 'Week', value: `Week ${getWeek(weekStart)}`, onClick: () => setShowWeekModal(true), expanded: showWeekModal },
+        { label: 'Location', value: selectedLocation || 'Hub', onClick: () => setShowLocationModal(true), expanded: showLocationModal },
+        { label: 'Shift', value: shiftFilterLabel, onClick: () => setShowShiftModal(true), expanded: showShiftModal },
       ].map((item) => (
         <button
           key={item.label}
           type="button"
           onClick={item.onClick}
-          aria-label={item.label}
-          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-slate-50"
+          aria-label={`${item.label}: ${item.value}`}
+          aria-haspopup="dialog"
+          aria-expanded={item.expanded}
+          className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 py-2 text-left hover:bg-slate-50"
         >
           <span className="text-sm font-medium text-slate-700">{item.value}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} aria-hidden />
         </button>
       ))}
     </>,
@@ -1079,9 +1110,9 @@ const WeeklyRotaPage = () => {
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
           <div className="w-full px-4 py-3 md:px-6 md:py-3.5">
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-              <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
-              <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
-              <div className="h-9 bg-slate-200 rounded-xl animate-pulse min-w-0" />
+              <div className="min-h-11 bg-slate-200 rounded-xl animate-pulse min-w-0 motion-reduce:animate-none" />
+              <div className="min-h-11 bg-slate-200 rounded-xl animate-pulse min-w-0 motion-reduce:animate-none" />
+              <div className="min-h-11 bg-slate-200 rounded-xl animate-pulse min-w-0 motion-reduce:animate-none" />
             </div>
           </div>
         </div>
@@ -1130,34 +1161,37 @@ const WeeklyRotaPage = () => {
       <div id="weekly-top-nav" className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 pt-safe md:hidden">
         <div className="w-full px-4 py-3 md:px-6 md:py-3.5 flex items-stretch gap-1.5 sm:gap-2">
           <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:gap-2">
-            {/* Week Button */}
             <button
               type="button"
               onClick={() => setShowWeekModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-blue-50/95 via-white to-blue-50/70 border border-blue-200/60 shadow-sm hover:from-blue-100/90 hover:to-blue-50 hover:border-blue-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0"
+              aria-haspopup="dialog"
+              aria-expanded={showWeekModal}
+              aria-label={`Week ${getWeek(weekStart)}`}
+              className={FILTER_CHIP_WEEK}
             >
               Week {getWeek(weekStart)}
             </button>
 
-            {/* Location Button */}
             <button
               type="button"
               onClick={() => setShowLocationModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-teal-50/90 via-white to-cyan-50/70 border border-teal-200/60 shadow-sm hover:from-teal-100/90 hover:to-cyan-100/70 hover:border-teal-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 min-w-0 truncate"
+              aria-haspopup="dialog"
+              aria-expanded={showLocationModal}
+              aria-label={`Location ${selectedLocation || 'Hub'}`}
+              className={`${FILTER_CHIP_LOCATION} truncate`}
             >
               <span className="min-w-0 truncate">{selectedLocation || 'Hub'}</span>
             </button>
 
-            {/* Shift Button */}
             <button
               type="button"
               onClick={() => setShowShiftModal(true)}
-              className="flex min-w-0 items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm text-slate-800 bg-gradient-to-r from-indigo-50/90 via-white to-violet-50/70 border border-indigo-200/60 shadow-sm hover:from-indigo-100/90 hover:to-violet-100/70 hover:border-indigo-300/70 hover:shadow-md hover:-translate-y-[1px] active:translate-y-0"
+              aria-haspopup="dialog"
+              aria-expanded={showShiftModal}
+              aria-label={`Shift ${shiftFilterLabel}`}
+              className={FILTER_CHIP_SHIFT}
             >
-              {selectedShiftType === 'all' ? 'All'
-                : selectedShiftType === 'day' ? 'Day'
-                : selectedShiftType === 'afternoon' ? 'Afternoon'
-                : 'Night'}
+              {shiftFilterLabel}
             </button>
           </div>
         </div>
@@ -1216,139 +1250,127 @@ const WeeklyRotaPage = () => {
         </div>
       </div>
 
-      {/* Week Selection Modal */}
-      {showWeekModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-sm rounded-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-slate-800">Select Week</h3>
-              <button
-                onClick={() => setShowWeekModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              <button
-                onClick={handlePreviousWeek}
-                className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                Previous Week
-              </button>
-              <button
-                onClick={handleCurrentWeek}
-                className="w-full rounded-xl border border-sky-100 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-900 transition-colors hover:bg-sky-50"
-              >
-                Current Week
-              </button>
-              <button
-                onClick={handleNextWeek}
-                className="w-full rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                Next Week
-              </button>
-            </div>
+      <Modal
+        isOpen={showWeekModal}
+        onClose={() => setShowWeekModal(false)}
+        className="max-w-sm"
+        ariaLabelledBy="my-rota-week-filter-title"
+      >
+        <div className="relative">
+          <h2 id="my-rota-week-filter-title" className="mb-2 pr-12 text-base font-semibold text-slate-800">
+            Select week
+          </h2>
+          <p className="mb-3 pr-12 text-sm text-slate-500">
+            Step one week earlier or later, or jump back to this week.
+          </p>
+          <div className="space-y-2" role="group" aria-label="Week options">
+            <button type="button" onClick={handlePreviousWeek} className={FILTER_OPTION_IDLE}>
+              Previous week
+            </button>
+            <button
+              type="button"
+              onClick={handleCurrentWeek}
+              className={isViewingCurrentWeek ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+              aria-pressed={isViewingCurrentWeek}
+              {...(isViewingCurrentWeek ? { 'data-autofocus': true } : {})}
+            >
+              This week
+            </button>
+            <button type="button" onClick={handleNextWeek} className={FILTER_OPTION_IDLE}>
+              Next week
+            </button>
           </div>
-        </div>,
-        document.body
-      )}
+          <button
+            type="button"
+            onClick={() => setShowWeekModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+      </Modal>
 
-      {/* Location Selection Modal */}
-      {showLocationModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full max-h-[80vh] flex flex-col shadow-sm rounded-2xl overflow-hidden">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              <h3 className="text-base font-semibold text-slate-800">Select Location</h3>
-              <button
-                onClick={() => setShowLocationModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
-              {locations.map((loc) => (
+      <Modal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden"
+        ariaLabelledBy="my-rota-location-filter-title"
+      >
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <h2 id="my-rota-location-filter-title" className="mb-3 flex-shrink-0 pr-12 text-base font-semibold text-slate-800">
+            Select location
+          </h2>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto" role="group" aria-label="Location options">
+            {locations.map((loc) => {
+              const selected = selectedLocation === loc.name;
+              return (
                 <button
                   key={loc.id}
+                  type="button"
                   onClick={() => handleLocationChange(loc.name)}
-                  className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
-                    selectedLocation === loc.name
-                      ? 'border-sky-100 bg-sky-50 text-sky-900'
-                      : 'border-transparent text-slate-600 hover:bg-slate-50'
-                  }`}
+                  className={selected ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+                  aria-pressed={selected}
+                  {...(selected ? { 'data-autofocus': true } : {})}
                 >
                   {loc.name}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        </div>,
-        document.body
-      )}
+          <button
+            type="button"
+            onClick={() => setShowLocationModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+      </Modal>
 
-      {/* Shift Type Selection Modal */}
-      {showShiftModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200/70 p-6 max-w-sm w-full shadow-sm rounded-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-slate-800">Select Shift Type</h3>
-              <button
-                onClick={() => setShowShiftModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              <button
-                onClick={() => handleShiftTypeChange('all')}
-                className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
-                  selectedShiftType === 'all'
-                    ? 'border-sky-100 bg-sky-50 text-sky-900'
-                    : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
-                }`}
-              >
-                All Shifts
-              </button>
-              <button
-                onClick={() => handleShiftTypeChange('day')}
-                className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
-                  selectedShiftType === 'day'
-                    ? 'border-sky-100 bg-sky-50 text-sky-900'
-                    : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
-                }`}
-              >
-                Day
-              </button>
-              <button
-                onClick={() => handleShiftTypeChange('afternoon')}
-                className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
-                  selectedShiftType === 'afternoon'
-                    ? 'border-sky-100 bg-sky-50 text-sky-900'
-                    : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
-                }`}
-              >
-                Afternoon
-              </button>
-              <button
-                onClick={() => handleShiftTypeChange('night')}
-                className={`w-full px-4 py-2.5 rounded-xl font-medium border transition-colors ${
-                  selectedShiftType === 'night'
-                    ? 'border-sky-100 bg-sky-50 text-sky-900'
-                    : 'text-slate-700 hover:bg-slate-50 border-slate-200/60'
-                }`}
-              >
-                Night
-              </button>
-            </div>
+      <Modal
+        isOpen={showShiftModal}
+        onClose={() => setShowShiftModal(false)}
+        className="max-w-sm"
+        ariaLabelledBy="my-rota-shift-filter-title"
+      >
+        <div className="relative">
+          <h2 id="my-rota-shift-filter-title" className="mb-3 pr-12 text-base font-semibold text-slate-800">
+            Select shift
+          </h2>
+          <div className="space-y-2" role="group" aria-label="Shift options">
+            {[
+              { id: 'all', label: 'All shifts' },
+              { id: 'day', label: 'Day' },
+              { id: 'afternoon', label: 'Afternoon' },
+              { id: 'night', label: 'Night' },
+            ].map((opt) => {
+              const selected = selectedShiftType === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleShiftTypeChange(opt.id)}
+                  className={selected ? FILTER_OPTION_SELECTED : FILTER_OPTION_IDLE}
+                  aria-pressed={selected}
+                  {...(selected ? { 'data-autofocus': true } : {})}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        </div>,
-        document.body
-      )}
+          <button
+            type="button"
+            onClick={() => setShowShiftModal(false)}
+            className={`${FILTER_MODAL_CLOSE} absolute right-0 top-0`}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={showBlockedRemovalModal}
@@ -1376,20 +1398,17 @@ const WeeklyRotaPage = () => {
         </div>
       </Modal>
 
-      {attendanceModalSlot && (
+      {attendanceModalSlot ? (
         <AttendanceStatusModal
-          open={!!attendanceModalSlot}
-          onClose={() => {
-            removalAfterAttendanceRef.current = false;
-            setAttendanceModalSlot(null);
-          }}
+          open
+          onClose={handleAttendanceModalClose}
           slot={attendanceModalSlot}
           currentStatus={attendanceBySlotId[attendanceModalSlot.id]?.status ?? null}
           currentNote={attendanceBySlotId[attendanceModalSlot.id]?.note ?? ''}
           onSave={handleAttendanceSave}
           saving={attendanceSaving}
         />
-      )}
+      ) : null}
 
     </>
   );

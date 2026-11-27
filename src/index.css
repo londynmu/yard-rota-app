@@ -8,13 +8,38 @@
     color-scheme: light;
     --app-bg: #f8fafc;
     --app-fg: #2d2d2d;
+    /* Matches shell header (~4rem) + notch; AdminSidebar / mobile scrim share this */
+    --app-header-offset: 4rem;
   }
 
-  /* Smooth theme transitions */
-  * {
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  @supports (top: env(safe-area-inset-top)) {
+    :root {
+      --app-header-offset: calc(4rem + env(safe-area-inset-top, 0px));
+    }
+  }
+
+  /* Prefer targeted transitions on interactive chrome — avoid universal * transitions (Main Page perf). */
+  a,
+  button,
+  .bottom-nav-icon,
+  .card-modern,
+  .glass-card {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 200ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    a,
+    button,
+    .bottom-nav-icon,
+    .card-modern,
+    .glass-card {
+      transition-duration: 0ms;
+    }
+    html {
+      scroll-behavior: auto;
+    }
   }
   
   /* Custom scrollbar - Light mode only */
@@ -227,24 +252,25 @@
   
   /* Bottom navigation — glass bar aligned with header (Figma shell) */
   .bottom-nav-adaptive {
-    background-color: rgba(255, 255, 255, 0.82);
+    background-color: rgb(255 255 255 / 0.82);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-    border-top-color: rgba(203, 213, 225, 0.65); /* slate-300 ~60% */
+    border-top-color: rgb(203 213 225 / 0.65);
   }
   
   .bottom-nav-icon {
-    color: #475569; /* slate-600 */
+    @apply text-slate-600;
     transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     border: 1px solid transparent;
     border-radius: 0.75rem;
+    min-height: 2.75rem; /* 44px touch target */
   }
   
   .bottom-nav-icon.active {
-    color: #1e293b; /* slate-800 */
-    background-color: rgba(255, 255, 255, 0.75);
-    border-color: rgba(203, 213, 225, 0.55);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    @apply text-slate-800;
+    background-color: rgb(255 255 255 / 0.75);
+    border-color: rgb(203 213 225 / 0.55);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
   }
   
   /* Fade in animation for sidebar */

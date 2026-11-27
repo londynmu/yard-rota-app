@@ -215,7 +215,7 @@ export default function UserAssessmentsPanel({ user, onCountChange }) {
                       <button
                         type="button"
                         onClick={() => openEditDue(row)}
-                        className="admin-btn-muted"
+                        className="admin-btn-muted min-h-11"
                       >
                         Edit due date
                       </button>
@@ -224,7 +224,7 @@ export default function UserAssessmentsPanel({ user, onCountChange }) {
                           type="button"
                           onClick={() => handlePrint(row)}
                           disabled={printingId === row.id}
-                          className="admin-btn-muted"
+                          className="admin-btn-muted min-h-11"
                         >
                           {printingId === row.id ? 'Printing…' : 'Print'}
                         </button>
@@ -253,7 +253,7 @@ export default function UserAssessmentsPanel({ user, onCountChange }) {
       </div>
 
       <div className="flex justify-end border-t border-gray-200 bg-white px-5 py-3">
-        <button type="button" onClick={() => setAddOpen(true)} className="admin-btn">
+        <button type="button" onClick={() => setAddOpen(true)} className="admin-btn min-h-11">
           New assessment
         </button>
       </div>

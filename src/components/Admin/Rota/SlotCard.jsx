@@ -402,9 +402,9 @@ const SlotCard = ({
                 <div className="min-h-[4.5rem] flex-1 text-sm text-rota-text-muted">
                   {availableLoading ? (
                     <div className="space-y-1.5 pt-0.5" aria-hidden="true">
-                      <div className="h-3.5 w-[85%] animate-pulse rounded bg-rota-toolbar-border/70" />
-                      <div className="h-3.5 w-[65%] animate-pulse rounded bg-rota-toolbar-border/70" />
-                      <div className="h-3.5 w-[72%] animate-pulse rounded bg-rota-toolbar-border/70" />
+                      <div className="h-3.5 w-[85%] animate-pulse rounded bg-rota-toolbar-border/70 motion-reduce:animate-none" />
+                      <div className="h-3.5 w-[65%] animate-pulse rounded bg-rota-toolbar-border/70 motion-reduce:animate-none" />
+                      <div className="h-3.5 w-[72%] animate-pulse rounded bg-rota-toolbar-border/70 motion-reduce:animate-none" />
                     </div>
                   ) : availableForSlot.length === 0 ? (
                     <span>No one available</span>
@@ -447,7 +447,7 @@ const SlotCard = ({
               aria-expanded={isMenuOpen}
               aria-label="Slot actions"
               title="Slot actions"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-rota-text-muted transition-colors hover:bg-rota-day-other-bg-from hover:text-rota-text-primary"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-rota-text-muted transition-colors hover:bg-rota-day-other-bg-from hover:text-rota-text-primary motion-reduce:transition-none"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -465,7 +465,7 @@ const SlotCard = ({
       {/* BODY: Employees list - flex-grow wypycha footer na dół */}
       <div className="px-4 py-3 flex-grow">
         {loading ? (
-          <div className="h-5 animate-pulse rounded bg-rota-toolbar-border w-32"></div>
+          <div className="h-5 w-32 animate-pulse rounded bg-rota-toolbar-border motion-reduce:animate-none" />
         ) : assignedUsers.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {assignedUsers.map(user => (
@@ -509,7 +509,7 @@ const SlotCard = ({
                   handleOpenEditModal(slot);
                 }
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from"
+              className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -525,7 +525,7 @@ const SlotCard = ({
                 setShowAvailableTooltip(false);
                 setShowDeleteConfirm(true);
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-btn-destructive-text transition-colors hover:bg-rota-btn-destructive-hover-bg"
+              className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-sm font-medium text-rota-btn-destructive-text transition-colors hover:bg-rota-btn-destructive-hover-bg motion-reduce:transition-none"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

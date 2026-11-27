@@ -67,31 +67,34 @@ export default function AssessmentsDueCard({ onOpenUser, users }) {
     }
   }, []);
 
+  // Paint due list immediately — do not wait on the slow admin users RPC.
+  useEffect(() => {
+    loadDueList();
+  }, [loadDueList]);
+
+  // Backfill only after users arrive (background).
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      // App-side backfill: default next_due = first login + 1y for role=user without rows.
-      if (authUser?.id && Array.isArray(users) && users.length > 0) {
-        try {
-          const result = await backfillMissingReassessmentDefaults(supabase, {
-            users,
-            createdBy: authUser.id,
-          });
-          if (!cancelled && result.inserted > 0) {
-            setBackfillNote(`Set default due dates for ${result.inserted} shunter(s).`);
-            toast.success(`Set default reassessment dates for ${result.inserted} shunter(s).`);
-          }
-        } catch (err) {
-          console.warn('[AssessmentsDueCard] backfill skipped', err);
+      if (!authUser?.id || !Array.isArray(users) || users.length === 0) return;
+      try {
+        const result = await backfillMissingReassessmentDefaults(supabase, {
+          users,
+          createdBy: authUser.id,
+        });
+        if (!cancelled && result.inserted > 0) {
+          setBackfillNote(`Set default due dates for ${result.inserted} shunter(s).`);
+          toast.success(`Set default reassessment dates for ${result.inserted} shunter(s).`);
+          await loadDueList();
         }
+      } catch (err) {
+        console.warn('[AssessmentsDueCard] backfill skipped', err);
       }
-      if (!cancelled) await loadDueList();
     };
     run();
     return () => {
       cancelled = true;
     };
-    // toast omitted from deps — stable enough; avoid re-backfill loops
     // eslint-disable-next-line react-hooks/exhaustive-deps -- users list identity from AdminPage
   }, [authUser?.id, users, loadDueList]);
 
@@ -117,7 +120,7 @@ export default function AssessmentsDueCard({ onOpenUser, users }) {
                 <button
                   type="button"
                   onClick={() => onOpenUser?.(row.user_id)}
-                  className="flex w-full items-center justify-between gap-3 py-2.5 text-left"
+                  className="flex min-h-11 w-full items-center justify-between gap-3 py-2.5 text-left transition-colors hover:bg-slate-50/80 motion-reduce:transition-none"
                 >
                   <span className="min-w-0 truncate text-sm font-medium text-charcoal">
                     {personName(row.profile_snapshot, row.profiles)}

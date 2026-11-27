@@ -178,7 +178,7 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="admin-btn"
+          className="admin-btn min-h-11"
         >
           Add violation
         </button>
