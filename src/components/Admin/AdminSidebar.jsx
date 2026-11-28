@@ -26,7 +26,6 @@ import {
   PanelLeftOpen,
   Timer,
   Truck,
-  UserMinus,
   Users2,
   Wrench,
 } from 'lucide-react';
@@ -48,7 +47,6 @@ const ICONS = {
   users: Users2,
   approvals: CircleCheck,
   availability: CalendarClock,
-  attendance: UserMinus,
   'shunter-month': Medal,
   'rota-planner': CalendarFold,
   breaks: Timer,

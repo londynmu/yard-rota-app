@@ -243,7 +243,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
   }, [confirmationStep]);
 
-  // Deep-link from Attendance / Dashboard: expand user + target tab.
+  // Deep-link from Dashboard / black list: expand user + target tab.
   // Clear search so a narrowed list cannot hide the target card.
   useEffect(() => {
     if (!focusUserId) return;
@@ -785,7 +785,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               userPanel === 'violations' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
             }`}
           >
-            Violations
+            Attendance & Violations
             {typeof selectedViolationCount === 'number' && selectedViolationCount > 0 && (
               <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-xs font-bold text-charcoal">
                 {selectedViolationCount}

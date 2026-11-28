@@ -168,7 +168,7 @@ const LoginStats = () => {
     if (path.includes('/rota') || path.includes('/breaks')) return 'Rota';
     if (path.includes('/admin') || title.includes('admin')) return 'Admin';
     if (path.includes('/home') || path === '/' || title.includes('main page')) return 'Main Page';
-    if (path.includes('/attendance')) return 'Attendance';
+    if (path.includes('/attendance')) return 'Users';
     if (path.includes('/tug')) return 'Precheck';
     // Use stored page_title when available, otherwise path segment or fallback
     if (pageTitle && pageTitle.trim()) return pageTitle.trim();

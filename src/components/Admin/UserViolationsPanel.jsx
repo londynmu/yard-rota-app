@@ -12,7 +12,7 @@ const CATEGORY_LABELS = {
 };
 
 /**
- * Per-user attendance + disciplinary notes for the Admin Users Violations tab.
+ * Per-user attendance + disciplinary notes for Admin Users → Attendance & Violations.
  * Loads attendance by snapshot user_id (survives rota unassign) plus shunter_violations.
  */
 export default function UserViolationsPanel({ userId, users = [], onCountChange }) {
