@@ -63,5 +63,7 @@ jobs:
           # Shared gate + interactive functions (no npm:googleapis).
           # Gmail importer uses npm:googleapis — validated via deploy smoke, not CI.
           deno check supabase/functions/_shared/requireAdminOrCron.ts
+          deno check supabase/functions/_shared/sendgrid.ts
           deno check supabase/functions/import-performance-csv/index.ts
           deno check supabase/functions/send-rota-email/index.ts
+          deno check supabase/functions/notify-vmu-defect/index.ts

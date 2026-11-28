@@ -135,6 +135,7 @@ export const ADMIN_NAV = [
       { id: 'agencies', label: 'Agencies', section: 'settings', settingsTab: 'agencies', tone: 'teal' },
       { id: 'home-page', label: 'Home page', section: 'settings', settingsTab: 'home-page', tone: 'amber' },
       { id: 'rota-settings', label: 'Rota', section: 'settings', settingsTab: 'rota', tone: 'indigo' },
+      { id: 'vmu-alerts', label: 'VMU', section: 'settings', settingsTab: 'vmu', tone: 'rose' },
       { id: 'whatsapp', label: 'WhatsApp', section: 'settings', settingsTab: 'whatsapp', tone: 'emerald' },
     ],
   },

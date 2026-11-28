@@ -7,6 +7,7 @@ import {
   parseAgencyEmails,
   parseEmailFromAddress,
 } from "../_shared/parseAgencyEmails.ts";
+import { sendViaSendGrid } from "../_shared/sendgrid.ts";
 
 type AgencyPayload = {
   name?: string;
@@ -43,87 +44,6 @@ function json(status: number, payload: Record<string, unknown>) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function toBase64(text: string): string {
-  const bytes = new TextEncoder().encode(text);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function sendViaSendGrid(opts: {
-  apiKey: string;
-  from: { email: string; name?: string };
-  to: string[];
-  cc?: string[];
-  subject: string;
-  content: string;
-  csvFilename?: string;
-  csvData?: string;
-  pdfFilename?: string;
-  pdfDataBase64?: string;
-}): Promise<void> {
-  const attachments: Array<{
-    content: string;
-    filename: string;
-    type: string;
-    disposition: string;
-  }> = [];
-
-  if (opts.csvData && opts.csvFilename) {
-    attachments.push({
-      content: toBase64(opts.csvData),
-      filename: opts.csvFilename,
-      type: "text/csv",
-      disposition: "attachment",
-    });
-  }
-
-  if (opts.pdfDataBase64 && opts.pdfFilename) {
-    attachments.push({
-      content: opts.pdfDataBase64,
-      filename: opts.pdfFilename,
-      type: "application/pdf",
-      disposition: "attachment",
-    });
-  }
-
-  const personalization: {
-    to: Array<{ email: string }>;
-    cc?: Array<{ email: string }>;
-  } = {
-    to: opts.to.map((email) => ({ email })),
-  };
-  if (opts.cc && opts.cc.length > 0) {
-    personalization.cc = opts.cc.map((email) => ({ email }));
-  }
-
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [personalization],
-      from: opts.from.name
-        ? { email: opts.from.email, name: opts.from.name }
-        : { email: opts.from.email },
-      subject: opts.subject,
-      content: [{ type: "text/plain", value: opts.content }],
-      ...(attachments.length > 0 ? { attachments } : {}),
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(
-      `SendGrid ${res.status}: ${errText.slice(0, 400) || res.statusText}`,
-    );
-  }
 }
 
 serve(async (req) => {

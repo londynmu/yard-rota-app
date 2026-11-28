@@ -60,6 +60,7 @@ const ICONS = {
   agencies: Building2,
   'home-page': House,
   'rota-settings': CalendarFold,
+  'vmu-alerts': Wrench,
   whatsapp: MessageCircle,
 };
 
