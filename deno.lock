@@ -74,7 +74,6 @@
         "npm:qrcode.react@^4.2.0",
         "npm:react-big-calendar@^1.18.0",
         "npm:react-datepicker@^8.3.0",
-        "npm:react-devtools@^1.0.5",
         "npm:react-dom@19",
         "npm:react-markdown@^10.1.0",
         "npm:react-router-dom@^7.5.2",

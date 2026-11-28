@@ -4,6 +4,7 @@ import LocationConfigManager from './LocationConfigManager';
 import AgencyConfigManager from './AgencyConfigManager';
 import PrecheckWhatsAppLog from './PrecheckWhatsAppLog';
 import { parseMaxConsecutiveWorkDays } from '../../utils/consecutiveWorkDays';
+import { VMU_DEFECT_EMAIL_FROM_CANONICAL } from '../../utils/vmuDefectAlertEmail';
 
 export default function SettingsManager({ initialSection = 'locations', onSectionChange }) {
   const [activeSection, setActiveSection] = useState(initialSection);
@@ -17,6 +18,10 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
   const [rotaSettingsSaving, setRotaSettingsSaving] = useState(false);
   const [enforceMaxConsecutiveWorkDays, setEnforceMaxConsecutiveWorkDays] = useState(false);
   const [maxConsecutiveWorkDaysStr, setMaxConsecutiveWorkDaysStr] = useState('6');
+  const [vmuSettingsLoading, setVmuSettingsLoading] = useState(false);
+  const [vmuSettingsSaving, setVmuSettingsSaving] = useState(false);
+  const [vmuAlertsEnabled, setVmuAlertsEnabled] = useState(true);
+  const [vmuAlertEmails, setVmuAlertEmails] = useState('');
 
   useEffect(() => {
     setIsLoading(false);
@@ -74,6 +79,31 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
       }
     };
     fetchRotaSettings();
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'vmu') return;
+    const fetchVmuSettings = async () => {
+      setVmuSettingsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['vmu_defect_alerts_enabled', 'vmu_defect_alert_emails']);
+        if (error) throw error;
+        const byKey = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
+        const enabledRaw = String(byKey.vmu_defect_alerts_enabled ?? 'true').toLowerCase().trim();
+        setVmuAlertsEnabled(!(enabledRaw === 'false' || enabledRaw === '0' || enabledRaw === 'off'));
+        setVmuAlertEmails(String(byKey.vmu_defect_alert_emails || ''));
+      } catch (err) {
+        console.error('[SettingsManager] Fetch VMU alert settings error:', err);
+        setVmuAlertsEnabled(true);
+        setVmuAlertEmails('');
+      } finally {
+        setVmuSettingsLoading(false);
+      }
+    };
+    fetchVmuSettings();
   }, [activeSection]);
 
   const saveEnforceMaxConsecutiveWorkDays = async (enabled, rollback) => {
@@ -162,6 +192,56 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
     await saveShowManageBreaksButton(nextValue, () => setShowManageBreaksButton(!nextValue));
   };
 
+  const saveVmuAlertsEnabled = async (enabled, rollback) => {
+    setVmuSettingsSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'vmu_defect_alerts_enabled',
+          value: enabled ? 'true' : 'false',
+          description:
+            'When true, new precheck_damages rows trigger VMU defect alert emails.',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.error('[SettingsManager] Save vmu_defect_alerts_enabled error:', err);
+      rollback();
+      alert('Error saving setting.');
+    } finally {
+      setVmuSettingsSaving(false);
+    }
+  };
+
+  const handleToggleVmuAlerts = async () => {
+    if (vmuSettingsLoading || vmuSettingsSaving) return;
+    const next = !vmuAlertsEnabled;
+    setVmuAlertsEnabled(next);
+    await saveVmuAlertsEnabled(next, () => setVmuAlertsEnabled(!next));
+  };
+
+  const saveVmuAlertEmails = async () => {
+    setVmuSettingsSaving(true);
+    try {
+      const { error } = await supabase.from('settings').upsert(
+        {
+          key: 'vmu_defect_alert_emails',
+          value: String(vmuAlertEmails || ''),
+          description:
+            'Optional extra alert recipients (comma/semicolon/newline-separated). Role=vmu accounts are always included.',
+        },
+        { onConflict: 'key' }
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.error('[SettingsManager] Save vmu_defect_alert_emails error:', err);
+      alert('Error saving setting.');
+    } finally {
+      setVmuSettingsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -190,6 +270,7 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
               { id: 'agencies', label: 'Agencies' },
               { id: 'home-page', label: 'Home page' },
               { id: 'rota', label: 'Rota' },
+              { id: 'vmu', label: 'VMU' },
               { id: 'whatsapp', label: 'WhatsApp' },
             ].map((tab) => (
               <button
@@ -336,6 +417,63 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
                 </div>
                 <p className="text-xs text-gray-600 sm:pb-1">
                   Allowed range: 1–13 (default 6). Save runs on blur.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeSection === 'vmu' && (
+          <div className="admin-section-card">
+            <div className="admin-section-header">
+              <h3 className="admin-section-title">VMU defect alerts</h3>
+            </div>
+            <div className="admin-section-body space-y-4">
+              <p className="text-xs text-gray-600 leading-relaxed">
+                When a shunter reports a new pre-check defect, an automatic email is sent to every
+                approved account with the VMU role, plus any extra addresses below. Alerts are sent
+                as {VMU_DEFECT_EMAIL_FROM_CANONICAL} (not bookings). Same-problem confirmations do
+                not send another email.
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="vmu-alerts-enabled-toggle" className="text-sm text-charcoal font-medium">
+                  Enable defect alert emails
+                </label>
+                <button
+                  type="button"
+                  id="vmu-alerts-enabled-toggle"
+                  role="switch"
+                  aria-checked={vmuAlertsEnabled}
+                  disabled={vmuSettingsLoading || vmuSettingsSaving}
+                  onClick={handleToggleVmuAlerts}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    vmuAlertsEnabled ? 'bg-black' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
+                      vmuAlertsEnabled ? 'translate-x-5' : 'translate-x-1'
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+              </div>
+              <div>
+                <label htmlFor="vmu-alert-emails" className="block text-sm text-charcoal font-medium mb-1">
+                  Extra alert emails (mailing list)
+                </label>
+                <textarea
+                  id="vmu-alert-emails"
+                  rows={3}
+                  value={vmuAlertEmails}
+                  onChange={(e) => setVmuAlertEmails(e.target.value)}
+                  onBlur={saveVmuAlertEmails}
+                  disabled={vmuSettingsLoading || vmuSettingsSaving}
+                  placeholder="name@example.com, list@shunters.net"
+                  className="admin-input w-full min-h-[72px] disabled:opacity-50"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Optional. Separate addresses with commas, semicolons, or new lines. Save runs on blur.
+                  VMU role accounts are always included when alerts are on.
                 </p>
               </div>
             </div>

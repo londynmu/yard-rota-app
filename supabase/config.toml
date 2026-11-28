@@ -29,6 +29,9 @@ verify_jwt = true
 [functions.send-rota-email]
 verify_jwt = true
 
+[functions.notify-vmu-defect]
+verify_jwt = true
+
 [functions.send-precheck-whatsapp-reminders]
 verify_jwt = true
 
