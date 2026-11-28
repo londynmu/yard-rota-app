@@ -1,5 +1,5 @@
--- VMU defect email alerts: ledger, recipient RPC, settings seeds, RLS for mailing list,
--- AFTER INSERT trigger → notify-vmu-defect Edge Function via pg_net.
+-- VMU defect email digests (twice daily) + recipient RPC + settings.
+-- No per-INSERT email trigger — digests are the only outbound channel (max 2/day).
 -- Do NOT apply to production until the owner explicitly approves.
 -- Requires Vault secret SUPABASE_SERVICE_ROLE_KEY (same as other cron/net.http_post jobs).
 -- Edge secrets (set by owner, not in this file):
@@ -8,8 +8,47 @@
 --   SENDGRID_API_KEY (existing), APP_BASE_URL (existing)
 
 -- ---------------------------------------------------------------------------
--- Ledger (idempotent claim before SendGrid)
+-- Digest ledger (idempotent claim per London slot+date)
 -- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.vmu_defect_digest_sends (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  idempotency_key text NOT NULL,
+  slot text NOT NULL CHECK (slot IN ('morning', 'evening')),
+  london_date date NOT NULL,
+  window_start timestamptz NOT NULL,
+  window_end timestamptz NOT NULL,
+  status text NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued', 'sent', 'failed', 'skipped')),
+  defect_count integer NOT NULL DEFAULT 0,
+  recipients text[],
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS vmu_defect_digest_sends_idempotency_uidx
+  ON public.vmu_defect_digest_sends (idempotency_key);
+
+CREATE INDEX IF NOT EXISTS vmu_defect_digest_sends_created_idx
+  ON public.vmu_defect_digest_sends (created_at DESC);
+
+COMMENT ON TABLE public.vmu_defect_digest_sends IS
+  'Idempotent ledger for twice-daily VMU defect digest emails (morning 10:00 / evening 21:00 Europe/London).';
+
+ALTER TABLE public.vmu_defect_digest_sends ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS vmu_defect_digest_sends_select_admin ON public.vmu_defect_digest_sends;
+CREATE POLICY vmu_defect_digest_sends_select_admin
+  ON public.vmu_defect_digest_sends
+  FOR SELECT
+  TO authenticated
+  USING (public.is_admin());
+
+REVOKE ALL ON TABLE public.vmu_defect_digest_sends FROM PUBLIC, anon;
+GRANT SELECT ON TABLE public.vmu_defect_digest_sends TO authenticated;
+GRANT ALL ON TABLE public.vmu_defect_digest_sends TO service_role;
+
+-- Legacy per-damage ledger (unused by digests; keep if already created in earlier draft)
 CREATE TABLE IF NOT EXISTS public.vmu_defect_alert_sends (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   damage_id uuid NOT NULL REFERENCES public.precheck_damages(id) ON DELETE CASCADE,
@@ -23,12 +62,6 @@ CREATE TABLE IF NOT EXISTS public.vmu_defect_alert_sends (
 
 CREATE UNIQUE INDEX IF NOT EXISTS vmu_defect_alert_sends_damage_id_uidx
   ON public.vmu_defect_alert_sends (damage_id);
-
-CREATE INDEX IF NOT EXISTS vmu_defect_alert_sends_created_idx
-  ON public.vmu_defect_alert_sends (created_at DESC);
-
-COMMENT ON TABLE public.vmu_defect_alert_sends IS
-  'Idempotent ledger for VMU defect alert emails (one row per precheck_damages id).';
 
 ALTER TABLE public.vmu_defect_alert_sends ENABLE ROW LEVEL SECURITY;
 
@@ -50,15 +83,16 @@ INSERT INTO public.settings (key, value, description)
 VALUES (
   'vmu_defect_alerts_enabled',
   'true',
-  'When true, new precheck_damages rows trigger VMU defect alert emails.'
+  'When true, twice-daily VMU defect digest emails are sent (10:00 and 21:00 Europe/London).'
 )
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO UPDATE
+SET description = EXCLUDED.description;
 
 INSERT INTO public.settings (key, value, description)
 VALUES (
   'vmu_defect_alert_emails',
   '',
-  'Optional extra alert recipients (comma/semicolon/newline-separated). Role=vmu accounts are always included.'
+  'Optional extra digest recipients (comma/semicolon/newline-separated). Role=vmu accounts are always included.'
 )
 ON CONFLICT (key) DO NOTHING;
 
@@ -99,57 +133,148 @@ REVOKE ALL ON FUNCTION public.get_vmu_defect_alert_emails() FROM PUBLIC, anon, a
 GRANT EXECUTE ON FUNCTION public.get_vmu_defect_alert_emails() TO service_role;
 
 COMMENT ON FUNCTION public.get_vmu_defect_alert_emails() IS
-  'Emails of approved active profiles with role=vmu for defect alert Edge Function.';
+  'Emails of approved active profiles with role=vmu for defect digest Edge Function.';
 
 -- ---------------------------------------------------------------------------
--- AFTER INSERT trigger → Edge Function (pg_net)
+-- Ensure NO per-INSERT email trigger (digests only)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.notify_vmu_defect_on_insert()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+DROP TRIGGER IF EXISTS trg_precheck_damages_notify_vmu ON public.precheck_damages;
+DROP FUNCTION IF EXISTS public.notify_vmu_defect_on_insert();
+
+-- ---------------------------------------------------------------------------
+-- pg_cron: morning 10:00 + evening 21:00 Europe/London → notify-vmu-defect
+-- Fire UTC hours covering GMT/BST; gate on London hour. Starts INACTIVE.
+-- ---------------------------------------------------------------------------
+DO $$
 DECLARE
-  service_key text;
+  morning_id bigint;
+  evening_id bigint;
 BEGIN
-  SELECT decrypted_secret
-  INTO service_key
-  FROM vault.decrypted_secrets
-  WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+  SELECT jobid INTO morning_id
+  FROM cron.job
+  WHERE jobname = 'vmu-defect-digest-morning'
   LIMIT 1;
 
-  IF service_key IS NULL OR length(trim(service_key)) = 0 THEN
-    RAISE WARNING 'notify_vmu_defect_on_insert: SUPABASE_SERVICE_ROLE_KEY missing in Vault';
-    RETURN NEW;
+  IF morning_id IS NOT NULL THEN
+    PERFORM cron.alter_job(
+      morning_id,
+      schedule := '0 9,10 * * *',
+      command := $cmd$
+  SELECT CASE
+    WHEN EXTRACT(HOUR FROM (now() AT TIME ZONE 'Europe/London')) = 10
+     AND EXTRACT(MINUTE FROM (now() AT TIME ZONE 'Europe/London')) = 0
+    THEN net.http_post(
+      url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/notify-vmu-defect',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || (
+          SELECT decrypted_secret
+          FROM vault.decrypted_secrets
+          WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+          LIMIT 1
+        ),
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object('slot', 'morning'),
+      timeout_milliseconds := 120000
+    )
+    ELSE NULL
+  END;
+  $cmd$,
+      active := false
+    );
+  ELSE
+    PERFORM cron.schedule(
+      'vmu-defect-digest-morning',
+      '0 9,10 * * *',
+      $cmd$
+  SELECT CASE
+    WHEN EXTRACT(HOUR FROM (now() AT TIME ZONE 'Europe/London')) = 10
+     AND EXTRACT(MINUTE FROM (now() AT TIME ZONE 'Europe/London')) = 0
+    THEN net.http_post(
+      url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/notify-vmu-defect',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || (
+          SELECT decrypted_secret
+          FROM vault.decrypted_secrets
+          WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+          LIMIT 1
+        ),
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object('slot', 'morning'),
+      timeout_milliseconds := 120000
+    )
+    ELSE NULL
+  END;
+  $cmd$
+    );
+    PERFORM cron.alter_job(
+      (SELECT jobid FROM cron.job WHERE jobname = 'vmu-defect-digest-morning' LIMIT 1),
+      active := false
+    );
   END IF;
 
-  PERFORM net.http_post(
-    url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/notify-vmu-defect',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || service_key,
-      'Content-Type', 'application/json'
-    ),
-    body := jsonb_build_object('damage_id', NEW.id),
-    timeout_milliseconds := 60000
-  );
+  SELECT jobid INTO evening_id
+  FROM cron.job
+  WHERE jobname = 'vmu-defect-digest-evening'
+  LIMIT 1;
 
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE WARNING 'notify_vmu_defect_on_insert failed: %', SQLERRM;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_precheck_damages_notify_vmu ON public.precheck_damages;
-CREATE TRIGGER trg_precheck_damages_notify_vmu
-  AFTER INSERT ON public.precheck_damages
-  FOR EACH ROW
-  EXECUTE FUNCTION public.notify_vmu_defect_on_insert();
-
-REVOKE ALL ON FUNCTION public.notify_vmu_defect_on_insert() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.notify_vmu_defect_on_insert() TO service_role;
-
-COMMENT ON FUNCTION public.notify_vmu_defect_on_insert() IS
-  'AFTER INSERT on precheck_damages: async http_post to notify-vmu-defect Edge Function.';
+  IF evening_id IS NOT NULL THEN
+    PERFORM cron.alter_job(
+      evening_id,
+      schedule := '0 20,21 * * *',
+      command := $cmd$
+  SELECT CASE
+    WHEN EXTRACT(HOUR FROM (now() AT TIME ZONE 'Europe/London')) = 21
+     AND EXTRACT(MINUTE FROM (now() AT TIME ZONE 'Europe/London')) = 0
+    THEN net.http_post(
+      url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/notify-vmu-defect',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || (
+          SELECT decrypted_secret
+          FROM vault.decrypted_secrets
+          WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+          LIMIT 1
+        ),
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object('slot', 'evening'),
+      timeout_milliseconds := 120000
+    )
+    ELSE NULL
+  END;
+  $cmd$,
+      active := false
+    );
+  ELSE
+    PERFORM cron.schedule(
+      'vmu-defect-digest-evening',
+      '0 20,21 * * *',
+      $cmd$
+  SELECT CASE
+    WHEN EXTRACT(HOUR FROM (now() AT TIME ZONE 'Europe/London')) = 21
+     AND EXTRACT(MINUTE FROM (now() AT TIME ZONE 'Europe/London')) = 0
+    THEN net.http_post(
+      url := 'https://jkjvtvwedjiupxoibpld.supabase.co/functions/v1/notify-vmu-defect',
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || (
+          SELECT decrypted_secret
+          FROM vault.decrypted_secrets
+          WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+          LIMIT 1
+        ),
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object('slot', 'evening'),
+      timeout_milliseconds := 120000
+    )
+    ELSE NULL
+  END;
+  $cmd$
+    );
+    PERFORM cron.alter_job(
+      (SELECT jobid FROM cron.job WHERE jobname = 'vmu-defect-digest-evening' LIMIT 1),
+      active := false
+    );
+  END IF;
+END $$;

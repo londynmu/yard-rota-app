@@ -200,7 +200,7 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
           key: 'vmu_defect_alerts_enabled',
           value: enabled ? 'true' : 'false',
           description:
-            'When true, new precheck_damages rows trigger VMU defect alert emails.',
+            'When true, twice-daily VMU defect digest emails are sent (10:00 and 21:00 Europe/London).',
         },
         { onConflict: 'key' }
       );
@@ -429,10 +429,10 @@ export default function SettingsManager({ initialSection = 'locations', onSectio
             </div>
             <div className="admin-section-body space-y-4">
               <p className="text-xs text-gray-600 leading-relaxed">
-                When a shunter reports a new pre-check defect, an automatic email is sent to every
-                approved account with the VMU role, plus any extra addresses below. Alerts are sent
-                as {VMU_DEFECT_EMAIL_FROM_CANONICAL} (not bookings). Same-problem confirmations do
-                not send another email.
+                Twice daily (10:00 and 21:00 Europe/London), a digest email lists new pre-check
+                defects in that window. Recipients are every approved VMU-role account plus any
+                extra addresses below. Sent as {VMU_DEFECT_EMAIL_FROM_CANONICAL} (not bookings).
+                Empty windows do not send mail. There is no email per individual defect.
               </p>
               <div className="flex items-center justify-between gap-3">
                 <label htmlFor="vmu-alerts-enabled-toggle" className="text-sm text-charcoal font-medium">

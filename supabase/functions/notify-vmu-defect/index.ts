@@ -1,5 +1,7 @@
-// Service role / cron: email VMU users (+ optional mailing list) about a new precheck_damages row.
-// Uses shared SendGrid helper. From MUST be VMU_DEFECT_EMAIL_FROM (@shunters.net) — never EMAIL_FROM/bookings.
+// Service role / cron: twice-daily VMU defect digest emails (Europe/London).
+// Body: { "slot": "morning" | "evening" }
+// Reuses shared SendGrid. From MUST be VMU_DEFECT_EMAIL_FROM (@shunters.net) — never EMAIL_FROM/bookings.
+// Empty window → skip (no email). No per-INSERT alerts.
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -10,12 +12,22 @@ import {
 } from "../_shared/parseAgencyEmails.ts";
 import { sendViaSendGrid } from "../_shared/sendgrid.ts";
 
-const PRECHECK_IMAGES_BUCKET = "precheck-images";
-/** Skip attaching photos larger than this (raw bytes) to stay under SendGrid limits. */
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+type DigestSlot = "morning" | "evening";
 
 type RequestBody = {
-  damage_id?: string;
+  slot?: string;
+};
+
+type DefectRow = {
+  tugLabel: string;
+  itemLabel: string;
+  description: string;
+  reportedBy: string;
+  locationName: string | null;
+  source: string | null;
+  repairStatus: string | null;
+  createdAt: string | null;
+  hasPhoto: boolean;
 };
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -30,95 +42,165 @@ function isValidVmuFromEmail(email: string): boolean {
   return raw.includes("@") && raw.endsWith("@shunters.net");
 }
 
-function extractPrecheckStoragePath(urlOrPath: string | null | undefined): string | null {
-  if (!urlOrPath || typeof urlOrPath !== "string") return null;
-  const trimmed = urlOrPath.trim();
-  if (!trimmed) return null;
+function getLondonParts(date = new Date()) {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(date).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
+  );
+  const y = Number(parts.year);
+  const m = Number(parts.month);
+  const d = Number(parts.day);
+  const h = Number(parts.hour);
+  const min = Number(parts.minute);
+  const s = Number(parts.second);
+  const ymd = `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  return { y, m, d, h, min, s, ymd };
+}
 
-  if (!trimmed.includes("://") && !trimmed.startsWith("/")) {
-    return trimmed.replace(/^\/*/, "");
+function londonWallToUtc(ymd: string, hms = "00:00:00"): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const [hh, mm, ss] = hms.split(":").map((n) => Number(n) || 0);
+  let utcMs = Date.UTC(y, m - 1, d, hh, mm, ss);
+  for (let i = 0; i < 4; i++) {
+    const parts = getLondonParts(new Date(utcMs));
+    const asIf = Date.UTC(parts.y, parts.m - 1, parts.d, parts.h, parts.min, parts.s);
+    const wanted = Date.UTC(y, m - 1, d, hh, mm, ss);
+    utcMs += wanted - asIf;
   }
+  return new Date(utcMs);
+}
 
+function addCalendarDaysYmd(ymd: string, deltaDays: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}-${String(utc.getUTCDate()).padStart(2, "0")}`;
+}
+
+function getVmuDigestWindow(slot: DigestSlot, now = new Date()) {
+  const { ymd } = getLondonParts(now);
+  if (slot === "morning") {
+    const yesterday = addCalendarDaysYmd(ymd, -1);
+    return {
+      slot,
+      londonDate: ymd,
+      windowStart: londonWallToUtc(yesterday, "21:00:00"),
+      windowEnd: londonWallToUtc(ymd, "10:00:00"),
+      idempotencyKey: `digest:morning:${ymd}`,
+      label: "morning 10:00",
+    };
+  }
+  return {
+    slot,
+    londonDate: ymd,
+    windowStart: londonWallToUtc(ymd, "10:00:00"),
+    windowEnd: londonWallToUtc(ymd, "21:00:00"),
+    idempotencyKey: `digest:evening:${ymd}`,
+    label: "evening 21:00",
+  };
+}
+
+function digestStatusRank(repairStatus: string | null | undefined): number {
+  const key = String(repairStatus || "open").toLowerCase();
+  if (key === "open") return 0;
+  if (key === "acknowledged") return 1;
+  if (key === "in_progress" || key === "in-progress") return 2;
+  if (key === "resolved" || key === "closed") return 9;
+  return 5;
+}
+
+function formatLondon(date: Date | string): string {
   try {
-    const parsed = new URL(trimmed);
-    const pathname = parsed.pathname || "";
-    const markers = [
-      `/storage/v1/object/public/${PRECHECK_IMAGES_BUCKET}/`,
-      `/storage/v1/object/sign/${PRECHECK_IMAGES_BUCKET}/`,
-    ];
-    for (const marker of markers) {
-      const idx = pathname.indexOf(marker);
-      if (idx !== -1) {
-        return decodeURIComponent(pathname.slice(idx + marker.length));
-      }
-    }
-    const match = pathname.match(
-      /\/storage\/v1\/object\/(?:public|sign)\/precheck-images\/(.+)$/,
-    );
-    if (match?.[1]) return decodeURIComponent(match[1]);
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date instanceof Date ? date : new Date(date));
   } catch {
-    // not a URL
+    return String(date);
   }
-  return null;
 }
 
-function mimeFromPath(path: string): { type: string; filename: string } {
-  const base = path.split("/").pop() || "defect.jpg";
-  const lower = base.toLowerCase();
-  if (lower.endsWith(".png")) return { type: "image/png", filename: base };
-  if (lower.endsWith(".webp")) return { type: "image/webp", filename: base };
-  if (lower.endsWith(".gif")) return { type: "image/gif", filename: base };
-  if (lower.endsWith(".heic") || lower.endsWith(".heif")) {
-    return { type: "image/heic", filename: base };
+function buildDigestSubject(slot: DigestSlot, londonDate: string): string {
+  const label = slot === "morning" ? "morning 10:00" : "evening 21:00";
+  return `VMU defect digest — ${label} (${londonDate})`;
+}
+
+function buildDigestBody(
+  defects: DefectRow[],
+  meta: {
+    slot: DigestSlot;
+    windowStart: Date;
+    windowEnd: Date;
+    vmuUrl: string;
+  },
+): string {
+  const list = [...defects].sort((a, b) => {
+    const rank = digestStatusRank(a.repairStatus) - digestStatusRank(b.repairStatus);
+    if (rank !== 0) return rank;
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+  });
+
+  const bySource: Record<string, number> = {};
+  const byStatus: Record<string, number> = {};
+  let withPhotos = 0;
+  for (const d of list) {
+    const source = String(d.source || "unknown");
+    bySource[source] = (bySource[source] || 0) + 1;
+    const status = String(d.repairStatus || "open");
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    if (d.hasPhoto) withPhotos += 1;
   }
-  return { type: "image/jpeg", filename: base.endsWith(".jpg") || base.endsWith(".jpeg") ? base : "defect.jpg" };
-}
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function buildSubject(tugLabel: string, itemLabel: string): string {
-  const tug = tugLabel.trim() || "Tug";
-  const item = itemLabel.trim() || "Check item";
-  return `New defect: ${tug} — ${item}`;
-}
-
-function buildBody(input: {
-  tugLabel: string;
-  itemLabel: string;
-  description: string;
-  reportedBy: string;
-  locationName?: string | null;
-  source?: string | null;
-  vmuUrl: string;
-  hasPhotoAttachment: boolean;
-}): string {
+  const label = meta.slot === "morning" ? "morning 10:00" : "evening 21:00";
   const lines = [
-    "A new pre-check defect was reported.",
+    `VMU defect digest (${label}, Europe/London).`,
+    `Window: ${formatLondon(meta.windowStart)} → ${formatLondon(meta.windowEnd)}`,
+    `Total new defects: ${list.length}`,
     "",
-    `Tug: ${input.tugLabel.trim() || "Unknown tug"}`,
+    "Counts by source:",
   ];
-  const location = String(input.locationName || "").trim();
-  if (location) lines.push(`Location: ${location}`);
-  lines.push(`Check item: ${input.itemLabel.trim() || "Check item"}`);
-  const source = String(input.source || "").trim();
-  if (source) lines.push(`Source: ${source}`);
-  lines.push(`Reported by: ${input.reportedBy.trim() || "Unknown"}`);
-  lines.push(
-    `What is wrong: ${input.description.trim() || "(no description)"}`,
-  );
-  lines.push(
-    input.hasPhotoAttachment
-      ? "Photo: attached to this email (first photo from the report)."
-      : "Photo: none attached.",
-  );
+  for (const key of Object.keys(bySource).sort()) {
+    lines.push(`- ${key}: ${bySource[key]}`);
+  }
+  lines.push("Counts by status (open / acknowledged listed first):");
+  for (const key of Object.keys(byStatus).sort(
+    (a, b) => digestStatusRank(a) - digestStatusRank(b),
+  )) {
+    lines.push(`- ${key}: ${byStatus[key]}`);
+  }
+  lines.push(`With photos: ${withPhotos}`);
   lines.push("");
-  lines.push(`Open VMU: ${input.vmuUrl}`);
+  lines.push("Defects (open / acknowledged first):");
+
+  list.forEach((d, index) => {
+    const tug = d.tugLabel.trim() || "Unknown tug";
+    const item = d.itemLabel.trim() || "Check item";
+    const description = d.description.trim() || "(no description)";
+    const reportedBy = d.reportedBy.trim() || "Unknown";
+    const location = String(d.locationName || "").trim();
+    const source = String(d.source || "unknown");
+    const status = String(d.repairStatus || "open");
+    const when = d.createdAt ? formatLondon(d.createdAt) : "unknown time";
+    lines.push("");
+    lines.push(`${index + 1}. ${tug}${location ? ` @ ${location}` : ""}`);
+    lines.push(`   Item: ${item}`);
+    lines.push(`   Status: ${status} | Source: ${source}`);
+    lines.push(`   Reported by: ${reportedBy} at ${when}`);
+    lines.push(`   What is wrong: ${description}`);
+    if (d.hasPhoto) lines.push("   Photo: yes (view in VMU)");
+  });
+
+  lines.push("");
+  lines.push(`Open VMU: ${meta.vmuUrl}`);
   lines.push("");
   lines.push("---");
   lines.push("This is an automatic email from Yard Rota VMU alerts.");
@@ -127,6 +209,18 @@ function buildBody(input: {
     "Do not reply — replies are not read and will not receive a response.",
   );
   return lines.join("\n");
+}
+
+function itemLabelFromDamage(
+  itemName: string,
+  source: string | null,
+  labelMap: Map<string, string>,
+): string {
+  if (itemName && labelMap.has(itemName)) return labelMap.get(itemName)!;
+  if (itemName) return itemName.replace(/_/g, " ");
+  if (source === "remarks") return "Remarks";
+  if (source === "during_shift") return "During shift";
+  return "Check item";
 }
 
 serve(async (req) => {
@@ -140,17 +234,21 @@ serve(async (req) => {
       return json(gate.status, { error: gate.error });
     }
 
-    let body: RequestBody;
+    let body: RequestBody = {};
     try {
       body = await req.json();
     } catch {
-      return json(400, { error: "Invalid JSON in request body" });
+      body = {};
     }
 
-    const damageId = String(body.damage_id || "").trim();
-    if (!damageId) {
-      return json(400, { error: "damage_id is required" });
+    const slotRaw = String(body.slot || "").trim().toLowerCase();
+    if (slotRaw !== "morning" && slotRaw !== "evening") {
+      return json(400, {
+        error: 'slot is required: "morning" or "evening"',
+      });
     }
+    const slot = slotRaw as DigestSlot;
+    const window = getVmuDigestWindow(slot);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -160,39 +258,52 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Atomic claim — prevents duplicate SendGrid sends on trigger/http retries.
     const { error: claimError } = await supabase
-      .from("vmu_defect_alert_sends")
+      .from("vmu_defect_digest_sends")
       .insert({
-        damage_id: damageId,
+        idempotency_key: window.idempotencyKey,
+        slot: window.slot,
+        london_date: window.londonDate,
+        window_start: window.windowStart.toISOString(),
+        window_end: window.windowEnd.toISOString(),
         status: "queued",
+        defect_count: 0,
       });
 
     if (claimError) {
       const code = (claimError as { code?: string }).code;
       if (code === "23505") {
-        return json(200, { skipped: true, reason: "already_claimed", damage_id: damageId });
+        return json(200, {
+          skipped: true,
+          reason: "already_claimed",
+          slot,
+          idempotency_key: window.idempotencyKey,
+        });
       }
-      console.error("ledger claim failed", claimError);
-      return json(500, { error: "Failed to claim alert send" });
+      console.error("digest ledger claim failed", claimError);
+      return json(500, { error: "Failed to claim digest send" });
     }
 
     const markLedger = async (
       status: "sent" | "failed" | "skipped",
-      extra: { error_message?: string; recipients?: string[] } = {},
+      extra: {
+        error_message?: string;
+        recipients?: string[];
+        defect_count?: number;
+      } = {},
     ) => {
       await supabase
-        .from("vmu_defect_alert_sends")
+        .from("vmu_defect_digest_sends")
         .update({
           status,
           error_message: extra.error_message || null,
           recipients: extra.recipients || null,
+          defect_count: extra.defect_count ?? 0,
           updated_at: new Date().toISOString(),
         })
-        .eq("damage_id", damageId);
+        .eq("idempotency_key", window.idempotencyKey);
     };
 
-    // Settings: enabled + optional mailing list (service role bypasses RLS).
     const { data: settingRows } = await supabase
       .from("settings")
       .select("key, value")
@@ -206,10 +317,10 @@ serve(async (req) => {
       .trim();
     if (enabledRaw === "false" || enabledRaw === "0" || enabledRaw === "off") {
       await markLedger("skipped", { error_message: "alerts_disabled" });
-      return json(200, { skipped: true, reason: "alerts_disabled", damage_id: damageId });
+      return json(200, { skipped: true, reason: "alerts_disabled", slot });
     }
 
-    const { data: damage, error: damageError } = await supabase
+    const { data: damages, error: damagesError } = await supabase
       .from("precheck_damages")
       .select(`
         id,
@@ -217,12 +328,9 @@ serve(async (req) => {
         image_urls,
         source,
         repair_status,
-        item_id,
-        submission_id,
+        created_at,
         precheck_items ( item_name ),
         precheck_submissions (
-          user_id,
-          tug_id,
           profiles:user_id ( first_name, last_name ),
           tugs (
             tug_number,
@@ -231,63 +339,92 @@ serve(async (req) => {
           )
         )
       `)
-      .eq("id", damageId)
-      .maybeSingle();
+      .gte("created_at", window.windowStart.toISOString())
+      .lt("created_at", window.windowEnd.toISOString())
+      .order("created_at", { ascending: true });
 
-    if (damageError || !damage) {
-      await markLedger("failed", {
-        error_message: damageError?.message || "damage_not_found",
+    if (damagesError) {
+      console.error("digest query failed", damagesError);
+      await markLedger("failed", { error_message: damagesError.message });
+      return json(500, { error: "Failed to load defects for digest" });
+    }
+
+    const rows = damages || [];
+    if (rows.length === 0) {
+      await markLedger("skipped", {
+        error_message: "empty_window",
+        defect_count: 0,
       });
-      return json(404, { error: "Damage not found", damage_id: damageId });
+      return json(200, {
+        skipped: true,
+        reason: "empty_window",
+        slot,
+        window_start: window.windowStart.toISOString(),
+        window_end: window.windowEnd.toISOString(),
+      });
     }
 
-    const submission = damage.precheck_submissions as {
-      user_id?: string;
-      tug_id?: string;
-      profiles?: { first_name?: string; last_name?: string } | null;
-      tugs?: {
-        tug_number?: string | number | null;
-        display_name?: string | null;
-        locations?: { name?: string } | null;
-      } | null;
-    } | null;
-
-    const itemName = (damage.precheck_items as { item_name?: string } | null)
-      ?.item_name || "";
-    let itemLabel = itemName.replace(/_/g, " ") || "Check item";
-    if (itemName) {
-      const { data: checkItem } = await supabase
+    const itemKeys = new Set<string>();
+    for (const row of rows) {
+      const name = (row.precheck_items as { item_name?: string } | null)?.item_name;
+      if (name) itemKeys.add(name);
+    }
+    const labelMap = new Map<string, string>();
+    if (itemKeys.size > 0) {
+      const { data: checkItems } = await supabase
         .from("precheck_check_items")
-        .select("label")
-        .eq("item_key", itemName)
-        .maybeSingle();
-      if (checkItem?.label) itemLabel = checkItem.label;
-    } else if (damage.source === "remarks") {
-      itemLabel = "Remarks";
-    } else if (damage.source === "during_shift") {
-      itemLabel = "During shift";
+        .select("item_key, label")
+        .in("item_key", [...itemKeys]);
+      for (const item of checkItems || []) {
+        if (item.item_key && item.label) labelMap.set(item.item_key, item.label);
+      }
     }
 
-    const tug = submission?.tugs;
-    const tugLabel = String(
-      tug?.display_name ||
-        (tug?.tug_number != null ? `Tug ${tug.tug_number}` : "") ||
-        "Unknown tug",
-    );
-    const locationName = tug?.locations?.name || null;
-    const profile = submission?.profiles;
-    const reportedBy = [profile?.first_name, profile?.last_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || "Unknown";
+    const defectRows: DefectRow[] = rows.map((row) => {
+      const submission = row.precheck_submissions as {
+        profiles?: { first_name?: string; last_name?: string } | null;
+        tugs?: {
+          tug_number?: string | number | null;
+          display_name?: string | null;
+          locations?: { name?: string } | null;
+        } | null;
+      } | null;
+      const tug = submission?.tugs;
+      const tugLabel = String(
+        tug?.display_name ||
+          (tug?.tug_number != null ? `Tug ${tug.tug_number}` : "") ||
+          "Unknown tug",
+      );
+      const profile = submission?.profiles;
+      const reportedBy = [profile?.first_name, profile?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Unknown";
+      const itemName = (row.precheck_items as { item_name?: string } | null)
+        ?.item_name || "";
+      const imageUrls = Array.isArray(row.image_urls) ? row.image_urls : [];
+      return {
+        tugLabel,
+        itemLabel: itemLabelFromDamage(itemName, row.source || null, labelMap),
+        description: String(row.description || ""),
+        reportedBy,
+        locationName: tug?.locations?.name || null,
+        source: row.source || null,
+        repairStatus: row.repair_status || null,
+        createdAt: row.created_at || null,
+        hasPhoto: imageUrls.some((u: unknown) => typeof u === "string" && u.trim()),
+      };
+    });
 
-    // Recipients: role=vmu (approved/active) + optional mailing list.
     const { data: vmuEmails, error: vmuEmailError } = await supabase.rpc(
       "get_vmu_defect_alert_emails",
     );
     if (vmuEmailError) {
       console.error("get_vmu_defect_alert_emails", vmuEmailError);
-      await markLedger("failed", { error_message: vmuEmailError.message });
+      await markLedger("failed", {
+        error_message: vmuEmailError.message,
+        defect_count: defectRows.length,
+      });
       return json(500, { error: "Failed to resolve VMU recipients" });
     }
 
@@ -308,22 +445,33 @@ serve(async (req) => {
     }
 
     if (recipients.length === 0) {
-      await markLedger("skipped", { error_message: "no_recipients" });
-      return json(200, { skipped: true, reason: "no_recipients", damage_id: damageId });
+      await markLedger("skipped", {
+        error_message: "no_recipients",
+        defect_count: defectRows.length,
+      });
+      return json(200, {
+        skipped: true,
+        reason: "no_recipients",
+        slot,
+        defect_count: defectRows.length,
+      });
     }
 
     const sendgridKey = Deno.env.get("SENDGRID_API_KEY") || "";
     const fromRaw = Deno.env.get("VMU_DEFECT_EMAIL_FROM") || "";
-    const fromName =
-      Deno.env.get("VMU_DEFECT_EMAIL_FROM_NAME") || "VMU Alerts";
+    const fromName = Deno.env.get("VMU_DEFECT_EMAIL_FROM_NAME") || "VMU Alerts";
     if (!sendgridKey) {
-      await markLedger("failed", { error_message: "SENDGRID_API_KEY missing" });
+      await markLedger("failed", {
+        error_message: "SENDGRID_API_KEY missing",
+        defect_count: defectRows.length,
+      });
       return json(500, { error: "Server email configuration missing" });
     }
     const fromParsed = parseEmailFromAddress(fromRaw);
     if (!isValidVmuFromEmail(fromParsed.email)) {
       await markLedger("failed", {
         error_message: "Invalid VMU_DEFECT_EMAIL_FROM (require @shunters.net)",
+        defect_count: defectRows.length,
       });
       return json(500, {
         error:
@@ -336,57 +484,12 @@ serve(async (req) => {
       "https://shunters.net").replace(/\/$/, "");
     const vmuUrl = `${appBaseUrl}/vmu`;
 
-    // First photo only (optional).
-    let attachment: {
-      content: string;
-      filename: string;
-      type: string;
-      disposition: string;
-    } | undefined;
-    const imageUrls = Array.isArray(damage.image_urls) ? damage.image_urls : [];
-    const firstImage = imageUrls.find((u: unknown) => typeof u === "string" && u.trim());
-    if (firstImage) {
-      const path = extractPrecheckStoragePath(String(firstImage));
-      if (path) {
-        try {
-          const { data: blob, error: dlError } = await supabase.storage
-            .from(PRECHECK_IMAGES_BUCKET)
-            .download(path);
-          if (!dlError && blob) {
-            const buf = new Uint8Array(await blob.arrayBuffer());
-            if (buf.byteLength > 0 && buf.byteLength <= MAX_PHOTO_BYTES) {
-              const meta = mimeFromPath(path);
-              attachment = {
-                content: bytesToBase64(buf),
-                filename: meta.filename,
-                type: meta.type,
-                disposition: "attachment",
-              };
-            } else if (buf.byteLength > MAX_PHOTO_BYTES) {
-              console.warn("photo too large, sending without attachment", {
-                damageId,
-                bytes: buf.byteLength,
-              });
-            }
-          } else if (dlError) {
-            console.warn("photo download failed", dlError);
-          }
-        } catch (err) {
-          console.warn("photo attach error", err);
-        }
-      }
-    }
-
-    const subject = buildSubject(tugLabel, itemLabel);
-    const content = buildBody({
-      tugLabel,
-      itemLabel,
-      description: String(damage.description || ""),
-      reportedBy,
-      locationName,
-      source: damage.source || null,
+    const subject = buildDigestSubject(slot, window.londonDate);
+    const content = buildDigestBody(defectRows, {
+      slot,
+      windowStart: window.windowStart,
+      windowEnd: window.windowEnd,
       vmuUrl,
-      hasPhotoAttachment: Boolean(attachment),
     });
 
     try {
@@ -396,25 +499,31 @@ serve(async (req) => {
         to: recipients,
         subject,
         content,
-        attachments: attachment ? [attachment] : undefined,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("SendGrid VMU defect alert failed", msg);
+      console.error("SendGrid VMU digest failed", msg);
       await markLedger("failed", {
         error_message: msg,
         recipients,
+        defect_count: defectRows.length,
       });
-      return json(502, { error: msg, damage_id: damageId });
+      return json(502, { error: msg, slot });
     }
 
-    await markLedger("sent", { recipients });
+    await markLedger("sent", {
+      recipients,
+      defect_count: defectRows.length,
+    });
     return json(200, {
       success: true,
-      damage_id: damageId,
+      slot,
+      london_date: window.londonDate,
+      defect_count: defectRows.length,
       sent: recipients.length,
       recipients,
-      attached_photo: Boolean(attachment),
+      window_start: window.windowStart.toISOString(),
+      window_end: window.windowEnd.toISOString(),
     });
   } catch (error: unknown) {
     console.error("notify-vmu-defect error:", error);
