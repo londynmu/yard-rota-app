@@ -920,7 +920,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               else
                 ..._violations.map((item) {
-                  final categoryLabel = _violationCategoryLabel(item.category);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: DecoratedBox(
@@ -938,12 +937,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              [
-                                '${item.createdAt.day.toString().padLeft(2, '0')}/'
-                                    '${item.createdAt.month.toString().padLeft(2, '0')}/'
-                                    '${item.createdAt.year}',
-                                ?categoryLabel,
-                              ].join(' · '),
+                              '${item.createdAt.day.toString().padLeft(2, '0')}/'
+                              '${item.createdAt.month.toString().padLeft(2, '0')}/'
+                              '${item.createdAt.year}',
                               style: textTheme.bodySmall?.copyWith(
                                 color: colors.textSecondary,
                               ),
@@ -966,16 +962,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
-  }
-
-  String? _violationCategoryLabel(String? category) {
-    return switch (category) {
-      'trailer_check' => 'Trailer not checked',
-      'radio' => 'Not listening to radio',
-      'other' => 'Other',
-      null || '' => null,
-      _ => category,
-    };
   }
 }
 

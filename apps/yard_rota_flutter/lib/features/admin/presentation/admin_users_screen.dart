@@ -204,10 +204,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final body = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Add violation — ${user.displayName}'),
+        title: Text('Add note — ${user.displayName}'),
         content: AppTextField(
           controller: controller,
-          label: 'Violation details',
+          label: 'Note details',
           maxLines: 4,
         ),
         actions: [
@@ -230,9 +230,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         userId: user.id,
         body: body,
       );
-      if (mounted) AppToast.success(context, 'Violation added.');
+      if (mounted) AppToast.success(context, 'Note added.');
     } catch (_) {
-      if (mounted) AppToast.error(context, 'Could not add violation.');
+      if (mounted) AppToast.error(context, 'Could not add note.');
     }
   }
 
@@ -353,7 +353,7 @@ class _UserCard extends StatelessWidget {
                     ),
                     OutlinedButton(
                       onPressed: onViolation,
-                      child: const Text('Add violation'),
+                      child: const Text('Add note'),
                     ),
                     OutlinedButton(
                       onPressed: onDeactivate,

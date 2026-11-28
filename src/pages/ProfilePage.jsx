@@ -9,6 +9,7 @@ import { normalizeAvatarStorageUrl } from '../utils/avatarUrl';
 import { normalizePhoneE164 } from '../utils/phoneE164';
 import { formatPreferredStartTime, PREFERRED_START_SAVED_EVENT } from '../utils/preferredStartTime';
 import { reportError } from '../lib/monitoring';
+import { isAutoDueAssessment } from '../utils/reassessmentDefaults';
 
 /** Safe profile columns only — never phone_e164 / whatsapp_opt_in (SELECT revoked). */
 const PROFILE_PAGE_SELECT_FIELDS =
@@ -61,9 +62,10 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
   // WhatsApp PreCheck reminders (messaging phone + consent)
   const [phoneE164, setPhoneE164] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
-  // Attendance & notes (own records only)
+  // Attendance, notes & assessments (own records only)
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [violations, setViolations] = useState([]);
+  const [assessments, setAssessments] = useState([]);
   const [profileTab, setProfileTab] = useState('details');
   const [avatarPreview, setAvatarPreview] = useState('');
   const [avatarImageFailed, setAvatarImageFailed] = useState(false);
@@ -322,7 +324,7 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
       try {
         const { data: violData, error: violErr } = await supabaseClient
           .from('shunter_violations')
-          .select('id, body, category, created_at')
+          .select('id, body, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (gen !== notesFetchGenRef.current) return;
@@ -345,6 +347,43 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
     // Refresh only when entering My record (not on every toggle back to details)
     if (profileTab === 'record') {
       fetchNotes();
+    }
+  }, [user?.id, supabaseClient, simplifiedView, profileTab]);
+
+  // Own assessments — read-only on My record (same table as admin Assessments tab).
+  const assessmentsFetchGenRef = React.useRef(0);
+  const assessmentsLoadedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!user?.id || !supabaseClient || simplifiedView) return;
+
+    const fetchAssessments = async () => {
+      const gen = ++assessmentsFetchGenRef.current;
+      try {
+        const { data, error } = await supabaseClient
+          .from('shunter_assessments')
+          .select(
+            'id, assessment_date, next_due_date, duration, time_from, time_to, profile_snapshot, notes, created_at',
+          )
+          .eq('user_id', user.id)
+          .order('next_due_date', { ascending: true });
+        if (gen !== assessmentsFetchGenRef.current) return;
+        if (error) throw error;
+        setAssessments(data || []);
+        assessmentsLoadedRef.current = true;
+      } catch (err) {
+        if (gen !== assessmentsFetchGenRef.current) return;
+        console.error('Error fetching assessments:', err);
+      }
+    };
+
+    if (!assessmentsLoadedRef.current) {
+      fetchAssessments();
+      return;
+    }
+
+    if (profileTab === 'record') {
+      fetchAssessments();
     }
   }, [user?.id, supabaseClient, simplifiedView, profileTab]);
 
@@ -1284,22 +1323,69 @@ export default function ProfilePage({ isRequired = false, supabaseClient, simpli
                         <span>
                           {v.created_at ? format(new Date(v.created_at), 'd MMM yyyy') : '—'}
                         </span>
-                        {v.category && (
-                          <span>
-                            ·{' '}
-                            {v.category === 'trailer_check'
-                              ? 'Trailer not checked'
-                              : v.category === 'radio'
-                                ? 'Not listening to radio'
-                                : v.category === 'other'
-                                  ? 'Other'
-                                  : v.category}
-                          </span>
-                        )}
                       </div>
                       <p className="text-sm text-charcoal whitespace-pre-wrap break-words">{v.body}</p>
                     </li>
                   ))}
+                </ul>
+              )}
+            </div>
+            <div className="border-t border-gray-100 pt-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                Assessments
+              </h2>
+              {assessments.length === 0 ? (
+                <p className="text-sm text-gray-500">No assessments yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {assessments.map((row) => {
+                    const dueOnly = isAutoDueAssessment(row);
+                    const location =
+                      row.profile_snapshot?.preferred_location
+                      || row.profile_snapshot?.location
+                      || '—';
+                    const assessmentDate = row.assessment_date
+                      ? format(new Date(`${row.assessment_date}T12:00:00`), 'd MMM yyyy')
+                      : '—';
+                    const nextDue = row.next_due_date
+                      ? format(new Date(`${row.next_due_date}T12:00:00`), 'd MMM yyyy')
+                      : '—';
+                    return (
+                      <li
+                        key={row.id}
+                        className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-charcoal"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                          <p className="font-medium text-charcoal">
+                            {dueOnly ? `Reassessment due ${nextDue}` : assessmentDate}
+                          </p>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              dueOnly
+                                ? 'bg-amber-50 text-amber-800'
+                                : 'bg-emerald-50 text-emerald-800'
+                            }`}
+                          >
+                            {dueOnly ? 'Due' : 'Completed'}
+                          </span>
+                        </div>
+                        <dl className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                          <div>
+                            <dt className="text-gray-400">Location</dt>
+                            <dd className="text-charcoal">{dueOnly ? '—' : location}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-400">Duration</dt>
+                            <dd className="text-charcoal">{dueOnly ? '—' : (row.duration || '—')}</dd>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <dt className="text-gray-400">Next reassessment due</dt>
+                            <dd className="text-charcoal">{nextDue}</dd>
+                          </div>
+                        </dl>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

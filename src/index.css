@@ -309,3 +309,28 @@
     animation: softGlow 2.5s ease-in-out infinite;
   }
 }
+
+/* Admin Users → Info tab: print only the timeline root */
+@media print {
+  body.printing-user-info * {
+    visibility: hidden !important;
+  }
+
+  body.printing-user-info #user-info-print-root,
+  body.printing-user-info #user-info-print-root * {
+    visibility: visible !important;
+  }
+
+  body.printing-user-info #user-info-print-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    overflow: visible !important;
+    background: white;
+  }
+
+  body.printing-user-info .user-info-print-hide {
+    display: none !important;
+  }
+}

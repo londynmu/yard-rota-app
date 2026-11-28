@@ -1,19 +1,27 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
 import { attendanceLabel } from '../../utils/attendanceStatus';
 import AddViolationModal from './AddViolationModal';
 
-const CATEGORY_LABELS = {
-  trailer_check: 'Trailer not checked',
-  radio: 'Not listening to radio',
-  other: 'Other',
-};
+function eventSortKey(event) {
+  if (event.sortAt) return new Date(event.sortAt).getTime();
+  return 0;
+}
+
+function formatEventDate(isoOrDate) {
+  if (!isoOrDate) return '—';
+  try {
+    return format(new Date(isoOrDate), 'd MMM yyyy');
+  } catch {
+    return '—';
+  }
+}
 
 /**
- * Per-user attendance + disciplinary notes for Admin Users → Attendance & Violations.
- * Loads attendance by snapshot user_id (survives rota unassign) plus shunter_violations.
+ * Per-user attendance + disciplinary notes for Admin Users → Info tab.
+ * Single chronological timeline (newest first).
  */
 export default function UserViolationsPanel({ userId, users = [], onCountChange }) {
   const [loading, setLoading] = useState(true);
@@ -71,7 +79,9 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
       }
 
       const attList = attRows.map((a) => ({
+        id: a.id,
         date: a.date || rotaDateMap[a.scheduled_rota_id] || null,
+        recorded_at: a.recorded_at || null,
         status: a.status,
         note: noteByAttendanceId[a.id] || null,
       }));
@@ -79,7 +89,7 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
 
       const { data: violData, error: violErr } = await supabase
         .from('shunter_violations')
-        .select('id, body, category, created_at')
+        .select('id, body, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (violErr) throw violErr;
@@ -101,9 +111,54 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
     fetchData();
   }, [fetchData]);
 
+  const personName = useMemo(() => {
+    const profile = users.find((u) => u.id === userId);
+    if (!profile) return '';
+    return `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+  }, [users, userId]);
+
+  const handlePrint = useCallback(() => {
+    document.body.classList.add('printing-user-info');
+    const cleanup = () => {
+      document.body.classList.remove('printing-user-info');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    window.setTimeout(cleanup, 1000);
+  }, []);
+
+  const timeline = useMemo(() => {
+    const attendanceEvents = attendanceRecords.map((r) => {
+      const statusLabel = attendanceLabel(r.status) || r.status || 'Attendance';
+      const sortAt = r.recorded_at || (r.date ? `${r.date}T12:00:00` : null);
+      return {
+        id: `att-${r.id || r.date || statusLabel}`,
+        kind: 'attendance',
+        sortAt,
+        displayDate: r.date || r.recorded_at,
+        typeLabel: statusLabel,
+        description: r.note || statusLabel,
+      };
+    });
+
+    const violationEvents = violations.map((v) => ({
+      id: `viol-${v.id}`,
+      kind: 'violation',
+      sortAt: v.created_at,
+      displayDate: v.created_at,
+      typeLabel: 'Note',
+      description: v.body || 'Note',
+    }));
+
+    return [...attendanceEvents, ...violationEvents].sort(
+      (a, b) => eventSortKey(b) - eventSortKey(a),
+    );
+  }, [attendanceRecords, violations]);
+
   if (loading) {
     return (
-      <div className="p-4">
+      <div className="p-4" aria-busy="true" aria-live="polite">
         <p className="text-sm text-gray-500">Loading…</p>
       </div>
     );
@@ -119,68 +174,68 @@ export default function UserViolationsPanel({ userId, users = [], onCountChange 
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
-      <p className="text-sm text-gray-600">
-        Attendance marks and disciplinary notes for this person.
-      </p>
-
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-          Attendance
-        </h3>
-        {attendanceRecords.length === 0 ? (
-          <p className="text-sm text-gray-500">No attendance records.</p>
+      <div
+        id="user-info-print-root"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
+      >
+        <h2 className="mb-2 hidden text-base font-semibold text-charcoal print:mb-3 print:block">
+          {personName ? `Info — ${personName}` : 'Info'}
+        </h2>
+        {timeline.length === 0 ? (
+          <p className="text-sm text-gray-500">No events yet.</p>
         ) : (
-          <ul className="text-sm text-charcoal space-y-1.5">
-            {attendanceRecords.map((r, i) => (
-              <li key={i} className="flex flex-wrap gap-x-2">
-                <span className="text-gray-500">
-                  {r.date ? format(new Date(r.date), 'd MMM yyyy') : '—'}
-                </span>
-                <span className="font-medium">{attendanceLabel(r.status) || r.status}</span>
-                {r.note && <span className="text-gray-500">— {r.note}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="border-t border-gray-100 pt-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-          Disciplinary notes
-        </h3>
-        {violations.length === 0 ? (
-          <p className="text-sm text-gray-500">No notes yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {violations.map((v) => (
-              <li
-                key={v.id}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-charcoal"
-              >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500 mb-1">
-                  <span>
-                    {v.created_at ? format(new Date(v.created_at), 'd MMM yyyy') : '—'}
+          <ul className="divide-y divide-gray-100">
+            {timeline.map((event) => {
+              const detail =
+                event.kind === 'attendance' && event.description === event.typeLabel
+                  ? null
+                  : event.description;
+              return (
+                <li
+                  key={event.id}
+                  className="flex min-h-9 items-baseline gap-x-2 py-1.5 text-sm print:items-start"
+                >
+                  <time
+                    dateTime={event.sortAt || undefined}
+                    className="w-[5.5rem] shrink-0 tabular-nums text-xs text-gray-500"
+                  >
+                    {formatEventDate(event.displayDate)}
+                  </time>
+                  <span
+                    className={`w-[6.5rem] shrink-0 truncate text-xs font-semibold print:overflow-visible print:whitespace-normal ${
+                      event.kind === 'violation' ? 'text-rose-700' : 'text-slate-700'
+                    }`}
+                    title={event.typeLabel}
+                  >
+                    {event.typeLabel}
                   </span>
-                  {v.category && (
-                    <span>· {CATEGORY_LABELS[v.category] || v.category}</span>
-                  )}
-                </div>
-                <p className="text-sm text-charcoal whitespace-pre-wrap break-words">{v.body}</p>
-              </li>
-            ))}
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm text-charcoal print:overflow-visible print:whitespace-normal print:break-words"
+                    title={detail || undefined}
+                  >
+                    {detail || '—'}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
-      </div>
 
-      <div className="flex justify-end border-t border-gray-200 bg-white px-5 py-3">
+      <div className="user-info-print-hide flex justify-end gap-2 border-t border-gray-200 bg-white px-4 py-2.5">
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="admin-btn-muted min-h-11"
+        >
+          Print
+        </button>
         <button
           type="button"
           onClick={() => setAddOpen(true)}
           className="admin-btn min-h-11"
         >
-          Add violation
+          Add note
         </button>
       </div>
 

@@ -4,8 +4,9 @@ import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
+import Modal from '../ui/Modal';
 import { normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
-import { normalizePhoneE164, whatsAppReadyLabel } from '../../utils/phoneE164';
+import { normalizePhoneE164 } from '../../utils/phoneE164';
 import { formatPreferredStartTime, QUARTER_HOUR_TIMES } from '../../utils/preferredStartTime';
 
 const capitalizeFirstLetter = (string) => {
@@ -34,7 +35,7 @@ const ToggleSwitch = ({ id, checked, onChange, disabled, label }) => (
       <span
         aria-hidden="true"
         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors motion-reduce:transition-none ${
-          checked ? 'bg-green-500' : 'bg-gray-300'
+          checked ? 'bg-rota-badge-full-text' : 'bg-gray-300'
         }`}
       >
         <span
@@ -87,10 +88,17 @@ function FormSection({ title, children }) {
   );
 }
 
-function FieldRow({ id, label, children }) {
-  const labelClass = 'pt-1.5 text-sm font-medium text-charcoal';
+function FieldRow({ id, label, children, align = 'start' }) {
+  const centered = align === 'center';
+  const labelClass = centered
+    ? 'text-sm font-medium text-charcoal sm:self-center'
+    : 'text-sm font-medium text-charcoal sm:pt-1.5';
   return (
-    <div className="grid grid-cols-[11rem_minmax(0,1fr)] items-start gap-x-4">
+    <div
+      className={`grid grid-cols-1 gap-y-1.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-x-4 ${
+        centered ? 'sm:items-center' : 'sm:items-start'
+      }`}
+    >
       {id ? (
         <label htmlFor={id} className={labelClass}>{label}</label>
       ) : (
@@ -461,7 +469,10 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
       if (onSuccess) {
         onSuccess(updates);
       }
-      onClose();
+      // Inline Users drawer must stay open after save; only dismiss overlay mode.
+      if (!inline) {
+        onClose();
+      }
     } catch (error) {
       console.error('Error updating user profile:', error);
       const message = String(error?.message || '');
@@ -550,10 +561,14 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 className={inputClass(Boolean(formErrors.firstName))}
                 placeholder="First name"
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.firstName)}
+                aria-describedby={formErrors.firstName ? 'admin-edit-firstName-error' : undefined}
               />
-              {formErrors.firstName && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.firstName}</p>
-              )}
+              {formErrors.firstName ? (
+                <p id="admin-edit-firstName-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.firstName}
+                </p>
+              ) : null}
             </FieldRow>
             <FieldRow id="admin-edit-lastName" label="Last Name">
               <input
@@ -564,10 +579,14 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 className={inputClass(Boolean(formErrors.lastName))}
                 placeholder="Last name"
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.lastName)}
+                aria-describedby={formErrors.lastName ? 'admin-edit-lastName-error' : undefined}
               />
-              {formErrors.lastName && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.lastName}</p>
-              )}
+              {formErrors.lastName ? (
+                <p id="admin-edit-lastName-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.lastName}
+                </p>
+              ) : null}
             </FieldRow>
             <FieldRow id="admin-edit-phoneE164" label="Phone (WhatsApp)">
               <input
@@ -583,41 +602,23 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 className={inputClass(Boolean(formErrors.phoneE164))}
                 placeholder="+447…"
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.phoneE164)}
+                aria-describedby={formErrors.phoneE164 ? 'admin-edit-phoneE164-error' : undefined}
               />
               {formErrors.phoneE164 ? (
-                <p className="mt-1 text-sm text-red-500">{formErrors.phoneE164}</p>
-              ) : (
-                <p className="mt-1 text-xs leading-snug text-gray-500">
-                  E.164 for shift confirmation and operational reminders (PreCheck, breaks). Status:{' '}
-                  {(() => {
-                    let phone = null;
-                    try {
-                      phone = normalizePhoneE164(phoneE164);
-                    } catch {
-                      phone = phoneE164.trim() || null;
-                    }
-                    return whatsAppReadyLabel({
-                      phone_e164: phone,
-                      whatsapp_opt_in: whatsappOptIn,
-                    });
-                  })()}
+                <p id="admin-edit-phoneE164-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.phoneE164}
                 </p>
-              )}
+              ) : null}
             </FieldRow>
-            <FieldRow label="WhatsApp reminders">
-              <div className="pt-1">
-                <ToggleSwitch
-                  id="admin-edit-whatsappOptIn"
-                  label={whatsappOptIn ? 'On' : 'Off'}
-                  checked={whatsappOptIn}
-                  onChange={setWhatsappOptIn}
-                  disabled={loading}
-                />
-                <p className="mt-1 max-w-sm text-xs leading-snug text-gray-500">
-                  Operational reminders only — not marketing. Admin can enable or disable for this
-                  user.
-                </p>
-              </div>
+            <FieldRow label="WhatsApp reminders" align="center">
+              <ToggleSwitch
+                id="admin-edit-whatsappOptIn"
+                label={whatsappOptIn ? 'On' : 'Off'}
+                checked={whatsappOptIn}
+                onChange={setWhatsappOptIn}
+                disabled={loading}
+              />
             </FieldRow>
           </div>
         </FormSection>
@@ -634,10 +635,14 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 className={inputClass(Boolean(formErrors.yardSystemId))}
                 placeholder="E.G., AG10"
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.yardSystemId)}
+                aria-describedby={formErrors.yardSystemId ? 'admin-edit-yardSystemId-error' : undefined}
               />
-              {formErrors.yardSystemId && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.yardSystemId}</p>
-              )}
+              {formErrors.yardSystemId ? (
+                <p id="admin-edit-yardSystemId-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.yardSystemId}
+                </p>
+              ) : null}
             </FieldRow>
 
             <FieldRow id="admin-edit-shiftPreference" label="Shift">
@@ -645,17 +650,21 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 id="admin-edit-shiftPreference"
                 value={shiftPreference}
                 onChange={(e) => setShiftPreference(e.target.value)}
-                className={inputClass(Boolean(formErrors.shiftPreference))}
+                className={`${inputClass(Boolean(formErrors.shiftPreference))} admin-select`}
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.shiftPreference)}
+                aria-describedby={formErrors.shiftPreference ? 'admin-edit-shiftPreference-error' : undefined}
               >
                 <option value="">Select</option>
                 <option value="day">Day</option>
                 <option value="night">Night</option>
                 <option value="afternoon">Afternoon</option>
               </select>
-              {formErrors.shiftPreference && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.shiftPreference}</p>
-              )}
+              {formErrors.shiftPreference ? (
+                <p id="admin-edit-shiftPreference-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.shiftPreference}
+                </p>
+              ) : null}
             </FieldRow>
 
             <FieldRow id="admin-edit-agency" label="Agency">
@@ -663,7 +672,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 id="admin-edit-agency"
                 value={agencyId || ''}
                 onChange={(e) => setAgencyId(e.target.value ? e.target.value : null)}
-                className="admin-input min-h-11"
+                className="admin-input admin-select min-h-11"
                 disabled={loading}
               >
                 <option value="">None</option>
@@ -683,10 +692,14 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 onChange={(e) => setPerformanceScore(e.target.value)}
                 className={inputClass(Boolean(formErrors.performanceScore))}
                 disabled={loading}
+                aria-invalid={Boolean(formErrors.performanceScore)}
+                aria-describedby={formErrors.performanceScore ? 'admin-edit-performanceScore-error' : undefined}
               />
-              {formErrors.performanceScore && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.performanceScore}</p>
-              )}
+              {formErrors.performanceScore ? (
+                <p id="admin-edit-performanceScore-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {formErrors.performanceScore}
+                </p>
+              ) : null}
             </FieldRow>
 
             <FieldRow id="admin-edit-preferredStart" label="Preferred start">
@@ -694,7 +707,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                 id="admin-edit-preferredStart"
                 value={preferredStartTime}
                 onChange={(e) => setPreferredStartTime(e.target.value)}
-                className="admin-input min-h-11"
+                className="admin-input admin-select min-h-11"
                 disabled={loading}
               >
                 <option value="">Not answered</option>
@@ -713,7 +726,7 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
                   setPreferredLocation(next);
                   setAdditionalLocations((current) => current.filter((name) => name !== next));
                 }}
-                className="admin-input min-h-11"
+                className="admin-input admin-select min-h-11"
                 disabled={loading}
               >
                 <option value="">No preference</option>
@@ -807,40 +820,31 @@ export default function UserEditForm({ user, onClose, onSuccess, inline, onDirty
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] px-3"
-      onClick={handleClose}
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 10000,
-        overflow: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
+    <Modal
+      isOpen
+      onClose={handleClose}
+      overlayClassName="z-[10000]"
+      ariaLabelledBy="admin-edit-user-title"
+      className="max-w-md md:max-w-2xl !p-0 max-h-[90vh] overflow-y-auto"
     >
-      <div
-        ref={modalRef}
-        className="admin-modal-panel !max-w-md md:!max-w-2xl mx-auto max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
+      <div ref={modalRef}>
         <div className="admin-modal-header sticky top-0 z-10 flex items-center justify-between">
-          <h3 className="admin-section-title">Edit user profile</h3>
+          <h3 id="admin-edit-user-title" className="admin-section-title">Edit user profile</h3>
           <button
             type="button"
             onClick={handleClose}
-            className="admin-icon-btn"
+            className="admin-icon-btn min-h-11 min-w-11"
             aria-label="Close"
+            data-autofocus
           >
-            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         {formContent}
       </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -3,20 +3,18 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../lib/AuthContext';
 import { useToast } from '../ui/ToastContext';
+import Modal from '../ui/Modal';
 
-const CATEGORY_OPTIONS = [
-  { value: '', label: '— Select category (optional) —' },
-  { value: 'trailer_check', label: 'Trailer not checked' },
-  { value: 'radio', label: 'Not listening to radio' },
-  { value: 'other', label: 'Other' },
-];
+const OUTLINE_CANCEL =
+  'order-2 inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border-2 border-rota-btn-outline-border bg-white px-4 py-2 text-rota-btn-outline-text transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none sm:order-1 sm:flex-none';
+const OUTLINE_CONFIRM =
+  'order-1 inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border-2 border-rota-text-primary bg-white px-4 py-2 text-rota-text-primary transition-colors hover:bg-rota-day-other-bg-from motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60 sm:order-2 sm:flex-none';
 
 export default function AddViolationModal({ open, onClose, initialUserId, users, onSuccess }) {
   const { user } = useAuth();
   const toast = useToast();
   const [userId, setUserId] = useState(initialUserId || '');
   const [body, setBody] = useState('');
-  const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [bodyError, setBodyError] = useState('');
 
@@ -26,7 +24,6 @@ export default function AddViolationModal({ open, onClose, initialUserId, users,
     if (open) {
       setUserId(initialUserId || '');
       setBody('');
-      setCategory('');
       setBodyError('');
     }
   }, [open, initialUserId]);
@@ -45,7 +42,7 @@ export default function AddViolationModal({ open, onClose, initialUserId, users,
       return;
     }
     if (!user?.id) {
-      toast.error('You must be logged in to add a violation');
+      toast.error('You must be logged in to add a note');
       return;
     }
 
@@ -55,21 +52,18 @@ export default function AddViolationModal({ open, onClose, initialUserId, users,
         user_id: targetUserId,
         created_by: user.id,
         body: trimmedBody,
-        category: category || null,
       });
       if (error) throw error;
-      toast.success('Violation added');
+      toast.success('Note added');
       onSuccess?.();
       onClose();
     } catch (err) {
       console.error('Error adding violation:', err);
-      toast.error(err.message || 'Failed to add violation');
+      toast.error(err.message || 'Failed to add note');
     } finally {
       setSaving(false);
     }
   };
-
-  if (!open) return null;
 
   const selectedProfile = users?.find((u) => u.id === (userId || initialUserId));
   const displayName = selectedProfile
@@ -77,107 +71,90 @@ export default function AddViolationModal({ open, onClose, initialUserId, users,
     : '';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4">
-      <div
-        className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-bold text-charcoal">Add violation</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-1 rounded"
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      overlayClassName="z-[10000]"
+      ariaLabelledBy="add-note-title"
+      className="max-w-md !p-0"
+    >
+      <div className="flex items-center justify-between border-b border-rota-modal-border px-5 py-3">
+        <h3 id="add-note-title" className="text-xl font-semibold text-rota-text-primary">
+          Add note
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-50 hover:text-charcoal motion-reduce:transition-none"
+          aria-label="Close"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {isPreselected ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
-              <p className="text-charcoal font-semibold">{displayName || 'Unknown'}</p>
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="violation-user" className="block text-sm font-medium text-gray-700 mb-1">
-                User
-              </label>
-              <select
-                id="violation-user"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-charcoal focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
-                required={!isPreselected}
-              >
-                <option value="">Select user…</option>
-                {(users || []).map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.id}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
+      <form onSubmit={handleSubmit} className="space-y-4 p-5">
+        {isPreselected ? (
           <div>
-            <label htmlFor="violation-body" className="block text-sm font-medium text-gray-700 mb-1">
-              Description <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="violation-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={3}
-              placeholder="e.g. Did not check trailer, Not listening to radio"
-              className={`w-full px-3 py-2 border rounded-lg text-charcoal focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal ${
-                bodyError ? 'border-red-400' : 'border-gray-200'
-              }`}
-            />
-            {bodyError && <p className="text-sm text-red-500 mt-1">{bodyError}</p>}
+            <p className="mb-1 text-sm font-medium text-charcoal">User</p>
+            <p className="text-sm font-semibold text-charcoal">{displayName || 'Unknown'}</p>
           </div>
-
+        ) : (
           <div>
-            <label htmlFor="violation-category" className="block text-sm font-medium text-gray-700 mb-1">
-              Category (optional)
+            <label htmlFor="violation-user" className="mb-1 block text-sm font-medium text-charcoal">
+              User
             </label>
             <select
-              id="violation-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-charcoal focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal"
+              id="violation-user"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="admin-input admin-select min-h-11"
+              required={!isPreselected}
+              data-autofocus
             >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt.value || 'empty'} value={opt.value}>
-                  {opt.label}
+              <option value="">Select user…</option>
+              {(users || []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.id}
                 </option>
               ))}
             </select>
           </div>
+        )}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg bg-charcoal text-white hover:bg-black disabled:opacity-60"
-            >
-              {saving ? 'Adding…' : 'Add violation'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label htmlFor="violation-body" className="mb-1 block text-sm font-medium text-charcoal">
+            Description <span className="text-red-600">*</span>
+          </label>
+          <textarea
+            id="violation-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={3}
+            placeholder="What happened?"
+            aria-invalid={Boolean(bodyError)}
+            aria-describedby={bodyError ? 'violation-body-error' : undefined}
+            data-autofocus={isPreselected ? true : undefined}
+            className={`admin-input min-h-11 resize-y ${bodyError ? '!border-red-400' : ''}`}
+          />
+          {bodyError ? (
+            <p id="violation-body-error" className="mt-1 text-sm text-red-600" role="alert">
+              {bodyError}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className={OUTLINE_CANCEL}>
+            Cancel
+          </button>
+          <button type="submit" disabled={saving} className={OUTLINE_CONFIRM}>
+            {saving ? 'Adding…' : 'Add note'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

@@ -107,7 +107,7 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addViolation,
         icon: const Icon(Icons.add),
-        label: const Text('Add violation'),
+        label: const Text('Add note'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -140,20 +140,19 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
                                       ? (issue['status'] ?? 'attendance')
                                             .toString()
                                             .replaceAll('_', ' ')
-                                      : issue['body']?.toString() ??
-                                            'Violation',
+                                      : issue['body']?.toString() ?? 'Note',
                                 ),
                                 subtitle: Text(
                                   issue['kind'] == 'attendance'
                                       ? issue['date']?.toString() ?? ''
-                                      : '${issue['category'] ?? 'other'} · ${issue['created_at'] ?? ''}',
+                                      : issue['created_at']?.toString() ?? '',
                                 ),
                               ),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: () => _addViolation(entry.key),
-                                child: const Text('Add violation'),
+                                child: const Text('Add note'),
                               ),
                             ),
                           ],
@@ -168,13 +167,12 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
 
   Future<void> _addViolation([String? initialUserId]) async {
     var userId = initialUserId ?? '';
-    var category = 'other';
     final body = TextEditingController();
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (_, update) => AlertDialog(
-          title: const Text('Add violation'),
+          title: const Text('Add note'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -190,24 +188,6 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
                       ),
                   ],
                   onChanged: (value) => update(() => userId = value ?? ''),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'trailer_check',
-                      child: Text('Trailer not checked'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'radio',
-                      child: Text('Not listening to radio'),
-                    ),
-                    DropdownMenuItem(value: 'other', child: Text('Other')),
-                  ],
-                  onChanged: (value) =>
-                      update(() => category = value ?? 'other'),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppTextField(
@@ -240,13 +220,12 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
                       'user_id': userId,
                       'created_by': widget.session.userId,
                       'body': body.text.trim(),
-                      'category': category,
                     },
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext, true);
                 } catch (_) {
                   if (dialogContext.mounted) {
-                    AppToast.error(dialogContext, 'Could not add violation.');
+                    AppToast.error(dialogContext, 'Could not add note.');
                   }
                 }
               },
@@ -258,7 +237,7 @@ class _AttendanceIssuesScreenState extends State<AttendanceIssuesScreen> {
     );
     body.dispose();
     if (saved == true) {
-      if (mounted) AppToast.success(context, 'Violation added.');
+      if (mounted) AppToast.success(context, 'Note added.');
       await _load();
     }
   }

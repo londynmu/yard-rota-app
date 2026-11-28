@@ -101,6 +101,8 @@ export default function AssessmentSignedImage({
       className={asLink ? imgClassName : className}
       onClick={onClick}
       onError={handleImgError}
+      loading="lazy"
+      decoding="async"
     />
   );
 

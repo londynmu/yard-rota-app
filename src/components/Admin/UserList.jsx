@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../../components/ui/ToastContext';
@@ -9,6 +8,7 @@ import UserViolationsPanel from './UserViolationsPanel';
 import UserAssessmentsPanel from './UserAssessmentsPanel';
 import { isReassessmentEligibleRole } from '../../utils/reassessmentDefaults';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import Modal from '../ui/Modal';
 import { formatDistanceToNow } from 'date-fns';
 import { parseAvatarStorageRef, normalizeAvatarStorageUrl } from '../../utils/avatarUrl';
 import { whatsAppReadyLabel } from '../../utils/phoneE164';
@@ -24,10 +24,10 @@ function WhatsAppReadyChip({ user }) {
   const label = whatsAppReadyLabel(user);
   const className =
     label === 'WA ready'
-      ? 'bg-green-100 text-green-800'
+      ? 'bg-rota-badge-full-bg text-rota-badge-full-text'
       : label === 'no consent'
-        ? 'bg-amber-100 text-amber-800'
-        : 'bg-gray-100 text-gray-600';
+        ? 'bg-rota-badge-partial-bg text-rota-badge-partial-text'
+        : 'bg-slate-100 text-slate-600';
   return (
     <span
       className={`flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
@@ -66,112 +66,13 @@ function UserAvatar({ user }) {
       )}
       <span
         className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${
-          user.is_active === false ? 'bg-gray-300' : 'bg-green-500'
+          user.is_active === false ? 'bg-gray-300' : 'bg-rota-badge-full-text'
         }`}
+        aria-hidden="true"
       />
     </div>
   );
 }
-
-// Create a modal portal component
-const Modal = ({ isOpen, onClose, children }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  // Create a portal to render the modal outside the normal DOM hierarchy
-  return createPortal(
-    <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center"
-      style={{ 
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 10000,
-        overflow: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="admin-modal-panel mx-auto max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-};
-
-// Add propTypes for Modal
-Modal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  children: PropTypes.node.isRequired,
-};
-
-// Bottom Sheet component for mobile user details
-const BottomSheet = ({ isOpen, onClose, children }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div 
-      className="fixed inset-0 bg-black/50 z-[10000]"
-      onClick={onClose}
-    >
-      {/* Bottom Sheet Container */}
-      <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto animate-slide-up"
-        style={{
-          animation: 'slideUp 0.3s ease-out'
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Handle bar */}
-        <div className="sticky top-0 bg-white pt-3 pb-2 flex justify-center rounded-t-2xl">
-          <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
-        </div>
-        {children}
-      </div>
-      <style>{`
-        @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>,
-    document.body
-  );
-};
-
-// Add propTypes for BottomSheet
-BottomSheet.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  children: PropTypes.node.isRequired,
-};
 
 export default function UserList({ users, onRefresh, focusUserId, focusTab, onFocusConsumed }) {
   const [processingUser, setProcessingUser] = useState(null);
@@ -185,12 +86,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('last_login');
 
-  // Last Login info
-  const [infoModalOpen, setInfoModalOpen] = useState(false);
-  const [infoUser, setInfoUser] = useState(null);
-  const [lastLogin, setLastLogin] = useState(null);
-
-  // Expanded user card (one at a time) + Details | Violations tabs
+  // Expanded user card (one at a time) + Details | Info (attendance + violations) tabs
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [userPanel, setUserPanel] = useState('details');
   const [formDirty, setFormDirty] = useState(false);
@@ -411,29 +307,6 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     }
   };
 
-  // Get shift badge style
-  const getShiftBadge = (shift) => {
-    const shiftLower = (shift || '').toLowerCase();
-    const shiftCapitalized = shift ? shift.charAt(0).toUpperCase() + shift.slice(1) : null;
-    
-    switch (shiftLower) {
-      case 'day':
-        return { label: shiftCapitalized, className: 'bg-amber-100 text-amber-700 rounded-full' };
-      case 'afternoon':
-        return { label: shiftCapitalized, className: 'bg-blue-100 text-blue-700 rounded-full' };
-      case 'night':
-        return { label: shiftCapitalized, className: 'bg-indigo-100 text-indigo-700 rounded-full' };
-      default:
-        return null;
-    }
-  };
-  
-  const closeInfoModal = () => {
-    setInfoModalOpen(false);
-    setInfoUser(null);
-    setLastLogin(null);
-  };
-
   const handleRoleChange = async (user, newRoleValue) => {
     if (!isAdmin) return;
     const role = newRoleValue === '' ? null : newRoleValue;
@@ -456,7 +329,10 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
 
   if (error) {
     return (
-      <div className="bg-red-500/40 backdrop-blur-xl text-red-100 px-4 py-3 rounded-md mb-4 border border-red-400/50 shadow-lg">
+      <div
+        className="mb-4 rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg px-4 py-3 text-sm text-rota-alert-error-text"
+        role="alert"
+      >
         {error}
       </div>
     );
@@ -473,7 +349,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="text-sm font-semibold text-red-800">
+                  <h3 id="admin-user-delete-title" className="text-sm font-semibold text-red-800">
                     Delete user
                   </h3>
                 </div>
@@ -501,9 +377,9 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
                   <p className="text-gray-900 font-semibold text-base mb-4">
                     {userToDelete?.first_name} {userToDelete?.last_name}
                   </p>
-                  <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-lg">
-                    <p className="font-medium text-sm">⚠️ Warning</p>
-                    <p className="text-xs mt-1">
+                  <div className="rounded-lg border border-rota-alert-error-border bg-rota-alert-error-bg p-3 text-rota-alert-error-text">
+                    <p className="text-sm font-medium">Warning</p>
+                    <p className="mt-1 text-xs">
                       Their name, email, photo, availability and sign-in are removed. PreCheck and safety records stay as
                       &quot;Deleted user&quot;. This cannot be undone.
                     </p>
@@ -602,7 +478,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
           id="admin-users-sort"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="admin-input min-h-11 w-full shrink-0 sm:w-auto sm:min-w-[13rem]"
+          className="admin-input admin-select min-h-11 w-full shrink-0 sm:w-auto sm:min-w-[13rem]"
         >
           <option value="last_login">Last login (newest)</option>
           <option value="name">Name (A–Z)</option>
@@ -613,6 +489,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         {visibleUsers.map((user) => {
           const isSelected = expandedUserId === user.id;
           const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User';
+          const statusLabel = user.is_active === false ? 'inactive' : 'active';
 
           return (
             <button
@@ -621,7 +498,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               type="button"
               onClick={() => requestExpandToggle(user.id)}
               aria-current={isSelected ? 'true' : undefined}
-              aria-label={displayName}
+              aria-label={`${displayName}, ${statusLabel}`}
               className={`admin-section-card flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 motion-reduce:transition-none [content-visibility:auto] [contain-intrinsic-size:auto_65px] ${
                 isSelected ? 'ring-2 ring-charcoal/20' : ''
               }`}
@@ -648,72 +525,16 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
         )}
       </div>
       
-      {/* Delete Confirmation Modal (portal) */}
-      <Modal isOpen={showDeleteModal} onClose={closeDeleteModal}>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        overlayClassName="z-[10000]"
+        ariaLabelledBy="admin-user-delete-title"
+        className="max-w-md !p-0 max-h-[90vh] overflow-y-auto"
+      >
         {deleteModalContent}
       </Modal>
-      
-      {/* Info Modal */}
-      {infoModalOpen && (
-        <Modal isOpen={infoModalOpen} onClose={closeInfoModal}>
-            <div className="admin-modal-header">
-              <h3 className="admin-section-title">User information</h3>
-            </div>
-            <div className="px-4 py-4">
-              {infoUser && (
-                <div className="space-y-3">
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">Name:</span>
-                    <span className="text-charcoal font-medium">{infoUser.first_name} {infoUser.last_name}</span>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">User ID:</span>
-                    <span className="text-charcoal font-mono text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">{infoUser.id}</span>
-                  </div>
-                  {infoUser.yard_system_id && (
-                    <div className="flex items-start">
-                      <span className="font-semibold text-gray-600 w-24 text-sm">Yard ID:</span>
-                      <span className="text-charcoal font-semibold">{infoUser.yard_system_id}</span>
-                    </div>
-                  )}
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">Shift:</span>
-                    {getShiftBadge(infoUser.shift_preference) ? (
-                      <span className={`px-2 py-0.5 text-xs font-semibold rounded ${getShiftBadge(infoUser.shift_preference).className}`}>
-                        {getShiftBadge(infoUser.shift_preference).label}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Not set</span>
-                    )}
-                  </div>
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">Agency:</span>
-                    <span className="text-charcoal">{infoUser.agency_name || 'Direct'}</span>
-                  </div>
-                  <div className="flex items-start">
-                    <span className="font-semibold text-gray-600 w-24 text-sm">Score:</span>
-                    <span className="text-charcoal font-semibold">{infoUser.performance_score || '–'}</span>
-                  </div>
-                  {lastLogin ? (
-                    <div className="flex items-start pt-2 border-t border-gray-100">
-                      <span className="font-semibold text-gray-600 w-24 text-sm">Last login:</span>
-                      <div className="flex-1">
-                        <div className="text-charcoal">{new Date(lastLogin).toLocaleString()}</div>
-                        <div className="text-gray-500 text-xs mt-1">{formatDistanceToNow(new Date(lastLogin), { addSuffix: true })}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm pt-2 border-t border-gray-100">Last login information not available</p>
-                  )}
-                </div>
-              )}
-              <div className="text-right mt-5 pt-4 border-t border-gray-200">
-                <button onClick={closeInfoModal} className="admin-btn">Close</button>
-              </div>
-            </div>
-        </Modal>
-      )}
-      
+
       <ConfirmDialog
         isOpen={unsavedDialogOpen}
         onClose={() => {
@@ -732,8 +553,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
     {selectedUser && (
       <div
         className="fixed right-0 top-[72px] z-[60] flex h-[calc(100dvh-72px)] w-full min-w-0 flex-col border-l border-gray-200 bg-white shadow-xl md:static md:z-auto md:h-full md:min-h-0 md:w-auto md:flex-1 md:basis-0 md:overflow-hidden md:rounded-xl md:border md:shadow-none"
-        role="dialog"
-        aria-modal="true"
+        role="region"
         aria-labelledby="admin-user-drawer-title"
       >
         <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4">
@@ -748,7 +568,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               value={selectedUser.role || ''}
               onChange={(e) => handleRoleChange(selectedUser, e.target.value)}
               disabled={roleUpdatingUserId === selectedUser.id}
-              className="admin-input min-h-11 !w-auto shrink-0 disabled:opacity-60"
+              className="admin-input admin-select min-h-11 !w-auto shrink-0 disabled:opacity-60"
             >
               <option value="">User</option>
               <option value="admin">Admin</option>
@@ -785,7 +605,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               userPanel === 'violations' ? 'border-charcoal text-charcoal' : 'border-transparent text-gray-500 hover:text-charcoal'
             }`}
           >
-            Attendance & Violations
+            Info
             {typeof selectedViolationCount === 'number' && selectedViolationCount > 0 && (
               <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-gray-200 px-1 text-xs font-bold text-charcoal">
                 {selectedViolationCount}
@@ -831,7 +651,7 @@ export default function UserList({ users, onRefresh, focusUserId, focusTab, onFo
               user={selectedUser}
               inline
               onDirtyChange={setFormDirty}
-              onClose={() => requestExpandToggle(selectedUser.id)}
+              onClose={() => {}}
               onSuccess={() => {
                 handleRefresh();
                 setFormDirty(false);

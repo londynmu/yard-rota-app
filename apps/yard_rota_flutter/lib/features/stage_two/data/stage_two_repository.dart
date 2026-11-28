@@ -279,13 +279,11 @@ class StageTwoRepository {
     required UserSession session,
     required String userId,
     required String body,
-    String category = 'other',
   }) async {
     requireAdmin(session);
     await _client.from('shunter_violations').insert({
       'user_id': userId,
       'body': body.trim(),
-      'category': category,
       'created_by': session.userId,
     });
   }
