@@ -5,7 +5,8 @@
 -- Edge secrets (set by owner, not in this file):
 --   VMU_DEFECT_EMAIL_FROM=vmu@shunters.net
 --   VMU_DEFECT_EMAIL_FROM_NAME=VMU Alerts (optional)
---   SENDGRID_API_KEY (existing), APP_BASE_URL (existing)
+--   VMU_SENDGRID_API_KEY (do not overwrite rota SENDGRID_API_KEY)
+--   APP_BASE_URL (existing)
 
 -- ---------------------------------------------------------------------------
 -- Digest ledger (idempotent claim per London slot+date)

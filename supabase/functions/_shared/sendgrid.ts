@@ -1,7 +1,20 @@
 /**
  * Shared SendGrid mail sender for Yard Rota edge functions.
  * From address is always supplied by the caller (rota vs VMU must not share fallbacks).
+ *
+ * API key: callers pass `apiKey` explicitly. For VMU, prefer resolving via
+ * `resolveVmuSendGridApiKey()` (VMU_SENDGRID_API_KEY, then SENDGRID_API_KEY).
+ * Rota must keep using SENDGRID_API_KEY only.
  */
+
+/** VMU alerts: VMU_SENDGRID_API_KEY first, fallback SENDGRID_API_KEY. */
+export function resolveVmuSendGridApiKey(): string {
+  return (
+    Deno.env.get("VMU_SENDGRID_API_KEY") ||
+    Deno.env.get("SENDGRID_API_KEY") ||
+    ""
+  );
+}
 
 export type SendGridAttachment = {
   /** Raw base64 (no data: URI prefix). */

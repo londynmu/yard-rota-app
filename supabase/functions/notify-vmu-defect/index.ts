@@ -10,7 +10,10 @@ import {
   parseAgencyEmails,
   parseEmailFromAddress,
 } from "../_shared/parseAgencyEmails.ts";
-import { sendViaSendGrid } from "../_shared/sendgrid.ts";
+import {
+  resolveVmuSendGridApiKey,
+  sendViaSendGrid,
+} from "../_shared/sendgrid.ts";
 
 type DigestSlot = "morning" | "evening";
 
@@ -457,15 +460,18 @@ serve(async (req) => {
       });
     }
 
-    const sendgridKey = Deno.env.get("SENDGRID_API_KEY") || "";
+    const sendgridKey = resolveVmuSendGridApiKey();
     const fromRaw = Deno.env.get("VMU_DEFECT_EMAIL_FROM") || "";
     const fromName = Deno.env.get("VMU_DEFECT_EMAIL_FROM_NAME") || "VMU Alerts";
     if (!sendgridKey) {
       await markLedger("failed", {
-        error_message: "SENDGRID_API_KEY missing",
+        error_message: "VMU_SENDGRID_API_KEY missing",
         defect_count: defectRows.length,
       });
-      return json(500, { error: "Server email configuration missing" });
+      return json(500, {
+        error:
+          "Server email configuration missing (set VMU_SENDGRID_API_KEY)",
+      });
     }
     const fromParsed = parseEmailFromAddress(fromRaw);
     if (!isValidVmuFromEmail(fromParsed.email)) {
