@@ -10,6 +10,11 @@ import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { safeLocalStorage } from '../utils/safeStorage';
+import {
+  fetchVmuDamagesCached,
+  fetchVmuMetaCached,
+  invalidateVmuLoadCache,
+} from '../utils/vmuLoadCache';
 
 
 const VMU_FILTERS_KEY = 'vmu_filters';
@@ -126,63 +131,85 @@ export default function VmuPage() {
     safeLocalStorage.setItem(VMU_FILTERS_KEY, JSON.stringify(filters));
   }, [filters]);
 
-  // ─── Fetch data: open defects first, then recent resolved ───
+  const mergeDamageRows = useCallback((openRows, resolvedRows, checkItemLabels) => {
+    const byId = new Map();
+    [...(openRows || []), ...(resolvedRows || [])].forEach((row) => {
+      if (!byId.has(row.id)) byId.set(row.id, row);
+    });
+    return enhanceDamages([...byId.values()], checkItemLabels);
+  }, []);
+
+  // ─── Fetch: meta + open first (paint), resolved in parallel / then merge ───
   const fetchData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
       const statusFilter = filters.status;
+      const needOpen = !statusFilter || statusFilter !== 'resolved';
+      const needResolved = !statusFilter || statusFilter === 'resolved';
 
-      const [tugsRes, checkItemsRes] = await Promise.all([
-        supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
-        supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
-      ]);
-      if (tugsRes.error) throw tugsRes.error;
-      if (checkItemsRes.error) throw checkItemsRes.error;
-
-      const checkItemLabels = {};
-      (checkItemsRes.data || []).forEach(item => {
-        checkItemLabels[item.item_key] = item.label;
+      const metaPromise = fetchVmuMetaCached(async () => {
+        const [tugsRes, checkItemsRes] = await Promise.all([
+          supabase.from('tugs').select('id, tug_number, display_name').order('tug_number'),
+          supabase.from('precheck_check_items').select('item_key, label').eq('is_active', true),
+        ]);
+        if (tugsRes.error) throw tugsRes.error;
+        if (checkItemsRes.error) throw checkItemsRes.error;
+        const checkItemLabels = {};
+        (checkItemsRes.data || []).forEach((item) => {
+          checkItemLabels[item.item_key] = item.label;
+        });
+        return { tugs: tugsRes.data || [], checkItemLabels };
       });
 
-      let openRows = [];
-      let resolvedRows = [];
+      const openPromise = needOpen
+        ? fetchVmuDamagesCached('open', statusFilter || '', async () => {
+            let openQuery = supabase
+              .from('precheck_damages')
+              .select(DAMAGES_SELECT)
+              .neq('source', 'remarks')
+              .neq('repair_status', 'resolved')
+              .order('created_at', { ascending: false });
+            if (statusFilter) {
+              openQuery = openQuery.eq('repair_status', statusFilter);
+            }
+            const openRes = await openQuery;
+            if (openRes.error) throw openRes.error;
+            return openRes.data || [];
+          })
+        : Promise.resolve([]);
 
-      if (!statusFilter || statusFilter !== 'resolved') {
-        let openQuery = supabase
-          .from('precheck_damages')
-          .select(DAMAGES_SELECT)
-          .neq('source', 'remarks')
-          .neq('repair_status', 'resolved')
-          .order('created_at', { ascending: false });
-        if (statusFilter) {
-          openQuery = openQuery.eq('repair_status', statusFilter);
+      const resolvedPromise = needResolved
+        ? fetchVmuDamagesCached('resolved', statusFilter || '', async () => {
+            const resolvedRes = await supabase
+              .from('precheck_damages')
+              .select(DAMAGES_SELECT)
+              .neq('source', 'remarks')
+              .eq('repair_status', 'resolved')
+              .order('created_at', { ascending: false })
+              .limit(RESOLVED_FETCH_LIMIT);
+            if (resolvedRes.error) throw resolvedRes.error;
+            return resolvedRes.data || [];
+          })
+        : Promise.resolve([]);
+
+      // Paint as soon as open (or resolved-only) + meta are ready; merge resolved after.
+      if (needOpen) {
+        const [meta, openRows] = await Promise.all([metaPromise, openPromise]);
+        setTugs(meta.tugs);
+        setDamages(mergeDamageRows(openRows, [], meta.checkItemLabels));
+        setLoading(false);
+        const resolvedRows = await resolvedPromise;
+        if (resolvedRows.length > 0) {
+          setDamages(mergeDamageRows(openRows, resolvedRows, meta.checkItemLabels));
         }
-        const openRes = await openQuery;
-        if (openRes.error) throw openRes.error;
-        openRows = openRes.data || [];
+      } else {
+        const [meta, resolvedRows] = await Promise.all([metaPromise, resolvedPromise]);
+        setTugs(meta.tugs);
+        setDamages(mergeDamageRows([], resolvedRows, meta.checkItemLabels));
+        setLoading(false);
       }
 
-      if (!statusFilter || statusFilter === 'resolved') {
-        const resolvedRes = await supabase
-          .from('precheck_damages')
-          .select(DAMAGES_SELECT)
-          .neq('source', 'remarks')
-          .eq('repair_status', 'resolved')
-          .order('created_at', { ascending: false })
-          .limit(RESOLVED_FETCH_LIMIT);
-        if (resolvedRes.error) throw resolvedRes.error;
-        resolvedRows = resolvedRes.data || [];
-      }
-
-      const merged = [...openRows, ...resolvedRows];
-      const byId = new Map();
-      merged.forEach((row) => {
-        if (!byId.has(row.id)) byId.set(row.id, row);
-      });
-
-      setDamages(enhanceDamages([...byId.values()], checkItemLabels));
-      setTugs(tugsRes.data || []);
       setActivityLogs({});
       setConfirmationsByDamage({});
       setFixedConfirmationsByDamage({});
@@ -190,10 +217,9 @@ export default function VmuPage() {
     } catch (err) {
       console.error('[VmuPage] Fetch error:', err);
       setLoadError('Could not load defects.');
-    } finally {
       setLoading(false);
     }
-  }, [filters.status]);
+  }, [filters.status, mergeDamageRows]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -241,6 +267,7 @@ export default function VmuPage() {
         .eq('id', damageId);
 
       if (error) throw error;
+      invalidateVmuLoadCache();
 
       // If status changed to resolved, refetch for resolved_profile
       if (updates.repair_status === 'resolved') {
@@ -296,6 +323,7 @@ export default function VmuPage() {
     } catch (err) {
       console.error('[VmuPage] Update error:', err);
       toast.error('Could not update defect. Try again.');
+      invalidateVmuLoadCache();
       fetchData(); // revert on error
     }
   };
@@ -518,8 +546,9 @@ export default function VmuPage() {
         {/* Header – closed sub-card: check item, status, last activity, date/time */}
         <button
           type="button"
+          aria-expanded={isExpanded}
           onClick={() => setExpandedDefectId(prev => prev === d.id ? null : d.id)}
-          className={`w-full px-4 py-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
+          className={`w-full min-h-11 px-4 py-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
         >
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 items-center">
             <div className="flex items-center gap-2 min-w-0">
@@ -528,9 +557,9 @@ export default function VmuPage() {
                 {d.check_item_label || d.description || '—'}
               </span>
             </div>
-            <span className="text-[11px] font-medium text-gray-600 truncate">{cfg.label}</span>
-            <span className="text-[11px] text-gray-500 truncate">{getLastActivityEntryShort(d)}</span>
-            <span className="text-[10px] text-gray-400 whitespace-nowrap sm:justify-self-end">
+            <span className="text-xs font-medium text-slate-600 truncate">{cfg.label}</span>
+            <span className="text-xs text-slate-500 truncate">{getLastActivityEntryShort(d)}</span>
+            <span className="text-xs text-slate-400 whitespace-nowrap sm:justify-self-end">
               {formatLastChangeDateTime(getLastChangeTimestamp(d))}
             </span>
           </div>
@@ -544,17 +573,18 @@ export default function VmuPage() {
               {/* LEFT: Description + Photos */}
               <div className="p-3 pb-0 lg:pb-3 lg:pr-4 lg:border-r border-slate-100 space-y-3">
                 <div>
-                  <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</h4>
-                  <p className="text-sm text-gray-700 leading-snug">{d.description}</p>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</h4>
+                  <p className="text-sm text-slate-700 leading-snug">{d.description}</p>
                 </div>
                 {d.image_urls && d.image_urls.length > 0 && (
                   <div>
-                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Photos ({d.image_urls.length})</h4>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Photos ({d.image_urls.length})</h4>
                     <div className={`grid gap-1.5 ${showAllPhotos[d.id] ? 'grid-cols-3' : 'grid-cols-2'}`}>
                       {(showAllPhotos[d.id] ? d.image_urls : d.image_urls.slice(0, 4)).map((url, idx) => (
                         <button
-                          key={idx}
+                          key={url || idx}
                           type="button"
+                          aria-label={`Open defect photo ${idx + 1}`}
                           onClick={async () => {
                             try {
                               const signed = await createPrecheckSignedUrl(supabase, url);
@@ -563,18 +593,19 @@ export default function VmuPage() {
                               setLightboxUrl(url);
                             }
                           }}
-                          className="aspect-square rounded overflow-hidden bg-slate-100 cursor-pointer hover:opacity-85 transition-opacity"
+                          className="aspect-square min-h-11 rounded overflow-hidden bg-slate-100 cursor-pointer hover:opacity-85 transition-opacity"
                         >
-                          <PrecheckSignedImage url={url} className="w-full h-full object-cover" />
+                          <PrecheckSignedImage url={url} className="w-full h-full object-cover" alt="" />
                         </button>
                       ))}
                       {!showAllPhotos[d.id] && d.image_urls.length > 4 && (
                         <button
                           type="button"
+                          aria-label={`Show ${d.image_urls.length - 4} more photos`}
                           onClick={() => setShowAllPhotos(prev => ({ ...prev, [d.id]: true }))}
-                          className="aspect-square rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer flex flex-col items-center justify-center text-gray-600"
+                          className="aspect-square min-h-11 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer flex flex-col items-center justify-center text-slate-600"
                         >
-                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                           </svg>
                           <span className="text-xs">+{d.image_urls.length - 4}</span>
@@ -585,9 +616,9 @@ export default function VmuPage() {
                       <button
                         type="button"
                         onClick={() => setShowAllPhotos(prev => ({ ...prev, [d.id]: false }))}
-                        className="text-[10px] text-blue-600 hover:text-blue-800 mt-1 flex items-center gap-0.5"
+                        className="text-xs font-medium text-charcoal underline-offset-2 hover:underline mt-1 min-h-11 inline-flex items-center gap-0.5"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                         </svg>
                         Show less
@@ -600,11 +631,11 @@ export default function VmuPage() {
               {/* RIGHT: Status + VMU notes */}
               <div className="p-3 lg:pl-4 space-y-2.5">
                 <div>
-                  <label htmlFor={`vmu-status-${d.id}`} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Status</label>
+                  <label htmlFor={`vmu-status-${d.id}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Status</label>
                   {readOnly ? (
                     <div
                       id={`vmu-status-${d.id}`}
-                      className={`w-full text-xs font-medium text-charcoal rounded-lg px-2.5 py-1.5 border ${cfg.border} ${cfg.bg}`}
+                      className={`w-full min-h-11 text-sm font-medium text-charcoal rounded-lg px-2.5 py-2.5 border ${cfg.border} ${cfg.bg}`}
                     >
                       {cfg.label}
                     </div>
@@ -613,7 +644,7 @@ export default function VmuPage() {
                       id={`vmu-status-${d.id}`}
                       value={d.repair_status}
                       onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                      className={`w-full text-xs font-medium text-charcoal rounded-lg pl-2.5 pr-8 py-1.5 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:0.875rem_0.875rem] bg-[right_0.625rem_center] focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
+                      className={`admin-input w-full min-h-11 text-sm font-medium text-charcoal rounded-lg pl-2.5 pr-8 py-2 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:0.875rem_0.875rem] bg-[right_0.625rem_center] focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
                       style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
                     >
                       {getStatusOptions(STATUS_CONFIG, d.repair_status).map(opt => (
@@ -623,11 +654,11 @@ export default function VmuPage() {
                   )}
                 </div>
                 <div>
-                  <label htmlFor={`vmu-notes-${d.id}`} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">VMU Notes</label>
+                  <label htmlFor={`vmu-notes-${d.id}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">VMU Notes</label>
                   {readOnly ? (
                     <p
                       id={`vmu-notes-${d.id}`}
-                      className="w-full text-xs leading-snug text-gray-700 rounded-lg px-2.5 py-1.5 border border-slate-200 bg-slate-50 min-h-[2.5rem]"
+                      className="w-full text-sm leading-snug text-slate-700 rounded-lg px-2.5 py-2 border border-slate-200 bg-slate-50 min-h-11"
                     >
                       {d.vmu_notes || '—'}
                     </p>
@@ -641,12 +672,12 @@ export default function VmuPage() {
                         const val = e.target.value.trim();
                         if (val !== (d.vmu_notes || '')) saveField(d.id, 'vmu_notes', val);
                       }}
-                      className="w-full text-xs leading-snug text-gray-700 rounded-lg px-2.5 py-1.5 border border-slate-200 bg-white placeholder:text-gray-400 resize-none focus:outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-300/40 transition-colors"
+                      className="w-full min-h-11 text-sm leading-snug text-slate-700 rounded-lg px-2.5 py-2 border border-slate-200 bg-white placeholder:text-slate-400 resize-none focus:outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-300/40 transition-colors"
                     />
                   )}
                 </div>
                 {d.repair_status === 'resolved' && resolvedName && (
-                  <div className="text-[10px] text-green-700 bg-green-50/70 rounded-lg px-2.5 py-1.5 border border-green-100">
+                  <div className="text-xs text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-2 border border-emerald-100">
                     <span className="font-semibold">Resolved</span> by {resolvedName} on {formatDate(d.resolved_at)}
                   </div>
                 )}
@@ -655,13 +686,13 @@ export default function VmuPage() {
 
             {/* Row 2: Activity Log – full width, max 15 lines visible, then scroll */}
             <div className="border-t border-slate-100 px-3 pt-2.5 pb-3">
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Activity Log</h4>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Activity Log</h4>
               {(() => {
               const isLogLoading = activityLoading[d.id];
 
               if (isLogLoading) {
                 return (
-                  <div className="text-xs text-gray-400 py-2">Loading activity...</div>
+                  <div className="text-xs text-slate-400 py-2">Loading activity...</div>
                 );
               }
 
@@ -720,12 +751,12 @@ export default function VmuPage() {
 
                       const isFirst = entry.type === 'initial_report';
                       return (
-                        <div key={entry.id} className="flex gap-2 text-[11px] text-gray-500 leading-tight py-0.5">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${isFirst ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                        <div key={entry.id} className="flex gap-2 text-xs text-slate-500 leading-tight py-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${isFirst ? 'bg-blue-500' : 'bg-slate-300'}`} aria-hidden="true" />
                           <span className="flex-1 min-w-0">
-                            <span className="font-semibold text-gray-700">{name}</span>{' '}
+                            <span className="font-semibold text-slate-700">{name}</span>{' '}
                             {description}
-                            <span className="text-gray-400 ml-1">· {time}</span>
+                            <span className="text-slate-400 ml-1">· {time}</span>
                           </span>
                         </div>
                       );
@@ -743,40 +774,60 @@ export default function VmuPage() {
 
   // ─── Render ───
   return (
-    <div className="min-h-screen flex flex-col max-w-4xl mx-auto px-4 py-6">
+    <div className="page-content-inner min-h-screen flex flex-col px-4 py-6 md:px-6">
       <div className="flex-1 flex flex-col gap-4">
       {/* Filters */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-2 md:flex-nowrap">
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-          placeholder="Search description, tug, notes..."
-          className="w-full md:flex-1 md:min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 px-4 md:px-3 text-sm md:text-xs font-medium text-charcoal bg-white shadow-sm placeholder:text-gray-400"
-        />
-        <div className="grid grid-cols-2 gap-2 md:contents">
-          <select
-            value={filters.tug}
-            onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 md:min-w-[8rem] appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
-            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-          >
-            <option value="">All tugs</option>
-            {tugs.map(t => (
-              <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
-            ))}
-          </select>
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="w-full min-w-0 border border-gray-200 rounded-xl md:rounded-lg py-2.5 md:py-1.5 pl-3 pr-8 text-sm md:text-xs font-medium text-charcoal bg-white md:w-auto md:flex-shrink-0 appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
-            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
-          >
-            <option value="">All statuses</option>
-            {getStatusOptions(STATUS_CONFIG, filters.status).map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+      <div className="card-modern p-3 md:p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-3 md:flex-nowrap">
+          <div className="w-full md:flex-1 md:min-w-0">
+            <label htmlFor="vmu-filter-search" className="block text-xs font-semibold text-slate-600 mb-1">
+              Search
+            </label>
+            <input
+              id="vmu-filter-search"
+              type="search"
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              placeholder="Description, tug, notes..."
+              className="admin-input w-full min-h-11 border border-slate-200 rounded-xl py-2.5 px-4 text-sm font-medium text-charcoal bg-white shadow-sm placeholder:text-slate-400"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:contents">
+            <div className="min-w-0 md:w-auto md:flex-shrink-0 md:min-w-[9rem]">
+              <label htmlFor="vmu-filter-tug" className="block text-xs font-semibold text-slate-600 mb-1">
+                Tug
+              </label>
+              <select
+                id="vmu-filter-tug"
+                value={filters.tug}
+                onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
+                className="admin-input w-full min-h-11 border border-slate-200 rounded-xl pl-3 pr-8 text-sm font-medium text-charcoal bg-white appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+              >
+                <option value="">All tugs</option>
+                {tugs.map(t => (
+                  <option key={t.id} value={t.id}>{t.display_name ? `${t.display_name} (${t.tug_number})` : t.tug_number}</option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-0 md:w-auto md:flex-shrink-0 md:min-w-[9rem]">
+              <label htmlFor="vmu-filter-status" className="block text-xs font-semibold text-slate-600 mb-1">
+                Status
+              </label>
+              <select
+                id="vmu-filter-status"
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                className="admin-input w-full min-h-11 border border-slate-200 rounded-xl pl-3 pr-8 text-sm font-medium text-charcoal bg-white appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
+                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+              >
+                <option value="">All statuses</option>
+                {getStatusOptions(STATUS_CONFIG, filters.status).map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -797,8 +848,8 @@ export default function VmuPage() {
           </button>
         </div>
       ) : filteredDamages.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <p className="font-medium">No defects found</p>
+        <div className="text-center py-12 text-slate-400">
+          <p className="font-medium text-slate-600">No defects found</p>
           <p className="text-sm mt-1">Try adjusting your filters.</p>
         </div>
       ) : (
@@ -831,22 +882,24 @@ export default function VmuPage() {
                 {/* Tug header – equal columns, no truck icon */}
                 <button
                   type="button"
+                  aria-expanded={isGroupExpanded}
+                  aria-controls={`vmu-tug-panel-${group.id}`}
                   onClick={() => toggleTugGroup(group.id)}
-                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center min-h-[52px] transition-colors text-left ${headerStyle}`}
+                  className={`w-full px-4 py-3 grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3 items-center min-h-11 transition-colors text-left ${headerStyle}`}
                 >
                   <span className="text-sm font-semibold text-charcoal truncate">{group.name}</span>
-                  <span className="text-xs text-gray-600 font-mono truncate">{group.number}</span>
-                  <span className="text-xs text-gray-500 truncate">
+                  <span className="text-xs text-slate-600 font-mono truncate">{group.number}</span>
+                  <span className="text-xs text-slate-500 truncate">
                     {group.openCount} awaiting repair
                   </span>
-                  <span className="text-[10px] text-gray-500 truncate sm:justify-self-end">
+                  <span className="text-xs text-slate-500 truncate sm:justify-self-end">
                     {formatLastChangeDateTime(latestActivityTs)}
                   </span>
                 </button>
 
                 {/* Tug damages */}
                 {isGroupExpanded && (
-                  <div className="border-t border-gray-200 p-3 space-y-2">
+                  <div id={`vmu-tug-panel-${group.id}`} className="border-t border-slate-200 p-3 space-y-2">
                     {openDamages.length > 0 && (
                       <div className="space-y-2">
                         {openDamages.map(d => renderDefectCard(d))}
@@ -855,7 +908,7 @@ export default function VmuPage() {
                     {resolvedDamages.length > 0 && (
                       hasAwaiting ? (
                         <details className="mt-2">
-                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 py-1 list-none">
+                          <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700 min-h-11 flex items-center list-none">
                             {resolvedDamages.length} resolved defect{resolvedDamages.length !== 1 ? 's' : ''}
                           </summary>
                           <div className="space-y-2 mt-2">
@@ -894,19 +947,26 @@ export default function VmuPage() {
       {/* ─── Lightbox ─── */}
       {lightboxUrl && createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Defect photo"
           className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4"
           onClick={() => setLightboxUrl(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setLightboxUrl(null);
+          }}
         >
           <button
             type="button"
+            aria-label="Close photo"
             onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl font-light z-10"
+            className="absolute top-4 right-4 min-h-11 min-w-11 text-white/80 hover:text-white text-3xl font-light z-10"
           >
             ×
           </button>
           <img
             src={lightboxUrl}
-            alt=""
+            alt="Defect photo enlarged"
             className="max-w-full max-h-[90vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />

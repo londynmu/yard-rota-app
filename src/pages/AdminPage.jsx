@@ -22,7 +22,6 @@ const ShunterOfTheMonthManager = lazyWithRetry(() => import('../components/Admin
 const TugManager = lazyWithRetry(() => import('../components/Admin/PreCheck/TugManager'));
 const PreCheckList = lazyWithRetry(() => import('../components/Admin/PreCheck/PreCheckList'));
 const CheckItemManager = lazyWithRetry(() => import('../components/Admin/PreCheck/CheckItemManager'));
-const AttendancePage = lazyWithRetry(() => import('./AttendancePage'));
 const InductionGuideManager = lazyWithRetry(() => import('../components/Admin/InductionGuideManager'));
 
 function AdminSectionFallback() {
@@ -52,13 +51,14 @@ export default function AdminPage() {
   // Aktywna sekcja - zmiana na sidebar navigation
   const [activeSection, setActiveSection] = useState(() => {
     const savedSection = safeLocalStorage.getItem('adminActiveSection');
-    // Validate saved section
+    // Old Attendance page now lives under Users → Attendance & Violations
+    const migratedSection = savedSection === 'attendance' ? 'users' : savedSection;
     const validSections = [
-      'dashboard', 'users', 'approvals', 'availability', 
-      'rota-planner', 'breaks', 'attendance', 'performance', 'stats', 
+      'dashboard', 'users', 'approvals', 'availability',
+      'rota-planner', 'breaks', 'performance', 'stats',
       'shunter-month', 'settings', 'tugs', 'prechecks', 'check-items', 'induction-guide'
     ];
-    return (savedSection && validSections.includes(savedSection)) ? savedSection : 'dashboard';
+    return (migratedSection && validSections.includes(migratedSection)) ? migratedSection : 'dashboard';
   });
   // Sidebar hover state - tylko na desktop, mobile używa mobileSidebarOpen
   const [settingsTab, setSettingsTab] = useState(() => (
@@ -66,7 +66,7 @@ export default function AdminPage() {
   ));
   const mainContentRef = useRef(null);
   const prevSectionRef = useRef(activeSection);
-  // Deep-link from Black list → Users Violations tab
+  // Deep-link into Users (e.g. Assessments Due on dashboard)
   const [usersFocus, setUsersFocus] = useState(null);
 
   // Aktualizuj tytuł strony w top barze + powiadom header (mobile)
@@ -78,7 +78,6 @@ export default function AdminPage() {
       'availability': 'Availability',
       'rota-planner': 'Rota Planner',
       'breaks': 'Breaks',
-      'attendance': 'Attendance',
       'performance': 'Performance',
       'stats': 'Activity',
       'shunter-month': 'Shunter of the Month',
@@ -149,12 +148,6 @@ export default function AdminPage() {
     if (activeSection !== 'users') return undefined;
     return lockPageScroll();
   }, [activeSection]);
-
-  const openUserViolations = (userId) => {
-    if (!userId) return;
-    setUsersFocus({ userId, tab: 'violations' });
-    setActiveSection('users');
-  };
 
   const openUserAssessments = (userId) => {
     if (!userId) return;
@@ -267,10 +260,6 @@ export default function AdminPage() {
         return <RotaPlannerPage />;
       case 'breaks':
         return <BrakesManager />;
-      case 'attendance':
-        return (
-          <AttendancePage onOpenUserViolations={openUserViolations} />
-        );
       case 'tugs':
         return <TugManager />;
       case 'prechecks':
@@ -309,28 +298,23 @@ export default function AdminPage() {
   };
 
   const isUsersSection = activeSection === 'users';
-  const isAttendanceSection = activeSection === 'attendance';
 
   // Główna zawartość strony admina - uprawnienia już sprawdzone przez ProtectedAdminRoute
   return (
     <div className={`bg-offwhite ${
       isUsersSection
         ? 'h-[calc(100dvh-4rem)] overflow-hidden'
-        : isAttendanceSection
-          ? 'min-h-screen md:h-[calc(100dvh-4rem)] md:min-h-0 md:overflow-hidden'
-          : 'min-h-screen'
+        : 'min-h-screen'
     }`}>
       <div
         ref={mainContentRef}
         className={
           isUsersSection
             ? 'h-full overflow-hidden'
-            : isAttendanceSection
-              ? 'min-h-screen overflow-y-auto md:h-full md:min-h-0 md:overflow-hidden'
-              : 'min-h-screen overflow-y-auto'
+            : 'min-h-screen overflow-y-auto'
         }
       >
-        <div className={`p-4 md:p-6 lg:p-8 ${isUsersSection ? 'h-full' : isAttendanceSection ? 'md:h-full' : ''}`}>
+        <div className={`p-4 md:p-6 lg:p-8 ${isUsersSection ? 'h-full' : ''}`}>
           <Suspense fallback={<AdminSectionFallback />}>
             {renderContent()}
           </Suspense>

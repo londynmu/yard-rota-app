@@ -90,7 +90,6 @@ export const ADMIN_NAV = [
       { id: 'users', label: 'Users', section: 'users', tone: 'blue' },
       { id: 'approvals', label: 'Approvals', section: 'approvals', tone: 'amber', badge: 'approvals' },
       { id: 'availability', label: 'Availability', section: 'availability', tone: 'teal' },
-      { id: 'attendance', label: 'Attendance', section: 'attendance', tone: 'rose' },
       { id: 'shunter-month', label: 'Shunter of the Month', section: 'shunter-month', tone: 'amber', badge: 'shunter' },
     ],
   },
