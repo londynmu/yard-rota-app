@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { useNotifications } from '../lib/NotificationContext';
@@ -9,6 +8,7 @@ import PrecheckSignedImage from '../components/PreCheck/PrecheckSignedImage';
 import { createPrecheckSignedUrl } from '../utils/precheckImageUrl';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
 import { safeLocalStorage } from '../utils/safeStorage';
 import {
   fetchVmuDamagesCached,
@@ -122,6 +122,7 @@ export default function VmuPage() {
   const [confirmationsByDamage, setConfirmationsByDamage] = useState({});
   const [fixedConfirmationsByDamage, setFixedConfirmationsByDamage] = useState({});
   const [activityLoading, setActivityLoading] = useState({});
+  const activityLoadedRef = useRef(new Set());
 
   // ─── Resolve confirmation ───
   const [resolveConfirm, setResolveConfirm] = useState(null);
@@ -210,6 +211,7 @@ export default function VmuPage() {
         setLoading(false);
       }
 
+      activityLoadedRef.current.clear();
       setActivityLogs({});
       setConfirmationsByDamage({});
       setFixedConfirmationsByDamage({});
@@ -359,13 +361,7 @@ export default function VmuPage() {
   // ─── Fetch activity log + confirmations when defect card expands ───
   const fetchActivityLog = useCallback(async (damageId) => {
     if (!damageId) return;
-    if (
-      activityLogs[damageId] !== undefined
-      && confirmationsByDamage[damageId] !== undefined
-      && fixedConfirmationsByDamage[damageId] !== undefined
-    ) {
-      return;
-    }
+    if (activityLoadedRef.current.has(damageId)) return;
     setActivityLoading(prev => ({ ...prev, [damageId]: true }));
     try {
       const [logRes, confRes, fixedRes] = await Promise.all([
@@ -390,6 +386,7 @@ export default function VmuPage() {
       if (logRes.error) throw logRes.error;
       if (confRes.error) throw confRes.error;
       if (fixedRes.error) throw fixedRes.error;
+      activityLoadedRef.current.add(damageId);
       setActivityLogs(prev => ({ ...prev, [damageId]: logRes.data || [] }));
       setConfirmationsByDamage(prev => ({ ...prev, [damageId]: confRes.data || [] }));
       setFixedConfirmationsByDamage(prev => ({ ...prev, [damageId]: fixedRes.data || [] }));
@@ -401,7 +398,7 @@ export default function VmuPage() {
     } finally {
       setActivityLoading(prev => ({ ...prev, [damageId]: false }));
     }
-  }, [activityLogs, confirmationsByDamage, fixedConfirmationsByDamage]);
+  }, []);
 
   useEffect(() => {
     if (expandedDefectId) {
@@ -547,12 +544,13 @@ export default function VmuPage() {
         <button
           type="button"
           aria-expanded={isExpanded}
+          aria-controls={`vmu-defect-panel-${d.id}`}
           onClick={() => setExpandedDefectId(prev => prev === d.id ? null : d.id)}
           className={`w-full min-h-11 px-4 py-3 text-left cursor-pointer ${cfg.bg} hover:opacity-95 transition-opacity`}
         >
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 items-center">
             <div className="flex items-center gap-2 min-w-0">
-              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} aria-hidden="true" />
               <span className="text-xs font-medium text-charcoal truncate">
                 {d.check_item_label || d.description || '—'}
               </span>
@@ -567,7 +565,7 @@ export default function VmuPage() {
 
         {/* Expanded detail */}
         {isExpanded && (
-          <div className="border-t border-slate-100 bg-white">
+          <div id={`vmu-defect-panel-${d.id}`} className="border-t border-slate-100 bg-white">
             {/* Row 1: Two equal columns – left: Description+Photos, right: Form */}
             <div className="grid grid-cols-1 lg:grid-cols-2">
               {/* LEFT: Description + Photos */}
@@ -644,8 +642,7 @@ export default function VmuPage() {
                       id={`vmu-status-${d.id}`}
                       value={d.repair_status}
                       onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                      className={`admin-input w-full min-h-11 text-sm font-medium text-charcoal rounded-lg pl-2.5 pr-8 py-2 border ${cfg.border} ${cfg.bg} appearance-none bg-no-repeat bg-[length:0.875rem_0.875rem] bg-[right_0.625rem_center] focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
-                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+                      className={`admin-input admin-select w-full min-h-11 text-sm font-medium text-charcoal rounded-lg pl-2.5 py-2 border ${cfg.border} ${cfg.bg} focus:outline-none focus:ring-2 focus:ring-slate-300/40 transition-colors`}
                     >
                       {getStatusOptions(STATUS_CONFIG, d.repair_status).map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -801,8 +798,7 @@ export default function VmuPage() {
                 id="vmu-filter-tug"
                 value={filters.tug}
                 onChange={(e) => setFilters(prev => ({ ...prev, tug: e.target.value }))}
-                className="admin-input w-full min-h-11 border border-slate-200 rounded-xl pl-3 pr-8 text-sm font-medium text-charcoal bg-white appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
-                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+                className="admin-input admin-select w-full min-h-11 border border-slate-200 rounded-xl pl-3 text-sm font-medium text-charcoal bg-white"
               >
                 <option value="">All tugs</option>
                 {tugs.map(t => (
@@ -818,8 +814,7 @@ export default function VmuPage() {
                 id="vmu-filter-status"
                 value={filters.status}
                 onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                className="admin-input w-full min-h-11 border border-slate-200 rounded-xl pl-3 pr-8 text-sm font-medium text-charcoal bg-white appearance-none bg-no-repeat bg-[length:1rem_1rem] bg-[right_0.5rem_center]"
-                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+                className="admin-input admin-select w-full min-h-11 border border-slate-200 rounded-xl pl-3 text-sm font-medium text-charcoal bg-white"
               >
                 <option value="">All statuses</option>
                 {getStatusOptions(STATUS_CONFIG, filters.status).map(opt => (
@@ -833,7 +828,11 @@ export default function VmuPage() {
 
       {/* Content — error vs empty: never show "No defects found" after a failed fetch */}
       {loading ? (
-        <div className="animate-pulse space-y-3">
+        <div
+          className="animate-pulse space-y-3 motion-reduce:animate-none"
+          aria-busy="true"
+          aria-label="Loading defects"
+        >
           {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-slate-200 rounded-xl" />)}
         </div>
       ) : loadError ? (
@@ -944,35 +943,32 @@ export default function VmuPage() {
         cancelText="Cancel"
       />
 
-      {/* ─── Lightbox ─── */}
-      {lightboxUrl && createPortal(
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Defect photo"
-          className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setLightboxUrl(null);
-          }}
-        >
+      <Modal
+        isOpen={Boolean(lightboxUrl)}
+        onClose={() => setLightboxUrl(null)}
+        ariaLabel="Defect photo"
+        overlayClassName="z-[99999]"
+        className="max-w-5xl w-full bg-slate-950 border-slate-800 p-3 sm:p-4"
+      >
+        <div className="relative">
           <button
             type="button"
+            data-autofocus
             aria-label="Close photo"
             onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 min-h-11 min-w-11 text-white/80 hover:text-white text-3xl font-light z-10"
+            className="absolute -right-1 -top-1 z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-2xl font-light text-white/80 hover:bg-white/10 hover:text-white"
           >
             ×
           </button>
-          <img
-            src={lightboxUrl}
-            alt="Defect photo enlarged"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>,
-        document.body
-      )}
+          {lightboxUrl ? (
+            <img
+              src={lightboxUrl}
+              alt="Defect photo enlarged"
+              className="max-h-[85vh] w-full object-contain rounded-lg"
+            />
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 }
